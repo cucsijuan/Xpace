@@ -5,8 +5,8 @@ namespace Xpace.Space;
 /// <summary>
 /// A target drone: flies between random points around the player's ship
 /// (or straight on), takes hits, blows up and comes back a while later.
-/// It jinks: gentle weaves while nobody has it locked, hard turns (up to
-/// <see cref="EvadeG"/>) once a radar locks it. Its brain is plain game
+/// It jinks: gentle weaves while nobody has it locked, hard and frequent
+/// turns (up to <see cref="EvadeG"/>) once a radar locks it or rounds hit it. Its brain is plain game
 /// code: no computer is emulated for it.
 /// </summary>
 public partial class Drone : Node3D, IRadarTarget, IOriginShift
@@ -22,13 +22,15 @@ public partial class Drone : Node3D, IRadarTarget, IOriginShift
     [Export] public NodePath AnchorPath;                // what it flies around
     [Export] public float RadarCrossSection { get; set; } = 3f;   // m², about a light fighter's
     [Export] public bool Evades = true;
-    [Export] public float WeaveG = 0.5f, EvadeG = 3f;
+    [Export] public float WeaveG = 0.5f, EvadeG = 2f;
 
     public ushort RadarId { get; private set; }
     public Vector3 Velocity { get; private set; }
     public bool Alive { get; private set; } = true;
     public int Hits { get; private set; }
     public bool Painted => _painted > 0;
+    /// <summary>Locked or recently hit: it fights for its life.</summary>
+    public bool Threatened => _painted > 0 || _hitRecently > 0;
 
     private static ushort _nextId = 1;
     private Node3D _anchor, _body;
@@ -37,7 +39,7 @@ public partial class Drone : Node3D, IRadarTarget, IOriginShift
     private double _respawn;
     private StandardMaterial3D _paint;
     private Vector3 _jink;
-    private double _jinkLeft, _painted;
+    private double _jinkLeft, _painted, _hitRecently;
     private readonly RandomNumberGenerator _rng = new();
 
     public override void _Ready()
@@ -68,8 +70,11 @@ public partial class Drone : Node3D, IRadarTarget, IOriginShift
         _body.AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(11f, 0.3f, 3f) }, MaterialOverride = _paint, Position = new Vector3(0, 0, 1.5f) });
         _body.AddChild(new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.6f, Height = 1.2f }, MaterialOverride = light, Position = new Vector3(0, 0, -4.2f) });
 
+        // The hitbox is the drone's shape, fuselage and wings: rounds through
+        // the empty space between them miss
         var hitbox = new Area3D { Monitoring = false, CollisionLayer = HitLayer, CollisionMask = 0 };
-        hitbox.AddChild(new CollisionShape3D { Shape = new SphereShape3D { Radius = 6f } });
+        hitbox.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(2.5f, 1.6f, 8f) } });
+        hitbox.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(11f, 0.3f, 3f) }, Position = new Vector3(0, 0, 1.5f) });
         _body.AddChild(hitbox);
     }
 
@@ -84,6 +89,7 @@ public partial class Drone : Node3D, IRadarTarget, IOriginShift
             return;
         }
         _painted -= delta;
+        _hitRecently -= delta;
         if (Evades)
             Jink(dt);
         if (!Straight)
@@ -127,12 +133,12 @@ public partial class Drone : Node3D, IRadarTarget, IOriginShift
         Vector3 heading = Velocity.Normalized();
         if (_jinkLeft <= 0)
         {
-            _jinkLeft = _rng.RandfRange(0.6f, 1.6f);
+            _jinkLeft = Threatened ? _rng.RandfRange(0.5f, 1.4f) : _rng.RandfRange(0.6f, 1.6f);
             Vector3 side = heading.Cross(Vector3.Up);
             if (side.LengthSquared() < 1e-6f)
                 side = heading.Cross(Vector3.Right);
             side = side.Normalized().Rotated(heading, _rng.RandfRange(0, Mathf.Tau));
-            _jink = side * (Painted ? EvadeG : WeaveG) * 9.81f * _rng.RandfRange(0.5f, 1f);
+            _jink = side * (Threatened ? EvadeG : WeaveG) * 9.81f * _rng.RandfRange(0.5f, 1f);
         }
         Vector3 push = _jink - heading * _jink.Dot(heading);
         Velocity = (Velocity + push * dt).Normalized() * Speed;
@@ -152,6 +158,7 @@ public partial class Drone : Node3D, IRadarTarget, IOriginShift
         if (!Alive)
             return;
         Hits++;
+        _hitRecently = 3;
         _health -= damage;
         var flash = CreateTween();
         _paint.AlbedoColor = new Color(1f, 0.9f, 0.6f);

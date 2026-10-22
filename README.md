@@ -70,9 +70,9 @@ A target lost at the edge of the radar's ±60° cone is taken back by itself if 
 **Why it misses.** Nothing is decided by dice: errors come from physical causes.
 - **The radar:** its noise comes from its SNR, which falls with the fourth power of the range, grows with the target's signature and falls with jamming.
 - **The filter:** its gains (`ALPHA`, `BETA_DT` in firectl.asm) trade smoothing the noise against following a turn in time.
-- **The drones:** they jink up to 3 g once locked.
+- **The drones:** they jink at up to 2 g once locked or hit, and they are only as big as their shape: rounds through the space between fuselage and wings miss.
 - **The servos:** they have inertia.
-- **The cannon:** dispersion grows with barrel heat, and every round kicks the mount.
+- **The cannon:** 0.8 mrad of dispersion, growing with barrel heat, and every round kicks the mount.
 
 A better radar (more range, a narrower beam), a better turret or better software shows.
 
@@ -93,7 +93,7 @@ godot --headless --fixed-fps 60 --path . res://tests/maneuver_test.tscn
 - `computer_test`: boots COS, types `DIR`, saves and loads the computer, and measures how many 4.77 MHz machines one core runs.
 - `flight_test`: the ship flown by FLIGHT.COM: turn rates and speed hold with flight assist, drift without it, the FA button, the console free while flying, and direct mode after `FLIGHT OFF`.
 - `combat_test`: FIRECTL.COM against drones: locks with T, measures the aiming error against the exact intercept, counts the hits of a burst at 2 km, destroys the drone, switches target with G and turns the radar off with `FIRECTL OFF`.
-- `accuracy_test`: hit probability by range against a drone jinking at 3 g (three runs per range), and a jammer on the drone: no lock at 4 km, burn-through at 1.5 km. It currently gives about 40% at 500 m, 30% at 1 km, 8% at 2 km and 0% from 4 km (85% against a straight target at 2 km).
+- `accuracy_test`: hit probability by range against a drone jinking at 2 g (four runs per range), and a jammer on the drone: no lock at 4 km, burn-through at 1.5 km. It currently gives about 33% at 500 m, 10% at 1 km, 2% at 2 km and 0% from 4 km (46% against a straight target at 2 km): an evading drone dies inside 1 km, one flying straight even at 2 km.
 
 - `maneuver_test`: firing while the ship turns (it keeps firing and hitting), the lock coming back after the target leaves the cone, and the floating origin moving the world back 40 km in the middle of a fight.
 

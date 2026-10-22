@@ -8,7 +8,7 @@ using Xpace.Space;
 namespace Xpace.Tests;
 
 /// <summary>
-/// How often the turret hits, by range, against a drone that jinks hard once
+/// How often the turret hits, by range, against a drone that jinks (2 g) once
 /// locked; and what a jammer on the drone does to the radar.
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/accuracy_test.tscn
 /// Prints the table; exits with 0 if the checks passed.
@@ -22,7 +22,7 @@ public partial class AccuracyTest : Node3D
     private Drone _drone;
     private PilotControls _controls;
     private int _failures;
-    private const int Trials = 3;
+    private const int Trials = 4;
 
     public override async void _Ready()
     {
@@ -56,9 +56,9 @@ public partial class AccuracyTest : Node3D
             GD.Print($"     {ranges[i],5:0} m  average of {Trials}               {rates[i],6:P0}");
         }
 
-        Check($"a straight target at 2 km is still hit almost always ({straight2k:P0})", straight2k >= 0.8f);
-        Check($"close in, a jinking target is hit often ({rates[0]:P0} at 500 m)", rates[0] >= 0.3f);
-        Check($"far out, it is almost always missed ({rates[4]:P0} at 4 km)", rates[4] <= 0.1f);
+        Check($"a straight target at 2 km is hit often ({straight2k:P0})", straight2k >= 0.35f);
+        Check($"close in, a jinking target is hit now and then ({rates[0]:P0} at 500 m, {rates[1]:P0} at 1 km)", (rates[0] + rates[1]) / 2 >= 0.1f);
+        Check($"far out, it is almost always missed ({rates[2]:P0} at 2 km, {rates[4]:P0} at 4 km)", rates[2] <= 0.1f && rates[4] <= 0.05f);
         Check("the hit rate falls with the range", (rates[0] + rates[1]) / 2 > rates[2] && rates[2] >= rates[4]);
 
         // A jammer on the drone: no lock far out, burn-through close in
@@ -93,7 +93,7 @@ public partial class AccuracyTest : Node3D
         await Seconds(range / _turret.MuzzleSpeed + 0.5);
         int hits = _drone.Hits - hits0;
         float rate = rounds == 0 ? 0 : (float)hits / rounds;
-        GD.Print($"     {range,5:0} m  {(evades ? "jinking 3 g" : "straight   "),-14}  {hits,4} / {rounds,-4}      {rate,6:P0}   {Db(_radar.LockedSnr),3}");
+        GD.Print($"     {range,5:0} m  {(evades ? "jinking 2 g" : "straight   "),-14}  {hits,4} / {rounds,-4}      {rate,6:P0}   {Db(_radar.LockedSnr),3}");
         await Seconds(1);                       // the last heat goes
         return rate;
     }

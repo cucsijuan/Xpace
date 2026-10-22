@@ -93,7 +93,7 @@ Jump computation is a good example of the CPU as a mechanic: a better navigation
   - the echo falls with the fourth power of the range and grows with the target's radar cross-section;
   - jammers raise the noise: they fall only with the square of their distance and count in full inside the beam, hence the *burn-through* range.
 
-  FIRECTL estimates the velocity with an alpha-beta filter. On top of that come servo inertia, cannon dispersion (which grows with barrel heat), and drones that jink at 3 g once locked. Against a manoeuvring target the cannon hits about 40% at 500 m and almost nothing from 3–4 km; against a target flying straight, 85% at 2 km.
+  FIRECTL estimates the velocity with an alpha-beta filter. On top of that come servo inertia, cannon dispersion (0.8 mrad, growing with barrel heat), drones that jink at 2 g once locked or hit, and hitboxes that are the ship's real shape. Against a manoeuvring target the cannon hits about 33% at 500 m, 10% at 1 km and almost nothing from 2 km; against a target flying straight, 46% at 2 km. An evading fighter has to be fought inside 1 km.
 
   A better radar (more power, a narrower beam), a better turret or better software (other filter gains, estimating acceleration, compensating the ship's own rotation, rejecting the jumps of a deception jammer) improves those numbers: that is where the equipment and software markets come in.
 - **Hardware discovery:** register 0 of each slot gives the device type, the manufacturer and the version, as the HWQ instruction did in 0x10c. Software walks the bus to find out what is installed.

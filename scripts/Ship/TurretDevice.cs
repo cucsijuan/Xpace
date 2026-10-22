@@ -29,8 +29,8 @@ public partial class TurretDevice : Node3D, IShipDevice
     [Export] public float ServoDegreesPerSecond = 150f;
     [Export] public float ServoAcceleration = 600f;     // degrees/s²
     [Export] public float ServoGain = 12f;              // 1/s: how fast it closes an error
-    [Export] public float DispersionMrad = 0.6f;        // spread of the rounds, cold barrel
-    [Export] public float RecoilKickMrad = 0.3f;
+    [Export] public float DispersionMrad = 0.8f;        // spread of the rounds (sigma), cold barrel
+    [Export] public float RecoilKickMrad = 0.4f;
     [Export] public float AzimuthLimit = 170f;          // degrees either side
     [Export] public float ElevationMin = -5f, ElevationMax = 85f;
     [Export] public double FireInterval = 0.1;

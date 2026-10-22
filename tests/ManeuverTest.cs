@@ -65,7 +65,7 @@ public partial class ManeuverTest : FloatingOrigin
         int hits = _drone.Hits - hits0;
         _controls.Yaw = 0;
         Check($"turning at {Mathf.RadToDeg(0.4f * 0.6f):0} deg/s, it keeps firing ({rounds} of 40 rounds)", rounds >= 32);
-        Check($"and hitting ({hits} hits, {(rounds == 0 ? 0 : (float)hits / rounds):P0})", hits >= rounds * 0.4f);
+        Check($"and hitting ({hits} hits, {(rounds == 0 ? 0 : (float)hits / rounds):P0})", hits >= rounds * 0.2f);
         await Seconds(2);
 
         // Turn the target out of the radar's cone and back: the lock comes back by itself
