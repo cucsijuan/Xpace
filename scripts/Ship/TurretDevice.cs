@@ -7,8 +7,12 @@ namespace Xpace.Ship;
 
 /// <summary>
 /// A gimballed turret with a kinetic cannon, bus slot 4 (140h). Servos turn
-/// it toward the angles the program asks for, at a limited rate; the gun
-/// fires while the program keeps writing the fire register.
+/// it toward the angles the program asks for: they follow how fast the
+/// asked-for angle moves (rate feedforward) and close the rest, within a
+/// top rate and an acceleration, so a target that turns hard leaves them
+/// behind for a moment. The gun fires while the program keeps writing the
+/// fire register; every round leaves a little off the bore (dispersion,
+/// worse when the barrel is hot) and kicks the mount.
 ///
 /// Registers: +0 type 5  +2 azimuth wanted  +4 elevation wanted  +6 azimuth
 /// now  +8 elevation now (binary angles, 65536 to the turn; 0 straight
@@ -23,6 +27,10 @@ public partial class TurretDevice : Node3D, IShipDevice
 
     [Export] public float MuzzleSpeed = 1200f;          // m/s
     [Export] public float ServoDegreesPerSecond = 90f;
+    [Export] public float ServoAcceleration = 240f;     // degrees/s²
+    [Export] public float ServoGain = 12f;              // 1/s: how fast it closes an error
+    [Export] public float DispersionMrad = 0.6f;        // spread of the rounds, cold barrel
+    [Export] public float RecoilKickMrad = 0.3f;
     [Export] public float AzimuthLimit = 170f;          // degrees either side
     [Export] public float ElevationMin = -5f, ElevationMax = 85f;
     [Export] public double FireInterval = 0.1;
@@ -44,6 +52,8 @@ public partial class TurretDevice : Node3D, IShipDevice
     private OmniLight3D _flash;
     private double _cooldown;
     private bool _registersSet;
+    private float _rateAz, _rateEl, _lastWantAz, _lastWantEl, _feedAz, _feedEl;
+    private readonly RandomNumberGenerator _rng = new() { Seed = 1200 };
 
     public override void _Ready()
     {
@@ -93,9 +103,14 @@ public partial class TurretDevice : Node3D, IShipDevice
         float dt = (float)delta;
         float wantAz = Math.Clamp(Radians(bus.Word(Slot, 2)), -Mathf.DegToRad(AzimuthLimit), Mathf.DegToRad(AzimuthLimit));
         float wantEl = Math.Clamp(Radians(bus.Word(Slot, 4)), Mathf.DegToRad(ElevationMin), Mathf.DegToRad(ElevationMax));
-        float step = Mathf.DegToRad(ServoDegreesPerSecond) * dt;
-        Azimuth = Mathf.MoveToward(Azimuth, wantAz, step);
-        Elevation = Mathf.MoveToward(Elevation, wantEl, step);
+        // How fast the wanted angles move, smoothed (the commands are noisy)
+        float smooth = Math.Clamp(dt / 0.1f, 0, 1);
+        _feedAz += ((wantAz - _lastWantAz) / dt - _feedAz) * smooth;
+        _feedEl += ((wantEl - _lastWantEl) / dt - _feedEl) * smooth;
+        _lastWantAz = wantAz;
+        _lastWantEl = wantEl;
+        Azimuth = Servo(Azimuth, wantAz, _feedAz, ref _rateAz, dt);
+        Elevation = Servo(Elevation, wantEl, _feedEl, ref _rateEl, dt);
         _yoke.Rotation = new Vector3(0, -Azimuth, 0);
         _cradle.Rotation = new Vector3(Elevation, 0, 0);
 
@@ -112,10 +127,22 @@ public partial class TurretDevice : Node3D, IShipDevice
             Heat += HeatPerShot;
             TooHot = Heat > HotAbove;
             RoundsFired++;
-            Vector3 direction = -_muzzle.GlobalBasis.Z;
+            float spread = DispersionMrad / 1000f * (1 + 2 * Math.Clamp(Heat / HotAbove, 0, 1));
+            Basis bore = _muzzle.GlobalBasis;
+            Vector3 direction = (-bore.Z + bore.X * _rng.Randfn(0, spread) + bore.Y * _rng.Randfn(0, spread)).Normalized();
+            Azimuth += _rng.Randfn(0, RecoilKickMrad / 1000f);
+            Elevation += _rng.Randfn(0, RecoilKickMrad / 1000f);
             Projectiles.Instance?.Fire(_muzzle.GlobalPosition, ship.LinearVelocity + direction * MuzzleSpeed, Damage);
             _flash.LightEnergy = 6;
         }
+    }
+
+    private float Servo(float angle, float want, float feed, ref float rate, float dt)
+    {
+        float top = Mathf.DegToRad(ServoDegreesPerSecond);
+        float wanted = Math.Clamp(feed + ServoGain * (want - angle), -top, top);
+        rate = Mathf.MoveToward(rate, wanted, Mathf.DegToRad(ServoAcceleration) * dt);
+        return angle + rate * dt;
     }
 
     private static int Bam(float radians)

@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.0 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.1 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -7,6 +7,9 @@
 ;
 ;   - the pilot's target-ahead button locks the radar contact nearest the
 ;     middle of the view; next-target locks the one after the current one;
+;   - the radar measures only where the target is, with noise that grows
+;     with the range (and with jamming); an alpha-beta filter smooths the
+;     positions and works out the velocity from them;
 ;   - with a target locked, it works out where the turret must point for a
 ;     round to meet it: the time t a round takes to reach the target's
 ;     place after t seconds, |p + v t| = s t, found by going round three
@@ -31,8 +34,8 @@
 ;                            +10 segment  +12 contact table  +14 track (offsets)
 ;           a contact (16 bytes): +0 id  +2 range m  +4 azimuth  +6 elevation
 ;                            +8 closing speed (1/8 m/s)
-;           the track: +0 id  +2 right  +4 up  +6 forward (m, from the
-;                            turret)  +8 +10 +12 velocity (1/8 m/s)  +14 range
+;           the track: +0 id  +2 right  +4 up  +6 forward (1/4 m, from the
+;                            turret)  +8 SNR (dB)  +14 range (m)
 ;   140h  turret             +0 type 5  +2 azimuth  +4 elevation wanted
 ;                            +6 +8 now (65536 to the turn)  +10 muzzle speed
 ;                            +12 fire (write 1)  +13 status (bit 2 too hot)
@@ -145,6 +148,7 @@ step:
     call solve                      ; aim_az, aim_el
     jmp .aim
 .ahead:
+    mov word [filter_id], 0         ; (the next lock starts the filter again)
     mov word [aim_az], 0            ; nothing locked: straight ahead
     mov word [aim_el], 0
 .aim:
@@ -259,7 +263,8 @@ lock_next:
 
 ; ---------- the firing solution ----------
 
-; From the radar's track: aim_az, aim_el, lead (1/1024 s), range
+; From the radar's track: the filter's estimate, then aim_az, aim_el,
+; lead (1/1024 s), range
 solve:
     push ds
     mov ds, [cs:radar_seg]
@@ -270,28 +275,60 @@ solve:
     pop ds
     mov ax, [track + 14]
     mov [range], ax
+    mov ax, [track + 8]
+    mov [snr], ax
+    mov ax, [track]                 ; a new target: start the filter on it
+    cmp ax, [filter_id]
+    je .same
+    mov [filter_id], ax
+    call filter_start
+    jmp .estimated
+.same:
+    call filter_step
+.estimated:
+    xor bx, bx                      ; p (1/4 m) and v (1/8 m/s) from the filter
+    xor si, si
+.state:
+    mov ax, [pos + si]
+    mov dx, [pos + si + 2]
+    mov cx, 4
+.quarter:
+    sar dx, 1
+    rcr ax, 1
+    loop .quarter
+    mov [p + bx], ax
+    mov ax, [vel + si]
+    mov dx, [vel + si + 2]
+    mov cx, 3
+.eighth:
+    sar dx, 1
+    rcr ax, 1
+    loop .eighth
+    mov [v + bx], ax
+    add si, 4
+    add bx, 2
+    cmp bx, 6
+    jb .state
+
+    mov ax, [range]
     call lead_time                  ; t from the range
     mov byte [rounds_left], 3
 .again:
-    mov si, track + 2               ; aim = p + v t
-    mov di, aim
-    mov cx, 3
+    xor bx, bx                      ; aim = p + v t
 .axis:
-    mov ax, [si + 6]                ; v (1/8 m/s) * t (1/1024 s) / 8192 = m
+    mov ax, [v + bx]                ; v (1/8 m/s) * t (1/1024 s) / 2048 = 1/4 m
     imul word [lead]
-    mov bx, ax
-    push cx
-    mov cl, 13
-    shr bx, cl
-    mov cl, 3
+    mov si, ax
+    mov cl, 11
+    shr si, cl
+    mov cl, 5
     shl dx, cl
-    pop cx
-    or dx, bx
-    add dx, [si]
-    mov [di], dx
-    add si, 2
-    add di, 2
-    loop .axis
+    or dx, si
+    add dx, [p + bx]
+    mov [aim + bx], dx
+    add bx, 2
+    cmp bx, 6
+    jb .axis
     mov bx, [aim + 4]               ; azimuth: forward, right
     mov bp, [aim + 0]
     call cordic
@@ -299,10 +336,108 @@ solve:
     mov bp, [aim + 2]               ; elevation: across, up
     call cordic
     mov [aim_el], ax
-    mov ax, bx                      ; distance to the aim point
+    mov ax, bx                      ; distance to the aim point, in metres
+    shr ax, 1
+    shr ax, 1
     call lead_time
     dec byte [rounds_left]
     jnz .again
+    ret
+
+; ---------- the alpha-beta filter ----------
+;
+; The radar gives only noisy positions. Per axis the filter keeps a position
+; x and a velocity v (1/64 m, 1/64 m/s, 32 bits) and every step:
+;   predicts    x = x + v dt
+;   compares    r = measured - x
+;   corrects    x = x + ALPHA r,   v = v + (BETA / dt) r
+; Small gains smooth the noise out but follow a turn late; large gains
+; follow at once and pass the noise on. These are a compromise.
+
+ALPHA       equ 31                  ; 0.12, in 1/256
+BETA_DT     equ 118                 ; 0.0077 * 60, in 1/256
+
+filter_start:                       ; x = the measurement, v = 0
+    xor bx, bx
+    xor si, si
+.axis:
+    mov ax, [track + 2 + bx]
+    mov cx, 16
+    imul cx
+    mov [pos + si], ax
+    mov [pos + si + 2], dx
+    mov word [vel + si], 0
+    mov word [vel + si + 2], 0
+    add si, 4
+    add bx, 2
+    cmp bx, 6
+    jb .axis
+    ret
+
+filter_step:
+    xor bx, bx
+    xor si, si
+.axis:
+    mov ax, [vel + si]              ; predict: x += v / 60
+    mov dx, [vel + si + 2]
+    mov cx, 60
+    idiv cx
+    cwd
+    add [pos + si], ax
+    adc [pos + si + 2], dx
+    mov ax, [track + 2 + bx]        ; r = measured (1/4 m, so * 16) - x
+    mov cx, 16
+    imul cx
+    sub ax, [pos + si]
+    sbb dx, [pos + si + 2]
+    call clamp16
+    mov [residual], ax
+    mov cx, ALPHA                   ; x += ALPHA r
+    imul cx
+    call shift8
+    add [pos + si], ax
+    adc [pos + si + 2], dx
+    mov ax, [residual]              ; v += BETA/dt r
+    mov cx, BETA_DT
+    imul cx
+    call shift8
+    add [vel + si], ax
+    adc [vel + si + 2], dx
+    add si, 4
+    add bx, 2
+    cmp bx, 6
+    jb .axis
+    ret
+
+; DX:AX = DX:AX / 256, keeping the sign
+shift8:
+    mov al, ah
+    mov ah, dl
+    mov dl, dh
+    mov dh, dl
+    mov cl, 7
+    sar dh, cl
+    ret
+
+; AX = DX:AX held to -32767..32767
+clamp16:
+    cmp dx, 0
+    jl .negative
+    jg .high
+    cmp ax, 32767
+    ja .high
+    ret
+.high:
+    mov ax, 32767
+    ret
+.negative:
+    cmp dx, -1
+    jl .low
+    cmp ax, 8001h
+    jb .low
+    ret
+.low:
+    mov ax, -32767
     ret
 
 ; lead = AX metres * 1024 / muzzle speed (1/1024 s). Changes BX, CX, DX.
@@ -497,6 +632,13 @@ draw:
 .has_lead:
     mov di, (4 * COLS + 33) * 2
     call put_unsigned
+    mov ax, [snr]                   ; how clearly the radar sees it
+    cmp byte [locked], 0
+    jne .has_snr
+    xor ax, ax
+.has_snr:
+    mov di, (5 * COLS + 33) * 2
+    call put_unsigned
 
     mov ax, [turret_az]             ; the turret, degrees
     mov cx, 360
@@ -622,8 +764,15 @@ lead            dw 0
 range           dw 0
 t_start         dw 0
 busy            dw 0, 0
-track           times 8 dw 0        ; id, right, up, forward, 3 speeds, range
-aim             times 3 dw 0        ; right, up, forward
+track           times 8 dw 0        ; id, right, up, forward (1/4 m), SNR, -, -, range
+aim             times 3 dw 0        ; right, up, forward (1/4 m)
+filter_id       dw 0                ; the target the filter follows
+snr             dw 0
+residual        dw 0
+pos             times 6 dw 0        ; the filter: x per axis (1/64 m, 32 bits)
+vel             times 6 dw 0        ;             v per axis (1/64 m/s, 32 bits)
+p               times 3 dw 0        ; its estimate in 1/4 m
+v               times 3 dw 0        ; and in 1/8 m/s
 
 resident_end:
 
@@ -793,7 +942,7 @@ draw_labels:
 
 labels:
     dw (0 * COLS + 0) * 2
-    db ATTR_TITLE, ' FIRE CONTROL 1.0              CUCSICORP', 0
+    db ATTR_TITLE, ' FIRE CONTROL 1.1              CUCSICORP', 0
     dw (1 * COLS + 1) * 2
     db ATTR_SCOPE, '-60', 0
     dw (1 * COLS + 12) * 2
@@ -814,6 +963,10 @@ labels:
     db ATTR_LABEL, 'LEAD', 0
     dw (4 * COLS + 38) * 2
     db ATTR_LABEL, 'ms', 0
+    dw (5 * COLS + 27) * 2
+    db ATTR_LABEL, 'SNR', 0
+    dw (5 * COLS + 38) * 2
+    db ATTR_LABEL, 'dB', 0
     dw (6 * COLS + 27) * 2
     db ATTR_LABEL, 'TUR AZ', 0
     dw (7 * COLS + 27) * 2

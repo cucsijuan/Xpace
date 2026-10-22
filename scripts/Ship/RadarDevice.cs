@@ -9,15 +9,26 @@ namespace Xpace.Ship;
 /// <summary>
 /// The ship's radar, bus slot 3 (130h). It looks in a cone ahead of the ship.
 ///
+/// What it measures is only as good as its signal-to-noise ratio: the echo
+/// falls with the fourth power of the distance and grows with the target's
+/// radar cross-section; jammers add noise (they fall only with the square
+/// of their distance, and count fully when they sit inside the beam).
+/// With SNR, the errors are those of a monopulse radar: angle error
+/// beamwidth / (1.6 sqrt(2 SNR)), range error resolution / sqrt(2 SNR).
+/// Below the detection threshold a target is not seen; below the lock
+/// threshold a lock breaks. A better radar (more power: a longer detection
+/// range; a narrower beam) measures better, and burns through jamming from
+/// further away.
+///
 /// Search: twice a second it writes what it sees into a table in memory,
 /// up to 16 contacts of 16 bytes: +0 id, +2 range (m), +4 azimuth,
 /// +6 elevation (binary angles, 65536 to the turn; right and up positive),
-/// +8 closing speed (1/8 m/s), +10 flags (bit 0 locked).
+/// +8 closing speed (1/8 m/s, from the Doppler), +10 flags (bit 0 locked).
 ///
-/// Track: told to lock a contact by id, it writes 60 times a second where
-/// that one is from the turret's pivot, in the ship's axes: +0 id, +2 right,
-/// +4 up, +6 forward (m), +8, +10, +12 its velocity relative to the ship
-/// (1/8 m/s), +14 range (m). It lets go if the contact leaves the cone.
+/// Track: told to lock a contact by id, it measures that one 60 times a
+/// second and writes where it is from the turret's pivot, in the ship's
+/// axes: +0 id, +2 right, +4 up, +6 forward (1/4 m), +8 SNR (dB), +14 range
+/// (m). Only the position: the velocity is for the program to work out.
 ///
 /// Registers: +0 type 4  +2 mode (write: 0 off, 1 on)  +3 contacts in the
 /// table  +4 sweeps so far  +5 locked (1/0)  +6 write: lock this id (0 lets
@@ -29,16 +40,27 @@ public partial class RadarDevice : Node3D, IShipDevice
     public const byte Type = 4;
     public const int MaxContacts = 16;
 
-    [Export] public float Range = 8000f;
     [Export] public float ConeDegrees = 60f;
     [Export] public double SweepSeconds = 0.5;
-    [Export] public float AngleNoiseDegrees = 0.15f;
-    [Export] public float RangeNoise = 0.003f;
+
+    [ExportGroup("Quality")]
+    /// <summary>Where a 10 m² target is just detected (more power, further).</summary>
+    [Export] public float DetectionRange = 8000f;
+    [Export] public float BeamwidthDegrees = 2.5f;
+    [Export] public float RangeResolution = 15f;          // m
+    [Export] public float DetectSnr = 20f;               // 13 dB
+    [Export] public float LockSnr = 10f;                 // 10 dB
+    [Export] public float SidelobeLevel = 0.01f;         // jamming from outside the beam
+
     /// <summary>Where the track is measured from: the turret's pivot.</summary>
     [Export] public NodePath TrackOriginPath;
 
+    public const float ReferenceRcs = 10f;
+
     public IRadarTarget Locked { get; private set; }
     public bool On { get; private set; }
+    /// <summary>The locked target's SNR this step (linear).</summary>
+    public float LockedSnr { get; private set; }
 
     private readonly List<IRadarTarget> _contacts = new();
     private Node3D _trackOrigin;
@@ -52,6 +74,39 @@ public partial class RadarDevice : Node3D, IShipDevice
         _trackOrigin = TrackOriginPath == null || TrackOriginPath.IsEmpty ? this : GetNodeOrNull<Node3D>(TrackOriginPath) ?? this;
     }
 
+    // ---------- the signal ----------
+
+    /// <summary>Signal-to-noise ratio of a target's echo (linear), jamming included.</summary>
+    public float Snr(IRadarTarget t)
+    {
+        Vector3 toTarget = t.GlobalPosition - GlobalPosition;
+        float range = MathF.Max(toTarget.Length(), 1f);
+        float echo = DetectSnr * MathF.Pow(DetectionRange / range, 4) * (t.RadarCrossSection / ReferenceRcs);
+        return echo / (1 + Jamming(toTarget));
+    }
+
+    /// <summary>Jamming-to-noise ratio while looking along a direction.</summary>
+    public float Jamming(Vector3 lookingAt)
+    {
+        float jn = 0;
+        float beam = Mathf.DegToRad(BeamwidthDegrees);
+        foreach (Node node in GetTree().GetNodesInGroup("jammers"))
+        {
+            if (node is not IJammer j)
+                continue;
+            Vector3 toJammer = j.GlobalPosition - GlobalPosition;
+            float km = MathF.Max(toJammer.Length(), 1f) / 1000f;
+            float gain = lookingAt.AngleTo(toJammer) <= beam ? 1f : SidelobeLevel;
+            jn += j.JammingAt1Km / (km * km) * gain;
+        }
+        return jn;
+    }
+
+    private float AngleError(float snr) => Mathf.DegToRad(BeamwidthDegrees) / (1.6f * MathF.Sqrt(2 * snr));
+    private float RangeError(float snr) => RangeResolution / MathF.Sqrt(2 * snr);
+
+    // ---------- every step ----------
+
     public unsafe void BeforeStep(ShipBody ship, double delta)
     {
         ShipBus bus = ship.Computer.Bus;
@@ -59,7 +114,7 @@ public partial class RadarDevice : Node3D, IShipDevice
         {
             _registersSet = true;
             bus[Slot, 0] = Type;
-            bus[Slot, 1] = 1;
+            bus[Slot, 1] = 2;
             bus.SetWord(Slot, 10, unchecked((short)ShipMemory.Segment));
             bus.SetWord(Slot, 12, ShipMemory.Contacts);
             bus.SetWord(Slot, 14, ShipMemory.Track);
@@ -83,10 +138,17 @@ public partial class RadarDevice : Node3D, IShipDevice
                 bus[Slot, 3] = (byte)_contacts.Count;
                 bus[Slot, 4] = ++_sweeps;
             }
-            if (Locked != null && !Sees(Locked, out _))
-                Locked = null;
             if (Locked != null)
+            {
+                LockedSnr = Snr(Locked);
+                if (!InCone(Locked) || LockedSnr < LockSnr)
+                    Locked = null;
+            }
+            if (Locked != null)
+            {
+                Locked.Paint();
                 WriteTrack(ship, memory + ShipMemory.Track);
+            }
         }
         bus[Slot, 5] = (byte)(Locked != null ? 1 : 0);
         bus.SetWord(Slot, 8, Locked?.RadarId ?? 0);
@@ -102,17 +164,14 @@ public partial class RadarDevice : Node3D, IShipDevice
         if (id == 0 || !On)
             return;
         foreach (IRadarTarget t in _contacts)
-            if (t.RadarId == id && Sees(t, out _))
+            if (t.RadarId == id && InCone(t) && Snr(t) >= LockSnr)
                 Locked = t;
     }
 
-    /// <summary>Where the target is, from the radar, in the ship's axes (right, up, back = Godot's local).</summary>
-    private bool Sees(IRadarTarget t, out Vector3 local)
+    private bool InCone(IRadarTarget t)
     {
-        local = GlobalBasis.Inverse() * (t.GlobalPosition - GlobalPosition);
-        if (!t.Alive || local.Length() > Range || local.Length() < 1)
-            return false;
-        return Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees);
+        Vector3 local = GlobalBasis.Inverse() * (t.GlobalPosition - GlobalPosition);
+        return t.Alive && local.Length() >= 1 && Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees);
     }
 
     private unsafe void Sweep(ShipBody ship, byte* table)
@@ -120,18 +179,20 @@ public partial class RadarDevice : Node3D, IShipDevice
         _contacts.Clear();
         foreach (Node node in GetTree().GetNodesInGroup("radar_targets"))
         {
-            if (node is not IRadarTarget t || !Sees(t, out Vector3 local) || _contacts.Count >= MaxContacts)
+            if (node is not IRadarTarget t || !InCone(t) || _contacts.Count >= MaxContacts)
                 continue;
+            float snr = Snr(t);
+            if (snr < DetectSnr)
+                continue;
+            Vector3 local = Measure(t, snr, GlobalPosition, GlobalBasis);
             byte* e = table + _contacts.Count * 16;
             _contacts.Add(t);
-            float noise = Mathf.DegToRad(AngleNoiseDegrees);
-            float range = local.Length() * (1 + _rng.Randfn(0, RangeNoise));
-            float az = Mathf.Atan2(local.X, -local.Z) + _rng.Randfn(0, noise);
-            float el = Mathf.Atan2(local.Y, new Vector2(local.X, local.Z).Length()) + _rng.Randfn(0, noise);
+            float az = Mathf.Atan2(local.X, -local.Z);
+            float el = Mathf.Atan2(local.Y, new Vector2(local.X, local.Z).Length());
             Vector3 relative = t.Velocity - ship.LinearVelocity;
             float closing = -relative.Dot((t.GlobalPosition - GlobalPosition).Normalized());
             Put(e, 0, t.RadarId);
-            Put(e, 2, (int)Math.Min(range, 65535));
+            Put(e, 2, (int)Math.Min(local.Length(), 65535));
             Put(e, 4, Angle(az));
             Put(e, 6, Angle(el));
             Put(e, 8, Clamp16(closing * 8));
@@ -142,18 +203,38 @@ public partial class RadarDevice : Node3D, IShipDevice
                 table[i * 16 + j] = 0;
     }
 
+    /// <summary>
+    /// Where the radar thinks the target is, in a frame at 'from' with axes
+    /// 'axes' (Godot local: right, up, back): the true place, with the
+    /// angle and range errors its SNR allows.
+    /// </summary>
+    private Vector3 Measure(IRadarTarget t, float snr, Vector3 from, Basis axes)
+    {
+        Vector3 los = t.GlobalPosition - GlobalPosition;
+        float range = los.Length();
+        Vector3 dir = los / range;
+        // two angle errors, across the line of sight
+        Vector3 across = dir.Cross(Vector3.Up);
+        if (across.LengthSquared() < 1e-6f)
+            across = dir.Cross(Vector3.Right);
+        across = across.Normalized();
+        Vector3 up = across.Cross(dir);
+        float sigma = AngleError(snr);
+        dir = (dir + across * _rng.Randfn(0, sigma) + up * _rng.Randfn(0, sigma)).Normalized();
+        Vector3 seen = GlobalPosition + dir * (range + _rng.Randfn(0, RangeError(snr)));
+        return axes.Inverse() * (seen - from);
+    }
+
     private unsafe void WriteTrack(ShipBody ship, byte* track)
     {
-        Basis toShip = ship.GlobalBasis.Inverse();
-        Vector3 p = toShip * (Locked.GlobalPosition - _trackOrigin.GlobalPosition);
-        Vector3 v = toShip * (Locked.Velocity - ship.LinearVelocity);
+        Vector3 p = Measure(Locked, LockedSnr, _trackOrigin.GlobalPosition, ship.GlobalBasis);
         Put(track, 0, Locked.RadarId);
-        Put(track, 2, Clamp16(p.X));
-        Put(track, 4, Clamp16(p.Y));
-        Put(track, 6, Clamp16(-p.Z));
-        Put(track, 8, Clamp16(v.X * 8));
-        Put(track, 10, Clamp16(v.Y * 8));
-        Put(track, 12, Clamp16(-v.Z * 8));
+        Put(track, 2, Clamp16(p.X * 4));
+        Put(track, 4, Clamp16(p.Y * 4));
+        Put(track, 6, Clamp16(-p.Z * 4));
+        Put(track, 8, Clamp16(10 * MathF.Log10(MathF.Max(LockedSnr, 1))));
+        Put(track, 10, 0);
+        Put(track, 12, 0);
         Put(track, 14, (int)Math.Min(p.Length(), 65535));
     }
 

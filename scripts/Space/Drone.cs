@@ -2,19 +2,12 @@ using Godot;
 
 namespace Xpace.Space;
 
-/// <summary>Something a radar can see.</summary>
-public interface IRadarTarget
-{
-    ushort RadarId { get; }
-    Vector3 GlobalPosition { get; }
-    Vector3 Velocity { get; }
-    bool Alive { get; }
-}
-
 /// <summary>
 /// A target drone: flies between random points around the player's ship
 /// (or straight on), takes hits, blows up and comes back a while later.
-/// Its brain is plain game code: no computer is emulated for it.
+/// It jinks: gentle weaves while nobody has it locked, hard turns (up to
+/// <see cref="EvadeG"/>) once a radar locks it. Its brain is plain game
+/// code: no computer is emulated for it.
 /// </summary>
 public partial class Drone : Node3D, IRadarTarget
 {
@@ -27,11 +20,15 @@ public partial class Drone : Node3D, IRadarTarget
     [Export] public float WanderRadius = 2500f;
     [Export] public float RespawnSeconds = 4f;
     [Export] public NodePath AnchorPath;                // what it flies around
+    [Export] public float RadarCrossSection { get; set; } = 3f;   // m², about a light fighter's
+    [Export] public bool Evades = true;
+    [Export] public float WeaveG = 0.5f, EvadeG = 3f;
 
     public ushort RadarId { get; private set; }
     public Vector3 Velocity { get; private set; }
     public bool Alive { get; private set; } = true;
     public int Hits { get; private set; }
+    public bool Painted => _painted > 0;
 
     private static ushort _nextId = 1;
     private Node3D _anchor, _body;
@@ -39,6 +36,8 @@ public partial class Drone : Node3D, IRadarTarget
     private float _health;
     private double _respawn;
     private StandardMaterial3D _paint;
+    private Vector3 _jink;
+    private double _jinkLeft, _painted;
     private readonly RandomNumberGenerator _rng = new();
 
     public override void _Ready()
@@ -84,6 +83,9 @@ public partial class Drone : Node3D, IRadarTarget
                 Respawn();
             return;
         }
+        _painted -= delta;
+        if (Evades)
+            Jink(dt);
         if (!Straight)
         {
             if (GlobalPosition.DistanceTo(_waypoint) < 300)
@@ -103,6 +105,35 @@ public partial class Drone : Node3D, IRadarTarget
         GlobalPosition += Velocity * dt;
         if (Velocity.LengthSquared() > 1)
             LookAt(GlobalPosition + Velocity, Vector3.Up);
+    }
+
+    /// <summary>Sets it flying with this velocity from where it is (a test, a mission).</summary>
+    public void Fly(Vector3 velocity)
+    {
+        Velocity = velocity;
+        _waypoint = GlobalPosition + velocity * 10;
+        _jinkLeft = 0;
+    }
+
+    /// <summary>A radar has it locked (the radar calls this every step it does).</summary>
+    public void Paint() => _painted = 0.25;
+
+    /// <summary>A sideways push that changes every second or so: the speed stays, the path bends.</summary>
+    private void Jink(float dt)
+    {
+        _jinkLeft -= dt;
+        Vector3 heading = Velocity.Normalized();
+        if (_jinkLeft <= 0)
+        {
+            _jinkLeft = _rng.RandfRange(0.6f, 1.6f);
+            Vector3 side = heading.Cross(Vector3.Up);
+            if (side.LengthSquared() < 1e-6f)
+                side = heading.Cross(Vector3.Right);
+            side = side.Normalized().Rotated(heading, _rng.RandfRange(0, Mathf.Tau));
+            _jink = side * (Painted ? EvadeG : WeaveG) * 9.81f * _rng.RandfRange(0.5f, 1f);
+        }
+        Vector3 push = _jink - heading * _jink.Dot(heading);
+        Velocity = (Velocity + push * dt).Normalized() * Speed;
     }
 
     private Vector3 Centre => _anchor?.GlobalPosition ?? Vector3.Zero;

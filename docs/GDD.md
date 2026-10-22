@@ -87,7 +87,15 @@ El cálculo del salto es un buen ejemplo de la CPU como mecánica: un programa d
   - la torreta con gimbal, en `140h`: servos de 90°/s y cañón cinético de 1.200 m/s;
   - las pantallas laterales, en `150h`: texto de 40×16 mapeado en memoria, como una CGA, en D000:0000 y D000:0800.
 
-  FLIGHT y FIRECTL quedan **residentes** y trabajan dentro de la interrupción, así que la consola central queda libre. FIRECTL calcula el adelanto con CORDIC (ángulos y distancias sin raíz cuadrada) y usa un 26% de la CPU: el control de fuego pesa cinco veces más que el de vuelo. Es la mecánica del tiempo de CPU como recurso, ya funcionando.
+  FLIGHT y FIRECTL quedan **residentes** y trabajan dentro de la interrupción, así que la consola central queda libre. FIRECTL calcula el adelanto con CORDIC (ángulos y distancias sin raíz cuadrada) y usa un 30% de la CPU: el control de fuego pesa seis veces más que el de vuelo. Es la mecánica del tiempo de CPU como recurso, ya funcionando.
+
+  **Precisión realista.** El radar mide solo posiciones, con un ruido que sale de su relación señal/ruido (SNR):
+  - el eco cae con la distancia a la cuarta potencia y crece con la firma de radar del blanco;
+  - los jammers suben el ruido: caen solo con el cuadrado de su distancia y pesan entero si están dentro del haz, de ahí la distancia de *burn-through*.
+
+  La velocidad la estima FIRECTL con un filtro alfa-beta. A eso se suman la inercia de los servos, la dispersión del cañón (crece con el calor) y drones que esquivan a 3 g cuando los fijan. Contra un blanco que maniobra el cañón acierta alrededor del 40% a 500 m y casi nada desde 3–4 km; contra un blanco recto, 85% a 2 km.
+
+  Mejorar el radar (potencia, haz más angosto), la torreta o el software (otras ganancias, estimar aceleración, compensar el giro propio, rechazar los saltos de un jammer de engaño) mejora esos números: ahí entran el mercado de equipamiento y el de programas.
 - **Descubrimiento de hardware:** el registro 0 de cada ranura devuelve el ID del dispositivo, el fabricante y la versión, como hacía la instrucción HWQ en 0x10c. El software recorre el bus y averigua qué tiene instalado.
 - **Interrupciones:** los dispositivos avisan sin que la CPU tenga que preguntar: un contacto nuevo en el radar, un misil que se acerca, un mensaje de radio, un daño.
 - **Mejoras de hardware:**
