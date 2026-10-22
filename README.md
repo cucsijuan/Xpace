@@ -1,104 +1,112 @@
 # Xpace
 
-Juego espacial (comercio, combate, facciones) donde los sistemas de las naves corren en computadoras 8086 programables. Nombre en clave.
+A space game (trade, combat, factions) where the ships' systems run on programmable 8086 computers. Codename.
 
-- Motor: Godot 4.7 (.NET, C#).
-- Diseño: [docs/GDD.md](docs/GDD.md).
-- La computadora de la nave es la placa pc86 (CPU vm86, BIOS, VGA, teclado, timer, disquetera) de `D:\Juan\vm86\pc86`, con COS de `D:\Juan\vm86\sw86`.
+- Engine: Godot 4.7 (.NET, C#).
+- Design: [docs/GDD.md](docs/GDD.md).
+- The ship's computer is the pc86 board (vm86 CPU, BIOS, VGA, keyboard, timer, diskette drive) running COS, CucsiCorp's DOS. Both come in as git submodules: [pc86](https://github.com/cucsijuan/pc86) and [sw86](https://github.com/cucsijuan/sw86), under `external/`.
 
-## Preparar
+## Building
 
-Requiere Visual Studio 2022 (MSVC y su CMake) y el SDK de .NET 8 o posterior.
+Needs CMake 3.17 or later, a C compiler (Visual Studio 2022 on Windows, GCC or Clang on Linux), the .NET 8 SDK or later, and Godot 4.7 (.NET build).
 
-```bat
-native\build.bat
+```sh
+git clone --recursive https://github.com/cucsijuan/Xspace.git
+cd Xspace
+cmake -S native -B native/build
+cmake --build native/build --config Release
 ```
 
-Compila desde los checkouts de pc86 y sw86 (por defecto `..\vm86\pc86` y `..\vm86\sw86`; se pueden pasar otras rutas como argumentos):
+(In an existing clone without the submodules: `git submodule update --init`.)
 
-- `native\bin\pc86.dll`: la máquina.
-- `native\bin\xpace_native.dll`: la placa del bus de la nave ([native/xbus.c](native/xbus.c)).
-- `disks\cos.img`: el diskette de la nave, con COS, `AUTOEXEC.BAT` y el software de la nave: `FLIGHT.COM` (vuelo) y `FIRECTL.COM` (radar y torreta), con sus fuentes `.ASM` para editarlos dentro del juego.
+That builds, from the submodules:
 
-Nada de eso va al repositorio: se rehace con este script. Después abrir el proyecto en Godot (versión .NET) y compilar.
+- `native/bin/pc86` (`pc86.dll`, `libpc86.so`): the machine.
+- `native/bin/xpace_native`: the ship's bus card and text displays ([native/xbus.c](native/xbus.c)).
+- `disks/cos.img`: the ship's diskette, with COS, `AUTOEXEC.BAT` and the ship's software: `FLIGHT.COM` (flight) and `FIRECTL.COM` (radar and turret), with their `.ASM` sources so they can be edited inside the game.
 
-## Controles
+None of these go into the repository. Then open the project in Godot (.NET) and build it.
 
-Como en Elite Dangerous con teclado y mouse. El botón del medio del mouse cambia entre **vuelo** y **vista**.
+## Controls
 
-| Acción | Control |
+Elite Dangerous's keyboard and mouse controls. The middle mouse button switches between **flying** and **looking**.
+
+| Action | Control |
 |---|---|
-| Tomar el mouse | Clic (Esc lo suelta, si no se está escribiendo) |
-| Cabeceo y alabeo | Mouse, en modo vuelo (joystick virtual: el anillo del centro muestra la palanca) |
-| Acelerador | W / S (queda donde se deja; por debajo de cero es reversa), X a cero |
-| Guiñada | A / D |
-| Empuje lateral / vertical | Q / E, R / F |
+| Take the mouse | Click (Esc gives it back, when not typing) |
+| Pitch and roll | Mouse, while flying (a virtual stick: the ring in the middle shows it) |
+| Throttle | W / S (it stays where it is left; below zero is reverse), X to zero |
+| Yaw | A / D |
+| Strafe sideways / up and down | Q / E, R / F |
 | Flight assist | Z |
-| Fijar el blanco adelante / el siguiente | T / G |
-| Disparar | Clic izquierdo, en modo vuelo |
-| Mirar alrededor | Mouse, en modo vista |
-| Escribir en la computadora | En modo vista, clic en la pantalla; clic derecho para soltarla |
-| Guardar / cargar la computadora | F5 / F9 |
+| Lock the target ahead / the next one | T / G |
+| Fire | Left button, while flying |
+| Look around | Mouse, while looking |
+| Type on the computer | While looking, click its screen; right-click lets go |
+| Save / load the computer | F5 / F9 |
 
-También hay cabeceo y alabeo con las flechas, y un joystick o gamepad funciona con los mismos controles. Todo está en el Input Map de Godot.
+The arrow keys also pitch and roll, and a joystick or gamepad works with the same controls. Everything is in Godot's Input Map.
 
-## La nave y su computadora
+## The ship and its computer
 
-Cada paso de física (60 por segundo), `ShipBody` escribe la palanca, la muestra de la unidad inercial y lo que ven los demás dispositivos en los registros del bus, pide la IRQ 5, corre la computadora 1/60 s y aplica lo que el software dejó escrito.
+Every physics step (60 a second), `ShipBody` writes the stick, the inertial unit's sample and what the other devices see into the bus registers, raises IRQ 5, runs the computer for 1/60 s, and applies what the software left written.
 
-| Ranura | Puertos | Dispositivo |
+| Slot | Ports | Device |
 |---|---|---|
-| 0 | `100h` | Mandos del piloto (palanca, acelerador, botones) |
-| 1 | `110h` | Unidad inercial (pide la IRQ 5 con cada muestra) |
-| 2 | `120h` | Propulsores (watchdog de 100 ms: sin comandos, modo directo) |
-| 3 | `130h` | Radar (tabla de contactos y seguimiento en memoria, en D000:1000; mide solo la posición, con el ruido que le da su SNR) |
-| 4 | `140h` | Torreta con gimbal y cañón cinético de 1.200 m/s |
-| 5 | `150h` | Pantallas laterales: texto de 40×16 en memoria (D000:0000 y D000:0800) |
+| 0 | `100h` | Pilot's controls (stick, throttle, buttons) |
+| 1 | `110h` | Inertial unit (raises IRQ 5 with every sample) |
+| 2 | `120h` | Thrusters (100 ms watchdog: no commands, direct mode) |
+| 3 | `130h` | Radar (contact table and track in memory at D000:1000; measures position only, with the noise its SNR allows) |
+| 4 | `140h` | Gimballed turret with a 1,200 m/s kinetic cannon |
+| 5 | `150h` | Side screens: 40×16 text in memory (D000:0000 and D000:0800) |
 
-AUTOEXEC.BAT deja residentes dos programas que trabajan dentro de la interrupción, así la consola queda libre:
+AUTOEXEC.BAT leaves two programs resident; they work inside the interrupt, so the console stays free:
 
-- **FLIGHT.COM** (5% de la CPU): flight assist; página en la pantalla izquierda.
-- **FIRECTL.COM** (30% de la CPU): fija blancos con T/G, filtra las posiciones ruidosas del radar con un filtro alfa-beta y saca de ahí la velocidad, calcula el adelanto (CORDIC para ángulos y distancias), apunta la torreta y dispara mientras se mantiene el gatillo; radar, SNR y estado en la pantalla derecha.
+- **FLIGHT.COM** (5% of the CPU): flight assist; its page is on the left screen.
+- **FIRECTL.COM** (30% of the CPU): locks targets with T/G, smooths the radar's noisy positions with an alpha-beta filter and gets the velocity from them, computes the lead (CORDIC for angles and distances), aims the turret and fires while the trigger is held; radar, SNR and status on the right screen.
 
-**Por qué se falla.** Nada se decide con dados: los errores salen de causas físicas.
-- **El radar:** el ruido sale de su SNR, que baja con la distancia a la cuarta potencia, sube con la firma del blanco y baja con los jammers.
-- **El filtro:** sus ganancias (`ALPHA`, `BETA_DT` en firectl.asm) son un compromiso entre suavizar el ruido y seguir un giro a tiempo.
-- **Los drones:** esquivan con quiebres de hasta 3 g cuando los fijan.
-- **Los servos:** tienen inercia.
-- **El cañón:** la dispersión crece con el calor, y cada disparo hace retroceder el montaje.
+**Why it misses.** Nothing is decided by dice: errors come from physical causes.
+- **The radar:** its noise comes from its SNR, which falls with the fourth power of the range, grows with the target's signature and falls with jamming.
+- **The filter:** its gains (`ALPHA`, `BETA_DT` in firectl.asm) trade smoothing the noise against following a turn in time.
+- **The drones:** they jink up to 3 g once locked.
+- **The servos:** they have inertia.
+- **The cannon:** dispersion grows with barrel heat, and every round kicks the mount.
 
-Un radar mejor (más alcance, haz más angosto), una torreta mejor o un software mejor se notan.
+A better radar (more range, a narrower beam), a better turret or better software shows.
 
-`FLIGHT OFF` y `FIRECTL OFF` los sacan de memoria (primero el último instalado). Los registros están documentados al principio de [flight.asm](software/flight/flight.asm) y [firectl.asm](software/firectl/firectl.asm).
+`FLIGHT OFF` and `FIRECTL OFF` take them out of memory (the last one installed first). The registers are documented at the top of [flight.asm](software/flight/flight.asm) and [firectl.asm](software/firectl/firectl.asm).
 
-## Pruebas
+## Tests
 
-```bat
-Godot_v4.7.2-stable_mono_win64_console.exe --headless --path . res://tests/computer_test.tscn
-Godot_v4.7.2-stable_mono_win64_console.exe --headless --fixed-fps 60 --path . res://tests/flight_test.tscn
-Godot_v4.7.2-stable_mono_win64_console.exe --headless --fixed-fps 60 --path . res://tests/combat_test.tscn
-Godot_v4.7.2-stable_mono_win64_console.exe --headless --fixed-fps 60 --path . res://tests/accuracy_test.tscn
+With Godot's console executable (`godot` below):
+
+```sh
+godot --headless --path . res://tests/computer_test.tscn
+godot --headless --fixed-fps 60 --path . res://tests/flight_test.tscn
+godot --headless --fixed-fps 60 --path . res://tests/combat_test.tscn
+godot --headless --fixed-fps 60 --path . res://tests/accuracy_test.tscn
 ```
 
-- `computer_test`: arranca COS, escribe `DIR`, guarda y carga la computadora, y mide cuántas máquinas a 4,77 MHz corren en un núcleo.
-- `flight_test`: la nave volada por FLIGHT.COM. Prueba velocidades de giro y de avance con flight assist, la deriva sin él, el botón FA, la consola libre mientras vuela, y el modo directo con `FLIGHT OFF`.
-- `combat_test`: FIRECTL.COM contra drones. Fija con T, mide el error de puntería contra la intercepción exacta, cuenta impactos de una ráfaga a 2 km, destruye el drone, cambia de blanco con G y apaga el radar con `FIRECTL OFF`.
-- `accuracy_test`: probabilidad de impacto por distancia contra un drone que esquiva a 3 g (tres pasadas por distancia), y un jammer en el drone: sin lock a 4 km, burn-through a 1,5 km. Hoy da alrededor de 40% a 500 m, 30% a 1 km, 8% a 2 km y 0% desde 4 km (85% contra un blanco recto a 2 km).
+- `computer_test`: boots COS, types `DIR`, saves and loads the computer, and measures how many 4.77 MHz machines one core runs.
+- `flight_test`: the ship flown by FLIGHT.COM: turn rates and speed hold with flight assist, drift without it, the FA button, the console free while flying, and direct mode after `FLIGHT OFF`.
+- `combat_test`: FIRECTL.COM against drones: locks with T, measures the aiming error against the exact intercept, counts the hits of a burst at 2 km, destroys the drone, switches target with G and turns the radar off with `FIRECTL OFF`.
+- `accuracy_test`: hit probability by range against a drone jinking at 3 g (three runs per range), and a jammer on the drone: no lock at 4 km, burn-through at 1.5 km. It currently gives about 40% at 500 m, 30% at 1 km, 8% at 2 km and 0% from 4 km (85% against a straight target at 2 km).
 
-`tests/combat_demo.tscn` abre el juego con un script en los controles (fija y dispara solo), para mirarlo o grabarlo.
+`tests/combat_demo.tscn` opens the game with a script at the controls (it locks and fires by itself), to watch or record.
 
-Todas terminan con código 0 si todo pasó.
+All of them exit with 0 when everything passed.
 
-## Estructura
+## Layout
 
-| Carpeta | Contenido |
+| Folder | Contents |
 |---|---|
-| `scripts/Native` | P/Invoke sobre `pc86.dll` y `xpace_native.dll` |
-| `scripts/Computer` | `ShipComputer` (la PC de la nave), `ShipBus` (los registros del bus), el mapa de teclas |
-| `scripts/Ship` | `ShipBody` (física, mandos, unidad inercial, propulsores, watchdog), radar, torreta, pantallas laterales, `ShipSpec`, `PilotControls` |
-| `scripts/Cockpit` | Piloto (controles estilo Elite, vista), pantallas de cabina, indicador del mouse, cabina provisoria |
-| `scripts/Space` | Estrellas, asteroides, polvo espacial, estación provisoria, drones, proyectiles |
-| `software` | Software de la nave: `flight/flight.asm`, `firectl/firectl.asm`, `autoexec.bat` |
-| `scenes` | `main.tscn`: la nave en el campo de asteroides |
-| `tests` | Pruebas de la computadora, de vuelo y de combate; demo de combate |
-| `native` | La placa del bus y el dibujo de texto en C, y el script que compila las DLL y el diskette |
+| `external` | The pc86 and sw86 submodules |
+| `native` | The bus card and text drawing in C, and the CMake build of the libraries and the diskette |
+| `scripts/Native` | P/Invoke over the pc86 and xpace_native libraries |
+| `scripts/Computer` | `ShipComputer` (the ship's PC), `ShipBus` (the bus registers), the key map |
+| `scripts/Ship` | `ShipBody` (physics, controls, inertial unit, thrusters, watchdog), radar, turret, side screens, `ShipSpec`, `PilotControls` |
+| `scripts/Cockpit` | The pilot (Elite-style controls, looking), cockpit screens, the mouse widget, the placeholder cockpit |
+| `scripts/Space` | Stars, asteroids, space dust, the placeholder station, drones, rounds |
+| `software` | The ship's software: `flight/flight.asm`, `firectl/firectl.asm`, `autoexec.bat` |
+| `scenes` | `main.tscn`: the ship in the asteroid field |
+| `tests` | Computer, flight, combat and accuracy tests; the combat demo |

@@ -69,7 +69,7 @@ public partial class ShipComputer : Node
 
         byte[] image = Godot.FileAccess.GetFileAsBytes(DiskPath);
         if (image.Length == 0)
-            GD.PushError($"ShipComputer: cannot read {DiskPath} (run native\\build.bat)");
+            GD.PushError($"ShipComputer: cannot read {DiskPath} (build it: see native/CMakeLists.txt)");
         else
             InsertDisk(image);
 

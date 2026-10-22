@@ -1,0 +1,6 @@
+[submodule "external/pc86"]
+	path = external/pc86
+	url = https://github.com/cucsijuan/pc86.git
+[submodule "external/sw86"]
+	path = external/sw86
+	url = https://github.com/cucsijuan/sw86.git

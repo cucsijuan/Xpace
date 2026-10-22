@@ -11,7 +11,7 @@ bin/
 obj/
 *.user
 
-# Built by native/build.bat
+# Built by native/CMakeLists.txt
 native/build/
 native/bin/
 disks/cos.img

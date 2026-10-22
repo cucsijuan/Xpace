@@ -7,7 +7,7 @@ using Godot;
 namespace Xpace.Native;
 
 /// <summary>
-/// pc86.dll: the machine (pc.h), its cards (pc_vga.h, pc_fdc.h) and the
+/// The pc86 library: the machine (pc.h), its cards (pc_vga.h, pc_fdc.h) and the
 /// peripherals plugged into them (monitor.h, kbd.h, fdd.h). Every handle is
 /// an opaque pointer owned by whoever created it.
 /// </summary>
@@ -28,8 +28,9 @@ public static unsafe class Pc86
     private static bool _resolverSet;
 
     /// <summary>
-    /// Points the DllImports at native/bin/pc86.dll in the project (the editor)
-    /// or next to the executable (an exported game). Call before anything else.
+    /// Points the DllImports at the libraries native/CMakeLists.txt builds into
+    /// native/bin (the editor), or next to the executable (an exported game).
+    /// Call before anything else.
     /// </summary>
     public static void EnsureLoaded()
     {
@@ -43,12 +44,23 @@ public static unsafe class Pc86
     {
         if (name != Lib && name != XbusLib)
             return IntPtr.Zero;
-        string inProject = ProjectSettings.GlobalizePath($"res://native/bin/{name}.dll");
-        string nextToExe = Path.Combine(Path.GetDirectoryName(OS.GetExecutablePath()) ?? "", $"{name}.dll");
-        foreach (string file in new[] { inProject, nextToExe })
-            if (File.Exists(file) && NativeLibrary.TryLoad(file, out IntPtr handle))
-                return handle;
+        string inProject = ProjectSettings.GlobalizePath("res://native/bin");
+        string nextToExe = Path.GetDirectoryName(OS.GetExecutablePath()) ?? "";
+        foreach (string folder in new[] { inProject, nextToExe })
+            foreach (string file in FileNames(name))
+                if (File.Exists(Path.Combine(folder, file)) && NativeLibrary.TryLoad(Path.Combine(folder, file), out IntPtr handle))
+                    return handle;
         return IntPtr.Zero;
+    }
+
+    /// <summary>What the library is called on this system (MinGW builds add "lib" on Windows too).</summary>
+    private static string[] FileNames(string name)
+    {
+        if (OperatingSystem.IsWindows())
+            return new[] { name + ".dll", "lib" + name + ".dll" };
+        if (OperatingSystem.IsMacOS())
+            return new[] { "lib" + name + ".dylib" };
+        return new[] { "lib" + name + ".so" };
     }
 
     // ---------- machine ----------
@@ -114,7 +126,7 @@ public static unsafe class Pc86
     [DllImport(Lib)] public static extern nuint fdd_save_state(IntPtr drive, byte* buf, nuint len);
     [DllImport(Lib)] public static extern int fdd_load_state(IntPtr drive, byte* buf, nuint len);
 
-    // ---------- the ship's bus card (xpace_native.dll, native/xbus.c) ----------
+    // ---------- the ship's bus card (xpace_native, native/xbus.c) ----------
     private const string XbusLib = "xpace_native";
     [DllImport(XbusLib)] public static extern IntPtr xbus_create(ushort basePort, ushort size, int irqLine);
     [DllImport(XbusLib)] public static extern void xbus_destroy(IntPtr bus);

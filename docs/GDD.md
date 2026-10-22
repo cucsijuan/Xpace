@@ -1,286 +1,286 @@
-# Xpace: documento maestro de diseño
+# Xpace: master design document
 
-Versión 0.2, 22 de octubre de 2026. Es un documento vivo: las secciones marcadas **[abierto]** todavía están por decidir.
+Version 0.3, 22 October 2026. A living document: sections marked **[open]** are still to be decided.
 
-Nombre en clave: **Xpace**. El nombre definitivo del juego y de la galaxia está pendiente (sección 13).
+Codename: **Xpace**. The final name of the game and of the galaxy is pending (section 13).
 
 ---
 
-## 1. La idea en una frase
+## 1. The idea in one sentence
 
-Un sandbox espacial de comercio, combate y facciones, al estilo de X4, Elite Dangerous, Avorion y No Man's Sky, donde **el cerebro de cada nave es una computadora 8086 real**. Navegación, puntería, radar, radios, misiles y torretas funcionan con software que corre en esa CPU. El jugador puede usar el que viene de fábrica, comprarlo o escribir el suyo.
+A space sandbox of trade, combat and factions, in the vein of X4, Elite Dangerous, Avorion and No Man's Sky, where **every ship's brain is a real 8086 computer**. Navigation, targeting, radar, radios, missiles and turrets all run on software on that CPU. Players can use the factory software, buy better programs, or write their own.
 
-## 2. Pilares
+## 2. Pillars
 
-1. **La computadora es la nave.** Todo sistema digital pasa por una CPU emulada. No es una capa decorativa: si tu software de puntería es mejor, le acertás más al enemigo.
-2. **Programar es opcional, nunca obligatorio.** Cada sistema trae software de fábrica que funciona bien. Programar sirve para superarlo, no para poder jugar.
-3. **Combate con sensores creíbles.** Radar, firma infrarroja, alerta de radar (RWR), contramedidas y misiles guiados como en un avión de combate moderno, sumados a lo clásico de la ciencia ficción: láseres, railguns y escudos.
-4. **Un universo con dueños.** Corporaciones, facciones y política que existen sin el jugador, con una economía que produce, transporta y consume.
-5. **Sé lo que quieras.** Comerciante, minero, constructor de naves, diseñador de software, político o pirata.
+1. **The computer is the ship.** Every digital system goes through an emulated CPU. It is not a decorative layer: better targeting software means more hits.
+2. **Programming is optional, never required.** Every system ships with factory software that works well. Programming is a way to beat it, not a requirement to play.
+3. **Combat with believable sensors.** Radar, infrared signatures, radar warning receivers (RWR), countermeasures and guided missiles as in a modern fighter jet, plus the science-fiction classics: lasers, railguns and shields.
+4. **A universe with owners.** Corporations, factions and politics that exist without the player, with an economy that produces, transports and consumes.
+5. **Be whatever you want.** Trader, miner, shipbuilder, software designer, politician or pirate.
 
-## 3. Presentación y jugador
+## 3. Presentation and the player
 
-### 3.1 Cámara y cabina (decidido)
+### 3.1 Camera and cockpit (decided)
 
-- **Siempre en primera persona, desde la cabina.** No hay vista externa de pilotaje.
-- **Las pantallas de la computadora están en la cabina.** Las pantallas multifunción (MFD) muestran lo que dibuja la CPU de la nave: texto CGA, gráficos VGA, el radar o el editor. Lo que corre en el 8086 se ve físicamente adelante del piloto, lo que refuerza el pilar 1.
-- **Naves chicas (cazas):** el jugador solo tiene acceso a la cabina.
-- **Naves grandes (futuro):** el jugador puede levantarse del asiento y caminar por la nave.
+- **Always first person, from the cockpit.** There is no external flight camera.
+- **The computer's screens are in the cockpit.** The multifunction displays (MFDs) show what the ship's CPU draws: CGA text, VGA graphics, the radar, the editor. What runs on the 8086 is physically in front of the pilot, which reinforces pillar 1.
+- **Small ships (fighters):** the player only has the cockpit.
+- **Large ships (future):** the player can get up from the seat and walk around the ship.
 
-### 3.2 El jugador tiene cuerpo
+### 3.2 The player has a body
 
-- Hay un personaje físico, aunque al principio casi siempre esté sentado en la cabina.
-- Caminar por naves grandes y por estaciones queda para más adelante. La arquitectura tiene que permitirlo desde el principio: el personaje es una entidad separada de la nave, que "se sienta" en ella.
+- There is a physical character, even if at first it is almost always seated in the cockpit.
+- Walking around large ships and stations comes later. The architecture must allow it from the start: the character is an entity separate from the ship, which "sits" in it.
 
-### 3.3 Arte
+### 3.3 Art
 
-- Se usa el kit **Synty POLYGON Sci-Fi Space**. Trae naves y cabinas preparadas para primera persona, sin interiores, y alcanza para la etapa actual.
-- El estilo low-poly de Synty define la dirección de arte. Los recursos propios (pantallas, HUD, estaciones nuevas) deben seguir ese estilo.
-- Los interiores para caminar por las naves grandes van a necesitar otro kit o arte propio más adelante.
+- The **Synty POLYGON Sci-Fi Space** kit is used. It has ships and cockpits made for first person, without interiors, which is enough for now.
+- Synty's low-poly style sets the art direction. Our own assets (screens, HUD, new stations) must follow it.
+- Interiors for walking around large ships will need another kit or our own art later.
 
-### 3.4 Muerte y seguro (decidido)
+### 3.4 Death and insurance (decided)
 
-- **Sin muerte permanente.**
-- Al ser destruido, el jugador reaparece en una estación. Recupera la nave pagando el **seguro**, un porcentaje de su valor, como en Elite Dangerous.
-- Si no le alcanza el dinero, recibe una nave básica. **[abierto]** ¿Se pierde la carga? ¿Y el software instalado, o queda guardado en la cuenta del jugador?
+- **No permadeath.**
+- When destroyed, the player respawns at a station and gets the ship back by paying the **insurance**, a percentage of its value, as in Elite Dangerous.
+- If the player cannot afford it, they get a basic ship. **[open]** Is the cargo lost? And the installed software, or is it kept in the player's account?
 
-## 4. Universo y desplazamiento
+## 4. Universe and travel
 
-### 4.1 Estructura
+### 4.1 Structure
 
-- **Sector = un sistema solar.** Cada sector tiene una estrella, planetas, cinturones de asteroides, estaciones, puertas de salto y anomalías.
-- **Mapa de sectores:** un grafo de cientos de sectores. Empieza hecho a mano en el centro poblado y pasa a ser generado proceduralmente hacia la frontera.
-- **Escala:** dentro del sistema, distancias "jugables" y comprimidas (como en X4), no las reales (como en Elite). Así un viaje entre planetas dura minutos y no horas.
-- **Planetas:** por ahora no se puede aterrizar (decidido). Son decorado y referencia de navegación. Lo que se visita son estaciones espaciales y estructuras parecidas: astilleros, puestos mineros, bases piratas, ruinas. Aterrizar en planetas queda para el futuro.
+- **Sector = a solar system.** Each sector has a star, planets, asteroid belts, stations, jump gates and anomalies.
+- **Sector map:** a graph of hundreds of sectors, hand-made in the populated core and procedurally generated toward the frontier.
+- **Scale:** inside a system, "playable", compressed distances (as in X4), not real ones (as in Elite), so a trip between planets takes minutes, not hours.
+- **Planets:** no landing for now (decided). They are scenery and navigation references. What players visit are space stations and similar structures: shipyards, mining outposts, pirate bases, ruins. Planetary landing is for the future.
 
-### 4.2 Moverse entre sectores: saltos (decidido)
+### 4.2 Travel between sectors: jumps (decided)
 
-Hay dos formas de saltar, y conviven:
+There are two ways to jump, and they coexist:
 
-| Forma | Cómo funciona | Por qué existe |
+| Way | How it works | Why it exists |
 |---|---|---|
-| **Puertas de salto** | Estructuras fijas que unen sectores vecinos. Son instantáneas y seguras, pero tienen dueño: cobran peaje, piden permiso y pueden cerrarse. | Crean rutas comerciales, cuellos de botella y política. Controlar una puerta es poder. |
-| **Motor de salto** | Va en la nave. Necesita combustible y un tiempo de carga que crece con la masa. Las coordenadas las **calcula la computadora de navegación**. | Libertad, exploración y huidas. Lo usan contrabandistas y piratas. |
+| **Jump gates** | Fixed structures linking neighbouring sectors. Instant and safe, but owned: they charge tolls, ask for clearance and can be closed. | They create trade routes, choke points and politics. Controlling a gate is power. |
+| **Jump drive** | Fitted to the ship. It needs fuel and a spool-up time that grows with mass. The coordinates are **computed by the navigation computer**. | Freedom, exploration and escape. Used by smugglers and pirates. |
 
-El cálculo del salto es un buen ejemplo de la CPU como mecánica: un programa de navegación mejor, o una CPU más rápida, calcula el salto antes o con menos error. Un salto mal calculado te deja lejos del destino, o en un lugar peligroso.
+Jump computation is a good example of the CPU as a mechanic: a better navigation program, or a faster CPU, computes the jump sooner or with less error. A badly computed jump leaves you far from the destination, or somewhere dangerous.
 
-### 4.3 Moverse dentro del sistema: tiempo real
+### 4.3 Travel inside a system: real time
 
-- **Vuelo normal:** newtoniano en 6 grados de libertad, para combate y maniobras.
-- **Crucero:** un modo de alta velocidad para recorrer el sistema. Se corta cerca de masas grandes y puede ser interdictado.
-- Las autopistas espaciales de X4 quedan descartadas. Las puertas y el crucero cubren ese rol.
+- **Normal flight:** Newtonian, six degrees of freedom, for combat and manoeuvring.
+- **Cruise:** a high-speed mode to cross the system. It drops out near large masses and can be interdicted.
+- X4-style space highways are ruled out; gates and cruise cover that role.
 
-## 5. La computadora de a bordo
+## 5. The onboard computer
 
 ### 5.1 Hardware
 
-- **CPU:** el núcleo vm86 de pc86, un 8086 fiel con 1 MB de memoria, puertos de E/S e interrupciones. Corre a 4,77 MHz de referencia, unas 400.000 instrucciones por segundo.
-- **Bus de expansión ("Xbus"):** cada módulo de la nave es un dispositivo con su rango de puertos: la ranura *n* ocupa los puertos `100h + n·16`. Desde M1 hay tres dispositivos:
-  - los mandos del piloto, en `100h`;
-  - la unidad inercial, en `110h`, que pide la IRQ 5 con cada muestra, 60 veces por segundo;
-  - el controlador de propulsores, en `120h`, con un watchdog: si el software deja de escribir por 100 ms, pasa a modo directo.
+- **CPU:** pc86's vm86 core, a faithful 8086 with 1 MB of memory, I/O ports and interrupts. It runs at a reference 4.77 MHz, about 400,000 instructions a second.
+- **Expansion bus ("Xbus"):** every ship module is a device with its own port range: slot *n* uses ports `100h + n·16`. Since M1 there are three devices:
+  - the pilot's controls, at `100h`;
+  - the inertial unit, at `110h`, which raises IRQ 5 with every sample, 60 times a second;
+  - the thruster controller, at `120h`, with a watchdog: if the software stops writing for 100 ms, it falls back to direct mode.
 
-  Los registros están documentados en `software/flight/flight.asm`. El software de vuelo de fábrica (FLIGHT.COM, que arranca desde AUTOEXEC.BAT) usa un 5% de la CPU de 4,77 MHz.
+  The registers are documented in `software/flight/flight.asm`. The factory flight software (FLIGHT.COM, started from AUTOEXEC.BAT) uses 5% of the 4.77 MHz CPU.
 
-  M2 sumó tres dispositivos más:
-  - el radar, en `130h`: cono de ±60° y 8 km, tabla de contactos y seguimiento escritos en memoria, en D000:1000;
-  - la torreta con gimbal, en `140h`: servos de 90°/s y cañón cinético de 1.200 m/s;
-  - las pantallas laterales, en `150h`: texto de 40×16 mapeado en memoria, como una CGA, en D000:0000 y D000:0800.
+  M2 added three more devices:
+  - the radar, at `130h`: a ±60° cone out to 8 km, with the contact table and the track written to memory at D000:1000;
+  - the gimballed turret, at `140h`: 90°/s servos and a 1,200 m/s kinetic cannon;
+  - the side screens, at `150h`: 40×16 text memory-mapped like a CGA card, at D000:0000 and D000:0800.
 
-  FLIGHT y FIRECTL quedan **residentes** y trabajan dentro de la interrupción, así que la consola central queda libre. FIRECTL calcula el adelanto con CORDIC (ángulos y distancias sin raíz cuadrada) y usa un 30% de la CPU: el control de fuego pesa seis veces más que el de vuelo. Es la mecánica del tiempo de CPU como recurso, ya funcionando.
+  FLIGHT and FIRECTL stay **resident** and do their work inside the interrupt, so the central console stays free. FIRECTL computes the lead with CORDIC (angles and distances with no square root) and uses 30% of the CPU: fire control costs six times what flight control does. The CPU-time-as-a-resource mechanic is already working.
 
-  **Precisión realista.** El radar mide solo posiciones, con un ruido que sale de su relación señal/ruido (SNR):
-  - el eco cae con la distancia a la cuarta potencia y crece con la firma de radar del blanco;
-  - los jammers suben el ruido: caen solo con el cuadrado de su distancia y pesan entero si están dentro del haz, de ahí la distancia de *burn-through*.
+  **Realistic accuracy.** The radar measures positions only, with noise that comes from its signal-to-noise ratio (SNR):
+  - the echo falls with the fourth power of the range and grows with the target's radar cross-section;
+  - jammers raise the noise: they fall only with the square of their distance and count in full inside the beam, hence the *burn-through* range.
 
-  La velocidad la estima FIRECTL con un filtro alfa-beta. A eso se suman la inercia de los servos, la dispersión del cañón (crece con el calor) y drones que esquivan a 3 g cuando los fijan. Contra un blanco que maniobra el cañón acierta alrededor del 40% a 500 m y casi nada desde 3–4 km; contra un blanco recto, 85% a 2 km.
+  FIRECTL estimates the velocity with an alpha-beta filter. On top of that come servo inertia, cannon dispersion (which grows with barrel heat), and drones that jink at 3 g once locked. Against a manoeuvring target the cannon hits about 40% at 500 m and almost nothing from 3–4 km; against a target flying straight, 85% at 2 km.
 
-  Mejorar el radar (potencia, haz más angosto), la torreta o el software (otras ganancias, estimar aceleración, compensar el giro propio, rechazar los saltos de un jammer de engaño) mejora esos números: ahí entran el mercado de equipamiento y el de programas.
-- **Descubrimiento de hardware:** el registro 0 de cada ranura devuelve el ID del dispositivo, el fabricante y la versión, como hacía la instrucción HWQ en 0x10c. El software recorre el bus y averigua qué tiene instalado.
-- **Interrupciones:** los dispositivos avisan sin que la CPU tenga que preguntar: un contacto nuevo en el radar, un misil que se acerca, un mensaje de radio, un daño.
-- **Mejoras de hardware:**
-  - CPUs más rápidas (8 MHz, 10 MHz, "Turbo");
-  - más memoria;
-  - **coprocesador matemático** (el 8087, como módulo aparte): hace barato el punto flotante;
-  - **controladores dedicados**: CPUs extra, por ejemplo una por torreta, para descargar a la principal.
+  A better radar (more power, a narrower beam), a better turret or better software (other filter gains, estimating acceleration, compensating the ship's own rotation, rejecting the jumps of a deception jammer) improves those numbers: that is where the equipment and software markets come in.
+- **Hardware discovery:** register 0 of each slot gives the device type, the manufacturer and the version, as the HWQ instruction did in 0x10c. Software walks the bus to find out what is installed.
+- **Interrupts:** devices report without the CPU having to ask: a new radar contact, an incoming missile, a radio message, damage.
+- **Hardware upgrades:**
+  - faster CPUs (8 MHz, 10 MHz, "Turbo");
+  - more memory;
+  - a **maths coprocessor** (the 8087, as a separate module), which makes floating point cheap;
+  - **dedicated controllers**: extra CPUs, for example one per turret, to unload the main one.
 
-**El tiempo de CPU es un recurso, como la energía o el calor.** Un 8086 hace unas 6.600 instrucciones por cuadro a 60 Hz. Mantener tres torretas con cálculo de adelanto, más radar, más navegación, no entra en una sola CPU barata. Eso obliga a elegir entre comprar hardware y optimizar software.
+**CPU time is a resource, like energy or heat.** An 8086 executes about 6,600 instructions per frame at 60 Hz. Keeping three turrets with lead computation, plus radar, plus navigation, does not fit in one cheap CPU. That forces a choice between buying hardware and optimising software.
 
 ### 5.2 Software
 
-- **Sistema operativo:** COS, el DOS de CucsiCorp que ya existe en sw86. La nave arranca desde su "diskette" (en el juego, un cartucho o una ROM).
-- **Lenguajes dentro del juego:** CBasic, para el que recién empieza, y ASM, para el que necesita velocidad. Los dos ya existen, junto con el editor EDIT.
-- **Software de fábrica:** cada fabricante vende sus programas: control de vuelo, puntería, guerra electrónica, navegación y comercio automatizado.
-- **El software es un producto:** tiene versiones, licencias, bugs y parches. Hay software pirata y un mercado de programas hechos por jugadores (en un primer momento, dentro del propio juego).
+- **Operating system:** COS, CucsiCorp's DOS, which already exists in sw86. The ship boots from its "diskette" (in the game, a cartridge or a ROM).
+- **In-game languages:** CBasic for beginners and ASM for those who need speed. Both already exist, along with the EDIT editor.
+- **Factory software:** each manufacturer sells its programs: flight control, targeting, electronic warfare, navigation and automated trading.
+- **Software is a product:** it has versions, licences, bugs and patches. There is pirated software and a market of player-made programs (at first, inside the game itself).
 
-### 5.3 Ejemplos de lo que hace la CPU
+### 5.3 Examples of what the CPU does
 
-| Sistema | Qué hace el software |
+| System | What the software does |
 |---|---|
-| **Control de vuelo (flight assist)** | Traduce la palanca en encendidos de propulsores. Amortigua la rotación y mantiene la velocidad. Se puede reemplazar o apagar. |
-| **Torretas con gimbal** | Leen el blanco que fijó el radar, calculan el punto de intercepción con adelanto y mueven los servos. |
-| **Misiles guiados por radar** | El misil tiene un microcontrolador propio. Puede recibir actualizaciones del radar de la nave madre por enlace de datos (guiado semiactivo) o encender su propio radar al final (activo, "fire and forget"). |
-| **Misiles infrarrojos** | El buscador entrega un ángulo hacia la fuente de calor y el software aplica navegación proporcional. Las bengalas y la firma térmica de la nave entran en el cálculo. |
-| **Radar** | Modos de búsqueda y seguimiento, y seguimiento mientras se busca (TWS). Fija blancos y prioriza amenazas. |
-| **Guerra electrónica** | Interferencia, señuelos y análisis de la alerta de radar (RWR). |
-| **Comunicaciones** | Radio y módem para hablar con estaciones, flotas y otras naves. Sirven para comerciar, coordinarse y también para **hackear**. |
-| **Automatización** | Rutas de comercio y minería, y órdenes a naves de una flota propia. |
+| **Flight control (flight assist)** | Turns the stick into thruster firings, damps rotation and holds speed. It can be replaced or switched off. |
+| **Gimballed turrets** | Read the target the radar has locked, compute the intercept point with lead and drive the servos. |
+| **Radar-guided missiles** | The missile has its own microcontroller. It can receive updates from the mother ship's radar over a datalink (semi-active guidance) or switch on its own radar at the end (active, "fire and forget"). |
+| **Infrared missiles** | The seeker gives an angle to the heat source and the software applies proportional navigation. Flares and the ship's heat signature come into it. |
+| **Radar** | Search and track modes, and track-while-scan (TWS). Locks targets and ranks threats. |
+| **Electronic warfare** | Jamming, decoys and analysis of the radar warning receiver (RWR). |
+| **Communications** | Radio and modem to talk to stations, fleets and other ships. For trading, coordinating, and also **hacking**. |
+| **Automation** | Trade and mining routes, and orders to ships of your own fleet. |
 
-## 6. Combate
+## 6. Combat
 
-### 6.1 Sensores y firmas
+### 6.1 Sensors and signatures
 
-- Cada nave tiene una **firma de radar** (según el tamaño y el casco) y una **firma infrarroja** (según el calor de motores y armas).
-- **Sigilo:** apagar sistemas, enfriar la nave y volar con el radar apagado (modo pasivo).
-- **Alerta de radar (RWR):** te avisa cuando te están buscando, siguiendo o tirando un misil.
+- Every ship has a **radar signature** (from its size and hull) and an **infrared signature** (from the heat of its engines and weapons).
+- **Stealth:** shutting systems down, cooling the ship and flying with the radar off (passive mode).
+- **Radar warning receiver (RWR):** warns you when you are being searched, tracked, or fired at.
 
-### 6.2 Armas
+### 6.2 Weapons
 
-| Tipo | Rol |
+| Type | Role |
 |---|---|
-| Misiles IR | Corto alcance, "dispara y olvídate". Se los engaña con bengalas. |
-| Misiles por radar | Medio y largo alcance. Se los engaña con chaff y interferencia. |
-| Láseres | Impacto instantáneo. Gastan mucha energía y generan calor. |
-| Railguns | Proyectil muy rápido con mucho daño. Necesitan adelanto (la CPU) y una carga previa. |
-| Cañones balísticos | Baratos, gastan munición y les va bien contra cascos. |
-| Torpedos | Contra naves capitales. Son lentos y se pueden interceptar. |
+| IR missiles | Short range, "fire and forget". Decoyed by flares. |
+| Radar missiles | Medium and long range. Decoyed by chaff and jamming. |
+| Lasers | Instant hit. They use a lot of energy and generate heat. |
+| Railguns | A very fast, hard-hitting round. They need lead (the CPU) and charging. |
+| Ballistic cannons | Cheap, use ammunition, good against hulls. |
+| Torpedoes | Against capital ships. Slow and interceptable. |
 
-### 6.3 Defensas
+### 6.3 Defences
 
-Escudos, blindaje, sistemas de defensa de punto (point defense) y contramedidas: bengalas, chaff, interferencia y señuelos.
+Shields, armour, point defence systems and countermeasures: flares, chaff, jamming and decoys.
 
-### 6.4 Energía y calor
+### 6.4 Energy and heat
 
-- El reactor genera energía y se reparte entre armas, escudos, motores y sistemas, con gestión en vivo al estilo de los "pips" de Elite.
-- Disparar, acelerar y saltar genera **calor**. El calor sube la firma infrarroja y, si se excede, daña módulos.
-- Apagar y encender sistemas es parte de la táctica, y también se puede hacer desde software.
+- The reactor generates energy, which is shared between weapons, shields, engines and systems, managed live in the style of Elite's "pips".
+- Firing, accelerating and jumping generate **heat**. Heat raises the infrared signature and, past a limit, damages modules.
+- Switching systems on and off is part of the tactics, and can also be done from software.
 
-## 7. Equipamiento de naves (fittings)
+## 7. Ship fittings
 
-- **Tamaños de ranura:** S, M, L y XL (capitales).
-- **Tipos de ranura:** armas, utilitarios, internos y ranuras del bus de la computadora.
-- **Restricciones:** energía, calor, masa, ranuras del bus y **tiempo de CPU**.
-- **Cascos de fábrica (decidido):** cada nave es un modelo de un fabricante. No hay construcción libre por bloques al estilo de Avorion.
-- **Partes modulares:** algunas partes del casco se pueden cambiar, como alas, góndolas de motor y módulos de carga, si el kit de Synty lo permite. Cambian el aspecto y también los números (masa, firma, ranuras). **[abierto]** Falta revisar qué piezas intercambiables trae el kit.
+- **Slot sizes:** S, M, L and XL (capital ships).
+- **Slot types:** weapons, utility, internal, and computer bus slots.
+- **Constraints:** energy, heat, mass, bus slots and **CPU time**.
+- **Factory hulls (decided):** every ship is a model from a manufacturer. There is no free block building as in Avorion.
+- **Modular parts:** some hull parts can be swapped, such as wings, engine nacelles and cargo modules, if the Synty kit allows it. They change the looks and also the numbers (mass, signature, slots). **[open]** Which interchangeable parts the kit has still needs checking.
 
-## 8. Economía, corporaciones y política
+## 8. Economy, corporations and politics
 
-### 8.1 Economía
+### 8.1 Economy
 
-- Las estaciones producen a partir de materias primas, en cadenas de producción como las de X4: mineral → metal → componentes → módulos → naves.
-- La economía está simulada: precios por oferta y demanda, y naves comerciantes que existen de verdad y pueden ser atacadas.
+- Stations produce from raw materials in production chains like X4's: ore → metal → components → modules → ships.
+- The economy is simulated: prices from supply and demand, and trading ships that really exist and can be attacked.
 
-### 8.2 Corporaciones
+### 8.2 Corporations
 
-- Muchas compañías venden cascos, módulos, CPUs y software.
-- Cada una tiene su estilo y su ID de fabricante en el bus.
-- **CucsiCorp** encaja como el gigante del hardware y los sistemas operativos.
-- Compiten entre sí: lanzan productos, tienen escándalos y sacan parches.
+- Many companies sell hulls, modules, CPUs and software.
+- Each has its own style and its manufacturer ID on the bus.
+- **CucsiCorp** fits as the hardware and operating system giant.
+- They compete: they launch products, have scandals and ship patches.
 
-### 8.3 Facciones y política
+### 8.3 Factions and politics
 
-- Hay gobiernos, corporaciones, gremios y piratas, con relaciones entre sí, territorio y guerras.
-- **Reputación** con cada facción.
-- **Punto de partida (decidido): la política de Elite Dangerous.**
-  - Las facciones tienen influencia en cada sector, que sube o baja según las acciones de los jugadores: misiones, comercio, recompensas y combate.
-  - Las facciones tienen estados: auge, guerra, elecciones, crisis, etc.
-  - El control de estaciones y puertas cambia cuando cambia la influencia.
-- **Expansiones posibles [abierto]**, a decidir una vez que la base funcione:
-  - controlar estaciones y puertas directamente;
-  - fijar impuestos y peajes;
-  - armar alianzas;
-  - fundar una facción propia.
+- There are governments, corporations, guilds and pirates, with relations, territory and wars.
+- **Reputation** with each faction.
+- **Starting point (decided): Elite Dangerous's politics.**
+  - Factions have influence in each sector, which rises or falls with players' actions: missions, trade, bounties and combat.
+  - Factions have states: boom, war, elections, crisis, and so on.
+  - Control of stations and gates changes when influence does.
+- **Possible expansions [open]**, to be decided once the base works:
+  - controlling stations and gates directly;
+  - setting taxes and tolls;
+  - forming alliances;
+  - founding a faction of your own.
 
-## 9. Roles del jugador
+## 9. Player roles
 
-| Rol | Bucle principal |
+| Role | Main loop |
 |---|---|
-| Comerciante | Comprar barato, transportar y vender. Escala a flotas automatizadas con software propio. |
-| Minero | Prospectar, extraer y refinar. |
-| Constructor | Construir estaciones y fábricas. Equipar y personalizar naves de fábrica (partes modulares, módulos y software) y venderlas. |
-| Programador o corporación de software | Escribir programas y venderlos o licenciarlos. |
-| Mercenario o cazarrecompensas | Contratos de combate. |
-| Pirata | Interdictar, robar y hackear. Termina en un imperio pirata. |
-| Político | Influencia, territorio y facción propia. |
+| Trader | Buy low, transport, sell. Scales up to automated fleets running your own software. |
+| Miner | Prospect, extract, refine. |
+| Builder | Build stations and factories. Fit out and customise factory ships (modular parts, modules and software) and sell them. |
+| Programmer or software corporation | Write programs and sell or license them. |
+| Mercenary or bounty hunter | Combat contracts. |
+| Pirate | Interdict, rob and hack. Ends up as a pirate empire. |
+| Politician | Influence, territory and a faction of your own. |
 
-## 10. Tecnología
+## 10. Technology
 
-- **Motor:** Godot 4.7 (.NET, C#).
-- **CPU:** vm86 compilado como DLL nativa y llamado desde C# con P/Invoke. Su API en C (`vm86.h`) ya está pensada para eso:
-  - sin hilos y sin reloj propio: el motor decide cuántas instrucciones corre por cuadro;
-  - el estado completo se guarda y se restaura como un bloque de bytes, lo que sirve para guardar partidas.
-- **Dispositivos:** cada módulo de la nave es una clase C# que implementa `in8`/`out8` y pide interrupciones.
-- **Nivel de detalle de la simulación** (indispensable):
-  - **Cerca del jugador:** las CPUs corren de verdad, instrucción por instrucción.
-  - **Lejos:** las naves de la IA usan un modelo abstracto ("el software de fábrica nivel 3 acierta X%"), sin emular.
-  - **Misiles:** emulados solo si los disparó el jugador o si van hacia él.
-- **Presupuesto de CPU de la PC real:** medido en M0, la placa pc86 completa ejecuta unos 107 millones de instrucciones por segundo en un núcleo (una PC de oficina de 2026, compilación Release de MSVC). Eso equivale a unas **260 máquinas a 4,77 MHz por núcleo**. Alcanza de sobra para la nave del jugador, sus torretas y los misiles cercanos. Hoy cada instancia reserva 1 MB; para misiles conviene una variante de vm86 con memoria chica, de 64 KB o menos.
-- **Escala espacial:** usar un origen flotante y evaluar la compilación de Godot con doble precisión.
-- **Herramientas:** asm86 en la PC para el software de fábrica; COS, ASM y CBasic dentro del juego para el jugador.
+- **Engine:** Godot 4.7 (.NET, C#).
+- **CPU:** pc86 built as a native library (CMake, on Windows and Linux) and called from C# with P/Invoke. Its C API (`vm86.h`, `pc.h`) was designed for this:
+  - no threads and no clock of its own: the engine decides how many instructions run per frame;
+  - the complete state saves and restores as a block of bytes, which serves for saved games.
+- **Devices:** the ship's bus is a small C card (`native/xbus.c`) whose registers the C# devices read and write between machine steps.
+- **Simulation level of detail** (essential):
+  - **near the player:** CPUs really run, instruction by instruction;
+  - **far away:** AI ships use an abstract model ("level 3 factory software hits X%"), with no emulation;
+  - **missiles:** emulated only if the player fired them or they are heading for the player.
+- **Real PC CPU budget:** measured in M0, the full pc86 board executes about 107 million instructions a second on one core (a 2026 office PC, MSVC Release build). That is about **260 machines at 4.77 MHz per core**, plenty for the player's ship, its turrets and nearby missiles. Each instance reserves 1 MB today; missiles would suit a vm86 variant with little memory, 64 KB or less.
+- **Spatial scale:** use a floating origin and consider Godot's double-precision build.
+- **Tools:** asm86 on the PC for the factory software; COS, ASM and CBasic inside the game for players.
 
-## 11. Opinión y recomendaciones
+## 11. Assessment and recommendations
 
-**Lo más fuerte.** La idea tiene algo que no tiene ninguno de sus referentes: en X4 y en Elite la nave es una planilla de números, y acá la nave es una máquina que se entiende y se modifica. Además, buena parte del hardware y el software ya existe y funciona: el 8086, COS, el ensamblador, CBasic y EDIT. Eso es una ventaja enorme frente a 0x10c, que tuvo que inventar todo eso.
+**The strongest point.** The idea has something none of its references have: in X4 and Elite a ship is a spreadsheet of numbers; here the ship is a machine you can understand and modify. And much of the hardware and software already exists and works: the 8086, COS, the assembler, CBasic and EDIT. That is a huge advantage over 0x10c, which had to invent all of that.
 
-**El riesgo principal es el alcance.** Lo que se describe acá son cuatro juegos: un simulador de combate, un X4, un Avorion y un 0x10c. 0x10c se canceló justamente por intentar abarcar demasiado. Mi recomendación es construir en capas, con cada capa jugable por sí sola:
+**The main risk is scope.** What is described here is four games: a combat simulator, an X4, an Avorion and a 0x10c. 0x10c was cancelled precisely for trying to do too much. The recommendation is to build in layers, each playable on its own:
 
-1. **Una nave, un sector, combate.** Vuelo newtoniano, radar, un misil y una torreta, todo controlado por software de fábrica que corre en vm86. Si esto no es divertido, nada de lo demás lo salva.
-2. **Programar la nave.** Una terminal dentro del juego con COS, la posibilidad de cambiar un programa y ver la diferencia en combate.
-3. **Varios sectores, saltos y comercio simple.**
-4. **Economía simulada, facciones y corporaciones.**
-5. **Construcción, política y flotas.**
+1. **One ship, one sector, combat.** Newtonian flight, radar, a missile and a turret, all controlled by factory software running on vm86. If this is not fun, nothing else will save it.
+2. **Programming the ship.** An in-game terminal with COS, and the ability to change a program and see the difference in combat.
+3. **Several sectors, jumps and simple trade.**
+4. **Simulated economy, factions and corporations.**
+5. **Building, politics and fleets.**
 
-**Sobre la programación.**
-- El 95% de los jugadores no va a programar. El juego tiene que ser bueno sin programar, y programar tiene que dar ventajas visibles pero no obligatorias.
-- El software de fábrica debería tener **parámetros configurables**, por ejemplo con archivos de configuración o un menú. Así el escalón entre "usar" y "programar" es más suave.
+**On programming.**
+- 95% of players will not program. The game must be good without programming, and programming must give visible but optional advantages.
+- Factory software should have **configurable parameters**, for example through configuration files or a menu, so the step from "using" to "programming" is gentler.
 
-**Sobre la cabina en primera persona.** Es la mejor decisión para este juego, porque las pantallas de la cabina son el lugar natural donde mostrar la computadora. Tiene dos consecuencias técnicas:
-- Cada pantalla de la cabina es una textura que se actualiza con el video de la vm86. Eso cuesta poco: un modo de texto de 80×25 o una pantalla de 320×200.
-- Las cabinas de Synty probablemente no traen superficies pensadas como pantallas. Seguramente haya que agregar o adaptar las mallas de las MFD en cada cabina.
+**On the first-person cockpit.** It is the best decision for this game, because the cockpit screens are the natural place to show the computer. It has two technical consequences:
+- Each cockpit screen is a texture updated from vm86's video. That is cheap: an 80×25 text mode or a 320×200 screen.
+- Synty's cockpits probably have no surfaces meant as screens; MFD meshes will likely have to be added or adapted in each cockpit.
 
-**Sobre los cascos de fábrica.** Es la opción correcta para el alcance: cascos fijos con partes modulares dan variedad sin el costo de un sistema de construcción. Además le dan sentido a las corporaciones, porque cada modelo tiene un fabricante.
+**On factory hulls.** The right choice for the scope: fixed hulls with modular parts give variety without the cost of a building system, and they give corporations a purpose, because every model has a manufacturer.
 
-**Sobre el seguro.** Encaja bien con la economía, pero conviene decidir pronto qué pasa con el software. Si un programa escrito por el jugador se pierde al morir, programar se vuelve frustrante. Recomiendo que el software sea del jugador y no de la nave: queda guardado y se reinstala.
+**On insurance.** It fits the economy well, but what happens to software needs deciding soon. If a program the player wrote is lost on death, programming becomes frustrating. Recommendation: software belongs to the player, not the ship; it stays saved and is reinstalled.
 
-**Sobre los saltos.** Coincido con ir por saltos: dan identidad, como en Star Wars y Star Trek, y evitan modelar autopistas entre sistemas. Combinar puertas con dueño y motores de salto libres da política y libertad a la vez.
+**On jumps.** Jumps are the right call: they give identity, as in Star Wars and Star Trek, and avoid modelling highways between systems. Combining owned gates with free jump drives gives both politics and freedom.
 
-**Sobre el realismo.** El combate "de avión de combate" (radar, firmas, contramedidas) es más interesante que el realismo físico total. Recomiendo vuelo newtoniano con un flight assist de software (que la CPU puede mejorar), distancias comprimidas, y velocidades y alcances pensados para que los encuentros duren segundos o minutos, no horas.
+**On realism.** Fighter-jet combat (radar, signatures, countermeasures) is more interesting than full physical realism. Recommended: Newtonian flight with a software flight assist (which the CPU can improve), compressed distances, and speeds and ranges chosen so encounters last seconds or minutes, not hours.
 
-**Sobre el multijugador.** Conviene empezar solo con un jugador. Emular CPUs en red, con su determinismo y su sincronización, es un proyecto en sí mismo. Si se hace más adelante, la arquitectura de vm86 (sin reloj propio y con estado serializable) lo permite.
+**On multiplayer.** Start single-player. Emulating CPUs over a network, with its determinism and synchronisation, is a project of its own. If it comes later, vm86's architecture (no clock of its own, serialisable state) allows it.
 
-**Sobre hackear otras naves.** Es muy atractivo porque los módems y las radios lo hacen natural, pero puede romper el equilibrio. Habría que encararlo como protocolos con vulnerabilidades concretas, que las corporaciones parchean, y no como un botón de "hackear".
+**On hacking other ships.** Very attractive, because modems and radios make it natural, but it can break the balance. It should be approached as protocols with concrete vulnerabilities that corporations patch, not as a "hack" button.
 
-## 12. Hoja de ruta sugerida
+## 12. Roadmap
 
-| Hito | Contenido | Señal de éxito |
+| Milestone | Content | Sign of success |
 |---|---|---|
-| M0 ✔ | vm86 como DLL dentro de Godot, una consola de texto en pantalla, COS arrancando | `A:\>` en una pantalla de la cabina |
-| M1 ✔ | Vuelo 6DOF con flight assist corriendo en la CPU | La nave se maneja bien y el flight assist es un programa reemplazable |
-| M2 ✔ | Radar, fijado de blanco, una torreta con gimbal controlada por software | La torreta sigue al blanco gracias al programa |
-| M3 | Misiles IR y por radar, contramedidas, calor y energía | Un duelo contra la IA que dura 1–3 minutos y es divertido |
-| M4 | Terminal en la cabina: editar y recompilar software dentro del juego | Cambiar el programa de la torreta mejora la puntería |
-| M5 | Varios sectores, saltos, estaciones, comercio | Un viaje de comercio de punta a punta |
-| M6+ | Economía, facciones, corporaciones, construcción, política | — |
+| M0 ✔ | vm86 as a native library inside Godot, a text console on screen, COS booting | `A:\>` on a cockpit screen |
+| M1 ✔ | 6DOF flight with the flight assist running on the CPU | The ship handles well and the flight assist is a replaceable program |
+| M2 ✔ | Radar, target lock, a gimballed turret controlled by software | The turret follows the target thanks to the program |
+| M3 | IR and radar missiles, countermeasures, heat and energy | A 1–3 minute duel against the AI that is fun |
+| M4 | Terminal in the cockpit: edit and rebuild software in the game | Changing the turret's program improves its aim |
+| M5 | Several sectors, jumps, stations, trade | A trade run from end to end |
+| M6+ | Economy, factions, corporations, building, politics | — |
 
-## 13. Decisiones y preguntas abiertas
+## 13. Decisions and open questions
 
-### Decidido
+### Decided
 
-| Tema | Decisión |
+| Topic | Decision |
 |---|---|
-| Cámara | Siempre en primera persona, desde la cabina. |
-| Cuerpo | El jugador tiene cuerpo. En cazas solo hay cabina; caminar por naves grandes y estaciones queda para el futuro. |
-| Arte | Synty POLYGON Sci-Fi Space: naves y cabinas en primera persona, sin interiores por ahora. |
-| Naves | Cascos de fábrica, con partes modulares si el kit lo permite. |
-| Política | Base al estilo de Elite Dangerous (influencia y estados de facción); se expande después. |
-| Planetas | No se aterriza por ahora; solo estaciones y estructuras. Aterrizar queda para el futuro. |
-| Muerte | Sin muerte permanente; seguro al estilo de Elite. |
-| Viaje entre sectores | Saltos: puertas con dueño y motor de salto propio. |
-| Nombre | Nombre en clave Xpace. |
+| Camera | Always first person, from the cockpit. |
+| Body | The player has a body. Fighters have only the cockpit; walking around large ships and stations is for the future. |
+| Art | Synty POLYGON Sci-Fi Space: ships and first-person cockpits, no interiors for now. |
+| Ships | Factory hulls, with modular parts if the kit allows it. |
+| Politics | An Elite Dangerous-style base (influence and faction states), expanded later. |
+| Planets | No landing for now; only stations and structures. Landing is for the future. |
+| Death | No permadeath; Elite-style insurance. |
+| Travel between sectors | Jumps: owned gates and the ship's own jump drive. |
+| Name | Codename Xpace. |
 
-### Pendiente
+### Pending
 
-- **Nombre definitivo del juego y de la galaxia.** Hay que decidirlo pronto.
-- Qué partes modulares trae el kit de Synty y cómo se reflejan en los números.
-- Seguro: ¿qué se pierde al morir (carga, software)?
-- Hasta dónde llega la política más allá de la base de Elite.
+- **The final name of the game and of the galaxy.** To be decided soon.
+- Which modular parts the Synty kit has, and how they show in the numbers.
+- Insurance: what is lost on death (cargo, software)?
+- How far politics goes beyond the Elite base.
