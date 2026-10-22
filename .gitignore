@@ -1,0 +1,17 @@
+# Godot
+.godot/
+.import/
+export.cfg
+export_credentials.cfg
+*.translation
+
+# C# / .NET
+.mono/
+bin/
+obj/
+*.user
+
+# Built by native/build.bat
+native/build/
+native/bin/
+disks/cos.img

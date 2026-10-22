@@ -1,0 +1,87 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/Computer/ShipComputer.cs" id="1_computer"]
+[ext_resource type="Script" path="res://scripts/Cockpit/PlaceholderCockpit.cs" id="2_cockpit"]
+[ext_resource type="Script" path="res://scripts/Cockpit/CockpitScreen.cs" id="3_screen"]
+[ext_resource type="Script" path="res://scripts/Cockpit/Pilot.cs" id="4_pilot"]
+[ext_resource type="Script" path="res://scripts/Space/Starfield.cs" id="5_stars"]
+
+[sub_resource type="Environment" id="Environment_space"]
+background_mode = 1
+background_color = Color(0, 0, 0.01, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.25, 0.27, 0.32, 1)
+ambient_light_energy = 0.6
+tonemap_mode = 2
+glow_enabled = true
+
+[sub_resource type="StandardMaterial3D" id="Material_planet"]
+albedo_color = Color(0.32, 0.45, 0.62, 1)
+roughness = 1.0
+
+[sub_resource type="SphereMesh" id="Mesh_planet"]
+material = SubResource("Material_planet")
+radius = 220.0
+height = 440.0
+radial_segments = 96
+rings = 48
+
+[node name="Main" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_space")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 0, 0, 0)
+light_energy = 1.4
+
+[node name="Starfield" type="MultiMeshInstance3D" parent="."]
+script = ExtResource("5_stars")
+
+[node name="Planet" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -260, -120, -700)
+mesh = SubResource("Mesh_planet")
+
+[node name="ShipComputer" type="Node" parent="."]
+script = ExtResource("1_computer")
+
+[node name="Cockpit" type="Node3D" parent="."]
+script = ExtResource("2_cockpit")
+
+[node name="MainScreen" type="MeshInstance3D" parent="Cockpit"]
+transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 1.0, -0.555)
+script = ExtResource("3_screen")
+Size = Vector2(0.38, 0.285)
+ComputerPath = NodePath("../../ShipComputer")
+
+[node name="Pilot" type="Node3D" parent="."]
+script = ExtResource("4_pilot")
+
+[node name="Camera3D" type="Camera3D" parent="Pilot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
+fov = 70.0
+near = 0.02
+far = 4000.0
+
+[node name="Hud" type="CanvasLayer" parent="Pilot"]
+
+[node name="Label" type="Label" parent="Pilot/Hud"]
+offset_left = 12.0
+offset_top = 8.0
+offset_right = 900.0
+offset_bottom = 80.0
+theme_override_colors/font_color = Color(0.75, 0.9, 0.8, 1)
+theme_override_font_sizes/font_size = 14
+
+[node name="Crosshair" type="Label" parent="Pilot/Hud"]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -6.0
+offset_top = -12.0
+offset_right = 6.0
+offset_bottom = 12.0
+text = "+"
+horizontal_alignment = 1
