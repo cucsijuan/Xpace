@@ -1,44 +1,67 @@
 using Godot;
 using Xpace.Computer;
+using Xpace.Ship;
 
 namespace Xpace.Cockpit;
 
 /// <summary>
-/// The seated pilot: looks around with the mouse, clicks a cockpit screen to
-/// type on its computer, right-clicks to let go of it.
+/// The seated pilot, with Elite Dangerous's keyboard and mouse controls.
+///
+/// Flight mode: the mouse is a virtual stick (up and down pitch, left and
+/// right roll; the ring in the middle shows it). W/S move the throttle and it
+/// stays where it is left, X sets it to zero, A/D yaw, Q/E and R/F strafe,
+/// Z switches flight assist. The middle button changes to view mode: the
+/// mouse turns the head, and clicking a cockpit screen gives its computer
+/// the keyboard until a right-click.
 ///
 /// The first click takes the mouse; Esc (while not typing) gives it back.
 /// F5 saves the computer, F9 loads it.
 /// </summary>
 public partial class Pilot : Node3D
 {
-    [Export] public float MouseSensitivity = 0.0025f;
-    [Export] public float MaxYaw = Mathf.Pi * 0.6f;
-    [Export] public float MaxPitch = Mathf.Pi * 0.4f;
+    [Export] public float LookSensitivity = 0.0025f;
+    [Export] public float MaxLookYaw = Mathf.Pi * 0.6f;
+    [Export] public float MaxLookPitch = Mathf.Pi * 0.4f;
     [Export] public float ReachMetres = 1.5f;
+
+    /// <summary>Mouse travel, in pixels, from the centre to full stick.</summary>
+    [Export] public float StickTravel = 300f;
+    [Export] public float StickDeadZone = 0.05f;
+    [Export] public bool InvertMouseY;
+
+    /// <summary>How fast W/S move the throttle, full range a second.</summary>
+    [Export] public float ThrottleRate = 0.6f;
+
     [Export] public string SavePath = "user://computer.sav";
+
+    public bool Viewing { get; private set; }
 
     private Camera3D _camera;
     private Label _hud;
+    private MouseWidget _widget;
+    private ShipBody _ship;
     private CockpitScreen _focused;
-    private float _yaw, _pitch;
+    private float _lookYaw, _lookPitch;
+    private Vector2 _stick;
+    private float _throttle;
+    private PilotControls _controls;
     private string _notice = "";
     private double _noticeTime;
     private int _settleFrames;
 
     public override void _Ready()
     {
+        FlightInput.Register();
         _camera = GetNode<Camera3D>("Camera3D");
         _hud = GetNodeOrNull<Label>("Hud/Label");
+        _widget = GetNodeOrNull<MouseWidget>("Hud/MouseWidget");
+        _ship = GetParentOrNull<ShipBody>();
+        if (_ship != null)
+            _ship.ControlsSource = () => _controls;
+        ProcessPhysicsPriority = -1;            // the controls are ready before the ship moves
     }
 
-    // Capturing warps the cursor to the middle of the window, and that jump
-    // comes back as motion: the first frames after it do not turn the head.
-    private void CaptureMouse()
-    {
-        Input.MouseMode = Input.MouseModeEnum.Captured;
-        _settleFrames = 3;
-    }
+    // ---------- input ----------
 
     public override void _Input(InputEvent e)
     {
@@ -52,18 +75,23 @@ public partial class Pilot : Node3D
 
     public override void _UnhandledInput(InputEvent e)
     {
+        bool captured = Input.MouseMode == Input.MouseModeEnum.Captured;
         switch (e)
         {
-            case InputEventMouseMotion motion when Input.MouseMode == Input.MouseModeEnum.Captured && _settleFrames == 0:
-                _yaw = Mathf.Clamp(_yaw - motion.Relative.X * MouseSensitivity, -MaxYaw, MaxYaw);
-                _pitch = Mathf.Clamp(_pitch - motion.Relative.Y * MouseSensitivity, -MaxPitch, MaxPitch);
-                _camera.Rotation = new Vector3(_pitch, _yaw, 0);
-                break;
-            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left }:
-                if (Input.MouseMode != Input.MouseModeEnum.Captured)
-                    CaptureMouse();
+            case InputEventMouseMotion motion when captured && _settleFrames == 0:
+                if (Viewing)
+                    Look(motion.Relative);
                 else
-                    Focus(ScreenAhead());
+                    MoveStick(motion.Relative);
+                break;
+            case InputEventMouseButton { Pressed: true } button when !captured:
+                CaptureMouse();
+                break;
+            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Middle }:
+                SetViewing(!Viewing);
+                break;
+            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } when Viewing:
+                Focus(ScreenAhead());
                 break;
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right }:
                 Focus(null);
@@ -85,21 +113,103 @@ public partial class Pilot : Node3D
             _focused?.Computer?.ReleaseKeys();
     }
 
+    // Capturing warps the cursor to the middle of the window, and that jump
+    // comes back as motion: the first frames after it are ignored.
+    private void CaptureMouse()
+    {
+        Input.MouseMode = Input.MouseModeEnum.Captured;
+        _settleFrames = 3;
+    }
+
+    private void SetViewing(bool viewing)
+    {
+        Viewing = viewing;
+        _stick = Vector2.Zero;                  // the stick centres when you let go of it
+        if (!viewing)
+        {
+            _lookYaw = _lookPitch = 0;          // and the head looks ahead again
+            _camera.Rotation = Vector3.Zero;
+        }
+    }
+
+    private void Look(Vector2 relative)
+    {
+        _lookYaw = Mathf.Clamp(_lookYaw - relative.X * LookSensitivity, -MaxLookYaw, MaxLookYaw);
+        _lookPitch = Mathf.Clamp(_lookPitch - relative.Y * LookSensitivity, -MaxLookPitch, MaxLookPitch);
+        _camera.Rotation = new Vector3(_lookPitch, _lookYaw, 0);
+    }
+
+    private void MoveStick(Vector2 relative)
+    {
+        _stick += relative / StickTravel;
+        if (_stick.Length() > 1)
+            _stick = _stick.Normalized();
+    }
+
+    // ---------- the controls, every physics step ----------
+
+    public override void _PhysicsProcess(double delta)
+    {
+        bool keys = _focused == null;           // typing: the keys are the computer's
+        float dt = (float)delta;
+        if (keys)
+        {
+            if (Input.IsActionPressed(FlightInput.ThrottleZero))
+                _throttle = 0;
+            _throttle += Input.GetAxis(FlightInput.ThrottleDown, FlightInput.ThrottleUp) * ThrottleRate * dt;
+            _throttle = Mathf.Clamp(_throttle, -1, 1);
+        }
+
+        Vector2 stick = Viewing ? Vector2.Zero : DeadZone(_stick);
+        float mousePitch = InvertMouseY ? stick.Y : -stick.Y;
+        _controls = new PilotControls
+        {
+            Pitch = Mathf.Clamp(mousePitch + (keys ? Input.GetAxis(FlightInput.PitchDown, FlightInput.PitchUp) : 0), -1, 1),
+            Roll = Mathf.Clamp(stick.X + (keys ? Input.GetAxis(FlightInput.RollLeft, FlightInput.RollRight) : 0), -1, 1),
+            Yaw = keys ? Input.GetAxis(FlightInput.YawLeft, FlightInput.YawRight) : 0,
+            Right = keys ? Input.GetAxis(FlightInput.StrafeLeft, FlightInput.StrafeRight) : 0,
+            Up = keys ? Input.GetAxis(FlightInput.StrafeDown, FlightInput.StrafeUp) : 0,
+            Throttle = _throttle,
+            AssistButton = keys && Input.IsActionPressed(FlightInput.FlightAssist),
+            BoostButton = keys && Input.IsActionPressed(FlightInput.Boost),
+        };
+    }
+
+    private Vector2 DeadZone(Vector2 v)
+    {
+        float length = v.Length();
+        if (length <= StickDeadZone)
+            return Vector2.Zero;
+        return v / length * ((length - StickDeadZone) / (1 - StickDeadZone));
+    }
+
+    // ---------- the HUD ----------
+
     public override void _Process(double delta)
     {
         if (_settleFrames > 0)
             _settleFrames--;
+        if (_widget != null)
+        {
+            _widget.Visible = !Viewing;
+            _widget.Stick = _stick;
+        }
         if (_hud == null)
             return;
+
         ShipComputer computer = FindComputer();
         string state = computer == null ? "" :
             computer.Error != "" ? $"Computer: {computer.Error}" :
-            $"Computer: {(computer.Powered ? "on" : "off")}, {computer.EmulatedSeconds:0.0} s{(computer.DriveLight ? ", drive A:" : "")}";
-        string help = _focused != null
-            ? "Typing on the computer. Right-click to let go."
-            : Input.MouseMode != Input.MouseModeEnum.Captured
-                ? "Click to look around."
-                : "Click a screen to type on it. F5 save, F9 load, Esc frees the mouse.";
+            $"Computer: {(computer.Powered ? "on" : "off")}{(computer.DriveLight ? ", drive A:" : "")}";
+        if (_ship != null)
+        {
+            string mode = _ship.DirectMode ? "DIRECT" : _ship.AssistOn ? "ASSIST ON" : "ASSIST OFF";
+            state += $"   Throttle {_throttle * 100:+0;-0;0}%   {mode}   {_ship.LinearVelocity.Length():0} m/s";
+        }
+        string help = Input.MouseMode != Input.MouseModeEnum.Captured ? "Click to take the mouse."
+            : _focused != null ? "Typing on the computer. Right-click to stop."
+            : Viewing ? "Looking: click a screen to type on it. Middle button: fly."
+            : "Flying: mouse pitch and roll, W/S throttle, X stop, A/D yaw, Q/E R/F strafe, Z assist. Middle button: look.";
         if (_noticeTime > 0)
         {
             _noticeTime -= delta;
@@ -108,11 +218,16 @@ public partial class Pilot : Node3D
         _hud.Text = $"{state}\n{help}";
     }
 
+    // ---------- screens and saving ----------
+
     private CockpitScreen ScreenAhead()
     {
         Vector3 from = _camera.GlobalPosition;
         Vector3 to = from - _camera.GlobalBasis.Z * ReachMetres;
-        var hit = GetWorld3D().DirectSpaceState.IntersectRay(PhysicsRayQueryParameters3D.Create(from, to));
+        var query = PhysicsRayQueryParameters3D.Create(from, to);
+        query.CollideWithAreas = true;
+        query.CollideWithBodies = false;
+        var hit = GetWorld3D().DirectSpaceState.IntersectRay(query);
         return hit.Count > 0 && hit["collider"].As<Node>()?.GetParent() is CockpitScreen screen ? screen : null;
     }
 
@@ -146,7 +261,7 @@ public partial class Pilot : Node3D
     }
 
     private ShipComputer FindComputer() =>
-        _focused?.Computer ?? GetTree().Root.FindChild("ShipComputer", true, false) as ShipComputer;
+        _focused?.Computer ?? _ship?.Computer ?? GetTree().Root.FindChild("ShipComputer", true, false) as ShipComputer;
 
     private void Notice(string text)
     {

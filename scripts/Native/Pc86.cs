@@ -41,10 +41,10 @@ public static unsafe class Pc86
 
     private static IntPtr Resolve(string name, Assembly assembly, DllImportSearchPath? path)
     {
-        if (name != Lib)
+        if (name != Lib && name != XbusLib)
             return IntPtr.Zero;
-        string inProject = ProjectSettings.GlobalizePath("res://native/bin/pc86.dll");
-        string nextToExe = Path.Combine(Path.GetDirectoryName(OS.GetExecutablePath()) ?? "", "pc86.dll");
+        string inProject = ProjectSettings.GlobalizePath($"res://native/bin/{name}.dll");
+        string nextToExe = Path.Combine(Path.GetDirectoryName(OS.GetExecutablePath()) ?? "", $"{name}.dll");
         foreach (string file in new[] { inProject, nextToExe })
             if (File.Exists(file) && NativeLibrary.TryLoad(file, out IntPtr handle))
                 return handle;
@@ -113,6 +113,16 @@ public static unsafe class Pc86
     [DllImport(Lib)] public static extern nuint fdd_state_size();
     [DllImport(Lib)] public static extern nuint fdd_save_state(IntPtr drive, byte* buf, nuint len);
     [DllImport(Lib)] public static extern int fdd_load_state(IntPtr drive, byte* buf, nuint len);
+
+    // ---------- the ship's bus card (xpace_native.dll, native/xbus.c) ----------
+    private const string XbusLib = "xpace_native";
+    [DllImport(XbusLib)] public static extern IntPtr xbus_create(ushort basePort, ushort size, int irqLine);
+    [DllImport(XbusLib)] public static extern void xbus_destroy(IntPtr bus);
+    [DllImport(XbusLib)] public static extern IntPtr xbus_slot(IntPtr bus);
+    [DllImport(XbusLib)] public static extern byte* xbus_regs(IntPtr bus);
+    [DllImport(XbusLib)] public static extern byte* xbus_read_flags(IntPtr bus);
+    [DllImport(XbusLib)] public static extern byte* xbus_written_flags(IntPtr bus);
+    [DllImport(XbusLib)] public static extern void xbus_raise_irq(IntPtr bus);
 
     [DllImport(Lib)] public static extern IntPtr disk_create_image(byte* data, nuint len);
     [DllImport(Lib)] public static extern void disk_destroy(IntPtr disk);

@@ -15,3 +15,4 @@ obj/
 native/build/
 native/bin/
 disks/cos.img
+screen_final.pgm

@@ -5,7 +5,7 @@ namespace Xpace.Cockpit;
 
 /// <summary>
 /// A screen in the cockpit showing a computer's monitor. It can be clicked
-/// (it has a collision body) to give it the keyboard.
+/// (it has a collision area) to give it the keyboard.
 /// </summary>
 public partial class CockpitScreen : MeshInstance3D
 {
@@ -29,9 +29,10 @@ public partial class CockpitScreen : MeshInstance3D
         };
         MaterialOverride = _material;
 
-        var body = new StaticBody3D();
-        body.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(Size.X, Size.Y, 0.01f) } });
-        AddChild(body);
+        // An area, not a body: it rides along with the ship and only answers clicks
+        var area = new Area3D { Monitoring = false };
+        area.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(Size.X, Size.Y, 0.01f) } });
+        AddChild(area);
     }
 
     public override void _Process(double delta)

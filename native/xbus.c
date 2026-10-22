@@ -1,0 +1,122 @@
+/*
+ * xbus - the ship's expansion bus as one ISA card for pc86.
+ *
+ * A window of I/O ports (16 per device slot) backed by plain registers that
+ * the game reads and writes between machine steps: the game puts sensor
+ * values in, the program reads them with IN; the program writes commands
+ * with OUT, the game picks them up. Every access is also flagged, so the
+ * game can see what was read (an acknowledge) or written since it last
+ * looked. One IRQ line serves the whole bus.
+ *
+ * No callbacks into the game: port accesses stay inside this DLL.
+ */
+#include <stdlib.h>
+#include <string.h>
+#include "pc.h"
+
+#ifdef _WIN32
+#  define XBUS_API __declspec(dllexport)
+#else
+#  define XBUS_API
+#endif
+
+#define XBUS_MAX_PORTS 256
+
+typedef struct xbus {
+    pc_card_t card;
+    uint16_t base, size;
+    int irq_line;
+    int irq_pending;
+    uint8_t regs[XBUS_MAX_PORTS];
+    uint8_t read[XBUS_MAX_PORTS];       /* 1 once IN read the port */
+    uint8_t written[XBUS_MAX_PORTS];    /* 1 once OUT wrote the port */
+} xbus_t;
+
+/* What a saved state holds: everything after the card header. */
+#define XBUS_STATE_OFFSET offsetof(xbus_t, irq_pending)
+#define XBUS_STATE_SIZE   (sizeof(xbus_t) - XBUS_STATE_OFFSET)
+
+static int x_in(void *user, uint16_t port, uint8_t *value)
+{
+    xbus_t *x = (xbus_t *)user;
+    uint16_t i = (uint16_t)(port - x->base);
+    if (port < x->base || i >= x->size) return PC_PORT_NOT_MINE;
+    *value = x->regs[i];
+    x->read[i] = 1;
+    return PC_PORT_HANDLED;
+}
+
+static int x_out(void *user, uint16_t port, uint8_t value)
+{
+    xbus_t *x = (xbus_t *)user;
+    uint16_t i = (uint16_t)(port - x->base);
+    if (port < x->base || i >= x->size) return PC_PORT_NOT_MINE;
+    x->regs[i] = value;
+    x->written[i] = 1;
+    return PC_PORT_HANDLED;
+}
+
+static int x_take_irq(void *user)
+{
+    xbus_t *x = (xbus_t *)user;
+    if (!x->irq_pending) return -1;
+    x->irq_pending = 0;
+    return x->irq_line;
+}
+
+static void x_power(void *user, int on)
+{
+    xbus_t *x = (xbus_t *)user;
+    (void)on;
+    x->irq_pending = 0;
+}
+
+static size_t x_state_size(void *user) { (void)user; return XBUS_STATE_SIZE; }
+
+static size_t x_save_state(void *user, void *buf, size_t len)
+{
+    if (len < XBUS_STATE_SIZE) return 0;
+    memcpy(buf, (uint8_t *)user + XBUS_STATE_OFFSET, XBUS_STATE_SIZE);
+    return XBUS_STATE_SIZE;
+}
+
+static int x_load_state(void *user, const void *buf, size_t len)
+{
+    if (len != XBUS_STATE_SIZE) return -1;
+    memcpy((uint8_t *)user + XBUS_STATE_OFFSET, buf, XBUS_STATE_SIZE);
+    return 0;
+}
+
+/* Ports base .. base+size-1 (size up to 256), interrupts on IRQ irq_line (2-7). */
+XBUS_API xbus_t *xbus_create(uint16_t base, uint16_t size, int irq_line)
+{
+    xbus_t *x;
+    if (size == 0 || size > XBUS_MAX_PORTS || irq_line < 2 || irq_line > 7) return NULL;
+    x = (xbus_t *)calloc(1, sizeof(xbus_t));
+    if (!x) return NULL;
+    x->base = base;
+    x->size = size;
+    x->irq_line = irq_line;
+    x->card.name = "xbus";
+    x->card.user = x;
+    x->card.power = x_power;
+    x->card.port_in = x_in;
+    x->card.port_out = x_out;
+    x->card.take_irq = x_take_irq;
+    x->card.state_size = x_state_size;
+    x->card.save_state = x_save_state;
+    x->card.load_state = x_load_state;
+    return x;
+}
+
+XBUS_API void       xbus_destroy(xbus_t *x) { free(x); }
+XBUS_API pc_card_t *xbus_slot(xbus_t *x) { return &x->card; }
+
+/* The registers and the access flags, size bytes each; the game reads and
+ * writes them directly (and clears the flags it has seen). */
+XBUS_API uint8_t *xbus_regs(xbus_t *x) { return x->regs; }
+XBUS_API uint8_t *xbus_read_flags(xbus_t *x) { return x->read; }
+XBUS_API uint8_t *xbus_written_flags(xbus_t *x) { return x->written; }
+
+/* Asks for the bus's interrupt; the machine takes it on its next slice. */
+XBUS_API void xbus_raise_irq(xbus_t *x) { x->irq_pending = 1; }

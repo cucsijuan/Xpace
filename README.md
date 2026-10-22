@@ -14,35 +14,58 @@ Requiere Visual Studio 2022 (MSVC y su CMake) y el SDK de .NET 8 o posterior.
 native\build.bat
 ```
 
-Compila `native\bin\pc86.dll` y arma el diskette `disks\cos.img` desde los checkouts de pc86 y sw86 (por defecto `..\vm86\pc86` y `..\vm86\sw86`; se pueden pasar otras rutas como argumentos). Ninguno de los dos va al repositorio: se rehacen con este script.
+Compila desde los checkouts de pc86 y sw86 (por defecto `..\vm86\pc86` y `..\vm86\sw86`; se pueden pasar otras rutas como argumentos):
 
-Después abrir el proyecto en Godot (versión .NET) y compilar.
+- `native\bin\pc86.dll`: la máquina.
+- `native\bin\xpace_native.dll`: la placa del bus de la nave ([native/xbus.c](native/xbus.c)).
+- `disks\cos.img`: el diskette de la nave, con COS, `AUTOEXEC.BAT` y el software de vuelo (`FLIGHT.COM`, y su fuente `FLIGHT.ASM` para editarlo dentro del juego).
 
-## Controles (cabina provisoria)
+Nada de eso va al repositorio: se rehace con este script. Después abrir el proyecto en Godot (versión .NET) y compilar.
 
-| Acción | Tecla |
+## Controles
+
+Como en Elite Dangerous con teclado y mouse. El botón del medio del mouse cambia entre **vuelo** y **vista**.
+
+| Acción | Control |
 |---|---|
-| Mirar alrededor | Clic para tomar el mouse, después mover el mouse |
-| Escribir en la computadora | Clic en la pantalla; clic derecho para soltarla |
+| Tomar el mouse | Clic (Esc lo suelta, si no se está escribiendo) |
+| Cabeceo y alabeo | Mouse, en modo vuelo (joystick virtual: el anillo del centro muestra la palanca) |
+| Acelerador | W / S (queda donde se deja; por debajo de cero es reversa), X a cero |
+| Guiñada | A / D |
+| Empuje lateral / vertical | Q / E, R / F |
+| Flight assist | Z |
+| Mirar alrededor | Mouse, en modo vista |
+| Escribir en la computadora | En modo vista, clic en la pantalla; clic derecho para soltarla |
 | Guardar / cargar la computadora | F5 / F9 |
-| Soltar el mouse | Esc (cuando no se está escribiendo) |
+
+También hay cabeceo y alabeo con las flechas, y un joystick o gamepad funciona con los mismos controles. Todo está en el Input Map de Godot.
+
+## La nave y su computadora
+
+Cada paso de física (60 por segundo), `ShipBody` escribe la palanca y la muestra de la unidad inercial en los registros del bus, pide la IRQ 5, corre la computadora 1/60 s y aplica lo que FLIGHT.COM dejó en los registros de los propulsores. Si el programa deja de escribir por 100 ms, el controlador de propulsores pasa a **modo directo**: la palanca va derecho a los propulsores. Los registros están documentados al principio de [software/flight/flight.asm](software/flight/flight.asm).
 
 ## Pruebas
 
 ```bat
 Godot_v4.7.2-stable_mono_win64_console.exe --headless --path . res://tests/computer_test.tscn
+Godot_v4.7.2-stable_mono_win64_console.exe --headless --fixed-fps 60 --path . res://tests/flight_test.tscn
 ```
 
-Arranca COS, escribe `DIR`, guarda y carga la computadora, y mide cuántas máquinas a 4,77 MHz corren en un núcleo. Termina con código 0 si todo pasó.
+- `computer_test`: arranca COS, escribe `DIR`, guarda y carga la computadora, y mide cuántas máquinas a 4,77 MHz corren en un núcleo.
+- `flight_test`: la nave volada por FLIGHT.COM. Prueba velocidades de giro y de avance con flight assist, la deriva sin él, el botón FA, y el modo directo cuando el programa termina.
+
+Las dos terminan con código 0 si todo pasó.
 
 ## Estructura
 
 | Carpeta | Contenido |
 |---|---|
-| `scripts/Native` | P/Invoke sobre `pc86.dll` |
-| `scripts/Computer` | `ShipComputer` (la PC de la nave) y el mapa de teclas |
-| `scripts/Cockpit` | Pantallas de cabina, el piloto sentado, la cabina provisoria |
-| `scripts/Space` | Fondo de estrellas |
-| `scenes` | `main.tscn`: la cabina de prueba |
-| `tests` | Prueba de la computadora y benchmark |
-| `native` | Script que compila la DLL y el diskette |
+| `scripts/Native` | P/Invoke sobre `pc86.dll` y `xpace_native.dll` |
+| `scripts/Computer` | `ShipComputer` (la PC de la nave), `ShipBus` (los registros del bus), el mapa de teclas |
+| `scripts/Ship` | `ShipBody` (física, dispositivos del bus, watchdog), `ShipSpec`, `PilotControls` |
+| `scripts/Cockpit` | Piloto (controles estilo Elite, vista), pantallas de cabina, indicador del mouse, cabina provisoria |
+| `scripts/Space` | Estrellas, asteroides, polvo espacial, estación provisoria |
+| `software` | Software de la nave: `flight/flight.asm`, `autoexec.bat` |
+| `scenes` | `main.tscn`: la nave en el campo de asteroides |
+| `tests` | Prueba de la computadora, benchmark y prueba de vuelo |
+| `native` | La placa del bus en C, y el script que compila las DLL y el diskette |

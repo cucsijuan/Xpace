@@ -1,10 +1,16 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/Computer/ShipComputer.cs" id="1_computer"]
 [ext_resource type="Script" path="res://scripts/Cockpit/PlaceholderCockpit.cs" id="2_cockpit"]
 [ext_resource type="Script" path="res://scripts/Cockpit/CockpitScreen.cs" id="3_screen"]
 [ext_resource type="Script" path="res://scripts/Cockpit/Pilot.cs" id="4_pilot"]
 [ext_resource type="Script" path="res://scripts/Space/Starfield.cs" id="5_stars"]
+[ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="6_ship"]
+[ext_resource type="Script" path="res://scripts/Cockpit/MouseWidget.cs" id="7_widget"]
+[ext_resource type="Script" path="res://scripts/Space/AsteroidField.cs" id="8_rocks"]
+[ext_resource type="Script" path="res://scripts/Space/SpaceDust.cs" id="9_dust"]
+[ext_resource type="Script" path="res://scripts/Space/PlaceholderStation.cs" id="10_station"]
+[ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="11_spec"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -21,10 +27,16 @@ roughness = 1.0
 
 [sub_resource type="SphereMesh" id="Mesh_planet"]
 material = SubResource("Material_planet")
-radius = 220.0
-height = 440.0
-radial_segments = 96
-rings = 48
+radius = 20000.0
+height = 40000.0
+radial_segments = 128
+rings = 64
+
+[sub_resource type="Resource" id="Spec_fighter"]
+script = ExtResource("11_spec")
+
+[sub_resource type="BoxShape3D" id="Shape_hull"]
+size = Vector3(5, 3, 10)
 
 [node name="Main" type="Node3D"]
 
@@ -39,49 +51,68 @@ light_energy = 1.4
 script = ExtResource("5_stars")
 
 [node name="Planet" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -260, -120, -700)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26000, -9000, -60000)
 mesh = SubResource("Mesh_planet")
 
-[node name="ShipComputer" type="Node" parent="."]
+[node name="Asteroids" type="MultiMeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3400)
+script = ExtResource("8_rocks")
+
+[node name="Station" type="Node3D" parent="."]
+transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 450, 60, -1200)
+script = ExtResource("10_station")
+
+[node name="Ship" type="RigidBody3D" parent="."]
+script = ExtResource("6_ship")
+Spec = SubResource("Spec_fighter")
+
+[node name="Hull" type="CollisionShape3D" parent="Ship"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -1)
+shape = SubResource("Shape_hull")
+
+[node name="ShipComputer" type="Node" parent="Ship"]
 script = ExtResource("1_computer")
 
-[node name="Cockpit" type="Node3D" parent="."]
+[node name="Cockpit" type="Node3D" parent="Ship"]
 script = ExtResource("2_cockpit")
 
-[node name="MainScreen" type="MeshInstance3D" parent="Cockpit"]
+[node name="MainScreen" type="MeshInstance3D" parent="Ship/Cockpit"]
 transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 1.0, -0.555)
 script = ExtResource("3_screen")
-Size = Vector2(0.38, 0.285)
 ComputerPath = NodePath("../../ShipComputer")
+Size = Vector2(0.38, 0.285)
 
-[node name="Pilot" type="Node3D" parent="."]
+[node name="Dust" type="GPUParticles3D" parent="Ship"]
+script = ExtResource("9_dust")
+
+[node name="Pilot" type="Node3D" parent="Ship"]
 script = ExtResource("4_pilot")
 
-[node name="Camera3D" type="Camera3D" parent="Pilot"]
+[node name="Camera3D" type="Camera3D" parent="Ship/Pilot"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
 fov = 70.0
 near = 0.02
-far = 4000.0
+far = 120000.0
 
-[node name="Hud" type="CanvasLayer" parent="Pilot"]
+[node name="Hud" type="CanvasLayer" parent="Ship/Pilot"]
 
-[node name="Label" type="Label" parent="Pilot/Hud"]
+[node name="Label" type="Label" parent="Ship/Pilot/Hud"]
 offset_left = 12.0
 offset_top = 8.0
-offset_right = 900.0
+offset_right = 1400.0
 offset_bottom = 80.0
 theme_override_colors/font_color = Color(0.75, 0.9, 0.8, 1)
 theme_override_font_sizes/font_size = 14
 
-[node name="Crosshair" type="Label" parent="Pilot/Hud"]
+[node name="MouseWidget" type="Control" parent="Ship/Pilot/Hud"]
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -6.0
-offset_top = -12.0
-offset_right = 6.0
-offset_bottom = 12.0
-text = "+"
-horizontal_alignment = 1
+offset_left = -60.0
+offset_top = -60.0
+offset_right = 60.0
+offset_bottom = 60.0
+mouse_filter = 2
+script = ExtResource("7_widget")

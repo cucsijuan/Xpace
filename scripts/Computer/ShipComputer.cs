@@ -23,6 +23,15 @@ public partial class ShipComputer : Node
 
     [Export] public bool PowerOnAtStart = true;
 
+    /// <summary>
+    /// Runs in step with the frames. Off when something else (the ship's
+    /// physics) calls <see cref="Advance"/> in its own step.
+    /// </summary>
+    [Export] public bool RunsItself = true;
+
+    /// <summary>The ship's expansion bus, in slot 2.</summary>
+    public ShipBus Bus { get; private set; }
+
     /// <summary>What the monitor shows, 640 x 400.</summary>
     public ImageTexture Screen { get; private set; }
 
@@ -50,6 +59,8 @@ public partial class ShipComputer : Node
         Pc86.pc_vga_card_connect_monitor(_vga, _monitor);
         Pc86.pc_fdc_card_connect_drive(_fdc, 0, _drive);
         Pc86.pc_insert_card(_pc, 1, Pc86.pc_fdc_card_slot(_fdc));
+        Bus = new ShipBus();
+        Pc86.pc_insert_card(_pc, 2, Bus.Card);
         Pc86.pc_connect_keyboard(_pc, _keyboard);
         Pc86.pc_set_speed(_pc, InstructionsPerSecond);
 
@@ -69,10 +80,17 @@ public partial class ShipComputer : Node
             Pc86.pc_power_on(_pc);
     }
 
-    public override unsafe void _Process(double delta)
+    /// <summary>Runs the machine for dt seconds of its time.</summary>
+    public void Advance(double dt)
     {
         // A long hitch (a breakpoint, loading) is not worth catching up on.
-        Pc86.pc_run(_pc, Math.Min(delta, 0.1));
+        Pc86.pc_run(_pc, Math.Min(dt, 0.1));
+    }
+
+    public override unsafe void _Process(double delta)
+    {
+        if (RunsItself)
+            Advance(delta);
         fixed (byte* p = _pixels)
             Pc86.pc_vga_card_display(_vga, (float)delta, p);
         _image.SetData(Pc86.ScreenWidth, Pc86.ScreenHeight, false, _format, _pixels);
@@ -85,6 +103,7 @@ public partial class ShipComputer : Node
             return;
         Pc86.pc_power_off(_pc);
         Pc86.pc_destroy(_pc);
+        Bus.Dispose();
         Pc86.pc_vga_card_destroy(_vga);
         Pc86.pc_fdc_card_destroy(_fdc);
         Pc86.monitor_destroy(_monitor);
@@ -98,16 +117,18 @@ public partial class ShipComputer : Node
 
     // ---------- controls ----------
 
-    /// <summary>The text on screen in an 80-column text mode, one line per row.</summary>
+    /// <summary>The text on screen in a text mode (40 or 80 columns), one line per row.</summary>
     public unsafe string ScreenText(int rows = 25)
     {
-        byte* video = Pc86.pc_memory(_pc) + 0xB8000;
+        byte* memory = Pc86.pc_memory(_pc);
+        int cols = memory[0x44A] == 40 ? 40 : 80;  // the BIOS keeps the width at 0040:004A
+        byte* video = memory + 0xB8000;
         var sb = new System.Text.StringBuilder();
         for (int row = 0; row < rows; row++)
         {
-            for (int col = 0; col < 80; col++)
+            for (int col = 0; col < cols; col++)
             {
-                byte c = video[(row * 80 + col) * 2];
+                byte c = video[(row * cols + col) * 2];
                 sb.Append(c >= 32 && c < 127 ? (char)c : ' ');
             }
             sb.Append('\n');

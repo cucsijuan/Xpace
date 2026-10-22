@@ -2,7 +2,7 @@ using Godot;
 
 namespace Xpace.Space;
 
-/// <summary>Stars on a far sphere around the scene: a backdrop until there is a sky.</summary>
+/// <summary>Stars on a far sphere around the camera: a backdrop until there is a sky.</summary>
 public partial class Starfield : MultiMeshInstance3D
 {
     [Export] public int Count = 2000;
@@ -37,5 +37,13 @@ public partial class Starfield : MultiMeshInstance3D
         }
         Multimesh = mm;
         CastShadow = ShadowCastingSetting.Off;
+    }
+
+    public override void _Process(double delta)
+    {
+        // A sky: always the same distance away, wherever the camera goes
+        Camera3D camera = GetViewport().GetCamera3D();
+        if (camera != null)
+            GlobalPosition = camera.GlobalPosition;
     }
 }
