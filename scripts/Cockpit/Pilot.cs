@@ -10,7 +10,8 @@ namespace Xpace.Cockpit;
 /// Flight mode: the mouse is a virtual stick (up and down pitch, left and
 /// right roll; the ring in the middle shows it). W/S move the throttle and it
 /// stays where it is left, X sets it to zero, A/D yaw, Q/E and R/F strafe,
-/// Z switches flight assist. The middle button changes to view mode: the
+/// Z switches flight assist, T locks the target ahead and G the next one,
+/// the left button fires. The middle button changes to view mode: the
 /// mouse turns the head, and clicking a cockpit screen gives its computer
 /// the keyboard until a right-click.
 ///
@@ -172,6 +173,9 @@ public partial class Pilot : Node3D
             Throttle = _throttle,
             AssistButton = keys && Input.IsActionPressed(FlightInput.FlightAssist),
             BoostButton = keys && Input.IsActionPressed(FlightInput.Boost),
+            Trigger = !Viewing && Input.MouseMode == Input.MouseModeEnum.Captured && Input.IsActionPressed(FlightInput.FirePrimary),
+            TargetAhead = keys && Input.IsActionPressed(FlightInput.TargetAhead),
+            NextTarget = keys && Input.IsActionPressed(FlightInput.NextTarget),
         };
     }
 
@@ -209,7 +213,7 @@ public partial class Pilot : Node3D
         string help = Input.MouseMode != Input.MouseModeEnum.Captured ? "Click to take the mouse."
             : _focused != null ? "Typing on the computer. Right-click to stop."
             : Viewing ? "Looking: click a screen to type on it. Middle button: fly."
-            : "Flying: mouse pitch and roll, W/S throttle, X stop, A/D yaw, Q/E R/F strafe, Z assist. Middle button: look.";
+            : "Flying: mouse pitch/roll, W/S throttle, X stop, A/D yaw, Q/E R/F strafe, Z assist, T/G target, click fire. Middle button: look.";
         if (_noticeTime > 0)
         {
             _noticeTime -= delta;

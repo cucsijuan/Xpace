@@ -18,7 +18,7 @@ Compila desde los checkouts de pc86 y sw86 (por defecto `..\vm86\pc86` y `..\vm8
 
 - `native\bin\pc86.dll`: la máquina.
 - `native\bin\xpace_native.dll`: la placa del bus de la nave ([native/xbus.c](native/xbus.c)).
-- `disks\cos.img`: el diskette de la nave, con COS, `AUTOEXEC.BAT` y el software de vuelo (`FLIGHT.COM`, y su fuente `FLIGHT.ASM` para editarlo dentro del juego).
+- `disks\cos.img`: el diskette de la nave, con COS, `AUTOEXEC.BAT` y el software de la nave: `FLIGHT.COM` (vuelo) y `FIRECTL.COM` (radar y torreta), con sus fuentes `.ASM` para editarlos dentro del juego.
 
 Nada de eso va al repositorio: se rehace con este script. Después abrir el proyecto en Godot (versión .NET) y compilar.
 
@@ -34,6 +34,8 @@ Como en Elite Dangerous con teclado y mouse. El botón del medio del mouse cambi
 | Guiñada | A / D |
 | Empuje lateral / vertical | Q / E, R / F |
 | Flight assist | Z |
+| Fijar el blanco adelante / el siguiente | T / G |
+| Disparar | Clic izquierdo, en modo vuelo |
 | Mirar alrededor | Mouse, en modo vista |
 | Escribir en la computadora | En modo vista, clic en la pantalla; clic derecho para soltarla |
 | Guardar / cargar la computadora | F5 / F9 |
@@ -42,19 +44,39 @@ También hay cabeceo y alabeo con las flechas, y un joystick o gamepad funciona 
 
 ## La nave y su computadora
 
-Cada paso de física (60 por segundo), `ShipBody` escribe la palanca y la muestra de la unidad inercial en los registros del bus, pide la IRQ 5, corre la computadora 1/60 s y aplica lo que FLIGHT.COM dejó en los registros de los propulsores. Si el programa deja de escribir por 100 ms, el controlador de propulsores pasa a **modo directo**: la palanca va derecho a los propulsores. Los registros están documentados al principio de [software/flight/flight.asm](software/flight/flight.asm).
+Cada paso de física (60 por segundo), `ShipBody` escribe la palanca, la muestra de la unidad inercial y lo que ven los demás dispositivos en los registros del bus, pide la IRQ 5, corre la computadora 1/60 s y aplica lo que el software dejó escrito.
+
+| Ranura | Puertos | Dispositivo |
+|---|---|---|
+| 0 | `100h` | Mandos del piloto (palanca, acelerador, botones) |
+| 1 | `110h` | Unidad inercial (pide la IRQ 5 con cada muestra) |
+| 2 | `120h` | Propulsores (watchdog de 100 ms: sin comandos, modo directo) |
+| 3 | `130h` | Radar (tabla de contactos y seguimiento en memoria, en D000:1000) |
+| 4 | `140h` | Torreta con gimbal y cañón cinético de 1.200 m/s |
+| 5 | `150h` | Pantallas laterales: texto de 40×16 en memoria (D000:0000 y D000:0800) |
+
+AUTOEXEC.BAT deja residentes dos programas que trabajan dentro de la interrupción, así la consola queda libre:
+
+- **FLIGHT.COM** (5% de la CPU): flight assist; página en la pantalla izquierda.
+- **FIRECTL.COM** (26% de la CPU): fija blancos con T/G, calcula el adelanto (CORDIC para ángulos y distancias), apunta la torreta y dispara mientras se mantiene el gatillo; radar y estado en la pantalla derecha.
+
+`FLIGHT OFF` y `FIRECTL OFF` los sacan de memoria (primero el último instalado). Los registros están documentados al principio de [flight.asm](software/flight/flight.asm) y [firectl.asm](software/firectl/firectl.asm).
 
 ## Pruebas
 
 ```bat
 Godot_v4.7.2-stable_mono_win64_console.exe --headless --path . res://tests/computer_test.tscn
 Godot_v4.7.2-stable_mono_win64_console.exe --headless --fixed-fps 60 --path . res://tests/flight_test.tscn
+Godot_v4.7.2-stable_mono_win64_console.exe --headless --fixed-fps 60 --path . res://tests/combat_test.tscn
 ```
 
 - `computer_test`: arranca COS, escribe `DIR`, guarda y carga la computadora, y mide cuántas máquinas a 4,77 MHz corren en un núcleo.
-- `flight_test`: la nave volada por FLIGHT.COM. Prueba velocidades de giro y de avance con flight assist, la deriva sin él, el botón FA, y el modo directo cuando el programa termina.
+- `flight_test`: la nave volada por FLIGHT.COM. Prueba velocidades de giro y de avance con flight assist, la deriva sin él, el botón FA, la consola libre mientras vuela, y el modo directo con `FLIGHT OFF`.
+- `combat_test`: FIRECTL.COM contra drones. Fija con T, mide el error de puntería contra la intercepción exacta, cuenta impactos de una ráfaga a 2 km, destruye el drone, cambia de blanco con G y apaga el radar con `FIRECTL OFF`.
 
-Las dos terminan con código 0 si todo pasó.
+`tests/combat_demo.tscn` abre el juego con un script en los controles (fija y dispara solo), para mirarlo o grabarlo.
+
+Todas terminan con código 0 si todo pasó.
 
 ## Estructura
 
@@ -62,10 +84,10 @@ Las dos terminan con código 0 si todo pasó.
 |---|---|
 | `scripts/Native` | P/Invoke sobre `pc86.dll` y `xpace_native.dll` |
 | `scripts/Computer` | `ShipComputer` (la PC de la nave), `ShipBus` (los registros del bus), el mapa de teclas |
-| `scripts/Ship` | `ShipBody` (física, dispositivos del bus, watchdog), `ShipSpec`, `PilotControls` |
+| `scripts/Ship` | `ShipBody` (física, mandos, unidad inercial, propulsores, watchdog), radar, torreta, pantallas laterales, `ShipSpec`, `PilotControls` |
 | `scripts/Cockpit` | Piloto (controles estilo Elite, vista), pantallas de cabina, indicador del mouse, cabina provisoria |
-| `scripts/Space` | Estrellas, asteroides, polvo espacial, estación provisoria |
-| `software` | Software de la nave: `flight/flight.asm`, `autoexec.bat` |
+| `scripts/Space` | Estrellas, asteroides, polvo espacial, estación provisoria, drones, proyectiles |
+| `software` | Software de la nave: `flight/flight.asm`, `firectl/firectl.asm`, `autoexec.bat` |
 | `scenes` | `main.tscn`: la nave en el campo de asteroides |
-| `tests` | Prueba de la computadora, benchmark y prueba de vuelo |
-| `native` | La placa del bus en C, y el script que compila las DLL y el diskette |
+| `tests` | Pruebas de la computadora, de vuelo y de combate; demo de combate |
+| `native` | La placa del bus y el dibujo de texto en C, y el script que compila las DLL y el diskette |

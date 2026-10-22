@@ -32,6 +32,9 @@ public partial class ShipComputer : Node
     /// <summary>The ship's expansion bus, in slot 2.</summary>
     public ShipBus Bus { get; private set; }
 
+    /// <summary>The machine's 1 MB address space (devices with memory windows read and write it).</summary>
+    public unsafe byte* Memory => Pc86.pc_memory(_pc);
+
     /// <summary>What the monitor shows, 640 x 400.</summary>
     public ImageTexture Screen { get; private set; }
 

@@ -1,4 +1,4 @@
-[gd_scene load_steps=19 format=3]
+[gd_scene load_steps=26 format=3]
 
 [ext_resource type="Script" path="res://scripts/Computer/ShipComputer.cs" id="1_computer"]
 [ext_resource type="Script" path="res://scripts/Cockpit/PlaceholderCockpit.cs" id="2_cockpit"]
@@ -11,6 +11,12 @@
 [ext_resource type="Script" path="res://scripts/Space/SpaceDust.cs" id="9_dust"]
 [ext_resource type="Script" path="res://scripts/Space/PlaceholderStation.cs" id="10_station"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="11_spec"]
+[ext_resource type="Script" path="res://scripts/Ship/DisplayDevice.cs" id="12_display"]
+[ext_resource type="Script" path="res://scripts/Ship/RadarDevice.cs" id="13_radar"]
+[ext_resource type="Script" path="res://scripts/Ship/TurretDevice.cs" id="14_turret"]
+[ext_resource type="Script" path="res://scripts/Space/Projectiles.cs" id="15_rounds"]
+[ext_resource type="Script" path="res://scripts/Space/Drone.cs" id="16_drone"]
+[ext_resource type="Script" path="res://scripts/Cockpit/TargetBracket.cs" id="17_bracket"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -62,6 +68,26 @@ script = ExtResource("8_rocks")
 transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 450, 60, -1200)
 script = ExtResource("10_station")
 
+[node name="Projectiles" type="MultiMeshInstance3D" parent="."]
+script = ExtResource("15_rounds")
+
+[node name="Drone1" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -400, 80, -2200)
+script = ExtResource("16_drone")
+AnchorPath = NodePath("../Ship")
+
+[node name="Drone2" type="Node3D" parent="."]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 900, -60, -3000)
+script = ExtResource("16_drone")
+Speed = 100.0
+AnchorPath = NodePath("../Ship")
+
+[node name="Drone3" type="Node3D" parent="."]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 200, 300, -3600)
+script = ExtResource("16_drone")
+Speed = 140.0
+AnchorPath = NodePath("../Ship")
+
 [node name="Ship" type="RigidBody3D" parent="."]
 script = ExtResource("6_ship")
 Spec = SubResource("Spec_fighter")
@@ -73,11 +99,24 @@ shape = SubResource("Shape_hull")
 [node name="ShipComputer" type="Node" parent="Ship"]
 script = ExtResource("1_computer")
 
+[node name="Display" type="Node" parent="Ship"]
+script = ExtResource("12_display")
+
+[node name="Turret" type="Node3D" parent="Ship"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 0.5, -6.5)
+script = ExtResource("14_turret")
+
+[node name="Radar" type="Node3D" parent="Ship"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -5)
+script = ExtResource("13_radar")
+TrackOriginPath = NodePath("../Turret")
+
 [node name="Cockpit" type="Node3D" parent="Ship"]
 script = ExtResource("2_cockpit")
+DisplayPath = NodePath("../Display")
 
 [node name="MainScreen" type="MeshInstance3D" parent="Ship/Cockpit"]
-transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 1.0, -0.555)
+transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 0.84, -0.585)
 script = ExtResource("3_screen")
 ComputerPath = NodePath("../../ShipComputer")
 Size = Vector2(0.38, 0.285)
@@ -103,6 +142,15 @@ offset_right = 1400.0
 offset_bottom = 80.0
 theme_override_colors/font_color = Color(0.75, 0.9, 0.8, 1)
 theme_override_font_sizes/font_size = 14
+
+[node name="TargetBracket" type="Control" parent="Ship/Pilot/Hud"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
+script = ExtResource("17_bracket")
+RadarPath = NodePath("../../../Radar")
 
 [node name="MouseWidget" type="Control" parent="Ship/Pilot/Hud"]
 anchors_preset = 8

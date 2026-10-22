@@ -11,4 +11,7 @@ public struct PilotControls
     public float Right, Up, Throttle;
     public bool AssistButton;
     public bool BoostButton;
+    public bool Trigger;            // primary fire
+    public bool TargetAhead;
+    public bool NextTarget;
 }

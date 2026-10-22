@@ -12,7 +12,7 @@ public sealed unsafe class ShipBus : IDisposable
 {
     public const ushort BasePort = 0x100;
     public const int SlotSize = 16;
-    public const int Slots = 3;
+    public const int Slots = 7;
     public const int Irq = 5;
 
     public IntPtr Card => Pc86.xbus_slot(_bus);

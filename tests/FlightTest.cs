@@ -15,19 +15,23 @@ public partial class FlightTest : Node
 {
     private ShipBody _ship;
     private PilotControls _controls;
+    private DisplayDevice _display;
     private int _failures;
 
     public override async void _Ready()
     {
         _ship = new ShipBody();
         _ship.AddChild(new ShipComputer { Name = "ShipComputer" });
+        _display = new DisplayDevice();
+        _ship.AddChild(_display);
         _ship.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(5, 3, 10) } });
         _ship.ControlsSource = () => _controls;
         AddChild(_ship);
 
         Check("before the program runs, the thrusters follow the controls", _ship.DirectMode);
         Check("AUTOEXEC.BAT starts FLIGHT.COM", await Until(() => _ship.AssistOn, 30));
-        Check("its page is on the screen", _ship.Computer.ScreenText().Contains("CUCSICORP FLIGHT CONTROL"));
+        Check("its page is on the left screen", _display.Text(0).Contains("FLIGHT CONTROL"));
+        Check("it stays resident: the console is back", await Until(() => _ship.Computer.ScreenText().Contains("A:\\>"), 5));
 
         // Flight assist: the stick asks for a turn rate
         _controls.Pitch = 0.5f;
@@ -74,15 +78,17 @@ public partial class FlightTest : Node
         await Seconds(2);
         Check($"assist on again: the turn stops ({Rate().X:0.000})", _ship.AssistOn && MathF.Abs(Rate().X) < 0.02f);
 
-        string load = Line(_ship.Computer.ScreenText(), "CPU LOAD");
+        string load = Line(_display.Text(0), "CPU LOAD");
         GD.Print($"     {load.Trim()}");
 
-        // Esc on the computer's keyboard ends FLIGHT: direct mode
-        _ship.Computer.Key("Escape", true);
-        await Seconds(0.1);
-        _ship.Computer.Key("Escape", false);
-        Check("Esc ends the program: direct mode", await Until(() => _ship.DirectMode, 2));
-        Check("its message is on the screen", _ship.Computer.ScreenText().Contains("Flight control stopped"));
+        // The console works while the ship flies
+        await Type("DIR\n");
+        Check("DIR at the console while flying", await Until(() => _ship.Computer.ScreenText().Contains("FLIGHT   COM"), 5) && _ship.AssistOn);
+
+        // FLIGHT OFF: direct mode
+        await Type("FLIGHT OFF\n");
+        Check("FLIGHT OFF removes it: direct mode", await Until(() => _ship.DirectMode, 5));
+        Check("its message is on the console", _ship.Computer.ScreenText().Contains("Flight control removed"));
         _controls.Yaw = 1;
         await Seconds(1);
         _controls.Yaw = 0;
@@ -104,6 +110,25 @@ public partial class FlightTest : Node
     {
         Vector3 v = _ship.GlobalBasis.Inverse() * _ship.LinearVelocity;
         return new Vector3(v.X, v.Y, -v.Z);
+    }
+
+    private async Task Type(string text)
+    {
+        foreach (char c in text)
+        {
+            string code = c switch
+            {
+                '\n' => "Enter",
+                ' ' => "Space",
+                >= 'A' and <= 'Z' => "Key" + c,
+                >= '0' and <= '9' => "Digit" + c,
+                _ => throw new ArgumentException($"no key for '{c}'"),
+            };
+            _ship.Computer.Key(code, true);
+            await Seconds(0.05);
+            _ship.Computer.Key(code, false);
+            await Seconds(0.05);
+        }
     }
 
     private async Task Press()

@@ -123,6 +123,7 @@ public static unsafe class Pc86
     [DllImport(XbusLib)] public static extern byte* xbus_read_flags(IntPtr bus);
     [DllImport(XbusLib)] public static extern byte* xbus_written_flags(IntPtr bus);
     [DllImport(XbusLib)] public static extern void xbus_raise_irq(IntPtr bus);
+    [DllImport(XbusLib)] public static extern void xbus_render_text(byte* cells, int cols, int rows, byte* rgb);
 
     [DllImport(Lib)] public static extern IntPtr disk_create_image(byte* data, nuint len);
     [DllImport(Lib)] public static extern void disk_destroy(IntPtr disk);

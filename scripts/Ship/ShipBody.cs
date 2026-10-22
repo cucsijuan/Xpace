@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 using Xpace.Computer;
 
@@ -12,6 +13,9 @@ namespace Xpace.Ship;
 ///      bus registers, and the inertial unit asks for its interrupt;
 ///   2. the computer runs for the same step;
 ///   3. the thruster commands come back out and push the ship.
+///
+/// Other devices (radar, turrets, displays) are nodes below the ship that
+/// implement <see cref="IShipDevice"/>; they get the same two calls.
 ///
 /// If the program stops sending commands for <see cref="WatchdogSeconds"/>,
 /// the thruster controller takes the controls directly (direct mode).
@@ -43,6 +47,7 @@ public partial class ShipBody : RigidBody3D
     public readonly float[] Commands = new float[6];
 
     private double _sinceCommand = double.MaxValue;
+    private readonly List<IShipDevice> _devices = new();
 
     public override void _Ready()
     {
@@ -62,8 +67,19 @@ public partial class ShipBody : RigidBody3D
         bus[SlotControls, 0] = TypeControls;
         bus[SlotInertial, 0] = TypeInertial;
         bus[SlotThrusters, 0] = TypeThrusters;
-        for (int slot = 0; slot < ShipBus.Slots; slot++)
+        for (int slot = 0; slot < 3; slot++)
             bus[slot, 1] = 1;                       // version
+        foreach (Node node in FindChildren("*", "", true, false))
+            if (node is IShipDevice device)
+                _devices.Add(device);
+    }
+
+    public T Device<T>() where T : class, IShipDevice
+    {
+        foreach (IShipDevice d in _devices)
+            if (d is T t)
+                return t;
+        return null;
     }
 
     public override void _PhysicsProcess(double delta)
@@ -72,9 +88,14 @@ public partial class ShipBody : RigidBody3D
         Controls = ControlsSource?.Invoke() ?? default;
         WriteControls(bus, Controls);
         WriteInertial(bus);
+        foreach (IShipDevice d in _devices)
+            d.BeforeStep(this, delta);
         bus.RaiseIrq();
 
         Computer.Advance(delta);
+
+        foreach (IShipDevice d in _devices)
+            d.AfterStep(this, delta);
 
         if (bus.TakeWritten(SlotThrusters, 14))
             _sinceCommand = 0;
@@ -105,7 +126,8 @@ public partial class ShipBody : RigidBody3D
         bus.SetWord(SlotControls, 8, Axis(c.Right));
         bus.SetWord(SlotControls, 10, Axis(c.Up));
         bus.SetWord(SlotControls, 12, Axis(c.Throttle));
-        bus[SlotControls, 14] = (byte)((c.AssistButton ? 1 : 0) | (c.BoostButton ? 2 : 0));
+        bus[SlotControls, 14] = (byte)((c.AssistButton ? 1 : 0) | (c.BoostButton ? 2 : 0) |
+                                        (c.TargetAhead ? 4 : 0) | (c.NextTarget ? 8 : 0) | (c.Trigger ? 16 : 0));
     }
 
     /// <summary>

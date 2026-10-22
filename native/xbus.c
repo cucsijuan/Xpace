@@ -120,3 +120,35 @@ XBUS_API uint8_t *xbus_written_flags(xbus_t *x) { return x->written; }
 
 /* Asks for the bus's interrupt; the machine takes it on its next slice. */
 XBUS_API void xbus_raise_irq(xbus_t *x) { x->irq_pending = 1; }
+
+/* ---------- text displays ---------- */
+
+#include "font_cp437.h"
+
+static const uint8_t CGA[16][3] = {
+    {0x00, 0x00, 0x00}, {0x00, 0x00, 0xAA}, {0x00, 0xAA, 0x00}, {0x00, 0xAA, 0xAA},
+    {0xAA, 0x00, 0x00}, {0xAA, 0x00, 0xAA}, {0xAA, 0x55, 0x00}, {0xAA, 0xAA, 0xAA},
+    {0x55, 0x55, 0x55}, {0x55, 0x55, 0xFF}, {0x55, 0xFF, 0x55}, {0x55, 0xFF, 0xFF},
+    {0xFF, 0x55, 0x55}, {0xFF, 0x55, 0xFF}, {0xFF, 0xFF, 0x55}, {0xFF, 0xFF, 0xFF},
+};
+
+/* Character and attribute pairs, as in CGA text memory (cols x rows), to
+ * RGB pixels with the 8x16 CP437 font: cols*8 x rows*16 x 3 bytes. */
+XBUS_API void xbus_render_text(const uint8_t *cells, int cols, int rows, uint8_t *rgb)
+{
+    int row, col, y, x, width = cols * 8;
+    for (row = 0; row < rows; row++)
+        for (col = 0; col < cols; col++) {
+            uint8_t ch = cells[(row * cols + col) * 2];
+            uint8_t attr = cells[(row * cols + col) * 2 + 1];
+            const uint8_t *fg = CGA[attr & 0x0F], *bg = CGA[(attr >> 4) & 0x07];
+            for (y = 0; y < 16; y++) {
+                uint8_t bits = vga_font_8x16[ch][y];
+                uint8_t *p = rgb + (((size_t)row * 16 + y) * width + (size_t)col * 8) * 3;
+                for (x = 0; x < 8; x++, p += 3) {
+                    const uint8_t *c = (bits & (0x80 >> x)) ? fg : bg;
+                    p[0] = c[0]; p[1] = c[1]; p[2] = c[2];
+                }
+            }
+        }
+}

@@ -80,7 +80,14 @@ El cálculo del salto es un buen ejemplo de la CPU como mecánica: un programa d
   - la unidad inercial, en `110h`, que pide la IRQ 5 con cada muestra, 60 veces por segundo;
   - el controlador de propulsores, en `120h`, con un watchdog: si el software deja de escribir por 100 ms, pasa a modo directo.
 
-  Los registros están documentados en `software/flight/flight.asm`. El software de vuelo de fábrica (FLIGHT.COM, que arranca desde AUTOEXEC.BAT) usa un 4% de la CPU de 4,77 MHz.
+  Los registros están documentados en `software/flight/flight.asm`. El software de vuelo de fábrica (FLIGHT.COM, que arranca desde AUTOEXEC.BAT) usa un 5% de la CPU de 4,77 MHz.
+
+  M2 sumó tres dispositivos más:
+  - el radar, en `130h`: cono de ±60° y 8 km, tabla de contactos y seguimiento escritos en memoria, en D000:1000;
+  - la torreta con gimbal, en `140h`: servos de 90°/s y cañón cinético de 1.200 m/s;
+  - las pantallas laterales, en `150h`: texto de 40×16 mapeado en memoria, como una CGA, en D000:0000 y D000:0800.
+
+  FLIGHT y FIRECTL quedan **residentes** y trabajan dentro de la interrupción, así que la consola central queda libre. FIRECTL calcula el adelanto con CORDIC (ángulos y distancias sin raíz cuadrada) y usa un 26% de la CPU: el control de fuego pesa cinco veces más que el de vuelo. Es la mecánica del tiempo de CPU como recurso, ya funcionando.
 - **Descubrimiento de hardware:** el registro 0 de cada ranura devuelve el ID del dispositivo, el fabricante y la versión, como hacía la instrucción HWQ en 0x10c. El software recorre el bus y averigua qué tiene instalado.
 - **Interrupciones:** los dispositivos avisan sin que la CPU tenga que preguntar: un contacto nuevo en el radar, un misil que se acerca, un mensaje de radio, un daño.
 - **Mejoras de hardware:**
@@ -241,7 +248,7 @@ Escudos, blindaje, sistemas de defensa de punto (point defense) y contramedidas:
 |---|---|---|
 | M0 ✔ | vm86 como DLL dentro de Godot, una consola de texto en pantalla, COS arrancando | `A:\>` en una pantalla de la cabina |
 | M1 ✔ | Vuelo 6DOF con flight assist corriendo en la CPU | La nave se maneja bien y el flight assist es un programa reemplazable |
-| M2 | Radar, fijado de blanco, una torreta con gimbal controlada por software | La torreta sigue al blanco gracias al programa |
+| M2 ✔ | Radar, fijado de blanco, una torreta con gimbal controlada por software | La torreta sigue al blanco gracias al programa |
 | M3 | Misiles IR y por radar, contramedidas, calor y energía | Un duelo contra la IA que dura 1–3 minutos y es divertido |
 | M4 | Terminal en la cabina: editar y recompilar software dentro del juego | Cambiar el programa de la torreta mejora la puntería |
 | M5 | Varios sectores, saltos, estaciones, comercio | Un viaje de comercio de punta a punta |
