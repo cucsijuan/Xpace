@@ -11,8 +11,8 @@ A space game (trade, combat, factions) where the ships' systems run on programma
 Needs CMake 3.17 or later, a C compiler (Visual Studio 2022 on Windows, GCC or Clang on Linux), the .NET 8 SDK or later, and Godot 4.7 (.NET build).
 
 ```sh
-git clone --recursive https://github.com/cucsijuan/Xspace.git
-cd Xspace
+git clone --recursive https://github.com/cucsijuan/Xpace.git
+cd Xpace
 cmake -S native -B native/build
 cmake --build native/build --config Release
 ```
