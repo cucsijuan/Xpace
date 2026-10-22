@@ -6,11 +6,14 @@ namespace Xpace.Space;
 /// Specks left behind in world space around the ship as it flies: without
 /// them there is nothing near enough to show speed or drift.
 /// </summary>
-public partial class SpaceDust : GpuParticles3D
+public partial class SpaceDust : GpuParticles3D, IOriginShift
 {
     [Export] public float Spread = 160f;
     [Export] public int Specks = 900;
     [Export] public float Life = 6f;
+
+    /// <summary>The specks are in world space: after a shift, make a fresh cloud around the ship.</summary>
+    public void ShiftOrigin(Vector3 offset) => Restart();
 
     public override void _Ready()
     {

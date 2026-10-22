@@ -1,4 +1,4 @@
-[gd_scene load_steps=26 format=3]
+[gd_scene load_steps=27 format=3]
 
 [ext_resource type="Script" path="res://scripts/Computer/ShipComputer.cs" id="1_computer"]
 [ext_resource type="Script" path="res://scripts/Cockpit/PlaceholderCockpit.cs" id="2_cockpit"]
@@ -17,6 +17,7 @@
 [ext_resource type="Script" path="res://scripts/Space/Projectiles.cs" id="15_rounds"]
 [ext_resource type="Script" path="res://scripts/Space/Drone.cs" id="16_drone"]
 [ext_resource type="Script" path="res://scripts/Cockpit/TargetBracket.cs" id="17_bracket"]
+[ext_resource type="Script" path="res://scripts/Space/FloatingOrigin.cs" id="18_origin"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -45,6 +46,8 @@ script = ExtResource("11_spec")
 size = Vector3(5, 3, 10)
 
 [node name="Main" type="Node3D"]
+script = ExtResource("18_origin")
+ShipPath = NodePath("Ship")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="."]
 environment = SubResource("Environment_space")

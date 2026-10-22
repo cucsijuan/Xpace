@@ -26,8 +26,8 @@ public partial class TurretDevice : Node3D, IShipDevice
     public const byte Type = 5;
 
     [Export] public float MuzzleSpeed = 1200f;          // m/s
-    [Export] public float ServoDegreesPerSecond = 90f;
-    [Export] public float ServoAcceleration = 240f;     // degrees/s²
+    [Export] public float ServoDegreesPerSecond = 150f;
+    [Export] public float ServoAcceleration = 600f;     // degrees/s²
     [Export] public float ServoGain = 12f;              // 1/s: how fast it closes an error
     [Export] public float DispersionMrad = 0.6f;        // spread of the rounds, cold barrel
     [Export] public float RecoilKickMrad = 0.3f;
@@ -35,7 +35,7 @@ public partial class TurretDevice : Node3D, IShipDevice
     [Export] public float ElevationMin = -5f, ElevationMax = 85f;
     [Export] public double FireInterval = 0.1;
     [Export] public float Damage = 10f;
-    [Export] public float HeatPerShot = 7f, CoolingPerSecond = 30f;
+    [Export] public float HeatPerShot = 5f, CoolingPerSecond = 35f;
     [Export] public float HotAbove = 250f, CoolBelow = 120f;
 
     /// <summary>Radians, right and up positive.</summary>
@@ -104,7 +104,7 @@ public partial class TurretDevice : Node3D, IShipDevice
         float wantAz = Math.Clamp(Radians(bus.Word(Slot, 2)), -Mathf.DegToRad(AzimuthLimit), Mathf.DegToRad(AzimuthLimit));
         float wantEl = Math.Clamp(Radians(bus.Word(Slot, 4)), Mathf.DegToRad(ElevationMin), Mathf.DegToRad(ElevationMax));
         // How fast the wanted angles move, smoothed (the commands are noisy)
-        float smooth = Math.Clamp(dt / 0.1f, 0, 1);
+        float smooth = Math.Clamp(dt / 0.05f, 0, 1);
         _feedAz += ((wantAz - _lastWantAz) / dt - _feedAz) * smooth;
         _feedEl += ((wantEl - _lastWantEl) / dt - _feedEl) * smooth;
         _lastWantAz = wantAz;

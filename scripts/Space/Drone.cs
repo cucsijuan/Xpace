@@ -9,7 +9,7 @@ namespace Xpace.Space;
 /// <see cref="EvadeG"/>) once a radar locks it. Its brain is plain game
 /// code: no computer is emulated for it.
 /// </summary>
-public partial class Drone : Node3D, IRadarTarget
+public partial class Drone : Node3D, IRadarTarget, IOriginShift
 {
     public const uint HitLayer = 2;                     // what rounds look for
 
@@ -106,6 +106,8 @@ public partial class Drone : Node3D, IRadarTarget
         if (Velocity.LengthSquared() > 1)
             LookAt(GlobalPosition + Velocity, Vector3.Up);
     }
+
+    public void ShiftOrigin(Vector3 offset) => _waypoint -= offset;
 
     /// <summary>Sets it flying with this velocity from where it is (a test, a mission).</summary>
     public void Fly(Vector3 velocity)

@@ -29,6 +29,8 @@ namespace Xpace.Ship;
 /// second and writes where it is from the turret's pivot, in the ship's
 /// axes: +0 id, +2 right, +4 up, +6 forward (1/4 m), +8 SNR (dB), +14 range
 /// (m). Only the position: the velocity is for the program to work out.
+/// A target lost at the edge of the cone (or to a weak echo) is taken back
+/// by itself if it is seen again within <see cref="ReacquireSeconds"/>.
 ///
 /// Registers: +0 type 4  +2 mode (write: 0 off, 1 on)  +3 contacts in the
 /// table  +4 sweeps so far  +5 locked (1/0)  +6 write: lock this id (0 lets
@@ -42,6 +44,7 @@ public partial class RadarDevice : Node3D, IShipDevice
 
     [Export] public float ConeDegrees = 60f;
     [Export] public double SweepSeconds = 0.5;
+    [Export] public double ReacquireSeconds = 3;
 
     [ExportGroup("Quality")]
     /// <summary>Where a 10 m² target is just detected (more power, further).</summary>
@@ -63,6 +66,8 @@ public partial class RadarDevice : Node3D, IShipDevice
     public float LockedSnr { get; private set; }
 
     private readonly List<IRadarTarget> _contacts = new();
+    private IRadarTarget _lost;
+    private double _lostFor;
     private Node3D _trackOrigin;
     private double _sinceSweep = double.MaxValue;
     private byte _sweeps;
@@ -125,6 +130,7 @@ public partial class RadarDevice : Node3D, IShipDevice
         if (!On)
         {
             Locked = null;
+            _lost = null;
             _contacts.Clear();
             bus[Slot, 3] = 0;
         }
@@ -142,7 +148,23 @@ public partial class RadarDevice : Node3D, IShipDevice
             {
                 LockedSnr = Snr(Locked);
                 if (!InCone(Locked) || LockedSnr < LockSnr)
+                {
+                    _lost = Locked;                 // remember it for a while
+                    _lostFor = 0;
                     Locked = null;
+                }
+            }
+            else if (_lost != null)
+            {
+                _lostFor += delta;
+                if (_lostFor > ReacquireSeconds || !_lost.Alive)
+                    _lost = null;
+                else if (InCone(_lost) && Snr(_lost) >= LockSnr)
+                {
+                    Locked = _lost;
+                    LockedSnr = Snr(Locked);
+                    _lost = null;
+                }
             }
             if (Locked != null)
             {
@@ -161,6 +183,7 @@ public partial class RadarDevice : Node3D, IShipDevice
             return;
         ushort id = (ushort)bus.Word(Slot, 6);
         Locked = null;
+        _lost = null;
         if (id == 0 || !On)
             return;
         foreach (IRadarTarget t in _contacts)

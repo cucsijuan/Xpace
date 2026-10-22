@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.1 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.2 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -29,6 +29,7 @@
 ;
 ;   100h  pilot's controls   +14 buttons: bit 2 target ahead, 3 next target,
 ;                            4 fire
+;   110h  inertial unit      +2 pitch  +4 roll  +6 yaw rate (1/1024 rad/s)
 ;   130h  radar              +0 type 4  +2 mode (1 on)  +3 contacts  +4 sweeps
 ;                            +5 locked  +6 lock id (write)  +8 locked id
 ;                            +10 segment  +12 contact table  +14 track (offsets)
@@ -45,6 +46,7 @@
 org 100h
 
 CTRL        equ 100h
+IMU         equ 110h
 RADAR       equ 130h
 TURRET      equ 140h
 DISPLAYS    equ 150h
@@ -139,6 +141,16 @@ step:
     mov dx, TURRET + 8
     in ax, dx
     mov [turret_el], ax
+
+    mov dx, IMU + 2                 ; the gyros, for the ship's own turning
+    in ax, dx                       ; (not +14: acknowledging is FLIGHT's)
+    mov [pitch_rate], ax
+    mov dx, IMU + 4
+    in ax, dx
+    mov [roll_rate], ax
+    mov dx, IMU + 6
+    in ax, dx
+    mov [yaw_rate], ax
 
     mov dx, RADAR + 5
     in al, dx
@@ -348,6 +360,9 @@ solve:
 ;
 ; The radar gives only noisy positions. Per axis the filter keeps a position
 ; x and a velocity v (1/64 m, 1/64 m/s, 32 bits) and every step:
+;   turns       x and v by the ship's own rotation since the last step (the
+;               gyros' rates): the ship turning makes the target sweep past
+;               in the ship's axes, and that is not the target moving
 ;   predicts    x = x + v dt
 ;   compares    r = measured - x
 ;   corrects    x = x + ALPHA r,   v = v + (BETA / dt) r
@@ -375,6 +390,17 @@ filter_start:                       ; x = the measurement, v = 0
     ret
 
 filter_step:
+    mov si, p                       ; the ship's rotation: positions (1/4 m to
+    mov cx, 3840                    ; 1/64 m a step: * 16 / 1024 / 60)
+    call rotation
+    mov bx, pos
+    call add_turn
+    mov si, v                       ; and velocities (1/8 m/s to 1/64 m/s
+    mov cx, 7680                    ; a step: * 8 / 1024 / 60)
+    call rotation
+    mov bx, vel
+    call add_turn
+
     xor bx, bx
     xor si, si
 .axis:
@@ -407,6 +433,83 @@ filter_step:
     add bx, 2
     cmp bx, 6
     jb .axis
+    ret
+
+; How a point fixed in space moves in the ship's axes (right, up, forward)
+; while the ship turns at pitch rate q (nose up), roll rate p (right wing
+; down) and yaw rate r (nose right), in 1/1024 rad/s:
+;   right   -= r forward + p up        up += p right - q forward
+;   forward += q up + r right
+; SI = the vector (3 words), CX = the divisor to the step's units:
+; turn_x, turn_y, turn_z (words)
+rotation:
+    mov [divisor], cx
+    mov ax, [si + 4]                ; right: -(r * forward) - p * up
+    imul word [yaw_rate]
+    mov bx, ax
+    mov cx, dx
+    mov ax, [si + 2]
+    imul word [roll_rate]
+    add ax, bx
+    adc dx, cx
+    neg dx                          ; minus the sum
+    neg ax
+    sbb dx, 0
+    call divide
+    mov [turn_x], ax
+    mov ax, [si]                    ; up: p * right - q * forward
+    imul word [roll_rate]
+    mov bx, ax
+    mov cx, dx
+    mov ax, [si + 4]
+    imul word [pitch_rate]
+    sub bx, ax
+    sbb cx, dx
+    mov ax, bx
+    mov dx, cx
+    call divide
+    mov [turn_y], ax
+    mov ax, [si + 2]                ; forward: q * up + r * right
+    imul word [pitch_rate]
+    mov bx, ax
+    mov cx, dx
+    mov ax, [si]
+    imul word [yaw_rate]
+    add ax, bx
+    adc dx, cx
+    call divide
+    mov [turn_z], ax
+    ret
+
+; AX = DX:AX / divisor, held to a word (a wild value must not fault)
+divide:
+    mov cx, [divisor]
+    shr cx, 1                       ; the quotient fits if |DX| < divisor / 2
+    cmp dx, cx
+    jge .high
+    neg cx
+    cmp dx, cx
+    jl .low
+    idiv word [divisor]
+    ret
+.high:
+    mov ax, 32767
+    ret
+.low:
+    mov ax, -32767
+    ret
+
+; Adds turn_x, turn_y, turn_z to the three dwords at BX
+add_turn:
+    mov si, turn_x
+    mov cx, 3
+.axis:
+    lodsw
+    cwd
+    add [bx], ax
+    adc [bx + 2], dx
+    add bx, 4
+    loop .axis
     ret
 
 ; DX:AX = DX:AX / 256, keeping the sign
@@ -663,6 +766,14 @@ draw:
     mov ah, ATTR_WARN
     jmp .status
 .not_hot:
+    test al, 2                      ; the target is where the turret cannot go
+    jz .in_arc
+    cmp byte [locked], 0
+    je .in_arc
+    mov si, s_out_of_arc
+    mov ah, ATTR_WARN
+    jmp .status
+.in_arc:
     cmp byte [firing], 0
     je .not_firing
     mov si, s_firing
@@ -744,6 +855,7 @@ s_no_target     db 'NO TARGET  ', 0
 s_tracking      db 'TRACKING   ', 0
 s_firing        db 'FIRING     ', 0
 s_too_hot       db 'GUN TOO HOT', 0
+s_out_of_arc    db 'OUT OF ARC ', 0
 
 buttons         db 0
 pressed         db 0
@@ -771,6 +883,13 @@ snr             dw 0
 residual        dw 0
 pos             times 6 dw 0        ; the filter: x per axis (1/64 m, 32 bits)
 vel             times 6 dw 0        ;             v per axis (1/64 m/s, 32 bits)
+pitch_rate      dw 0                ; the gyros (1/1024 rad/s)
+roll_rate       dw 0
+yaw_rate        dw 0
+divisor         dw 0
+turn_x          dw 0
+turn_y          dw 0
+turn_z          dw 0
 p               times 3 dw 0        ; its estimate in 1/4 m
 v               times 3 dw 0        ; and in 1/8 m/s
 
@@ -942,7 +1061,7 @@ draw_labels:
 
 labels:
     dw (0 * COLS + 0) * 2
-    db ATTR_TITLE, ' FIRE CONTROL 1.1              CUCSICORP', 0
+    db ATTR_TITLE, ' FIRE CONTROL 1.2              CUCSICORP', 0
     dw (1 * COLS + 1) * 2
     db ATTR_SCOPE, '-60', 0
     dw (1 * COLS + 12) * 2

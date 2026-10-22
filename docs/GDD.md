@@ -87,7 +87,7 @@ Jump computation is a good example of the CPU as a mechanic: a better navigation
   - the gimballed turret, at `140h`: 90°/s servos and a 1,200 m/s kinetic cannon;
   - the side screens, at `150h`: 40×16 text memory-mapped like a CGA card, at D000:0000 and D000:0800.
 
-  FLIGHT and FIRECTL stay **resident** and do their work inside the interrupt, so the central console stays free. FIRECTL computes the lead with CORDIC (angles and distances with no square root) and uses 30% of the CPU: fire control costs six times what flight control does. The CPU-time-as-a-resource mechanic is already working.
+  FLIGHT and FIRECTL stay **resident** and do their work inside the interrupt, so the central console stays free. FIRECTL computes the lead with CORDIC (angles and distances with no square root), turns its filter with the gyros so the ship's own rotation is not taken for target motion, and uses 33% of the CPU: fire control costs six times what flight control does. The CPU-time-as-a-resource mechanic is already working.
 
   **Realistic accuracy.** The radar measures positions only, with noise that comes from its signal-to-noise ratio (SNR):
   - the echo falls with the fourth power of the range and grows with the target's radar cross-section;
@@ -215,7 +215,7 @@ Shields, armour, point defence systems and countermeasures: flares, chaff, jammi
   - **far away:** AI ships use an abstract model ("level 3 factory software hits X%"), with no emulation;
   - **missiles:** emulated only if the player fired them or they are heading for the player.
 - **Real PC CPU budget:** measured in M0, the full pc86 board executes about 107 million instructions a second on one core (a 2026 office PC, MSVC Release build). That is about **260 machines at 4.77 MHz per core**, plenty for the player's ship, its turrets and nearby missiles. Each instance reserves 1 MB today; missiles would suit a vm86 variant with little memory, 64 KB or less.
-- **Spatial scale:** use a floating origin and consider Godot's double-precision build.
+- **Spatial scale:** a floating origin (`FloatingOrigin`) moves the world back whenever the ship is 1 km from the origin, so single-precision floats never lose the millimetres the cockpit needs; Godot's double-precision build stays an option for very large sectors.
 - **Tools:** asm86 on the PC for the factory software; COS, ASM and CBasic inside the game for players.
 
 ## 11. Assessment and recommendations

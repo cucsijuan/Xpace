@@ -7,7 +7,7 @@ namespace Xpace.Space;
 /// Every round in flight: moved each physics step, checked for hits with a
 /// ray along the step, drawn as tracers in one MultiMesh.
 /// </summary>
-public partial class Projectiles : MultiMeshInstance3D
+public partial class Projectiles : MultiMeshInstance3D, IOriginShift
 {
     [Export] public int MaxRounds = 512;
     [Export] public float Life = 4f;
@@ -55,6 +55,16 @@ public partial class Projectiles : MultiMeshInstance3D
     {
         if (Instance == this)
             Instance = null;
+    }
+
+    public void ShiftOrigin(Vector3 offset)
+    {
+        for (int i = 0; i < _rounds.Count; i++)
+        {
+            Round r = _rounds[i];
+            r.Position -= offset;
+            _rounds[i] = r;
+        }
     }
 
     public void Fire(Vector3 origin, Vector3 velocity, float damage)

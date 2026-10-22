@@ -63,7 +63,9 @@ Every physics step (60 a second), `ShipBody` writes the stick, the inertial unit
 AUTOEXEC.BAT leaves two programs resident; they work inside the interrupt, so the console stays free:
 
 - **FLIGHT.COM** (5% of the CPU): flight assist; its page is on the left screen.
-- **FIRECTL.COM** (30% of the CPU): locks targets with T/G, smooths the radar's noisy positions with an alpha-beta filter and gets the velocity from them, computes the lead (CORDIC for angles and distances), aims the turret and fires while the trigger is held; radar, SNR and status on the right screen.
+- **FIRECTL.COM** (33% of the CPU): locks targets with T/G, smooths the radar's noisy positions with an alpha-beta filter and gets the velocity from them (turning the filter with the gyros, so the ship's own rotation is not taken for target motion), computes the lead (CORDIC for angles and distances), aims the turret and fires while the trigger is held; radar, SNR and status on the right screen (GUN TOO HOT, OUT OF ARC when the target is where the turret cannot point).
+
+A target lost at the edge of the radar's ±60° cone is taken back by itself if it comes back within 3 s.
 
 **Why it misses.** Nothing is decided by dice: errors come from physical causes.
 - **The radar:** its noise comes from its SNR, which falls with the fourth power of the range, grows with the target's signature and falls with jamming.
@@ -85,12 +87,15 @@ godot --headless --path . res://tests/computer_test.tscn
 godot --headless --fixed-fps 60 --path . res://tests/flight_test.tscn
 godot --headless --fixed-fps 60 --path . res://tests/combat_test.tscn
 godot --headless --fixed-fps 60 --path . res://tests/accuracy_test.tscn
+godot --headless --fixed-fps 60 --path . res://tests/maneuver_test.tscn
 ```
 
 - `computer_test`: boots COS, types `DIR`, saves and loads the computer, and measures how many 4.77 MHz machines one core runs.
 - `flight_test`: the ship flown by FLIGHT.COM: turn rates and speed hold with flight assist, drift without it, the FA button, the console free while flying, and direct mode after `FLIGHT OFF`.
 - `combat_test`: FIRECTL.COM against drones: locks with T, measures the aiming error against the exact intercept, counts the hits of a burst at 2 km, destroys the drone, switches target with G and turns the radar off with `FIRECTL OFF`.
 - `accuracy_test`: hit probability by range against a drone jinking at 3 g (three runs per range), and a jammer on the drone: no lock at 4 km, burn-through at 1.5 km. It currently gives about 40% at 500 m, 30% at 1 km, 8% at 2 km and 0% from 4 km (85% against a straight target at 2 km).
+
+- `maneuver_test`: firing while the ship turns (it keeps firing and hitting), the lock coming back after the target leaves the cone, and the floating origin moving the world back 40 km in the middle of a fight.
 
 `tests/combat_demo.tscn` opens the game with a script at the controls (it locks and fires by itself), to watch or record.
 
@@ -106,7 +111,7 @@ All of them exit with 0 when everything passed.
 | `scripts/Computer` | `ShipComputer` (the ship's PC), `ShipBus` (the bus registers), the key map |
 | `scripts/Ship` | `ShipBody` (physics, controls, inertial unit, thrusters, watchdog), radar, turret, side screens, `ShipSpec`, `PilotControls` |
 | `scripts/Cockpit` | The pilot (Elite-style controls, looking), cockpit screens, the mouse widget, the placeholder cockpit |
-| `scripts/Space` | Stars, asteroids, space dust, the placeholder station, drones, rounds |
+| `scripts/Space` | Stars, asteroids, space dust, the placeholder station, drones, rounds, the floating origin |
 | `software` | The ship's software: `flight/flight.asm`, `firectl/firectl.asm`, `autoexec.bat` |
 | `scenes` | `main.tscn`: the ship in the asteroid field |
 | `tests` | Computer, flight, combat and accuracy tests; the combat demo |
