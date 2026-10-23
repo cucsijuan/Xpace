@@ -127,7 +127,8 @@ public partial class ShipBody : RigidBody3D
         bus.SetWord(SlotControls, 10, Axis(c.Up));
         bus.SetWord(SlotControls, 12, Axis(c.Throttle));
         bus[SlotControls, 14] = (byte)((c.AssistButton ? 1 : 0) | (c.BoostButton ? 2 : 0) |
-                                        (c.TargetAhead ? 4 : 0) | (c.NextTarget ? 8 : 0) | (c.Trigger ? 16 : 0));
+                                        (c.TargetAhead ? 4 : 0) | (c.NextTarget ? 8 : 0) | (c.Trigger ? 16 : 0) |
+                                        (c.NextWeapon ? 32 : 0));
     }
 
     /// <summary>

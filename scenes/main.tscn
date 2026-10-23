@@ -1,4 +1,4 @@
-[gd_scene load_steps=29 format=3]
+[gd_scene load_steps=31 format=3]
 
 [ext_resource type="Script" path="res://scripts/Computer/ShipComputer.cs" id="1_computer"]
 [ext_resource type="PackedScene" path="res://scenes/cockpits/fighter_cockpit.tscn" id="2_cockpit"]
@@ -20,6 +20,8 @@
 [ext_resource type="Script" path="res://scripts/Ship/DisplayScreen.cs" id="19_screen"]
 [ext_resource type="Resource" path="res://assets/ship/displays/radar.tres" id="20_radar"]
 [ext_resource type="Resource" path="res://assets/ship/displays/weapon.tres" id="21_weapon"]
+[ext_resource type="Script" path="res://scripts/Ship/LauncherDevice.cs" id="22_launcher"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/missile.tscn" id="23_missile"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -116,6 +118,11 @@ script = ExtResource("14_turret")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -5)
 script = ExtResource("13_radar")
 TrackOriginPath = NodePath("../Turret")
+
+[node name="Launcher" type="Node3D" parent="Ship"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.2, -3)
+script = ExtResource("22_launcher")
+MissileScene = ExtResource("23_missile")
 
 [node name="Cockpit" parent="Ship" instance=ExtResource("2_cockpit")]
 

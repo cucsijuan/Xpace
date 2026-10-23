@@ -15,6 +15,7 @@ obj/
 native/build/
 native/bin/
 disks/cos.img
+disks/missile.bin
 screen_final.pgm
 
 # Third-party art packs (raw); pick assets from here into assets/

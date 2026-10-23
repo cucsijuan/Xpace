@@ -138,6 +138,14 @@ public static unsafe class Pc86
     [DllImport(XbusLib)] public static extern void xbus_render_text(byte* cells, int cols, int rows, byte* rgb);
     [DllImport(XbusLib)] public static extern void xbus_render_graphics(byte* pixels, int width, int height, float* glow, float fade, float* colour, byte* rgb);
 
+    // ---------- the microcontroller (xpace_native, native/mcu.c) ----------
+    [DllImport(XbusLib)] public static extern IntPtr mcu_create(byte* firmware, nuint len, ushort basePort);
+    [DllImport(XbusLib)] public static extern void mcu_destroy(IntPtr mcu);
+    [DllImport(XbusLib)] public static extern byte* mcu_regs(IntPtr mcu);
+    [DllImport(XbusLib)] public static extern byte* mcu_written_flags(IntPtr mcu);
+    [DllImport(XbusLib)] public static extern uint mcu_step(IntPtr mcu, byte vector, uint steps);
+    [DllImport(XbusLib)] public static extern int mcu_failed(IntPtr mcu);
+
     [DllImport(Lib)] public static extern IntPtr disk_create_image(byte* data, nuint len);
     [DllImport(Lib)] public static extern void disk_destroy(IntPtr disk);
     [DllImport(Lib)] public static extern byte* disk_data(IntPtr disk);

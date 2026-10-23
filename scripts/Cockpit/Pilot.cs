@@ -205,6 +205,7 @@ public partial class Pilot : Node3D
             Trigger = !Viewing && Input.MouseMode == Input.MouseModeEnum.Captured && Input.IsActionPressed(FlightInput.FirePrimary),
             TargetAhead = keys && Input.IsActionPressed(FlightInput.TargetAhead),
             NextTarget = keys && Input.IsActionPressed(FlightInput.NextTarget),
+            NextWeapon = keys && Input.IsActionPressed(FlightInput.NextWeapon),
         };
     }
 

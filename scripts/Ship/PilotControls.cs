@@ -14,4 +14,5 @@ public struct PilotControls
     public bool Trigger;            // primary fire
     public bool TargetAhead;
     public bool NextTarget;
+    public bool NextWeapon;         // cycles the weapons (Elite's next fire group)
 }

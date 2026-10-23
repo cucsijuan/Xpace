@@ -32,6 +32,16 @@ namespace Xpace.Ship;
 /// A target lost at the edge of the cone (or to a weak echo) is taken back
 /// by itself if it is seen again within <see cref="ReacquireSeconds"/>.
 ///
+/// The tracker does not know which echo is the target: it looks in a gate
+/// (one beamwidth across, one range resolution deep, one velocity
+/// resolution wide in Doppler) that it moves along with the velocity it
+/// has been following, and measures the middle of every echo in it,
+/// weighted by their strength. The lock is on the strongest echo in the
+/// gate. Chaff that leaves with nearly the target's radial speed sits in
+/// the gate with it and pulls the middle toward itself, and may take the
+/// lock; chaff thrown out at a different radial speed is filtered out by
+/// the Doppler. A finer velocity resolution resists chaff better.
+///
 /// Registers: +0 type 4  +2 mode (write: 0 off, 1 on)  +3 contacts in the
 /// table  +4 sweeps so far  +5 locked (1/0)  +6 write: lock this id (0 lets
 /// go)  +8 the locked id  +10 segment  +12 table offset  +14 track offset
@@ -51,6 +61,7 @@ public partial class RadarDevice : Node3D, IShipDevice
     [Export] public float DetectionRange = 8000f;
     [Export] public float BeamwidthDegrees = 2.5f;
     [Export] public float RangeResolution = 15f;          // m
+    [Export] public float VelocityResolution = 8f;        // m/s, Doppler
     [Export] public float DetectSnr = 20f;               // 13 dB
     [Export] public float LockSnr = 10f;                 // 10 dB
     [Export] public float SidelobeLevel = 0.01f;         // jamming from outside the beam
@@ -64,11 +75,20 @@ public partial class RadarDevice : Node3D, IShipDevice
     public bool On { get; private set; }
     /// <summary>The locked target's SNR this step (linear).</summary>
     public float LockedSnr { get; private set; }
+    /// <summary>Where this step's track puts the locked target, in the world (noise and all): what a datalink passes on.</summary>
+    public Vector3 TrackPosition { get; private set; }
+    /// <summary>
+    /// Counts the locks the program asked for. A lock the tracker carries
+    /// on to another echo (chaff) keeps its number: to the datalink it is
+    /// the same track.
+    /// </summary>
+    public int TrackNumber { get; private set; }
 
     private readonly List<IRadarTarget> _contacts = new();
     private IRadarTarget _lost;
     private double _lostFor;
     private Node3D _trackOrigin;
+    private Vector3 _gate, _gateVelocity, _centroid;   // the tracker's gate and its velocity, the echoes' middle (world)
     private double _sinceSweep = double.MaxValue;
     private byte _sweeps;
     private bool _registersSet;
@@ -144,15 +164,11 @@ public partial class RadarDevice : Node3D, IShipDevice
                 bus[Slot, 3] = (byte)_contacts.Count;
                 bus[Slot, 4] = ++_sweeps;
             }
-            if (Locked != null)
+            if (Locked != null && !Follow(delta))
             {
-                LockedSnr = Snr(Locked);
-                if (!InCone(Locked) || LockedSnr < LockSnr)
-                {
-                    _lost = Locked;                 // remember it for a while
-                    _lostFor = 0;
-                    Locked = null;
-                }
+                _lost = Locked;                     // remember it for a while
+                _lostFor = 0;
+                Locked = null;
             }
             else if (_lost != null)
             {
@@ -162,8 +178,11 @@ public partial class RadarDevice : Node3D, IShipDevice
                 else if (InCone(_lost) && Snr(_lost) >= LockSnr)
                 {
                     Locked = _lost;
-                    LockedSnr = Snr(Locked);
+                    _gate = Locked.GlobalPosition;
+                    _gateVelocity = Locked.Velocity;
                     _lost = null;
+                    if (!Follow(0))
+                        Locked = null;
                 }
             }
             if (Locked != null)
@@ -182,6 +201,7 @@ public partial class RadarDevice : Node3D, IShipDevice
         if (!(bus.TakeWritten(Slot, 6) | bus.TakeWritten(Slot, 7)))
             return;
         ushort id = (ushort)bus.Word(Slot, 6);
+        IRadarTarget before = Locked;
         Locked = null;
         _lost = null;
         if (id == 0 || !On)
@@ -189,6 +209,57 @@ public partial class RadarDevice : Node3D, IShipDevice
         foreach (IRadarTarget t in _contacts)
             if (t.RadarId == id && InCone(t) && Snr(t) >= LockSnr)
                 Locked = t;
+        if (Locked == null)
+            return;
+        if (Locked != before)
+            TrackNumber++;
+        _gate = Locked.GlobalPosition;
+        _gateVelocity = Locked.Velocity;
+        if (!Follow(0))
+            Locked = null;
+    }
+
+    /// <summary>
+    /// One look through the tracking gate: moves it on at the velocity it
+    /// follows, weighs every echo in it (place and Doppler), puts the lock on
+    /// the strongest. False when nothing in it is strong enough.
+    /// </summary>
+    private bool Follow(double delta)
+    {
+        _gate += _gateVelocity * (float)delta;
+        Vector3 toGate = _gate - GlobalPosition;
+        float gateRange = toGate.Length();
+        float beam = Mathf.DegToRad(BeamwidthDegrees);
+        float total = 0, strongest = 0;
+        Vector3 sum = Vector3.Zero, sumVelocity = Vector3.Zero;
+        foreach (Node node in GetTree().GetNodesInGroup("radar_targets"))
+        {
+            if (node is not IRadarTarget t || !InCone(t))
+                continue;
+            Vector3 to = t.GlobalPosition - GlobalPosition;
+            float range = to.Length();
+            float across = toGate.AngleTo(to) / beam;
+            float deep = (range - gateRange) / RangeResolution;
+            float doppler = (t.Velocity - _gateVelocity).Dot(to / range) / VelocityResolution;
+            // half power half a cell out, in each of the three
+            float w = Snr(t) * MathF.Exp(-2.77f * (across * across + deep * deep + doppler * doppler));
+            if (w < 1e-3f)
+                continue;
+            total += w;
+            sum += t.GlobalPosition * w;
+            sumVelocity += t.Velocity * w;
+            if (w > strongest)
+            {
+                strongest = w;
+                Locked = t;
+            }
+        }
+        if (total < LockSnr)
+            return false;
+        _centroid = sum / total;
+        _gateVelocity = _gateVelocity.Lerp(sumVelocity / total, 0.2f);
+        LockedSnr = total;
+        return true;
     }
 
     private bool InCone(IRadarTarget t)
@@ -207,7 +278,7 @@ public partial class RadarDevice : Node3D, IShipDevice
             float snr = Snr(t);
             if (snr < DetectSnr)
                 continue;
-            Vector3 local = Measure(t, snr, GlobalPosition, GlobalBasis);
+            Vector3 local = Measure(t.GlobalPosition, snr, GlobalPosition, GlobalBasis);
             byte* e = table + _contacts.Count * 16;
             _contacts.Add(t);
             float az = Mathf.Atan2(local.X, -local.Z);
@@ -227,13 +298,13 @@ public partial class RadarDevice : Node3D, IShipDevice
     }
 
     /// <summary>
-    /// Where the radar thinks the target is, in a frame at 'from' with axes
+    /// Where the radar thinks an echo is, in a frame at 'from' with axes
     /// 'axes' (Godot local: right, up, back): the true place, with the
     /// angle and range errors its SNR allows.
     /// </summary>
-    private Vector3 Measure(IRadarTarget t, float snr, Vector3 from, Basis axes)
+    private Vector3 Measure(Vector3 echo, float snr, Vector3 from, Basis axes)
     {
-        Vector3 los = t.GlobalPosition - GlobalPosition;
+        Vector3 los = echo - GlobalPosition;
         float range = los.Length();
         Vector3 dir = los / range;
         // two angle errors, across the line of sight
@@ -250,7 +321,9 @@ public partial class RadarDevice : Node3D, IShipDevice
 
     private unsafe void WriteTrack(ShipBody ship, byte* track)
     {
-        Vector3 p = Measure(Locked, LockedSnr, _trackOrigin.GlobalPosition, ship.GlobalBasis);
+        Vector3 p = Measure(_centroid, LockedSnr, _trackOrigin.GlobalPosition, ship.GlobalBasis);
+        TrackPosition = _trackOrigin.GlobalPosition + ship.GlobalBasis * p;
+        _gate = TrackPosition;                      // the gate goes where the echoes were measured
         Put(track, 0, Locked.RadarId);
         Put(track, 2, Clamp16(p.X * 4));
         Put(track, 4, Clamp16(p.Y * 4));

@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.3 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.4 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -16,7 +16,11 @@
 ;     times from t = |p| / s; then the azimuth and elevation of that point;
 ;   - while the fire button is held and the turret points within half a
 ;     degree of where it should, it fires. With no target it fires straight
-;     ahead.
+;     ahead;
+;   - the next-weapon button switches between the cannon and the missiles
+;     (if the ship has a launcher); with the missiles selected, a press of
+;     the fire button lets one go at the locked target. The launcher's
+;     datalink guides it with the radar's track: keep the target locked.
 ;
 ; Angles, lengths and the square roots come from CORDIC: turning a vector
 ; onto the x axis in 14 small steps gives its angle and (times a known
@@ -30,7 +34,7 @@
 ; The devices (16 ports each, words little-endian):
 ;
 ;   100h  pilot's controls   +14 buttons: bit 2 target ahead, 3 next target,
-;                            4 fire
+;                            4 fire, 5 next weapon
 ;   110h  inertial unit      +2 pitch  +4 roll  +6 yaw rate (1/1024 rad/s)
 ;   130h  radar              +0 type 4  +2 mode (1 on)  +3 contacts  +4 sweeps
 ;                            +5 locked  +6 lock id (write)  +8 locked id
@@ -47,6 +51,10 @@
 ;           a screen (16 bytes): +0 name  +6 mode (0 text, 1 graphics)
 ;                            +7 columns  +8 rows  +10 width  +12 height
 ;                            +14 memory (offset)
+;   160h  missile launcher   +0 type 7  +2 missiles left  +3 in flight
+;                            +6 fire (write 1)  the newest missile: +8 time
+;                            to go (1/8 s)  +10 status (bit 1 no word, 2 lost)
+;                            +11 1 flying, 2 hit, 3 missed  +12 fuel (m/s)
 
 org 100h
 
@@ -55,15 +63,20 @@ IMU         equ 110h
 RADAR       equ 130h
 TURRET      equ 140h
 DISPLAYS    equ 150h
+LAUNCHER    equ 160h
 TYPE_RADAR  equ 4
 TYPE_TURRET equ 5
 TYPE_DISPLAYS equ 6
+TYPE_LAUNCHER equ 7
 IRQ_VECTOR  equ 0Dh
 IRQ_BIT     equ 20h
 
 BUTTON_AHEAD equ 4
 BUTTON_NEXT equ 8
 BUTTON_FIRE equ 16
+BUTTON_WEAPON equ 32
+LAUNCH_SHOWN equ 30                 ; steps 'LAUNCH' stays on the page
+RESULT_SHOWN equ 180                ; and 'HIT' or 'MISSED'
 
 FIRE_TOLERANCE equ 91               ; half a degree, in binary angle
 SCOPE_HALF  equ 10923               ; 60 degrees either side
@@ -139,6 +152,11 @@ step:
     jz .no_next
     call lock_next
 .no_next:
+    test byte [pressed], BUTTON_WEAPON
+    jz .no_weapon
+    call next_weapon
+.no_weapon:
+    call launcher_news
 
     mov dx, TURRET + 6              ; where the turret points now
     in ax, dx
@@ -176,8 +194,20 @@ step:
     mov dx, TURRET + 4
     out dx, ax
 
-    mov byte [firing], 0            ; fire: the button, and on target
-    test byte [buttons], BUTTON_FIRE
+    mov byte [firing], 0
+    cmp byte [weapon], 0
+    je .gun
+    test byte [pressed], BUTTON_FIRE    ; a missile: one a press, at the lock
+    jz .fired
+    cmp byte [locked], 0
+    je .fired
+    mov al, 1
+    mov dx, LAUNCHER + 6
+    out dx, al
+    mov word [launch_wait], LAUNCH_SHOWN
+    jmp .fired
+.gun:
+    test byte [buttons], BUTTON_FIRE    ; the gun: the button, and on target
     jz .fired
     mov ax, [aim_az]
     sub ax, [turret_az]
@@ -276,6 +306,42 @@ lock_next:
     mov dx, RADAR + 6
     out dx, ax
 .none:
+    ret
+
+; ---------- the weapons ----------
+
+next_weapon:
+    cmp byte [has_launcher], 0
+    je .done
+    xor byte [weapon], 1
+    cmp word [w_seg], 0
+    je .done
+    call draw_labels                ; the other weapon's page
+    mov byte [screen_wait], 1
+.done:
+    ret
+
+; How the newest missile went: 'HIT' or 'MISSED' shows for a while
+launcher_news:
+    cmp byte [has_launcher], 0
+    je .done
+    mov dx, LAUNCHER + 11
+    in al, dx
+    cmp al, [last_result]
+    je .same
+    mov [last_result], al
+    cmp al, 2
+    jb .same
+    mov word [result_wait], RESULT_SHOWN
+.same:
+    cmp word [result_wait], 0
+    je .shown
+    dec word [result_wait]
+.shown:
+    cmp word [launch_wait], 0
+    je .done
+    dec word [launch_wait]
+.done:
     ret
 
 ; ---------- the firing solution ----------
@@ -832,6 +898,10 @@ xor_rows:
 ; The page on the WEAPON screen
 draw_page:
     mov es, [w_seg]
+    cmp byte [weapon], 0
+    je .gun
+    jmp draw_missile_page
+.gun:
     mov dx, TURRET + 13
     in al, dx
     mov [turret_status], al
@@ -887,6 +957,7 @@ draw_page:
     call put_heat
     call put_status
 
+put_load:
     mov di, (VALUE_COL << 8) | 9    ; CPU load
     call at
     mov ax, [busy]
@@ -900,6 +971,108 @@ draw_page:
     mov ax, 100
 .load:
     jmp put_unsigned
+
+; The missile page: the target, the missiles, the newest one's flight
+draw_missile_page:
+    mov di, (VALUE_COL << 8) | 2
+    call at
+    mov ax, [track]
+    call if_locked
+    call put_number
+    mov di, (VALUE_COL << 8) | 3
+    call at
+    mov ax, [range]
+    call if_locked
+    call put_unsigned
+    mov di, (VALUE_COL << 8) | 4
+    call at
+    mov ax, [snr]
+    call if_locked
+    call put_unsigned
+    mov di, (VALUE_COL << 8) | 5    ; missiles left
+    call at
+    mov dx, LAUNCHER + 2
+    in al, dx
+    xor ah, ah
+    call put_unsigned
+    mov di, (VALUE_COL << 8) | 6    ; in flight
+    call at
+    mov dx, LAUNCHER + 3
+    in al, dx
+    xor ah, ah
+    call put_unsigned
+    mov di, (VALUE_COL << 8) | 7    ; time to go, seconds
+    call at
+    mov dx, LAUNCHER + 8
+    in ax, dx
+    cmp ax, 0FFFFh
+    jne .tgo
+    xor ax, ax
+.tgo:
+    mov cl, 3
+    shr ax, cl
+    call put_unsigned
+    mov di, (VALUE_COL << 8) | 8    ; its fuel
+    call at
+    mov dx, LAUNCHER + 12
+    in ax, dx
+    call put_unsigned
+    call put_missile_status
+    jmp put_load
+
+; AX, or 0 with nothing locked
+if_locked:
+    cmp byte [locked], 0
+    jne .yes
+    xor ax, ax
+.yes:
+    ret
+
+put_missile_status:
+    mov si, s_launch
+    mov ah, ATTR_WARN
+    cmp word [launch_wait], 0
+    jne .put
+    mov dx, LAUNCHER + 11
+    in al, dx
+    cmp al, 1
+    jne .not_flying
+    mov dx, LAUNCHER + 10
+    in al, dx
+    mov si, s_lost
+    test al, 4
+    jnz .put
+    mov si, s_no_link
+    test al, 2
+    jnz .put
+    mov si, s_guiding
+    mov ah, ATTR_LOCKED
+    jmp .put
+.not_flying:
+    cmp word [result_wait], 0
+    je .idle
+    mov si, s_missed
+    cmp al, 2
+    jne .put
+    mov si, s_hit
+    mov ah, ATTR_LOCKED
+    jmp .put
+.idle:
+    mov dx, LAUNCHER + 2
+    in al, dx
+    mov si, s_empty
+    test al, al
+    jz .put
+    mov si, s_no_target
+    mov ah, ATTR_LABEL
+    cmp byte [locked], 0
+    je .put
+    mov si, s_msl_ready
+    mov ah, ATTR_LOCKED
+.put:
+    mov di, 1
+    call at
+    jmp put_text
 
 ; The barrel's heat as a bar, green, yellow from half way, red too hot
 put_heat:
@@ -1027,11 +1200,114 @@ put_text:
 .done:
     ret
 
+; The page's labels, for the weapon selected
+draw_labels:
+    push es
+    mov es, [w_seg]
+    xor di, di
+    mov ax, (ATTR_LABEL << 8) | ' '
+    mov cx, [w_cells]
+    rep stosw
+    mov si, labels
+    cmp byte [weapon], 0
+    je .next
+    mov si, m_labels
+.next:
+    lodsw
+    cmp ax, 0FFFFh
+    je .done
+    mov di, ax
+    call at
+    lodsb
+    mov ah, al
+.char:
+    lodsb
+    test al, al
+    jz .next
+    stosw
+    jmp .char
+.done:
+    pop es
+    ret
+
+; column << 8 | row, attribute, text
+labels:
+    dw 0
+    db ATTR_TITLE, ' FIRECTL  GUN ', 0
+    dw 2
+    db ATTR_LABEL, 'TGT', 0
+    dw 3
+    db ATTR_LABEL, 'RNG', 0
+    dw (10 << 8) | 3
+    db ATTR_LABEL, 'm', 0
+    dw 4
+    db ATTR_LABEL, 'LEAD', 0
+    dw (10 << 8) | 4
+    db ATTR_LABEL, 'ms', 0
+    dw 5
+    db ATTR_LABEL, 'SNR', 0
+    dw (10 << 8) | 5
+    db ATTR_LABEL, 'dB', 0
+    dw 6
+    db ATTR_LABEL, 'AZ', 0
+    dw (10 << 8) | 6
+    db ATTR_LABEL, 'deg', 0
+    dw 7
+    db ATTR_LABEL, 'EL', 0
+    dw (10 << 8) | 7
+    db ATTR_LABEL, 'deg', 0
+    dw 8
+    db ATTR_LABEL, 'HT', 0
+    dw 9
+    db ATTR_LABEL, 'CPU', 0
+    dw (10 << 8) | 9
+    db ATTR_LABEL, '%', 0
+    dw 0FFFFh
+
+m_labels:
+    dw 0
+    db ATTR_TITLE, ' FIRECTL  MSL ', 0
+    dw 2
+    db ATTR_LABEL, 'TGT', 0
+    dw 3
+    db ATTR_LABEL, 'RNG', 0
+    dw (10 << 8) | 3
+    db ATTR_LABEL, 'm', 0
+    dw 4
+    db ATTR_LABEL, 'SNR', 0
+    dw (10 << 8) | 4
+    db ATTR_LABEL, 'dB', 0
+    dw 5
+    db ATTR_LABEL, 'MSL', 0
+    dw 6
+    db ATTR_LABEL, 'FLY', 0
+    dw 7
+    db ATTR_LABEL, 'TGO', 0
+    dw (10 << 8) | 7
+    db ATTR_LABEL, 's', 0
+    dw 8
+    db ATTR_LABEL, 'DV', 0
+    dw (10 << 8) | 8
+    db ATTR_LABEL, 'm/s', 0
+    dw 9
+    db ATTR_LABEL, 'CPU', 0
+    dw (10 << 8) | 9
+    db ATTR_LABEL, '%', 0
+    dw 0FFFFh
+
 s_no_target     db 'NO TARGET  ', 0
 s_tracking      db 'TRACKING   ', 0
 s_firing        db 'FIRING     ', 0
 s_too_hot       db 'GUN TOO HOT', 0
 s_out_of_arc    db 'OUT OF ARC ', 0
+s_msl_ready     db 'MSL READY  ', 0
+s_launch        db 'LAUNCH     ', 0
+s_guiding       db 'GUIDING    ', 0
+s_no_link       db 'NO LINK    ', 0
+s_lost          db 'MSL LOST   ', 0
+s_hit           db 'HIT        ', 0
+s_missed        db 'MISSED     ', 0
+s_empty         db 'NO MISSILES', 0
 
 buttons         db 0
 pressed         db 0
@@ -1040,6 +1316,11 @@ firing          db 0
 rounds_left     db 0
 screen_wait     db 1
 turret_status   db 0
+weapon          db 0                ; 0 the cannon, 1 the missiles
+has_launcher    db 0
+last_result     db 0
+launch_wait     dw 0
+result_wait     dw 0
 mark_count      db 0
 r_seg           dw 0                ; the RADAR screen's segment (0: none)
 r_w             dw 0                ; its size in pixels
@@ -1111,6 +1392,12 @@ install:
     mov dx, DISPLAYS
     mov bl, TYPE_DISPLAYS
     call check_device
+    mov dx, LAUNCHER                ; a launcher, if the ship has one
+    in al, dx
+    cmp al, TYPE_LAUNCHER
+    jne .no_launcher
+    mov byte [has_launcher], 1
+.no_launcher:
 
     mov dx, RADAR + 10              ; the radar's picture
     in ax, dx
@@ -1432,66 +1719,6 @@ plot:
     pop cx
     pop ax
     ret
-
-draw_labels:
-    push es
-    mov es, [w_seg]
-    xor di, di
-    mov ax, (ATTR_LABEL << 8) | ' '
-    mov cx, [w_cells]
-    rep stosw
-    mov si, labels
-.next:
-    lodsw
-    cmp ax, 0FFFFh
-    je .done
-    mov di, ax
-    call at
-    lodsb
-    mov ah, al
-.char:
-    lodsb
-    test al, al
-    jz .next
-    stosw
-    jmp .char
-.done:
-    pop es
-    ret
-
-; column << 8 | row, attribute, text
-labels:
-    dw 0
-    db ATTR_TITLE, ' FIRECTL 1.3  ', 0
-    dw 2
-    db ATTR_LABEL, 'TGT', 0
-    dw 3
-    db ATTR_LABEL, 'RNG', 0
-    dw (10 << 8) | 3
-    db ATTR_LABEL, 'm', 0
-    dw 4
-    db ATTR_LABEL, 'LEAD', 0
-    dw (10 << 8) | 4
-    db ATTR_LABEL, 'ms', 0
-    dw 5
-    db ATTR_LABEL, 'SNR', 0
-    dw (10 << 8) | 5
-    db ATTR_LABEL, 'dB', 0
-    dw 6
-    db ATTR_LABEL, 'AZ', 0
-    dw (10 << 8) | 6
-    db ATTR_LABEL, 'deg', 0
-    dw 7
-    db ATTR_LABEL, 'EL', 0
-    dw (10 << 8) | 7
-    db ATTR_LABEL, 'deg', 0
-    dw 8
-    db ATTR_LABEL, 'HT', 0
-    dw 9
-    db ATTR_LABEL, 'CPU', 0
-    dw (10 << 8) | 9
-    db ATTR_LABEL, '%', 0
-    dw 0FFFFh
 
 n_radar         db 'RADAR '
 n_weapon        db 'WEAPON'

@@ -15,6 +15,25 @@ public interface IRadarTarget
     void Paint();
 }
 
+/// <summary>Radar ids: every echo gets its own, as a radar's tracker numbers them.</summary>
+public static class RadarIds
+{
+    private static ushort _next = 1;
+
+    public static ushort Next()
+    {
+        if (_next == 0)
+            _next = 1;
+        return _next++;
+    }
+}
+
+/// <summary>Something weapons can hurt: rounds, a warhead's blast.</summary>
+public interface IDamageable
+{
+    void Hit(float damage);
+}
+
 /// <summary>
 /// A noise jammer: it raises the noise a radar hears, the more the closer it
 /// is and the nearer it sits to where the radar looks. Anything in the
