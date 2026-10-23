@@ -152,3 +152,32 @@ XBUS_API void xbus_render_text(const uint8_t *cells, int cols, int rows, uint8_t
             }
         }
 }
+
+/* ---------- graphics displays ---------- */
+
+/* How bright each of the four pixel values lights the phosphor. */
+static const float LEVEL[4] = {0.0f, 0.3f, 0.6f, 1.0f};
+
+/* A graphics screen to RGB pixels (width x height x 3 bytes). Memory holds
+ * 2 bits a pixel, four to a byte with the leftmost in the top bits, rows of
+ * width/4 bytes. The phosphor keeps glowing after the beam leaves: each
+ * pixel shows the brighter of what memory says now and its old glow times
+ * fade (0-1). glow (width*height floats) carries that from call to call;
+ * colour is the phosphor's RGB (0-1). */
+XBUS_API void xbus_render_graphics(const uint8_t *pixels, int width, int height,
+                                   float *glow, float fade, const float *colour, uint8_t *rgb)
+{
+    int x, y, i;
+    for (y = 0; y < height; y++)
+        for (x = 0; x < width; x++) {
+            uint8_t byte = pixels[y * (width / 4) + x / 4];
+            float lit = LEVEL[(byte >> ((3 - (x & 3)) * 2)) & 3];
+            float *g = &glow[y * width + x];
+            uint8_t *p = rgb + ((size_t)y * width + x) * 3;
+            *g = lit > *g * fade ? lit : *g * fade;
+            for (i = 0; i < 3; i++) {
+                float v = (0.03f + *g) * colour[i] * 255.0f;
+                p[i] = (uint8_t)(v > 255.0f ? 255.0f : v);
+            }
+        }
+}

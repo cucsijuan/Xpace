@@ -22,7 +22,7 @@ public partial class FlightTest : Node
     {
         _ship = new ShipBody();
         _ship.AddChild(new ShipComputer { Name = "ShipComputer" });
-        _display = new DisplayDevice();
+        _display = new DisplayDevice { Screens = DisplayScreens() };
         _ship.AddChild(_display);
         _ship.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(5, 3, 10) } });
         _ship.ControlsSource = () => _controls;
@@ -30,7 +30,7 @@ public partial class FlightTest : Node
 
         Check("before the program runs, the thrusters follow the controls", _ship.DirectMode);
         Check("AUTOEXEC.BAT starts FLIGHT.COM", await Until(() => _ship.AssistOn, 30));
-        Check("its page is on the left screen", _display.Text(0).Contains("FLIGHT CONTROL"));
+        Check("its page is on the FLIGHT screen", _display.Text("FLIGHT").Contains("FLIGHT CONTROL"));
         Check("it stays resident: the console is back", await Until(() => _ship.Computer.ScreenText().Contains("A:\\>"), 5));
 
         // Flight assist: the stick asks for a turn rate
@@ -78,7 +78,7 @@ public partial class FlightTest : Node
         await Seconds(2);
         Check($"assist on again: the turn stops ({Rate().X:0.000})", _ship.AssistOn && MathF.Abs(Rate().X) < 0.02f);
 
-        string load = Line(_display.Text(0), "CPU LOAD");
+        string load = Line(_display.Text("FLIGHT"), "CPU LOAD");
         GD.Print($"     {load.Trim()}");
 
         // The console works while the ship flies
@@ -174,4 +174,12 @@ public partial class FlightTest : Node
         if (!ok)
             _failures++;
     }
+
+    // The cockpit's screens, and FLIGHT's page for the tests to read
+    private static Godot.Collections.Array<DisplayScreen> DisplayScreens() => new()
+    {
+        GD.Load<DisplayScreen>("res://assets/ship/displays/flight.tres"),
+        GD.Load<DisplayScreen>("res://assets/ship/displays/radar.tres"),
+        GD.Load<DisplayScreen>("res://assets/ship/displays/weapon.tres"),
+    };
 }

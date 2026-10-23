@@ -16,3 +16,9 @@ native/build/
 native/bin/
 disks/cos.img
 screen_final.pgm
+
+# Third-party art packs (raw); pick assets from here into assets/
+.raw-assets/
+
+# Synty files, copied by tools/import_synty.cmake (licence: no redistribution)
+assets/synty/

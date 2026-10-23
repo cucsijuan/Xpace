@@ -85,7 +85,7 @@ Jump computation is a good example of the CPU as a mechanic: a better navigation
   M2 added three more devices:
   - the radar, at `130h`: a ±60° cone out to 8 km, with the contact table and the track written to memory at D000:1000;
   - the gimballed turret, at `140h`: 90°/s servos and a 1,200 m/s kinetic cannon;
-  - the side screens, at `150h`: 40×16 text memory-mapped like a CGA card, at D000:0000 and D000:0800.
+  - the display card, at `150h`: the cockpit's screens, listed in a table in memory (name, mode, size, where its memory is); programs find theirs by name and pick text (CGA-style cells) or graphics (2 bits a pixel, with phosphor persistence). Each screen is a `DisplayScreen` resource, so a cockpit can have any set of them.
 
   FLIGHT and FIRECTL stay **resident** and do their work inside the interrupt, so the central console stays free. FIRECTL computes the lead with CORDIC (angles and distances with no square root), turns its filter with the gyros so the ship's own rotation is not taken for target motion, and uses 33% of the CPU: fire control costs six times what flight control does. The CPU-time-as-a-resource mechanic is already working.
 

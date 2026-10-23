@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DisplayScreen" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/DisplayScreen.cs" id="1_screen"]
+
+[resource]
+script = ExtResource("1_screen")
+Name = "RADAR"
+Columns = 40
+Rows = 16
+Width = 160
+Height = 128
+Phosphor = Color(0.35, 1, 0.4, 1)
+Persistence = 0.6

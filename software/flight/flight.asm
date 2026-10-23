@@ -8,7 +8,7 @@
 ; sample; the resident part reads it and the pilot's controls, works out
 ; what every group of thrusters must do, and writes the commands. It all
 ; happens inside the interrupt, so the console stays free for other work.
-; Its page is on the left side screen.
+; Its page goes on the ship's FLIGHT screen (40 x 16 text), if it has one.
 ;
 ; Flight assist on: the stick asks for a turn rate and the throttle for a
 ; forward speed; the strafe controls ask for a sideways speed. Let go and
@@ -33,9 +33,11 @@
 ;                            +8 right  +10 up  +12 forward force
 ;                            (-32767..32767 of the most they give)
 ;                            +14 write: take the commands  +15 mode shown
-;   150h  side screens       +0 type 6   +2 segment  +4 left  +6 right
-;                            (offsets)  +8 columns  +9 rows: 40 x 16 cells
-;                            of character and attribute, as on a CGA
+;   150h  display card       +0 type 6   +2 segment  +4 screen table
+;                            +6 screens; a screen (16 bytes): +0 name
+;                            +6 mode (0 text: character and attribute
+;                            cells, as on a CGA)  +7 columns  +8 rows
+;                            +14 memory (offset)
 
 org 100h
 
@@ -180,7 +182,10 @@ step:
     dec byte [screen_wait]
     jnz .timed
     mov byte [screen_wait], SCREEN_EVERY
+    cmp word [screen_seg], 0
+    je .unseen
     call draw_values
+.unseen:
     mov word [busy], 0
     mov word [busy + 2], 0
 .timed:
@@ -249,7 +254,7 @@ timer_read:
     xchg al, ah
     ret
 
-; ---------- the page on the left screen ----------
+; ---------- the page on the FLIGHT screen ----------
 
 draw_values:
     mov es, [screen_seg]
@@ -361,7 +366,7 @@ s_off           db 'OFF', 0
 assist          db 1
 buttons         db 0
 screen_wait     db 1
-screen_seg      dw 0                ; the left screen: its segment, offset 0
+screen_seg      dw 0                ; the FLIGHT screen's segment (0: none)
 t_start         dw 0
 busy            dw 0, 0
 controls        times 6 dw 0        ; pitch, roll, yaw, right, up, throttle
@@ -404,16 +409,22 @@ install:
     mov bl, TYPE_DISPLAYS
     call check_device
 
-    mov dx, DISPLAYS + 2            ; the left screen: segment + offset
-    in ax, dx
-    mov bx, ax
-    mov dx, DISPLAYS + 4
-    in ax, dx
+    mov si, n_flight                ; its page, if the ship has the screen
+    call find_screen
+    jc .no_page
+    cmp byte [es:bx + 7], COLS
+    jne .no_page
+    cmp byte [es:bx + 8], 16
+    jb .no_page
+    mov byte [es:bx + 6], 0         ; text
+    mov ax, [es:bx + 14]
     mov cl, 4
     shr ax, cl
-    add ax, bx
+    mov cx, es
+    add ax, cx
     mov [screen_seg], ax
     call draw_labels
+.no_page:
 
     in al, 61h                      ; PIT channel 2 free-running for the
     and al, 0FCh                    ; CPU load: gate on, speaker off
@@ -457,6 +468,8 @@ remove:
     mov ax, 2500h + IRQ_VECTOR
     int 21h
     pop ds
+    cmp word [es:screen_seg], 0
+    je .no_page
     push es                         ; the page says so
     mov es, [es:screen_seg]
     mov si, s_removed
@@ -464,6 +477,7 @@ remove:
     mov ah, ATTR_OFF
     call put_text
     pop es
+.no_page:
     mov ah, 49h                     ; and the memory is free again
     int 21h
     mov dx, msg_removed
@@ -483,6 +497,41 @@ find_resident:
 .no:
     or al, 1                        ; ZF = 0
     ret
+
+; DS:SI a screen's name (6 characters): CF clear and ES:BX its entry in
+; the display card's screen table, or CF set if the ship has no such screen
+find_screen:
+    mov dx, DISPLAYS + 2
+    in ax, dx
+    mov es, ax
+    mov dx, DISPLAYS + 4
+    in ax, dx
+    mov bx, ax
+    mov dx, DISPLAYS + 6
+    in al, dx
+    xor ah, ah
+    mov cx, ax
+.next:
+    jcxz .missing
+    dec cx
+    push cx
+    push si
+    mov di, bx
+    mov cx, 6
+    repe cmpsb
+    pop si
+    pop cx
+    je .found
+    add bx, 16
+    jmp .next
+.missing:
+    stc
+    ret
+.found:
+    clc
+    ret
+
+n_flight        db 'FLIGHT'
 
 ; The device at port DX must be of type BL
 check_device:
@@ -566,7 +615,7 @@ labels:
     dw 0FFFFh
 
 s_removed       db 'REMOVED', 0
-msg_installed   db 'Flight control resident: page on the left screen.', 13, 10
+msg_installed   db 'Flight control resident: page on the FLIGHT screen.', 13, 10
                 db 'FLIGHT OFF removes it.', 13, 10, '$'
 msg_already     db 'Flight control is already resident.', 13, 10, '$'
 msg_not_running db 'Flight control is not resident, or another program took', 13, 10

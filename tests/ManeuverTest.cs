@@ -29,7 +29,7 @@ public partial class ManeuverTest : FloatingOrigin
         _ship = new ShipBody { Name = "Ship" };
         _ship.AddChild(new ShipComputer { Name = "ShipComputer" });
         _ship.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(5, 3, 10) } });
-        _display = new DisplayDevice();
+        _display = new DisplayDevice { Screens = DisplayScreens() };
         _ship.AddChild(_display);
         _turret = new TurretDevice { Name = "Turret", Position = new Vector3(0.9f, 0.8f, -3f) };
         _ship.AddChild(_turret);
@@ -45,7 +45,7 @@ public partial class ManeuverTest : FloatingOrigin
         AddChild(_drone);
         _drone.Fly(Vector3.Back * 100);
 
-        Check("the ship's software is running", await Until(() => _display.Text(1).Contains("FIRE CONTROL"), 40));
+        Check("the ship's software is running", await Until(() => _display.Text("WEAPON").Contains("FIRECTL"), 40));
         await Seconds(1.2);
         _controls.TargetAhead = true;
         await Seconds(0.1);
@@ -110,7 +110,7 @@ public partial class ManeuverTest : FloatingOrigin
                 return true;
             await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
         }
-        GD.Print(_display.Text(1));
+        GD.Print(_display.Text("WEAPON"));
         return false;
     }
 
@@ -120,4 +120,12 @@ public partial class ManeuverTest : FloatingOrigin
         if (!ok)
             _failures++;
     }
+
+    // The cockpit's screens, and FLIGHT's page for the tests to read
+    private static Godot.Collections.Array<DisplayScreen> DisplayScreens() => new()
+    {
+        GD.Load<DisplayScreen>("res://assets/ship/displays/flight.tres"),
+        GD.Load<DisplayScreen>("res://assets/ship/displays/radar.tres"),
+        GD.Load<DisplayScreen>("res://assets/ship/displays/weapon.tres"),
+    };
 }

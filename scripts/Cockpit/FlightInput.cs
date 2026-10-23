@@ -18,6 +18,7 @@ public static class FlightInput
     public const string StrafeUp = "strafe_up", StrafeDown = "strafe_down";
     public const string FlightAssist = "flight_assist", Boost = "boost";
     public const string FirePrimary = "fire_primary", TargetAhead = "target_ahead", NextTarget = "next_target";
+    public const string Zoom = "zoom";
 
     public static void Register()
     {
@@ -39,6 +40,7 @@ public static class FlightInput
         Add(FirePrimary, new InputEventMouseButton { ButtonIndex = MouseButton.Left }, Button(JoyButton.X));
         Add(TargetAhead, Key(Godot.Key.T), Button(JoyButton.B));
         Add(NextTarget, Key(Godot.Key.G), Button(JoyButton.DpadRight));
+        Add(Zoom, new InputEventMouseButton { ButtonIndex = MouseButton.Right }, Button(JoyButton.RightStick));
     }
 
     private static void Add(string action, params InputEvent[] events)

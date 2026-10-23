@@ -30,7 +30,7 @@ public partial class AccuracyTest : Node3D
         _ship = new ShipBody();
         _ship.AddChild(new ShipComputer { Name = "ShipComputer" });
         _ship.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(5, 3, 10) } });
-        _display = new DisplayDevice();
+        _display = new DisplayDevice { Screens = DisplayScreens() };
         _ship.AddChild(_display);
         _turret = new TurretDevice { Name = "Turret", Position = new Vector3(0.9f, 0.8f, -3f) };
         _ship.AddChild(_turret);
@@ -41,7 +41,7 @@ public partial class AccuracyTest : Node3D
         _drone = new Drone { Straight = true, Speed = 120, Health = 1e9f, Position = new Vector3(0, 0, -3000) };
         AddChild(_drone);
 
-        Check("the ship's software is running", await Until(() => _display.Text(1).Contains("FIRE CONTROL"), 40));
+        Check("the ship's software is running", await Until(() => _display.Text("WEAPON").Contains("FIRECTL"), 40));
 
         GD.Print("     range   target          hits / rounds   hit rate   SNR");
         float straight2k = await Trial(2000, evades: false);
@@ -140,4 +140,12 @@ public partial class AccuracyTest : Node3D
         if (!ok)
             _failures++;
     }
+
+    // The cockpit's screens, and FLIGHT's page for the tests to read
+    private static Godot.Collections.Array<DisplayScreen> DisplayScreens() => new()
+    {
+        GD.Load<DisplayScreen>("res://assets/ship/displays/flight.tres"),
+        GD.Load<DisplayScreen>("res://assets/ship/displays/radar.tres"),
+        GD.Load<DisplayScreen>("res://assets/ship/displays/weapon.tres"),
+    };
 }

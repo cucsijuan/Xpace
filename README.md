@@ -25,7 +25,15 @@ That builds, from the submodules:
 - `native/bin/xpace_native`: the ship's bus card and text displays ([native/xbus.c](native/xbus.c)).
 - `disks/cos.img`: the ship's diskette, with COS, `AUTOEXEC.BAT` and the ship's software: `FLIGHT.COM` (flight) and `FIRECTL.COM` (radar and turret), with their `.ASM` sources so they can be edited inside the game.
 
-None of these go into the repository. Then open the project in Godot (.NET) and build it.
+None of these go into the repository.
+
+The art comes from Synty's POLYGON Sci-Fi Space pack, whose licence does not allow redistributing its files, so they are not in the repository either. With the pack's source files in `.raw-assets/SourceFiles` (or anywhere, passing `-DPACK=<path>`), copy the ones the game uses into `assets/synty/`:
+
+```sh
+cmake -P tools/import_synty.cmake
+```
+
+Then open the project in Godot (.NET) and build it.
 
 ## Controls
 
@@ -42,6 +50,7 @@ Elite Dangerous's keyboard and mouse controls. The middle mouse button switches 
 | Lock the target ahead / the next one | T / G |
 | Fire | Left button, while flying |
 | Look around | Mouse, while looking |
+| Zoom in (to read the cockpit's screens) | Hold the right button |
 | Type on the computer | While looking, click its screen; right-click lets go |
 | Save / load the computer | F5 / F9 |
 
@@ -58,12 +67,12 @@ Every physics step (60 a second), `ShipBody` writes the stick, the inertial unit
 | 2 | `120h` | Thrusters (100 ms watchdog: no commands, direct mode) |
 | 3 | `130h` | Radar (contact table and track in memory at D000:1000; measures position only, with the noise its SNR allows) |
 | 4 | `140h` | Gimballed turret with a 1,200 m/s kinetic cannon |
-| 5 | `150h` | Side screens: 40×16 text in memory (D000:0000 and D000:0800) |
+| 5 | `150h` | Display card: the cockpit's screens, found by name in a table at D000:1200; each shows text (CGA-style cells) or 2-bit graphics with phosphor persistence |
 
 AUTOEXEC.BAT leaves two programs resident; they work inside the interrupt, so the console stays free:
 
-- **FLIGHT.COM** (5% of the CPU): flight assist; its page is on the left screen.
-- **FIRECTL.COM** (33% of the CPU): locks targets with T/G, smooths the radar's noisy positions with an alpha-beta filter and gets the velocity from them (turning the filter with the gyros, so the ship's own rotation is not taken for target motion), computes the lead (CORDIC for angles and distances), aims the turret and fires while the trigger is held; radar, SNR and status on the right screen (GUN TOO HOT, OUT OF ARC when the target is where the turret cannot point).
+- **FLIGHT.COM** (5% of the CPU): flight assist; its page goes on a FLIGHT screen, if the cockpit has one.
+- **FIRECTL.COM** (34% of the CPU): locks targets with T/G, smooths the radar's noisy positions with an alpha-beta filter and gets the velocity from them (turning the filter with the gyros, so the ship's own rotation is not taken for target motion), computes the lead (CORDIC for angles and distances), aims the turret and fires while the trigger is held; draws a green B-scope on the RADAR screen (bearing across, range up, 2 km marks, the locked target in brackets) and a page on the WEAPON screen: target, range, lead, SNR, turret angles, barrel heat bar and status (GUN TOO HOT, OUT OF ARC when the target is where the turret cannot point).
 
 A target lost at the edge of the radar's ±60° cone is taken back by itself if it comes back within 3 s.
 
@@ -109,9 +118,11 @@ All of them exit with 0 when everything passed.
 | `native` | The bus card and text drawing in C, and the CMake build of the libraries and the diskette |
 | `scripts/Native` | P/Invoke over the pc86 and xpace_native libraries |
 | `scripts/Computer` | `ShipComputer` (the ship's PC), `ShipBus` (the bus registers), the key map |
-| `scripts/Ship` | `ShipBody` (physics, controls, inertial unit, thrusters, watchdog), radar, turret, side screens, `ShipSpec`, `PilotControls` |
-| `scripts/Cockpit` | The pilot (Elite-style controls, looking), cockpit screens, the mouse widget, the placeholder cockpit |
+| `scripts/Ship` | `ShipBody` (physics, controls, inertial unit, thrusters, watchdog), radar, turret, the display card and its `DisplayScreen` resources, `ShipSpec`, `PilotControls` |
+| `scripts/Cockpit` | The pilot (Elite-style controls, looking), cockpit screens (placed in cockpit scenes, each picks what it shows), the mouse widget |
 | `scripts/Space` | Stars, asteroids, space dust, the placeholder station, drones, rounds, the floating origin |
 | `software` | The ship's software: `flight/flight.asm`, `firectl/firectl.asm`, `autoexec.bat` |
-| `scenes` | `main.tscn`: the ship in the asteroid field |
+| `scenes` | `main.tscn`: the ship in the asteroid field; `cockpits/`: cockpit scenes (model, screens, the `Eye` marker for the camera) |
+| `assets` | `materials/`: shared materials; `ship/displays/`: the display screens (`DisplayScreen` resources); `synty/`: the Synty files (not in the repository) |
+| `tools` | `import_synty.cmake`: copies the Synty files the game uses |
 | `tests` | Computer, flight, combat and accuracy tests; the combat demo |

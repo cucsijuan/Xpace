@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="DisplayScreen" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/DisplayScreen.cs" id="1_screen"]
+
+[resource]
+script = ExtResource("1_screen")
+Name = "WEAPON"
+Columns = 14
+Rows = 10
+Width = 112
+Height = 160
+Phosphor = Color(0.35, 1, 0.4, 1)
+Persistence = 0.3

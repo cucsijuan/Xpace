@@ -13,7 +13,8 @@ namespace Xpace.Cockpit;
 /// Z switches flight assist, T locks the target ahead and G the next one,
 /// the left button fires. The middle button changes to view mode: the
 /// mouse turns the head, and clicking a cockpit screen gives its computer
-/// the keyboard until a right-click.
+/// the keyboard until a right-click. Holding the right button zooms the
+/// view in, to read the cockpit's screens or look at something far.
 ///
 /// The first click takes the mouse; Esc (while not typing) gives it back.
 /// F5 saves the computer, F9 loads it.
@@ -25,6 +26,10 @@ public partial class Pilot : Node3D
     [Export] public float MaxLookPitch = Mathf.Pi * 0.4f;
     [Export] public float ReachMetres = 1.5f;
 
+    /// <summary>Field of view while zoomed, degrees, and how fast it gets there.</summary>
+    [Export] public float ZoomFov = 25f;
+    [Export] public float ZoomSpeed = 12f;
+
     /// <summary>Mouse travel, in pixels, from the centre to full stick.</summary>
     [Export] public float StickTravel = 300f;
     [Export] public float StickDeadZone = 0.05f;
@@ -35,6 +40,9 @@ public partial class Pilot : Node3D
 
     [Export] public string SavePath = "user://computer.sav";
 
+    /// <summary>The cockpit's eye point; the camera sits there.</summary>
+    [Export] public Node3D Eye;
+
     public bool Viewing { get; private set; }
 
     private Camera3D _camera;
@@ -43,6 +51,7 @@ public partial class Pilot : Node3D
     private ShipBody _ship;
     private CockpitScreen _focused;
     private float _lookYaw, _lookPitch;
+    private float _fov;
     private Vector2 _stick;
     private float _throttle;
     private PilotControls _controls;
@@ -54,6 +63,9 @@ public partial class Pilot : Node3D
     {
         FlightInput.Register();
         _camera = GetNode<Camera3D>("Camera3D");
+        _fov = _camera.Fov;
+        if (Eye != null)
+            _camera.GlobalPosition = Eye.GlobalPosition;
         _hud = GetNodeOrNull<Label>("Hud/Label");
         _widget = GetNodeOrNull<MouseWidget>("Hud/MouseWidget");
         _ship = GetParentOrNull<ShipBody>();
@@ -135,8 +147,9 @@ public partial class Pilot : Node3D
 
     private void Look(Vector2 relative)
     {
-        _lookYaw = Mathf.Clamp(_lookYaw - relative.X * LookSensitivity, -MaxLookYaw, MaxLookYaw);
-        _lookPitch = Mathf.Clamp(_lookPitch - relative.Y * LookSensitivity, -MaxLookPitch, MaxLookPitch);
+        float sensitivity = LookSensitivity * _camera.Fov / _fov;   // slower when zoomed in
+        _lookYaw = Mathf.Clamp(_lookYaw - relative.X * sensitivity, -MaxLookYaw, MaxLookYaw);
+        _lookPitch = Mathf.Clamp(_lookPitch - relative.Y * sensitivity, -MaxLookPitch, MaxLookPitch);
         _camera.Rotation = new Vector3(_lookPitch, _lookYaw, 0);
     }
 
@@ -193,6 +206,8 @@ public partial class Pilot : Node3D
     {
         if (_settleFrames > 0)
             _settleFrames--;
+        bool zoom = Input.MouseMode == Input.MouseModeEnum.Captured && Input.IsActionPressed(FlightInput.Zoom);
+        _camera.Fov = Mathf.Lerp(_camera.Fov, zoom ? ZoomFov : _fov, 1 - Mathf.Exp(-ZoomSpeed * (float)delta));
         if (_widget != null)
         {
             _widget.Visible = !Viewing;
@@ -212,8 +227,8 @@ public partial class Pilot : Node3D
         }
         string help = Input.MouseMode != Input.MouseModeEnum.Captured ? "Click to take the mouse."
             : _focused != null ? "Typing on the computer. Right-click to stop."
-            : Viewing ? "Looking: click a screen to type on it. Middle button: fly."
-            : "Flying: mouse pitch/roll, W/S throttle, X stop, A/D yaw, Q/E R/F strafe, Z assist, T/G target, click fire. Middle button: look.";
+            : Viewing ? "Looking: click a screen to type on it, hold the right button to zoom. Middle button: fly."
+            : "Flying: mouse pitch/roll, W/S throttle, X stop, A/D yaw, Q/E R/F strafe, Z assist, T/G target, click fire, right button zoom. Middle button: look.";
         if (_noticeTime > 0)
         {
             _noticeTime -= delta;

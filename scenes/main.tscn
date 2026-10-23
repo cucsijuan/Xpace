@@ -1,8 +1,7 @@
-[gd_scene load_steps=27 format=3]
+[gd_scene load_steps=29 format=3]
 
 [ext_resource type="Script" path="res://scripts/Computer/ShipComputer.cs" id="1_computer"]
-[ext_resource type="Script" path="res://scripts/Cockpit/PlaceholderCockpit.cs" id="2_cockpit"]
-[ext_resource type="Script" path="res://scripts/Cockpit/CockpitScreen.cs" id="3_screen"]
+[ext_resource type="PackedScene" path="res://scenes/cockpits/fighter_cockpit.tscn" id="2_cockpit"]
 [ext_resource type="Script" path="res://scripts/Cockpit/Pilot.cs" id="4_pilot"]
 [ext_resource type="Script" path="res://scripts/Space/Starfield.cs" id="5_stars"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="6_ship"]
@@ -18,6 +17,9 @@
 [ext_resource type="Script" path="res://scripts/Space/Drone.cs" id="16_drone"]
 [ext_resource type="Script" path="res://scripts/Cockpit/TargetBracket.cs" id="17_bracket"]
 [ext_resource type="Script" path="res://scripts/Space/FloatingOrigin.cs" id="18_origin"]
+[ext_resource type="Script" path="res://scripts/Ship/DisplayScreen.cs" id="19_screen"]
+[ext_resource type="Resource" path="res://assets/ship/displays/radar.tres" id="20_radar"]
+[ext_resource type="Resource" path="res://assets/ship/displays/weapon.tres" id="21_weapon"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -104,6 +106,7 @@ script = ExtResource("1_computer")
 
 [node name="Display" type="Node" parent="Ship"]
 script = ExtResource("12_display")
+Screens = Array[ExtResource("19_screen")]([ExtResource("20_radar"), ExtResource("21_weapon")])
 
 [node name="Turret" type="Node3D" parent="Ship"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 0.5, -6.5)
@@ -114,21 +117,14 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -5)
 script = ExtResource("13_radar")
 TrackOriginPath = NodePath("../Turret")
 
-[node name="Cockpit" type="Node3D" parent="Ship"]
-script = ExtResource("2_cockpit")
-DisplayPath = NodePath("../Display")
-
-[node name="MainScreen" type="MeshInstance3D" parent="Ship/Cockpit"]
-transform = Transform3D(1, 0, 0, 0, 0.939693, 0.34202, 0, -0.34202, 0.939693, 0, 0.84, -0.585)
-script = ExtResource("3_screen")
-ComputerPath = NodePath("../../ShipComputer")
-Size = Vector2(0.38, 0.285)
+[node name="Cockpit" parent="Ship" instance=ExtResource("2_cockpit")]
 
 [node name="Dust" type="GPUParticles3D" parent="Ship"]
 script = ExtResource("9_dust")
 
-[node name="Pilot" type="Node3D" parent="Ship"]
+[node name="Pilot" type="Node3D" parent="Ship" node_paths=PackedStringArray("Eye")]
 script = ExtResource("4_pilot")
+Eye = NodePath("../Cockpit/Eye")
 
 [node name="Camera3D" type="Camera3D" parent="Ship/Pilot"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)

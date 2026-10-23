@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.2 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.3 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -22,8 +22,10 @@
 ; onto the x axis in 14 small steps gives its angle and (times a known
 ; constant) its length, with shifts and adds only.
 ;
-; The page on the right side screen shows the radar picture from above
-; (range up, bearing across), the locked target and the turret.
+; It draws on the ship's screens it finds by name: a radar scope on RADAR
+; (graphics: bearing across, range up, the locked target in brackets) and
+; a page on WEAPON (text, 14 x 10 or more: the target, the turret and its
+; heat). Without them it works the same, unseen.
 ;
 ; The devices (16 ports each, words little-endian):
 ;
@@ -41,7 +43,10 @@
 ;                            +6 +8 now (65536 to the turn)  +10 muzzle speed
 ;                            +12 fire (write 1)  +13 status (bit 2 too hot)
 ;                            +15 rounds fired
-;   150h  side screens       +2 segment  +6 right screen offset (40 x 16)
+;   150h  display card       +2 segment  +4 screen table  +6 screens
+;           a screen (16 bytes): +0 name  +6 mode (0 text, 1 graphics)
+;                            +7 columns  +8 rows  +10 width  +12 height
+;                            +14 memory (offset)
 
 org 100h
 
@@ -61,9 +66,6 @@ BUTTON_NEXT equ 8
 BUTTON_FIRE equ 16
 
 FIRE_TOLERANCE equ 91               ; half a degree, in binary angle
-SCOPE_TOP   equ 2                   ; the radar picture: rows 2-13, columns 1-24
-SCOPE_ROWS  equ 12
-SCOPE_COLS  equ 24
 SCOPE_HALF  equ 10923               ; 60 degrees either side
 SCOPE_RANGE equ 8000                ; metres to the top
 
@@ -75,7 +77,10 @@ ATTR_SCOPE  equ 08h
 ATTR_CONTACT equ 0Ah
 ATTR_LOCKED equ 0Eh
 ATTR_WARN   equ 0Ch
-COLS        equ 40
+MAX_MARKS   equ 16                  ; contacts drawn on the scope
+VALUE_COL   equ 4                   ; the page: values in columns 4-8
+HEAT_COL    equ 3                   ; the heat bar in columns 3-13
+HEAT_CELLS  equ 11
 
     jmp start
 
@@ -646,155 +651,245 @@ timer_read:
     xchg al, ah
     ret
 
-; ---------- the page ----------
+; ---------- the screens ----------
 
 draw:
-    mov es, [screen_seg]
-    mov di, (SCOPE_TOP * COLS + 1) * 2      ; the radar picture, blank
-    mov dx, SCOPE_ROWS
-.row:
-    push di
-    mov cx, SCOPE_COLS
-    mov ax, (ATTR_SCOPE << 8) | 0FAh
-    rep stosw
-    pop di
-    add di, COLS * 2
-    dec dx
-    jnz .row
+    cmp word [r_seg], 0
+    je .no_scope
+    call draw_scope
+.no_scope:
+    cmp word [w_seg], 0
+    je .no_page
+    call draw_page
+.no_page:
+    ret
 
-    mov dx, RADAR + 3               ; the contacts on it
+; The scope on the RADAR screen, a B-scope: bearing across, range up. The
+; grid stays drawn; the marks are XORed onto it, so drawing a mark again
+; rubs it out and leaves the grid as it was.
+draw_scope:
+    mov es, [r_seg]
+    call put_marks                  ; the old marks off
+    mov byte [mark_count], 0
+
+    mov dx, RADAR + 3               ; the contacts now
     in al, dx
     xor ah, ah
     mov cx, ax
-    jcxz .plotted
+    cmp cx, MAX_MARKS
+    jbe .fits
+    mov cx, MAX_MARKS
+.fits:
     mov dx, RADAR + 8
     in ax, dx
     mov [locked_id], ax
+    mov si, [table_off]
+    mov di, marks
+.contact:
+    jcxz .placed
+    dec cx
+    push cx
     push ds
     mov ds, [cs:radar_seg]
-    mov si, [cs:table_off]
-.plot:
-    push cx
-    mov ax, [si + 4]                ; column from the bearing
+    mov ax, [si + 4]                ; bearing
+    mov bx, [si + 2]                ; range, m
+    mov bp, [si]                    ; id
+    pop ds
+    add si, 16
+    call place_mark
+    pop cx
+    jmp .contact
+.placed:
+    jmp put_marks                   ; and the new ones on
+
+; AX bearing, BX range, BP id: a mark at DI if it is on the scope
+place_mark:
     add ax, SCOPE_HALF
     jl .off
     cmp ax, 2 * SCOPE_HALF
     jg .off
-    mov cx, SCOPE_COLS - 1
+    cmp bx, SCOPE_RANGE
+    jae .off
+    mov cx, [r_w]                   ; x = bearing across the width
+    dec cx
     mul cx
     mov cx, 2 * SCOPE_HALF
     div cx
-    mov bx, ax
-    mov ax, [si + 2]                ; row from the range
-    cmp ax, SCOPE_RANGE
-    jae .off
-    mov cx, SCOPE_ROWS
+    mov [di], ax
+    mov ax, bx                      ; y = range up the height
+    mov cx, [r_h]
+    dec cx
     mul cx
     mov cx, SCOPE_RANGE
     div cx
-    mov dx, SCOPE_TOP + SCOPE_ROWS - 1
+    mov dx, [r_h]
+    dec dx
     sub dx, ax
-    mov ax, COLS
-    mul dx
-    add ax, bx
-    inc ax
-    shl ax, 1
-    mov di, ax
-    mov ax, (ATTR_CONTACT << 8) | '+'
-    mov dx, [si]
-    cmp dx, [cs:locked_id]
-    jne .mark
-    mov ax, (ATTR_LOCKED << 8) | 0FEh
-.mark:
-    stosw
+    mov [di + 2], dx
+    xor al, al
+    cmp bp, [locked_id]
+    jne .kind
+    inc al
+.kind:
+    mov [di + 4], al
+    add di, 6
+    inc byte [mark_count]
 .off:
-    add si, 16
-    pop cx
-    loop .plot
-    pop ds
-.plotted:
+    ret
 
-    xor ax, ax                      ; the target
+; XOR every mark in the list onto the scope
+put_marks:
+    mov si, marks
+    mov cl, [mark_count]
+    xor ch, ch
+.next:
+    jcxz .done
+    dec cx
+    push cx
+    push si
+    mov cx, [si]
+    mov dx, [si + 2]
+    mov bl, [si + 4]
+    call xor_mark
+    pop si
+    pop cx
+    add si, 6
+    jmp .next
+.done:
+    ret
+
+; A mark at (CX, DX): a bright 5 x 4 blob; BL 1 adds the lock's brackets
+xor_mark:
+    cmp cx, 7                       ; kept inside the frame
+    jge .x_low
+    mov cx, 7
+.x_low:
+    mov ax, [r_w]
+    sub ax, 8
+    cmp cx, ax
+    jle .x_high
+    mov cx, ax
+.x_high:
+    cmp dx, 5
+    jge .y_low
+    mov dx, 5
+.y_low:
+    mov ax, [r_h]
+    sub ax, 6
+    cmp dx, ax
+    jle .y_high
+    mov dx, ax
+.y_high:
+    push cx
+    push dx
+    sub cx, 2
+    sub dx, 2
+    mov ax, 0FFC0h                  ; five bright pixels
+    mov bp, 4
+    call xor_rows
+    pop dx
+    pop cx
+    test bl, bl
+    jz .done
+    sub dx, 4                       ; the brackets: half bright, 9 high
+    push cx
+    push dx
+    sub cx, 5
+    mov ax, 8000h
+    mov bp, 9
+    call xor_rows
+    pop dx
+    pop cx
+    add cx, 5
+    mov ax, 8000h
+    mov bp, 9
+    call xor_rows
+.done:
+    ret
+
+; XOR the pixels AX (the leftmost in the top bits) onto BP rows from
+; (CX, DX) down
+xor_rows:
+    push ax
+    mov ax, dx
+    mul word [r_pitch]
+    mov di, cx
+    shr di, 1
+    shr di, 1
+    add di, ax
+    and cl, 3
+    shl cl, 1
+    pop ax
+    shr ax, cl
+.row:
+    xor [es:di], ah
+    xor [es:di + 1], al
+    add di, [r_pitch]
+    dec bp
+    jnz .row
+    ret
+
+; The page on the WEAPON screen
+draw_page:
+    mov es, [w_seg]
+    mov dx, TURRET + 13
+    in al, dx
+    mov [turret_status], al
+
+    mov di, (VALUE_COL << 8) | 2    ; the target
+    call at
+    xor ax, ax
     cmp byte [locked], 0
     je .no_target
     mov ax, [track]
 .no_target:
-    mov di, (2 * COLS + 33) * 2
     call put_number
+    mov di, (VALUE_COL << 8) | 3
+    call at
+    xor ax, ax
+    cmp byte [locked], 0
+    je .no_range
     mov ax, [range]
-    cmp byte [locked], 0
-    jne .has_range
-    xor ax, ax
-.has_range:
-    mov di, (3 * COLS + 33) * 2
+.no_range:
     call put_unsigned
-    mov ax, [lead]                  ; lead time, ms (1/1024 s, near enough)
-    cmp byte [locked], 0
-    jne .has_lead
+    mov di, (VALUE_COL << 8) | 4    ; lead time, ms (1/1024 s, near enough)
+    call at
     xor ax, ax
-.has_lead:
-    mov di, (4 * COLS + 33) * 2
+    cmp byte [locked], 0
+    je .no_lead
+    mov ax, [lead]
+.no_lead:
     call put_unsigned
-    mov ax, [snr]                   ; how clearly the radar sees it
-    cmp byte [locked], 0
-    jne .has_snr
+    mov di, (VALUE_COL << 8) | 5    ; how clearly the radar sees it
+    call at
     xor ax, ax
-.has_snr:
-    mov di, (5 * COLS + 33) * 2
+    cmp byte [locked], 0
+    je .no_snr
+    mov ax, [snr]
+.no_snr:
     call put_unsigned
 
-    mov ax, [turret_az]             ; the turret, degrees
+    mov di, (VALUE_COL << 8) | 6    ; the turret, degrees
+    call at
+    mov ax, [turret_az]
     mov cx, 360
     imul cx
     mov ax, dx
-    mov di, (6 * COLS + 33) * 2
     call put_number
+    mov di, (VALUE_COL << 8) | 7
+    call at
     mov ax, [turret_el]
     mov cx, 360
     imul cx
     mov ax, dx
-    mov di, (7 * COLS + 33) * 2
     call put_number
 
-    mov si, s_no_target             ; what it is doing
-    mov ah, ATTR_LABEL
-    mov dx, TURRET + 13
-    in al, dx
-    test al, 4
-    jz .not_hot
-    mov si, s_too_hot
-    mov ah, ATTR_WARN
-    jmp .status
-.not_hot:
-    test al, 2                      ; the target is where the turret cannot go
-    jz .in_arc
-    cmp byte [locked], 0
-    je .in_arc
-    mov si, s_out_of_arc
-    mov ah, ATTR_WARN
-    jmp .status
-.in_arc:
-    cmp byte [firing], 0
-    je .not_firing
-    mov si, s_firing
-    mov ah, ATTR_WARN
-    jmp .status
-.not_firing:
-    cmp byte [locked], 0
-    je .status
-    mov si, s_tracking
-    mov ah, ATTR_LOCKED
-.status:
-    mov di, (9 * COLS + 27) * 2
-    call put_text
+    call put_heat
+    call put_status
 
-    mov dx, TURRET + 15             ; rounds fired (the low byte)
-    in al, dx
-    xor ah, ah
-    mov di, (11 * COLS + 33) * 2
-    call put_unsigned
-
-    mov ax, [busy]                  ; CPU load
+    mov di, (VALUE_COL << 8) | 9    ; CPU load
+    call at
+    mov ax, [busy]
     mov dx, [busy + 2]
     mov cx, 1193
     cmp dx, cx
@@ -804,8 +899,89 @@ draw:
 .full:
     mov ax, 100
 .load:
-    mov di, (13 * COLS + 33) * 2
-    call put_unsigned
+    jmp put_unsigned
+
+; The barrel's heat as a bar, green, yellow from half way, red too hot
+put_heat:
+    mov dx, TURRET + 14
+    in al, dx
+    mov bh, ATTR_CONTACT
+    cmp al, 128
+    jb .colour
+    mov bh, ATTR_LOCKED
+.colour:
+    test byte [turret_status], 4
+    jz .cool
+    mov bh, ATTR_WARN
+.cool:
+    mov cl, HEAT_CELLS
+    mul cl
+    add ax, 255
+    mov bl, ah                      ; cells lit: heat * cells / 256, rounded up
+    mov di, (HEAT_COL << 8) | 8
+    call at
+    mov cx, HEAT_CELLS
+.cell:
+    mov ax, (ATTR_SCOPE << 8) | 0FAh
+    test bl, bl
+    jz .put
+    dec bl
+    mov al, 0DBh
+    mov ah, bh
+.put:
+    stosw
+    loop .cell
+    ret
+
+; What it is doing
+put_status:
+    mov si, s_no_target
+    mov ah, ATTR_LABEL
+    mov al, [turret_status]
+    test al, 4
+    jz .not_hot
+    mov si, s_too_hot
+    mov ah, ATTR_WARN
+    jmp .put
+.not_hot:
+    test al, 2                      ; the target is where the turret cannot go
+    jz .in_arc
+    cmp byte [locked], 0
+    je .in_arc
+    mov si, s_out_of_arc
+    mov ah, ATTR_WARN
+    jmp .put
+.in_arc:
+    cmp byte [firing], 0
+    je .not_firing
+    mov si, s_firing
+    mov ah, ATTR_WARN
+    jmp .put
+.not_firing:
+    cmp byte [locked], 0
+    je .put
+    mov si, s_tracking
+    mov ah, ATTR_LOCKED
+.put:
+    mov di, 1                       ; column 0, row 1
+    call at
+    jmp put_text
+
+; DI = column << 8 | row  ->  DI = its cell's offset on the WEAPON screen
+at:
+    push ax
+    push dx
+    mov ax, di
+    mov dl, [w_cols]
+    mul dl
+    mov dx, di
+    mov dl, dh
+    xor dh, dh
+    add ax, dx
+    shl ax, 1
+    mov di, ax
+    pop dx
+    pop ax
     ret
 
 ; AX signed or unsigned, ES:DI: right-aligned in 5 columns
@@ -863,7 +1039,17 @@ locked          db 0
 firing          db 0
 rounds_left     db 0
 screen_wait     db 1
-screen_seg      dw 0
+turret_status   db 0
+mark_count      db 0
+r_seg           dw 0                ; the RADAR screen's segment (0: none)
+r_w             dw 0                ; its size in pixels
+r_h             dw 0
+r_pitch         dw 0                ; bytes a row
+r_words         dw 0                ; words in all
+w_seg           dw 0                ; the WEAPON screen's segment (0: none)
+w_cells         dw 0
+w_cols          db 0
+marks           times MAX_MARKS * 3 dw 0    ; x, y, 1 if locked
 radar_seg       dw 0
 table_off       dw 0
 track_off       dw 0
@@ -926,15 +1112,6 @@ install:
     mov bl, TYPE_DISPLAYS
     call check_device
 
-    mov dx, DISPLAYS + 2            ; the right screen
-    in ax, dx
-    mov bx, ax
-    mov dx, DISPLAYS + 6
-    in ax, dx
-    mov cl, 4
-    shr ax, cl
-    add ax, bx
-    mov [screen_seg], ax
     mov dx, RADAR + 10              ; the radar's picture
     in ax, dx
     mov [radar_seg], ax
@@ -944,7 +1121,45 @@ install:
     mov dx, RADAR + 14
     in ax, dx
     mov [track_off], ax
+    mov si, n_radar                 ; the screens it uses, if the ship has them
+    call find_screen
+    jc .no_scope
+    cmp word [es:bx + 10], 32
+    jb .no_scope
+    cmp word [es:bx + 12], 16
+    jb .no_scope
+    mov byte [es:bx + 6], 1         ; graphics
+    mov ax, [es:bx + 10]
+    mov [r_w], ax
+    shr ax, 1
+    shr ax, 1
+    mov [r_pitch], ax
+    mov cx, [es:bx + 12]
+    mov [r_h], cx
+    mul cx
+    inc ax
+    shr ax, 1
+    mov [r_words], ax
+    call screen_segment
+    mov [r_seg], ax
+    call draw_grid
+.no_scope:
+    mov si, n_weapon
+    call find_screen
+    jc .no_page
+    cmp byte [es:bx + 7], 14
+    jb .no_page
+    cmp byte [es:bx + 8], 10
+    jb .no_page
+    mov byte [es:bx + 6], 0         ; text
+    mov al, [es:bx + 7]
+    mov [w_cols], al
+    mul byte [es:bx + 8]
+    mov [w_cells], ax
+    call screen_segment
+    mov [w_seg], ax
     call draw_labels
+.no_page:
 
     mov al, 1                       ; radar on
     mov dx, RADAR + 2
@@ -995,12 +1210,32 @@ remove:
     xor al, al                      ; radar off
     mov dx, RADAR + 2
     out dx, al
+    mov ax, [es:w_seg]              ; the resident copy's screens
+    mov [w_seg], ax
+    mov al, [es:w_cols]
+    mov [w_cols], al
+    mov ax, [es:r_seg]
+    mov [r_seg], ax
+    mov ax, [es:r_words]
+    mov [r_words], ax
     push es
-    mov es, [es:screen_seg]
+    cmp word [w_seg], 0
+    je .no_page
+    mov es, [w_seg]
     mov si, s_removed
-    mov di, (9 * COLS + 27) * 2
+    mov di, 1
+    call at
     mov ah, ATTR_WARN
     call put_text
+.no_page:
+    cmp word [r_seg], 0             ; the scope goes dark
+    je .no_scope
+    mov es, [r_seg]
+    xor di, di
+    xor ax, ax
+    mov cx, [r_words]
+    rep stosw
+.no_scope:
     pop es
     mov ah, 49h
     int 21h
@@ -1034,12 +1269,176 @@ quit_message:
     mov ax, 4C01h
     int 21h
 
+; DS:SI a screen's name (6 characters): CF clear and ES:BX its entry in
+; the display card's screen table, or CF set if the ship has no such screen
+find_screen:
+    mov dx, DISPLAYS + 2
+    in ax, dx
+    mov es, ax
+    mov dx, DISPLAYS + 4
+    in ax, dx
+    mov bx, ax
+    mov dx, DISPLAYS + 6
+    in al, dx
+    xor ah, ah
+    mov cx, ax
+.next:
+    jcxz .missing
+    dec cx
+    push cx
+    push si
+    mov di, bx
+    mov cx, 6
+    repe cmpsb
+    pop si
+    pop cx
+    je .found
+    add bx, 16
+    jmp .next
+.missing:
+    stc
+    ret
+.found:
+    clc
+    ret
+
+; ES:BX a screen's entry: AX = the segment of its memory
+screen_segment:
+    mov ax, [es:bx + 14]
+    mov cl, 4
+    shr ax, cl
+    mov cx, es
+    add ax, cx
+    ret
+
+; The scope's grid: the frame, a dotted line every 2 km and dead ahead,
+; ticks at 30 degrees either side
+draw_grid:
+    push es
+    mov es, [r_seg]
+    xor di, di
+    mov cx, [r_words]
+    xor ax, ax
+    rep stosw
+    mov bl, 2                       ; the frame
+    mov bp, 1
+    xor dx, dx
+    call hline
+    mov dx, [r_h]
+    dec dx
+    call hline
+    xor cx, cx
+    call vline
+    mov cx, [r_w]
+    dec cx
+    call vline
+    mov bl, 1                       ; the ranges, dotted
+    mov bp, 4
+    mov si, 1
+.range:
+    mov ax, [r_h]
+    dec ax
+    mul si
+    shr ax, 1
+    shr ax, 1
+    mov dx, [r_h]
+    dec dx
+    sub dx, ax
+    call hline
+    inc si
+    cmp si, 4
+    jb .range
+    mov cx, [r_w]                   ; dead ahead, dotted
+    dec cx
+    shr cx, 1
+    call vline
+    mov bl, 2                       ; 30 degrees either side
+    mov cx, [r_w]
+    dec cx
+    shr cx, 1
+    shr cx, 1
+    call ticks
+    mov ax, [r_w]
+    dec ax
+    mov cx, ax
+    shr ax, 1
+    shr ax, 1
+    sub cx, ax
+    call ticks
+    pop es
+    ret
+
+; Row DX, every BP-th pixel, value BL
+hline:
+    xor cx, cx
+.next:
+    call plot
+    add cx, bp
+    cmp cx, [r_w]
+    jb .next
+    ret
+
+; Column CX, every BP-th pixel, value BL
+vline:
+    xor dx, dx
+.next:
+    call plot
+    add dx, bp
+    cmp dx, [r_h]
+    jb .next
+    ret
+
+; Column CX: 4 pixels down from the top and up from the bottom
+ticks:
+    mov si, 4
+    mov dx, 1
+.top:
+    call plot
+    inc dx
+    dec si
+    jnz .top
+    mov si, 4
+    mov dx, [r_h]
+    sub dx, 2
+.bottom:
+    call plot
+    dec dx
+    dec si
+    jnz .bottom
+    ret
+
+; OR value BL into the pixel at (CX, DX)
+plot:
+    push ax
+    push cx
+    push dx
+    push di
+    mov ax, dx
+    mul word [r_pitch]
+    mov di, cx
+    shr di, 1
+    shr di, 1
+    add di, ax
+    and cl, 3
+    mov ch, 3
+    sub ch, cl
+    mov cl, ch
+    shl cl, 1
+    mov al, bl
+    shl al, cl
+    or [es:di], al
+    pop di
+    pop dx
+    pop cx
+    pop ax
+    ret
+
 draw_labels:
     push es
-    mov es, [screen_seg]
+    mov es, [w_seg]
     xor di, di
     mov ax, (ATTR_LABEL << 8) | ' '
-    mov cx, COLS * 16
+    mov cx, [w_cells]
     rep stosw
     mov si, labels
 .next:
@@ -1047,6 +1446,7 @@ draw_labels:
     cmp ax, 0FFFFh
     je .done
     mov di, ax
+    call at
     lodsb
     mov ah, al
 .char:
@@ -1059,49 +1459,45 @@ draw_labels:
     pop es
     ret
 
+; column << 8 | row, attribute, text
 labels:
-    dw (0 * COLS + 0) * 2
-    db ATTR_TITLE, ' FIRE CONTROL 1.2              CUCSICORP', 0
-    dw (1 * COLS + 1) * 2
-    db ATTR_SCOPE, '-60', 0
-    dw (1 * COLS + 12) * 2
-    db ATTR_SCOPE, '0', 0
-    dw (1 * COLS + 22) * 2
-    db ATTR_SCOPE, '+60', 0
-    dw (2 * COLS + 25) * 2
-    db ATTR_SCOPE, '8', 0
-    dw (13 * COLS + 25) * 2
-    db ATTR_SCOPE, '0', 0
-    dw (2 * COLS + 27) * 2
-    db ATTR_LABEL, 'TARGET', 0
-    dw (3 * COLS + 27) * 2
-    db ATTR_LABEL, 'RANGE', 0
-    dw (3 * COLS + 38) * 2
+    dw 0
+    db ATTR_TITLE, ' FIRECTL 1.3  ', 0
+    dw 2
+    db ATTR_LABEL, 'TGT', 0
+    dw 3
+    db ATTR_LABEL, 'RNG', 0
+    dw (10 << 8) | 3
     db ATTR_LABEL, 'm', 0
-    dw (4 * COLS + 27) * 2
+    dw 4
     db ATTR_LABEL, 'LEAD', 0
-    dw (4 * COLS + 38) * 2
+    dw (10 << 8) | 4
     db ATTR_LABEL, 'ms', 0
-    dw (5 * COLS + 27) * 2
+    dw 5
     db ATTR_LABEL, 'SNR', 0
-    dw (5 * COLS + 38) * 2
+    dw (10 << 8) | 5
     db ATTR_LABEL, 'dB', 0
-    dw (6 * COLS + 27) * 2
-    db ATTR_LABEL, 'TUR AZ', 0
-    dw (7 * COLS + 27) * 2
-    db ATTR_LABEL, 'TUR EL', 0
-    dw (11 * COLS + 27) * 2
-    db ATTR_LABEL, 'ROUNDS', 0
-    dw (13 * COLS + 27) * 2
+    dw 6
+    db ATTR_LABEL, 'AZ', 0
+    dw (10 << 8) | 6
+    db ATTR_LABEL, 'deg', 0
+    dw 7
+    db ATTR_LABEL, 'EL', 0
+    dw (10 << 8) | 7
+    db ATTR_LABEL, 'deg', 0
+    dw 8
+    db ATTR_LABEL, 'HT', 0
+    dw 9
     db ATTR_LABEL, 'CPU', 0
-    dw (13 * COLS + 38) * 2
+    dw (10 << 8) | 9
     db ATTR_LABEL, '%', 0
-    dw (15 * COLS + 1) * 2
-    db ATTR_LABEL, 'T: TARGET AHEAD  G: NEXT', 0
     dw 0FFFFh
 
+n_radar         db 'RADAR '
+n_weapon        db 'WEAPON'
+
 s_removed       db 'REMOVED    ', 0
-msg_installed   db 'Fire control resident: page on the right screen.', 13, 10
+msg_installed   db 'Fire control resident: scope on RADAR, page on WEAPON.', 13, 10
                 db 'FIRECTL OFF removes it.', 13, 10, '$'
 msg_already     db 'Fire control is already resident.', 13, 10, '$'
 msg_not_running db 'Fire control is not resident, or another program took', 13, 10
