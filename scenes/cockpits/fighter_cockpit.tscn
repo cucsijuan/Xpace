@@ -5,6 +5,7 @@
 [ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="3_atlas"]
 [ext_resource type="Material" path="res://assets/materials/synty_cockpit_glass.tres" id="4_glass"]
 [ext_resource type="Script" uid="uid://de2fxlxm51ali" path="res://scripts/Cockpit/CockpitScreen.cs" id="5_screen"]
+[ext_resource type="Script" path="res://scripts/Cockpit/CockpitLever.cs" id="6_lever"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_16ts0"]
 shading_mode = 0
@@ -77,6 +78,21 @@ script = ExtResource("5_screen")
 Source = 1
 DisplayName = "WEAPON"
 Size = Vector2(0.048, 0.074)
+
+[node name="Stick" type="Node3D" parent="." node_paths=PackedStringArray("Part")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.000184, -0.32514, -0.484651)
+script = ExtResource("6_lever")
+Part = NodePath("../Body/SM_Veh_POV_Cockpit_01/SM_Veh_POV_Joystick_01")
+
+[node name="Throttle" type="Node3D" parent="." node_paths=PackedStringArray("CutFrom")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.527, 0.445, -0.62)
+script = ExtResource("6_lever")
+Kind = 1
+CutFrom = NodePath("../Body/SM_Veh_POV_Cockpit_01")
+CutBox = AABB(-0.59, 0.44, 0.6, 0.12, 0.075, 0.045)
+ZeroOffset = Vector3(0, -0.0134, -0.0895)
+FullOffset = Vector3(0, -0.0308, -0.2055)
+ReverseOffset = Vector3(0, 0.004, 0.0265)
 
 [editable path="Body"]
 [editable path="Frame"]

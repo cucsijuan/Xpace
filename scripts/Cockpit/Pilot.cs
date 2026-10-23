@@ -9,12 +9,15 @@ namespace Xpace.Cockpit;
 ///
 /// Flight mode: the mouse is a virtual stick (up and down pitch, left and
 /// right roll; the ring in the middle shows it). W/S move the throttle and it
-/// stays where it is left, X sets it to zero, A/D yaw, Q/E and R/F strafe,
+/// stays where it is left (it stops at zero for a moment on the way through,
+/// to find it easily), X sets it to zero, A/D yaw, Q/E and R/F strafe,
 /// Z switches flight assist, T locks the target ahead and G the next one,
 /// the left button fires. The middle button changes to view mode: the
 /// mouse turns the head, and clicking a cockpit screen gives its computer
 /// the keyboard until a right-click. Holding the right button zooms the
-/// view in, to read the cockpit's screens or look at something far.
+/// view in, to read the cockpit's screens or look at something far; the
+/// wheel zooms in steps and stays there until the middle button or the
+/// wheel brings it back.
 ///
 /// The first click takes the mouse; Esc (while not typing) gives it back.
 /// F5 saves the computer, F9 loads it.
@@ -38,6 +41,13 @@ public partial class Pilot : Node3D
     /// <summary>How fast W/S move the throttle, full range a second.</summary>
     [Export] public float ThrottleRate = 0.6f;
 
+    /// <summary>The throttle stops at zero on its way through; seconds of pushing to go past it.</summary>
+    [Export] public float ThrottleDetent = 0.4f;
+
+    /// <summary>Wheel zoom: each notch divides the field of view by this, down to MinZoomFov.</summary>
+    [Export] public float WheelZoomStep = 1.25f;
+    [Export] public float MinZoomFov = 12f;
+
     [Export] public string SavePath = "user://computer.sav";
 
     /// <summary>The cockpit's eye point; the camera sits there.</summary>
@@ -51,9 +61,9 @@ public partial class Pilot : Node3D
     private ShipBody _ship;
     private CockpitScreen _focused;
     private float _lookYaw, _lookPitch;
-    private float _fov;
+    private float _fov, _wheelFov;
     private Vector2 _stick;
-    private float _throttle;
+    private float _throttle, _detentTime;
     private PilotControls _controls;
     private string _notice = "";
     private double _noticeTime;
@@ -63,7 +73,7 @@ public partial class Pilot : Node3D
     {
         FlightInput.Register();
         _camera = GetNode<Camera3D>("Camera3D");
-        _fov = _camera.Fov;
+        _fov = _wheelFov = _camera.Fov;
         if (Eye != null)
             _camera.GlobalPosition = Eye.GlobalPosition;
         _hud = GetNodeOrNull<Label>("Hud/Label");
@@ -103,6 +113,12 @@ public partial class Pilot : Node3D
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Middle }:
                 SetViewing(!Viewing);
                 break;
+            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.WheelUp }:
+                _wheelFov = Mathf.Max(_wheelFov / WheelZoomStep, MinZoomFov);
+                break;
+            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.WheelDown }:
+                _wheelFov = Mathf.Min(_wheelFov * WheelZoomStep, _fov);
+                break;
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } when Viewing:
                 Focus(ScreenAhead());
                 break;
@@ -138,6 +154,7 @@ public partial class Pilot : Node3D
     {
         Viewing = viewing;
         _stick = Vector2.Zero;                  // the stick centres when you let go of it
+        _wheelFov = _fov;                       // and the wheel's zoom goes back to normal
         if (!viewing)
         {
             _lookYaw = _lookPitch = 0;          // and the head looks ahead again
@@ -170,8 +187,7 @@ public partial class Pilot : Node3D
         {
             if (Input.IsActionPressed(FlightInput.ThrottleZero))
                 _throttle = 0;
-            _throttle += Input.GetAxis(FlightInput.ThrottleDown, FlightInput.ThrottleUp) * ThrottleRate * dt;
-            _throttle = Mathf.Clamp(_throttle, -1, 1);
+            MoveThrottle(Input.GetAxis(FlightInput.ThrottleDown, FlightInput.ThrottleUp), dt);
         }
 
         Vector2 stick = Viewing ? Vector2.Zero : DeadZone(_stick);
@@ -192,6 +208,30 @@ public partial class Pilot : Node3D
         };
     }
 
+    // The throttle has a detent at zero: passing through it stops there, and
+    // it only leaves zero after ThrottleDetent seconds of pushing.
+    private void MoveThrottle(float input, float dt)
+    {
+        if (input == 0)
+        {
+            _detentTime = 0;
+            return;
+        }
+        float next = Mathf.Clamp(_throttle + input * ThrottleRate * dt, -1, 1);
+        if (_throttle == 0)
+        {
+            _detentTime += dt;
+            if (_detentTime < ThrottleDetent)
+                next = 0;
+        }
+        else if (Mathf.Sign(next) != Mathf.Sign(_throttle))
+        {
+            next = 0;
+            _detentTime = 0;
+        }
+        _throttle = next;
+    }
+
     private Vector2 DeadZone(Vector2 v)
     {
         float length = v.Length();
@@ -207,7 +247,8 @@ public partial class Pilot : Node3D
         if (_settleFrames > 0)
             _settleFrames--;
         bool zoom = Input.MouseMode == Input.MouseModeEnum.Captured && Input.IsActionPressed(FlightInput.Zoom);
-        _camera.Fov = Mathf.Lerp(_camera.Fov, zoom ? ZoomFov : _fov, 1 - Mathf.Exp(-ZoomSpeed * (float)delta));
+        float fov = zoom ? Mathf.Min(ZoomFov, _wheelFov) : _wheelFov;
+        _camera.Fov = Mathf.Lerp(_camera.Fov, fov, 1 -Mathf.Exp(-ZoomSpeed * (float)delta));
         if (_widget != null)
         {
             _widget.Visible = !Viewing;
@@ -227,8 +268,8 @@ public partial class Pilot : Node3D
         }
         string help = Input.MouseMode != Input.MouseModeEnum.Captured ? "Click to take the mouse."
             : _focused != null ? "Typing on the computer. Right-click to stop."
-            : Viewing ? "Looking: click a screen to type on it, hold the right button to zoom. Middle button: fly."
-            : "Flying: mouse pitch/roll, W/S throttle, X stop, A/D yaw, Q/E R/F strafe, Z assist, T/G target, click fire, right button zoom. Middle button: look.";
+            : Viewing ? "Looking: click a screen to type on it, wheel or right button to zoom. Middle button: fly."
+            : "Flying: mouse pitch/roll, W/S throttle, X stop, A/D yaw, Q/E R/F strafe, Z assist, T/G target, click fire, wheel or right button zoom. Middle button: look.";
         if (_noticeTime > 0)
         {
             _noticeTime -= delta;
