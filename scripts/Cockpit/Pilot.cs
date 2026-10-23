@@ -13,8 +13,8 @@ namespace Xpace.Cockpit;
 /// to find it easily), X sets it to zero, A/D yaw, Q/E and R/F strafe,
 /// Z switches flight assist, T locks the target ahead and G the next one,
 /// the left button fires. The middle button changes to view mode: the
-/// mouse turns the head, and clicking a cockpit screen gives its computer
-/// the keyboard until a right-click. Holding the right button zooms the
+/// mouse turns the head, clicking a cockpit screen gives its computer
+/// the keyboard until a right-click, and clicking a button presses it. Holding the right button zooms the
 /// view in, to read the cockpit's screens or look at something far; the
 /// wheel zooms in steps and stays there until the middle button or the
 /// wheel brings it back.
@@ -120,7 +120,11 @@ public partial class Pilot : Node3D
                 _wheelFov = Mathf.Min(_wheelFov * WheelZoomStep, _fov);
                 break;
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } when Viewing:
-                Focus(ScreenAhead());
+                Node ahead = ThingAhead();
+                if (ahead is CockpitButton pushed)
+                    pushed.Press();
+                else
+                    Focus(ahead as CockpitScreen);
                 break;
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right }:
                 Focus(null);
@@ -269,7 +273,7 @@ public partial class Pilot : Node3D
         }
         string help = Input.MouseMode != Input.MouseModeEnum.Captured ? "Click to take the mouse."
             : _focused != null ? "Typing on the computer. Right-click to stop."
-            : Viewing ? "Looking: click a screen to type on it, wheel or right button to zoom. Middle button: fly."
+            : Viewing ? "Looking: click a screen to type on it or a button to press it, wheel or right button to zoom. Middle button: fly."
             : "Flying: mouse pitch/roll, W/S throttle, X stop, A/D yaw, Q/E R/F strafe, Z assist, T/G target, click fire, wheel or right button zoom. Middle button: look.";
         if (_noticeTime > 0)
         {
@@ -279,9 +283,10 @@ public partial class Pilot : Node3D
         _hud.Text = $"{state}\n{help}";
     }
 
-    // ---------- screens and saving ----------
+    // ---------- screens, buttons and saving ----------
 
-    private CockpitScreen ScreenAhead()
+    // The screen or button the pilot is looking at, within reach.
+    private Node ThingAhead()
     {
         Vector3 from = _camera.GlobalPosition;
         Vector3 to = from - _camera.GlobalBasis.Z * ReachMetres;
@@ -289,7 +294,7 @@ public partial class Pilot : Node3D
         query.CollideWithAreas = true;
         query.CollideWithBodies = false;
         var hit = GetWorld3D().DirectSpaceState.IntersectRay(query);
-        return hit.Count > 0 && hit["collider"].As<Node>()?.GetParent() is CockpitScreen screen ? screen : null;
+        return hit.Count > 0 ? hit["collider"].As<Node>()?.GetParent() : null;
     }
 
     private void Focus(CockpitScreen screen)

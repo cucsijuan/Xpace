@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Godot;
 using Xpace.Ship;
 
@@ -56,7 +55,7 @@ public partial class CockpitLever : Node3D
     {
         _rest = Position;
         if (CutFrom != null)
-            Part = Carve(CutFrom, CutBox);
+            Part = MeshCut.Carve(CutFrom, CutBox, "Lever");
         Part?.Reparent(this, true);
         for (Node n = GetParent(); n != null && _ship == null; n = n.GetParent())
             _ship = n as ShipBody;
@@ -85,56 +84,5 @@ public partial class CockpitLever : Node3D
                 ? ZeroOffset.Lerp(FullOffset, _throttle)
                 : ZeroOffset.Lerp(ReverseOffset, -_throttle));
         }
-    }
-
-    // Moves the triangles of `source` that lie whole inside `box` into a
-    // new mesh instance in the same place, and returns it.
-    private static MeshInstance3D Carve(MeshInstance3D source, Aabb box)
-    {
-        Mesh mesh = source.Mesh;
-        var kept = new ArrayMesh();
-        var cut = new ArrayMesh();
-        for (int s = 0; s < mesh.GetSurfaceCount(); s++)
-        {
-            Godot.Collections.Array arrays = mesh.SurfaceGetArrays(s);
-            Vector3[] vertices = arrays[(int)Mesh.ArrayType.Vertex].AsVector3Array();
-            int[] index = arrays[(int)Mesh.ArrayType.Index].AsInt32Array();
-            if (index.Length == 0)
-            {
-                index = new int[vertices.Length];
-                for (int i = 0; i < index.Length; i++)
-                    index[i] = i;
-            }
-            var inside = new List<int>();
-            var outside = new List<int>();
-            for (int i = 0; i + 2 < index.Length; i += 3)
-            {
-                bool lever = box.HasPoint(vertices[index[i]]) && box.HasPoint(vertices[index[i + 1]])
-                    && box.HasPoint(vertices[index[i + 2]]);
-                (lever ? inside : outside).AddRange(new[] { index[i], index[i + 1], index[i + 2] });
-            }
-            Material material = mesh.SurfaceGetMaterial(s);
-            AddSurface(kept, arrays, outside, material);
-            AddSurface(cut, arrays, inside, material);
-        }
-        if (cut.GetSurfaceCount() == 0)
-        {
-            GD.PushWarning($"CockpitLever: no triangles of {source.Name} inside {box}");
-            return null;
-        }
-        source.Mesh = kept;
-        var part = new MeshInstance3D { Name = source.Name + "_Lever", Mesh = cut, MaterialOverride = source.MaterialOverride };
-        source.AddChild(part);
-        return part;
-    }
-
-    private static void AddSurface(ArrayMesh mesh, Godot.Collections.Array arrays, List<int> index, Material material)
-    {
-        if (index.Count == 0)
-            return;
-        var copy = arrays.Duplicate();
-        copy[(int)Mesh.ArrayType.Index] = index.ToArray();
-        mesh.AddSurfaceFromArrays(Mesh.PrimitiveType.Triangles, copy);
-        mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, material);
     }
 }
