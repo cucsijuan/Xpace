@@ -15,6 +15,10 @@ namespace Xpace.Ship;
 ///   2. the computer runs for the same step;
 ///   3. the thruster commands come back out and push the ship.
 ///
+/// The ship moves by its own integrator (<see cref="ShipMotion"/>), not by
+/// the physics engine: the body only carries the collision shapes. Setting
+/// the node's transform still moves the ship (the floating origin, tests).
+///
 /// Other devices (radar, turrets, displays) are nodes below the ship that
 /// implement <see cref="IShipDevice"/>; they get the same two calls.
 ///
@@ -22,7 +26,7 @@ namespace Xpace.Ship;
 /// the thruster controller takes the controls directly (direct mode).
 /// See software/flight/flight.asm for the registers.
 /// </summary>
-public partial class ShipBody : RigidBody3D, IControlHost
+public partial class ShipBody : AnimatableBody3D, IControlHost
 {
     public const int SlotControls = 0, SlotInertial = 1, SlotThrusters = 2;
     public const byte TypeControls = 1, TypeInertial = 2, TypeThrusters = 3;
@@ -44,23 +48,24 @@ public partial class ShipBody : RigidBody3D, IControlHost
 
     public PilotControls Controls { get; private set; }
 
+    /// <summary>Metres a second, world axes.</summary>
+    public Vector3 LinearVelocity { get; set; }
+
+    /// <summary>Radians a second, world axes.</summary>
+    public Vector3 AngularVelocity { get; set; }
+
     /// <summary>The last commands, -1..1: pitch, roll, yaw torque; right, up, forward force.</summary>
     public readonly float[] Commands = new float[6];
 
     private double _sinceCommand = double.MaxValue;
     private readonly List<IShipDevice> _devices = new();
+    private Quaternion _orientation = Quaternion.Identity;
+    private Basis _written = Basis.Identity;
 
     public override void _Ready()
     {
         Spec ??= new ShipSpec();
-        Mass = Spec.Mass;
-        Inertia = Spec.Inertia;
-        GravityScale = 0;
-        LinearDampMode = DampMode.Replace;
-        LinearDamp = 0;
-        AngularDampMode = DampMode.Replace;
-        AngularDamp = 0;
-        CanSleep = false;
+        SyncToPhysics = false;
 
         Computer = GetNode<ShipComputer>(ComputerPath);
         Computer.RunsItself = false;
@@ -116,7 +121,33 @@ public partial class ShipBody : RigidBody3D, IControlHost
             for (int i = 0; i < 6; i++)
                 Commands[i] = bus.Word(SlotThrusters, 2 + i * 2) / 32767f;
         }
-        Push();
+        Push((float)delta);
+    }
+
+    /// <summary>The ship as the integrator sees it; setting it moves the ship.</summary>
+    public ShipState State
+    {
+        get
+        {
+            Basis basis = GlobalBasis;
+            if (!basis.IsEqualApprox(_written))     // turned from outside
+                _orientation = basis.GetRotationQuaternion();
+            return new ShipState
+            {
+                Position = GlobalPosition,
+                Orientation = _orientation,
+                Velocity = LinearVelocity,
+                AngularVelocity = AngularVelocity,
+            };
+        }
+        set
+        {
+            _orientation = value.Orientation;
+            GlobalTransform = new Transform3D(new Basis(value.Orientation), value.Position);
+            _written = GlobalBasis;
+            LinearVelocity = value.Velocity;
+            AngularVelocity = value.AngularVelocity;
+        }
     }
 
     private static void WriteControls(ShipBus bus, PilotControls c)
@@ -151,7 +182,7 @@ public partial class ShipBody : RigidBody3D, IControlHost
         bus[SlotInertial, 14] = 1;                  // a new sample
     }
 
-    private void Push()
+    private void Push(float dt)
     {
         ShipSpec s = Spec;
         var torque = new Vector3(
@@ -160,8 +191,7 @@ public partial class ShipBody : RigidBody3D, IControlHost
             -Commands[1] * s.RollAcceleration * s.Inertia.Z);
         float forward = Commands[5] >= 0 ? Commands[5] * s.MainThrust : Commands[5] * s.ReverseThrust;
         var force = new Vector3(Commands[3] * s.LateralThrust, Commands[4] * s.VerticalThrust, -forward);
-        ApplyTorque(GlobalBasis * torque);
-        ApplyCentralForce(GlobalBasis * force);
+        State = ShipMotion.Step(State, force, torque, s.Mass, s.Inertia, dt);
     }
 
     private static int Axis(float x) => (int)MathF.Round(Math.Clamp(x, -1f, 1f) * 32767);

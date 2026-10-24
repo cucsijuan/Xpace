@@ -218,6 +218,38 @@ Shields, armour, point defence systems and countermeasures: flares, chaff, jammi
 - **Spatial scale:** a floating origin (`FloatingOrigin`) moves the world back whenever the ship is 1 km from the origin, so single-precision floats never lose the millimetres the cockpit needs; Godot's double-precision build stays an option for very large sectors.
 - **Tools:** asm86 (and Small-C, built for the PC) for the factory software; COS, ASM, CBasic and Small-C inside the game for players.
 
+### 10.1 Networking (planned, after M3)
+
+Multiplayer is co-op and drop-in PvP invasions, not an MMO: a small session (a host and a few guests) over Epic Online Services P2P, Device ID login. The design follows Glenn Fiedler's *Gaffer on Games* articles, picking what fits a game where every ship's brain is an emulated 8086.
+
+**Why not lockstep or full rollback.** Deterministic lockstep needs the same physics result on every machine, and neither Godot Physics nor Jolt gives that across machines, compilers and operating systems (the game runs on Linux and Windows). Client-side prediction with rollback would mean rewinding and re-running the ship's pc86 (memory, CPU and devices) for every correction. vm86 is deterministic and could do it, but it costs a machine snapshot per tick and buys nothing the authority scheme below doesn't already give.
+
+**Authority.**
+- **Your own ship belongs to you.** Its computer and its physics run only on your machine, with no prediction and no corrections: it always answers the stick at once, with no input lag. This is the authority scheme of Fiedler's *Networked Physics*, and what Elite Dangerous does.
+- **Other players' ships** are never emulated elsewhere. Their owner sends their state (position, orientation, velocity, angular velocity, tick number) 20 to 30 times a second, unreliable.
+- **The host owns everything else:** drones, missiles with their microcontrollers, hits, damage and collisions between ships of different owners (it tells each owner the impulse to apply).
+
+**Our own ship integrator.** The ships' motion is integrated by our code (`ShipMotion`), not by the physics engine: a ship in space is a rigid body under thrust and torque, with no gravity, drag or resting contacts, so the step is a few lines. That gives a fixed, known step, a pure function of (state, commands) that can be re-run if rollback is ever needed, and arithmetic made only of `+ - * /` and square roots, which is bit-identical on every x64 machine. The engine is kept for collision shapes and queries.
+
+**What we take from Gaffer on Games.**
+
+| Technique | Use |
+|---|---|
+| Fixed timestep and a shared tick | The simulation already runs at a fixed 60 Hz; the session adds a sector tick number every machine agrees on. |
+| Snapshot interpolation | Remote ships are drawn about 100 ms in the past, interpolated with Hermite curves through position and velocity (nearly exact in space). |
+| Extrapolation | Only to cover lost packets; with no drag it is very accurate. |
+| State compression | Smallest-three quaternions, positions quantised relative to the sector, deltas against the last acknowledged snapshot, a priority accumulator when there are many entities. |
+| Lag compensation | On the host, for hits (below). |
+| Deterministic lockstep, prediction with rollback | Not used, see above. |
+
+**Rounds and hits.** Cannon rounds are not hitscan (1,200 m/s: 1.7 s to 2 km) and in space they fly straight, so a reliable fire event (tick, origin, velocity) lets every machine simulate the same round with no further traffic. The host keeps about a second of history of every ship and tests each round's segment against the target **as the shooter saw it**: now, minus the interpolation delay, minus half the shooter's round trip (Source-style lag compensation, favouring the shooter).
+
+**Latency is a physical cause.** Missiles run on the host; a player's radar datalink reaches them across the network, so network latency becomes datalink latency. Likewise the radar and FIRECTL's filter see remote ships slightly late, which is sensor error, not dice: better hardware and software still make a measurable difference.
+
+**Frames of reference.** Positions travel as sector-absolute doubles; the floating origin stays a local matter of each machine.
+
+**Cheating.** With owner authority a player could lie about their ship. For co-op and invasions a plausibility check on the host is enough: speeds and accelerations the hull and its delta-v allow, rates of fire the turret allows. Only lobby members are accepted as P2P peers. There is no host migration: if the host leaves, the session ends.
+
 ## 11. Assessment and recommendations
 
 **The strongest point.** The idea has something none of its references have: in X4 and Elite a ship is a spreadsheet of numbers; here the ship is a machine you can understand and modify. And much of the hardware and software already exists and works: the 8086, COS, the assembler, CBasic, the C compiler and EDIT. That is a huge advantage over 0x10c, which had to invent all of that.
@@ -246,7 +278,7 @@ Shields, armour, point defence systems and countermeasures: flares, chaff, jammi
 
 **On realism.** Fighter-jet combat (radar, signatures, countermeasures) is more interesting than full physical realism. Recommended: Newtonian flight with a software flight assist (which the CPU can improve), compressed distances, and speeds and ranges chosen so encounters last seconds or minutes, not hours.
 
-**On multiplayer.** Start single-player. Emulating CPUs over a network, with its determinism and synchronisation, is a project of its own. If it comes later, vm86's architecture (no clock of its own, serialisable state) allows it.
+**On multiplayer.** Start single-player. Emulating CPUs over a network, with its determinism and synchronisation, is a project of its own; the plan in 10.1 avoids it by running each ship's computer only on its owner's machine.
 
 **On hacking other ships.** Very attractive, because modems and radios make it natural, but it can break the balance. It should be approached as protocols with concrete vulnerabilities that corporations patch, not as a "hack" button.
 

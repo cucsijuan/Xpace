@@ -121,7 +121,7 @@ MissileScene = ExtResource("24_ir_missile")
 script = ExtResource("29_emitter")
 TargetPath = NodePath("../../Ship")
 
-[node name="Ship" type="RigidBody3D" parent="." unique_id=2058915107]
+[node name="Ship" type="AnimatableBody3D" parent="." unique_id=2058915107]
 script = ExtResource("6_ship")
 Spec = SubResource("Spec_fighter")
 
