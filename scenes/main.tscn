@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://c2vctpjj0ce8" path="res://scripts/Computer/ShipComputer.cs" id="1_computer"]
 [ext_resource type="PackedScene" uid="uid://ho2rnp52wjg6" path="res://scenes/cockpits/fighter_cockpit.tscn" id="2_cockpit"]
 [ext_resource type="Script" uid="uid://cgkl0vftvxi6k" path="res://scripts/Cockpit/Pilot.cs" id="4_pilot"]
-[ext_resource type="Script" uid="uid://ruptu1fjvqqg" path="res://scripts/Space/Starfield.cs" id="5_stars"]
 [ext_resource type="Script" uid="uid://bhbpgfgybh0nt" path="res://scripts/Ship/ShipBody.cs" id="6_ship"]
 [ext_resource type="Script" uid="uid://c2sx2rsqw81y1" path="res://scripts/Cockpit/MouseWidget.cs" id="7_widget"]
 [ext_resource type="Script" uid="uid://c74qxnce11yka" path="res://scripts/Space/AsteroidField.cs" id="8_rocks"]
@@ -41,10 +40,15 @@
 [ext_resource type="Script" path="res://scripts/Ship/ShipHull.cs" id="40_hull"]
 [ext_resource type="PackedScene" path="res://scenes/ships/ai_fighter.tscn" id="41_ai_fighter"]
 [ext_resource type="Script" path="res://scripts/Space/Datalink.cs" id="42_datalink"]
+[ext_resource type="Material" path="res://assets/materials/synty_skybox_04.tres" id="43_skybox"]
+
+[sub_resource type="Sky" id="Sky_space"]
+sky_material = ExtResource("43_skybox")
 
 [sub_resource type="Environment" id="Environment_space"]
-background_mode = 1
+background_mode = 2
 background_color = Color(0, 0, 0.01, 1)
+sky = SubResource("Sky_space")
 ambient_light_source = 2
 ambient_light_color = Color(0.25, 0.27, 0.32, 1)
 ambient_light_energy = 0.6
@@ -75,9 +79,6 @@ environment = SubResource("Environment_space")
 transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 0, 0, 0)
 light_energy = 1.4
 script = ExtResource("25_heat")
-
-[node name="Starfield" type="MultiMeshInstance3D" parent="." unique_id=412625802]
-script = ExtResource("5_stars")
 
 [node name="Planet" type="MeshInstance3D" parent="." unique_id=2084746623]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26000, -9000, -60000)
