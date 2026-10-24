@@ -32,6 +32,12 @@ set(TEXTURES
   PolygonSciFiSpace_Texture_01_A
   PolygonSciFiSpace_Emissive_01
   FX_Textures/Gradient_Boost
+  FX_Textures/PolygonSciFiSpace_Skybox_04_Front
+  FX_Textures/PolygonSciFiSpace_Skybox_04_Back
+  FX_Textures/PolygonSciFiSpace_Skybox_04_Left
+  FX_Textures/PolygonSciFiSpace_Skybox_04_Right
+  FX_Textures/PolygonSciFiSpace_Skybox_04_Up
+  FX_Textures/PolygonSciFiSpace_Skybox_04_Down
 )
 
 file(MAKE_DIRECTORY "${DEST}")
