@@ -97,7 +97,6 @@ script = ExtResource("15_rounds")
 [node name="Drone1" type="Node3D" parent="." unique_id=1201583421]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -400, 80, -2200)
 script = ExtResource("16_drone")
-AnchorPath = NodePath("../Ship")
 Attacks = true
 MissileScene = ExtResource("24_ir_missile")
 
@@ -110,13 +109,11 @@ Channel = "raiders"
 
 [node name="Radar" type="Node3D" parent="Drone1" unique_id=440645909]
 script = ExtResource("29_emitter")
-TargetPath = NodePath("../../Ship")
 
 [node name="Drone2" type="Node3D" parent="." unique_id=933921391]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 900, -60, -3000)
 script = ExtResource("16_drone")
 Speed = 100.0
-AnchorPath = NodePath("../Ship")
 Attacks = true
 MissileScene = ExtResource("24_ir_missile")
 
@@ -129,13 +126,11 @@ Channel = "raiders"
 
 [node name="Radar" type="Node3D" parent="Drone2" unique_id=1396506718]
 script = ExtResource("29_emitter")
-TargetPath = NodePath("../../Ship")
 
 [node name="Drone3" type="Node3D" parent="." unique_id=912209569]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 200, 300, -3600)
 script = ExtResource("16_drone")
 Speed = 140.0
-AnchorPath = NodePath("../Ship")
 Attacks = true
 MissileScene = ExtResource("24_ir_missile")
 
@@ -148,7 +143,6 @@ Channel = "raiders"
 
 [node name="Radar" type="Node3D" parent="Drone3" unique_id=1495459481]
 script = ExtResource("29_emitter")
-TargetPath = NodePath("../../Ship")
 
 [node name="Ship" type="AnimatableBody3D" parent="." unique_id=2058915107]
 script = ExtResource("6_ship")

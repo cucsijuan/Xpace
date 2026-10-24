@@ -178,7 +178,11 @@ public partial class MissileTest : Node3D
             if (_radarOff)
                 _sawHeadLock |= await Until(() => _launcher.HeadLocked && _display.Text("WEAPON").Contains("IR LOCK"), 2);
             else
+            {
+                if (_radar.Locked != null)
+                    await Press(c => c.TargetAhead = true);     // a press with a target locked lets it go
                 await Press(c => c.TargetAhead = true);
+            }
             await Seconds(0.3);
             int launched = _launcher.Launched;
             await Press(c => c.Trigger = true);

@@ -165,7 +165,7 @@ public partial class RwrTest : Node3D
             MissileScene = GD.Load<PackedScene>("res://scenes/weapons/ir_missile.tscn"),
             Position = new Vector3(0, 60, -3000),
         };
-        var radar = new RadarEmitter { Name = "Radar", Target = _ship, PrfHz = 900 };
+        var radar = new RadarEmitter { Name = "Radar", PrfHz = 900 };
         drone.AddChild(radar);
         AddChild(drone);
         drone.LookAt(_ship.GlobalPosition, Vector3.Up);

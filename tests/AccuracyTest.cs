@@ -111,6 +111,13 @@ public partial class AccuracyTest : Node3D
 
     private async Task Lock()
     {
+        if (_radar.Locked != null)
+        {
+            _controls.TargetAhead = true;       // a press with a target locked lets it go
+            await Seconds(0.1);
+            _controls.TargetAhead = false;
+            await Seconds(0.1);
+        }
         _controls.TargetAhead = true;
         await Seconds(0.1);
         _controls.TargetAhead = false;

@@ -4,6 +4,7 @@ using Godot;
 using Xpace.Computer;
 using Xpace.Controls;
 using Xpace.Ship;
+using Xpace.Space;
 
 namespace Xpace.Cockpit;
 
@@ -381,6 +382,7 @@ public partial class Pilot : Node3D
         var query = PhysicsRayQueryParameters3D.Create(from, to);
         query.CollideWithAreas = true;
         query.CollideWithBodies = false;
+        query.CollisionMask = ~Hitboxes.RoundLayer;      // the ship's hitboxes around the cockpit are for rounds, not hands
         var hit = GetWorld3D().DirectSpaceState.IntersectRay(query);
         return hit.Count > 0 ? hit["collider"].As<Node>()?.GetParent() : null;
     }

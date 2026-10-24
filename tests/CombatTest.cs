@@ -73,6 +73,8 @@ public partial class CombatTest : Node3D
         await Seconds(1);
         await Press(() => _controls.NextTarget = true, () => _controls.NextTarget = false);
         Check("G locks the next contact", await Until(() => _radar.Locked == _other, 2));
+        await Press(() => _controls.TargetAhead = true, () => _controls.TargetAhead = false);
+        Check("T again lets it go", await Until(() => _radar.Locked == null, 1));
 
         GD.Print($"     {Line(_display.Text("FLIGHT"), "CPU LOAD").Trim()} (flight), {Line(_display.Text("WEAPON"), "CPU").Trim()} (fire control)");
 

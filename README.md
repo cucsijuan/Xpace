@@ -48,7 +48,7 @@ Elite Dangerous's keyboard and mouse controls. The middle mouse button switches 
 | Yaw | A / D |
 | Strafe sideways / up and down | Q / E, R / F |
 | Flight assist | Z |
-| Lock the target ahead / the next one | T / G |
+| Lock the target ahead (again: let it go) / the next one | T / G |
 | Fire | Left button, while flying |
 | Next weapon (gun, radar missiles, heat seekers) | N |
 | Chaff / flare | C / V |
@@ -125,6 +125,7 @@ godot --headless --fixed-fps 60 --path . res://tests/maneuver_test.tscn
 
 - `hull_test`: rounds and a blast wear the hull away (its own rounds do not), the wreck drifts with nothing on the sensors, and the insurer's new ship comes back full.
 - `duel_test`: the game's fighter, with its own computer, locks a drone, hits it with the gun and fires a radar missile; breaks and throws flares against a heat seeker; and comes back after it is blown up.
+- `raider_hunt_test`: in a session, the host's fighter and a drone find a guest's ship with their radars (never each other), the fighter's rounds hit it, judged by the host, and its missile is made on the guest's machine.
 - `maneuver_test`: firing while the ship turns (it keeps firing and hitting), the lock coming back after the target leaves the cone, and the floating origin moving the world back 40 km in the middle of a fight.
 
 - `missile_test`, `rwr_test`: radar and heat-seeking missiles against drones that break and drop chaff and flares; the warning receiver, its screen, and the dispenser worked by RWR.COM.

@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.7 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.8 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -6,7 +6,8 @@
 ; Sixty times a second, on IRQ 5 (after the handlers installed before it):
 ;
 ;   - the pilot's target-ahead button locks the radar contact nearest the
-;     middle of the view; next-target locks the one after the current one;
+;     middle of the view, or lets the target go if one is locked;
+;     next-target locks the one after the current one;
 ;   - the radar measures only where the target is, with noise that grows
 ;     with the range (and with jamming); an alpha-beta filter smooths the
 ;     positions and works out the velocity from them;
@@ -291,8 +292,18 @@ step:
 
 ; ---------- choosing a target ----------
 
-; The contact with the smallest |azimuth| + |elevation|
+; The contact with the smallest |azimuth| + |elevation|; with a target
+; locked, none: the lock is let go
 lock_ahead:
+    mov dx, RADAR + 8
+    in ax, dx
+    test ax, ax
+    jz .choose
+    xor ax, ax
+    mov dx, RADAR + 6
+    out dx, ax
+    ret
+.choose:
     mov dx, RADAR + 3
     in al, dx
     xor ah, ah
