@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.8 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.10 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -27,7 +27,15 @@
 ;     ahead (or where the radar's target is), growls in the pilot's headset
 ;     when it sees heat and locks on to it (IR TONE, IR LOCK); the second
 ;     press lets it go, whatever the head sees. With none left there is no
-;     head to power.
+;     head to power;
+;   - a ship needs the radar and the turret or the laser (a ship with no
+;     turret starts with the laser selected);
+;   - with the pulse laser selected (if the ship has one: it is fixed along
+;     the nose, the pilot aims it with the ship) the fire button held fires
+;     it, and with a target locked the same solution as the turret's, for
+;     the laser's bolt speed, gives the lead point: where a pulse fired now
+;     meets the target. It goes to the laser's sight, and the head-up
+;     display draws a circle there.
 ;
 ; Angles, lengths and the square roots come from CORDIC: turning a vector
 ; onto the x axis in 14 small steps gives its angle and (times a known
@@ -72,6 +80,11 @@
 ;                            +10 status (bit 1 no word, 2 lost)  +11 1 flying,
 ;                            2 hit, 3 missed  +12 fuel (m/s)  +14 heat
 ;                            seekers left  +15 the newest's kind (2 heat)
+;   190h  pulse laser        +0 type 11  +2 status (bit 0 ready, 2 too hot)
+;                            +3 heat  +4 fire (write 1)  +6 bolt speed (m/s)
+;                            +8 +10 +12 the lead point (right, up, forward,
+;                            1/4 m, from where the radar measures)  +14 bit 0
+;                            show the lead circle (write)
 
 org 100h
 
@@ -81,10 +94,12 @@ RADAR       equ 130h
 TURRET      equ 140h
 DISPLAYS    equ 150h
 LAUNCHER    equ 160h
+LASER       equ 190h
 TYPE_RADAR  equ 4
 TYPE_TURRET equ 5
 TYPE_DISPLAYS equ 6
 TYPE_LAUNCHER equ 7
+TYPE_LASER  equ 11
 IRQ_VECTOR  equ 0Dh
 IRQ_BIT     equ 20h
 
@@ -92,7 +107,8 @@ BUTTON_AHEAD equ 4
 BUTTON_NEXT equ 8
 BUTTON_FIRE equ 16
 BUTTON_WEAPON equ 32
-WEAPONS     equ 3                   ; the cannon, radar missiles, heat seekers
+WEAPONS     equ 4                   ; the cannon, radar missiles, heat seekers, the laser
+WEAPON_LASER equ 3
 LAUNCH_SHOWN equ 30                 ; steps 'LAUNCH' stays on the page
 RESULT_SHOWN equ 180                ; and 'HIT' or 'MISSED'
 
@@ -209,12 +225,21 @@ step:
     in ax, dx
     mov [yaw_rate], ax
 
+    mov dx, TURRET + 10             ; the speed the solution is for: the
+    cmp byte [weapon], WEAPON_LASER ; cannon's rounds or the laser's bolts
+    jne .speed
+    mov dx, LASER + 6
+.speed:
+    in ax, dx
+    mov [muzzle], ax
+
     mov dx, RADAR + 5
     in al, dx
     mov [locked], al
     test al, al
     jz .ahead
     call solve                      ; aim_az, aim_el
+    call laser_sight
     jmp .aim
 .ahead:
     mov word [filter_id], 0         ; (the next lock starts the filter again)
@@ -231,6 +256,16 @@ step:
     mov byte [firing], 0
     cmp byte [weapon], 0
     je .gun
+    cmp byte [weapon], WEAPON_LASER
+    jne .missile
+    test byte [buttons], BUTTON_FIRE    ; the laser: while the button is held
+    jz .fired
+    mov byte [firing], 1
+    mov al, 1
+    mov dx, LASER + 4
+    out dx, al
+    jmp .fired
+.missile:
     test byte [pressed], BUTTON_FIRE    ; a missile: one a press
     jz .fired
     cmp byte [weapon], 2
@@ -372,12 +407,22 @@ lock_next:
 ; ---------- the weapons ----------
 
 next_weapon:
-    cmp byte [has_launcher], 0
-    je .done
-    inc byte [weapon]               ; the cannon, radar missiles, heat seekers
-    cmp byte [weapon], WEAPONS
-    jb .chosen
+    inc byte [weapon]               ; the cannon, radar missiles, heat seekers,
+    cmp byte [weapon], WEAPONS      ; the laser: those the ship has
+    jb .has
     mov byte [weapon], 0
+    cmp byte [has_turret], 0
+    je next_weapon
+    jmp .chosen
+.has:
+    cmp byte [weapon], WEAPON_LASER
+    je .laser
+    cmp byte [has_launcher], 0
+    je next_weapon
+    jmp .chosen
+.laser:
+    cmp byte [has_laser], 0
+    je next_weapon
 .chosen:
     xor al, al                      ; the heat seeker's head off, whatever comes now
     mov [head_on], al
@@ -423,6 +468,25 @@ launcher_news:
     cmp word [launch_wait], 0
     je .done
     dec word [launch_wait]
+.done:
+    ret
+
+; The lead point to the laser's sight, while the laser is selected
+laser_sight:
+    cmp byte [weapon], WEAPON_LASER
+    jne .done
+    mov ax, [aim]
+    mov dx, LASER + 8
+    out dx, ax
+    mov ax, [aim + 2]
+    mov dx, LASER + 10
+    out dx, ax
+    mov ax, [aim + 4]
+    mov dx, LASER + 12
+    out dx, ax
+    mov al, 1
+    mov dx, LASER + 14
+    out dx, al
 .done:
     ret
 
@@ -696,16 +760,12 @@ clamp16:
     mov ax, -32767
     ret
 
-; lead = AX metres * 1024 / muzzle speed (1/1024 s). Changes BX, CX, DX.
+; lead = AX metres * 1024 / muzzle (m/s; 1/1024 s). Changes BX, CX, DX.
 lead_time:
     mov cx, 1024
     mul cx
     mov bx, ax
-    push dx
-    mov dx, TURRET + 10
-    in ax, dx
-    mov cx, ax
-    pop dx
+    mov cx, [muzzle]
     mov ax, bx
     jcxz .no_gun
     cmp dx, cx                      ; would not fit in a word
@@ -1054,11 +1114,22 @@ draw_page:
     mov es, [w_seg]
     cmp byte [weapon], 0
     je .gun
+    cmp byte [weapon], WEAPON_LASER
+    je .laser
     jmp draw_missile_page
+.laser:
+    mov dx, LASER + 2               ; its status: bit 2 too hot, as the turret's
+    in al, dx
+    and al, 4
+    mov [turret_status], al
+    mov word [heat_port], LASER + 3
+    jmp .status
 .gun:
     mov dx, TURRET + 13
     in al, dx
     mov [turret_status], al
+    mov word [heat_port], TURRET + 14
+.status:
 
     mov di, (VALUE_COL << 8) | 2    ; the target
     call at
@@ -1093,16 +1164,23 @@ draw_page:
 .no_snr:
     call put_unsigned
 
-    mov di, (VALUE_COL << 8) | 6    ; the turret, degrees
+    mov ax, [turret_az]             ; the turret, degrees; for the laser,
+    mov bx, [turret_el]             ; the lead point off the nose
+    cmp byte [weapon], WEAPON_LASER
+    jne .angles
+    mov ax, [aim_az]
+    mov bx, [aim_el]
+.angles:
+    push bx
+    mov di, (VALUE_COL << 8) | 6
     call at
-    mov ax, [turret_az]
     mov cx, 360
     imul cx
     mov ax, dx
     call put_number
     mov di, (VALUE_COL << 8) | 7
     call at
-    mov ax, [turret_el]
+    pop ax
     mov cx, 360
     imul cx
     mov ax, dx
@@ -1276,7 +1354,7 @@ head_status:
 
 ; The barrel's heat as a bar, green, yellow from half way, red too hot
 put_heat:
-    mov dx, TURRET + 14
+    mov dx, [heat_port]
     in al, dx
     mov bh, ATTR_CONTACT
     cmp al, 128
@@ -1314,6 +1392,10 @@ put_status:
     test al, 4
     jz .not_hot
     mov si, s_too_hot
+    cmp byte [weapon], WEAPON_LASER
+    jne .hot
+    mov si, s_laser_hot
+.hot:
     mov ah, ATTR_WARN
     jmp .put
 .not_hot:
@@ -1411,6 +1493,9 @@ draw_labels:
     mov si, labels
     cmp byte [weapon], 0
     je .next
+    mov si, laser_labels
+    cmp byte [weapon], WEAPON_LASER
+    je .next
     mov si, m_labels
     cmp byte [weapon], 2
     jne .next
@@ -1420,8 +1505,13 @@ draw_labels:
     cmp ax, 0FFFFh
     je .done
     cmp ax, 0FFFEh
-    jne .label
+    jne .gun_rest
     mov si, m_body
+    jmp .next
+.gun_rest:
+    cmp ax, 0FFFDh
+    jne .label
+    mov si, gun_body
     jmp .next
 .label:
     mov di, ax
@@ -1439,9 +1529,14 @@ draw_labels:
     ret
 
 ; column << 8 | row, attribute, text
+laser_labels:
+    dw 0
+    db ATTR_TITLE, ' FIRECTL  LSR ', 0
+    dw 0FFFDh                       ; the rest as the gun page
 labels:
     dw 0
     db ATTR_TITLE, ' FIRECTL  GUN ', 0
+gun_body:
     dw 2
     db ATTR_LABEL, 'TGT', 0
     dw 3
@@ -1512,6 +1607,7 @@ s_no_target     db 'NO TARGET  ', 0
 s_tracking      db 'TRACKING   ', 0
 s_firing        db 'FIRING     ', 0
 s_too_hot       db 'GUN TOO HOT', 0
+s_laser_hot     db 'LSR TOO HOT', 0
 s_out_of_arc    db 'OUT OF ARC ', 0
 s_msl_ready     db 'MSL READY  ', 0
 s_launch        db 'LAUNCH     ', 0
@@ -1534,8 +1630,10 @@ firing          db 0
 rounds_left     db 0
 screen_wait     db 1
 turret_status   db 0
-weapon          db 0                ; 0 the cannon, 1 radar missiles, 2 heat seekers
+weapon          db 0                ; 0 the cannon, 1 radar missiles, 2 heat seekers, 3 the laser
 has_launcher    db 0
+has_laser       db 0
+has_turret      db 0
 head_on         db 0                ; the heat seeker's head powered
 last_result     db 0
 launch_wait     dw 0
@@ -1578,6 +1676,8 @@ turret_el       dw 0
 aim_az          dw 0
 aim_el          dw 0
 lead            dw 0
+muzzle          dw 0                ; m/s: the speed of what the solution is for
+heat_port       dw TURRET + 14      ; the page's heat bar
 range           dw 0
 t_start         dw 0
 busy            dw 0, 0
@@ -1624,9 +1724,6 @@ install:
     mov dx, RADAR
     mov bl, TYPE_RADAR
     call check_device
-    mov dx, TURRET
-    mov bl, TYPE_TURRET
-    call check_device
     mov dx, DISPLAYS
     mov bl, TYPE_DISPLAYS
     call check_device
@@ -1636,6 +1733,24 @@ install:
     jne .no_launcher
     mov byte [has_launcher], 1
 .no_launcher:
+    mov dx, LASER                   ; and a pulse laser
+    in al, dx
+    cmp al, TYPE_LASER
+    jne .no_laser
+    mov byte [has_laser], 1
+.no_laser:
+    mov dx, TURRET                  ; the turret, or else the laser
+    in al, dx
+    cmp al, TYPE_TURRET
+    jne .no_turret
+    mov byte [has_turret], 1
+    jmp .armed
+.no_turret:
+    mov dx, LASER
+    mov bl, TYPE_LASER
+    call check_device
+    mov byte [weapon], WEAPON_LASER
+.armed:
 
     mov dx, RADAR + 10              ; the radar's picture
     in ax, dx

@@ -11,7 +11,8 @@ namespace Xpace.Ship;
 /// with the stick, the throttle and the buttons, and the ship's computer
 /// does the rest (FLIGHT's assist, FIRECTL's lock, aim and lead, RWR.COM's
 /// dispenser). It knows only what its ship tells it: a miss is the radar's
-/// noise, the filter's lag, the turret's servos, the target's turn.
+/// noise, the filter's lag, the turret's servos, its own hands on a fixed
+/// laser, the target's turn.
 ///
 /// Its friends are the ships on its <see cref="Datalink"/>'s channel: the
 /// link says where they are. Anything else its radar sees is not known to
@@ -24,9 +25,13 @@ namespace Xpace.Ship;
 ///                the nose, presses target-ahead; if the lock falls on a
 ///                friend it presses next-target;
 ///   attacking    on the radar's track: it rolls the target overhead and
-///                pulls, holds the trigger in gun range near the nose, and
-///                now and then selects a radar missile, lets one go and
-///                goes back to the gun;
+///                pulls, holds the trigger in gun range near the nose (with
+///                a laser fixed along the nose, it points the nose at the
+///                lead point its computer works out, and fires once that is
+///                within <see cref="LaserCone"/>), and now and then lets a
+///                missile go: a radar missile far out, a heat seeker nearer
+///                (it selects it, wakes its head, gives it a moment to find
+///                the heat and fires), then goes back round to its gun;
 ///   searching    the lock lost, it flies to where the target was last
 ///                seen for <see cref="SearchSeconds"/>, then patrols again.
 ///
@@ -53,7 +58,9 @@ public partial class FighterAi : Node
     [Export] public float LockCone = 12f;               // degrees off the nose it presses target-ahead within
     [Export] public float LockRange = 7000f;
     [Export] public bool UsesMissiles = true;
-    [Export] public float MissileMinRange = 1200f, MissileMaxRange = 4000f;
+    [Export] public float MissileMinRange = 2500f, MissileMaxRange = 4500f;     // a radar missile
+    [Export] public float HeatSeekerMinRange = 800f, HeatSeekerMaxRange = 2500f;
+    [Export] public float LaserCone = 1.5f;             // degrees off the lead point a fixed laser fires within
     [Export] public double MissileInterval = 15;
     [Export] public float CloseRange = 500f;            // nearer than this it eases off
     [Export] public double BreakSeconds = 4;
@@ -75,6 +82,7 @@ public partial class FighterAi : Node
     private RadarDevice _radar;
     private RwrDevice _rwr;
     private LauncherDevice _launcher;
+    private LaserDevice _laser;
     private Datalink _link;
     private PilotControls _controls;
     private readonly Dictionary<string, int> _held = new(), _rest = new();
@@ -101,6 +109,7 @@ public partial class FighterAi : Node
             _radar ??= n as RadarDevice;
             _rwr ??= n as RwrDevice;
             _launcher ??= n as LauncherDevice;
+            _laser ??= n as LaserDevice;
             _link ??= n as Datalink;
         }
         _anchor = _ship.GlobalPosition;
@@ -210,21 +219,43 @@ public partial class FighterAi : Node
         Vector3 velocity = TrackVelocity(at, dt);
         Vector3 to = at - _ship.GlobalPosition;
         float range = to.Length();
-        Vector3 lead = to + (velocity - _ship.LinearVelocity) * (range / 1200f);
-        Vector3 local = _ship.GlobalBasis.Inverse() * lead;
+        // A fixed laser: the computer's lead point on the nose. A turret aims itself: the nose only near the target's way
+        Vector3 local;
+        float cone = GunCone;
+        if (_laser?.LeadPoint is Vector3 leadPoint)
+        {
+            local = _ship.GlobalBasis.Inverse() * (leadPoint - _laser.GlobalPosition);
+            cone = LaserCone;
+        }
+        else
+        {
+            float speed = _laser?.BoltSpeed ?? 1200f;
+            local = _ship.GlobalBasis.Inverse() * (to + (velocity - _ship.LinearVelocity) * (range / speed));
+        }
         float off = Mathf.RadToDeg(Vector3.Forward.AngleTo(local));
         Steer(ref c, local);
         c.Throttle = range > 2000 ? 1 : range < CloseRange ? 0.25f : 0.7f;
-        c.Trigger = range < GunRange && off < GunCone && _plan.Count == 0;
-        if (UsesMissiles && _plan.Count == 0 && _sinceMissile > MissileInterval && off < 10 &&
-            range > MissileMinRange && range < MissileMaxRange && (_launcher?.MissilesLeft ?? 0) > 0)
+        c.Trigger = range < GunRange && off < cone && _plan.Count == 0;
+        if (!UsesMissiles || _plan.Count > 0 || _sinceMissile < MissileInterval || off > 10 || _launcher == null)
+            return;
+        // Round the weapons from the gun (the cannon or the laser): radar missile, heat seeker, gun
+        if (range > MissileMinRange && range < MissileMaxRange && _launcher.MissilesLeft > 0)
         {
-            // The radar missile: select it, let one go, back round to the gun (gun, missile, heat seeker, gun)
             _sinceMissile = 0;
             Doing = "firing a missile";
             _plan.Enqueue(("weapon", 8));
             _plan.Enqueue(("fire", 8));
             _plan.Enqueue(("weapon", 8));
+            _plan.Enqueue(("weapon", 8));
+        }
+        else if (range > HeatSeekerMinRange && range < HeatSeekerMaxRange && _launcher.HeatSeekersLeft > 0)
+        {
+            _sinceMissile = 0;
+            Doing = "firing a heat seeker";
+            _plan.Enqueue(("weapon", 8));
+            _plan.Enqueue(("weapon", 8));
+            _plan.Enqueue(("fire", 50));                // its head wakes: a moment to find the heat
+            _plan.Enqueue(("fire", 8));
             _plan.Enqueue(("weapon", 8));
         }
     }

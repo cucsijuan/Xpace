@@ -6,7 +6,8 @@ namespace Xpace.Space;
 
 /// <summary>
 /// Every round in flight: moved each physics step, checked for hits with a
-/// ray along the step, drawn as tracers in one MultiMesh.
+/// ray along the step, drawn as streaks, a MultiMesh for each kind of round
+/// (<see cref="Looks"/>: 0 the cannon's tracers, 1 laser pulses).
 ///
 /// In a network session the host judges the rounds: they are fired through
 /// the session (<see cref="SessionNode"/>), fly here only for show, and go
@@ -16,9 +17,8 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
 {
     [Export] public int MaxRounds = 512;
     [Export] public float Life = 4f;
-    [Export] public float TracerLength = 40f;
-    /// <summary>Tracer width per metre of distance from the camera: about the same few pixels near or far.</summary>
-    [Export] public float WidthPerMetre = 0.0025f;
+    /// <summary>How each kind of round looks, by kind; a kind with none looks like the first.</summary>
+    [Export] public Godot.Collections.Array<RoundLook> Looks = new();
 
     public static Projectiles Instance { get; private set; }
 
@@ -27,12 +27,15 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
         public Vector3 Position, Velocity;
         public float Damage, Age;
         public bool Harmless;               // for show: the session's host judges it
+        public byte Kind;
         public byte Shooter;
         public ushort Sequence;
         public Godot.Collections.Array<Rid> Own;    // the shooter's own areas: a round never hits its own ship
     }
 
     private readonly List<Round> _rounds = new();
+    private readonly List<MultiMeshInstance3D> _drawers = new();
+    private readonly List<int> _counts = new();
 
     public int Flying => _rounds.Count;
 
@@ -40,27 +43,40 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
     {
         Instance = this;
         TopLevel = true;
-        Multimesh = new MultiMesh
+        if (Looks.Count == 0)
+            Looks.Add(new RoundLook());
+        for (int kind = 0; kind < Looks.Count; kind++)
         {
-            TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
-            Mesh = new BoxMesh
+            MultiMeshInstance3D drawer = kind == 0 ? this : new MultiMeshInstance3D { Name = $"Kind{kind}", TopLevel = true };
+            RoundLook look = Looks[kind] ?? Looks[0];
+            drawer.Multimesh = new MultiMesh
             {
-                Size = new Vector3(1f, 1f, 1f),
-                Material = new StandardMaterial3D
+                TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
+                Mesh = new BoxMesh
                 {
-                    ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-                    AlbedoColor = new Color(1f, 0.75f, 0.35f),
-                    EmissionEnabled = true,
-                    Emission = new Color(1f, 0.6f, 0.2f),
-                    EmissionEnergyMultiplier = 3f,
+                    Size = new Vector3(1f, 1f, 1f),
+                    Material = new StandardMaterial3D
+                    {
+                        ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                        AlbedoColor = look.Colour,
+                        EmissionEnabled = true,
+                        Emission = look.Glow,
+                        EmissionEnergyMultiplier = look.GlowEnergy,
+                    },
                 },
-            },
-            InstanceCount = MaxRounds,
-            VisibleInstanceCount = 0,
-        };
-        CastShadow = ShadowCastingSetting.Off;
-        CustomAabb = new Aabb(-Vector3.One * 50_000, Vector3.One * 100_000);    // rounds go anywhere: never cull
+                InstanceCount = MaxRounds,
+                VisibleInstanceCount = 0,
+            };
+            drawer.CastShadow = ShadowCastingSetting.Off;
+            drawer.CustomAabb = new Aabb(-Vector3.One * 50_000, Vector3.One * 100_000);    // rounds go anywhere: never cull
+            if (drawer != this)
+                AddChild(drawer);
+            _drawers.Add(drawer);
+            _counts.Add(0);
+        }
     }
+
+    private RoundLook Look(byte kind) => kind < Looks.Count && Looks[kind] != null ? Looks[kind] : Looks[0];
 
     public override void _ExitTree()
     {
@@ -78,22 +94,22 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
         }
     }
 
-    /// <summary>A round leaves a muzzle of <paramref name="shooter"/> (in a session, it is never hit by its own round).</summary>
-    public void Fire(Vector3 origin, Vector3 velocity, float damage, Node shooter = null)
+    /// <summary>A round of a <paramref name="kind"/> leaves a muzzle of <paramref name="shooter"/> (it is never hit by its own round).</summary>
+    public void Fire(Vector3 origin, Vector3 velocity, float damage, Node shooter = null, byte kind = 0)
     {
         if (SessionNode.Instance is SessionNode session && session.Active)
-            session.Fire(origin, velocity, damage, shooter);
+            session.Fire(origin, velocity, damage, shooter, kind);
         else if (_rounds.Count < MaxRounds)
-            _rounds.Add(new Round { Position = origin, Velocity = velocity, Damage = damage, Own = Areas(shooter) });
+            _rounds.Add(new Round { Position = origin, Velocity = velocity, Damage = damage, Kind = kind, Own = Areas(shooter) });
     }
 
     /// <summary>A round that only flies for show, named by its shooter and sequence.</summary>
-    public void Show(Vector3 position, Vector3 velocity, float age, byte shooter, ushort sequence)
+    public void Show(Vector3 position, Vector3 velocity, float age, byte shooter, ushort sequence, byte kind = 0)
     {
         if (_rounds.Count < MaxRounds && age < Life)
             _rounds.Add(new Round
             {
-                Position = position, Velocity = velocity, Age = age, Harmless = true, Shooter = shooter, Sequence = sequence,
+                Position = position, Velocity = velocity, Age = age, Harmless = true, Kind = kind, Shooter = shooter, Sequence = sequence,
             });
     }
 
@@ -165,17 +181,20 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
 
     public override void _Process(double delta)
     {
-        MultiMesh mm = Multimesh;
-        mm.VisibleInstanceCount = _rounds.Count;
         Vector3 eye = GetViewport().GetCamera3D()?.GlobalPosition ?? Vector3.Zero;
-        for (int i = 0; i < _rounds.Count; i++)
+        for (int k = 0; k < _counts.Count; k++)
+            _counts[k] = 0;
+        foreach (Round r in _rounds)
         {
-            Round r = _rounds[i];
+            int k = r.Kind < _drawers.Count ? r.Kind : 0;
+            RoundLook look = Look(r.Kind);
             Vector3 dir = r.Velocity.Normalized();
-            float width = Mathf.Max(0.15f, r.Position.DistanceTo(eye) * WidthPerMetre);
+            float width = Mathf.Max(look.MinWidth, r.Position.DistanceTo(eye) * look.WidthPerMetre);
             Basis basis = Basis.LookingAt(dir, Mathf.Abs(dir.Y) > 0.99f ? Vector3.Right : Vector3.Up)
-                * Basis.FromScale(new Vector3(width, width, TracerLength));
-            mm.SetInstanceTransform(i, new Transform3D(basis, r.Position - dir * TracerLength / 2));
+                * Basis.FromScale(new Vector3(width, width, look.Length));
+            _drawers[k].Multimesh.SetInstanceTransform(_counts[k]++, new Transform3D(basis, r.Position - dir * look.Length / 2));
         }
+        for (int k = 0; k < _drawers.Count; k++)
+            _drawers[k].Multimesh.VisibleInstanceCount = _counts[k];
     }
 }

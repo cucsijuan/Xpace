@@ -121,6 +121,9 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     private IRadarTarget _lost;
     private double _lostFor;
     private Node3D _trackOrigin;
+
+    /// <summary>What the track's positions are measured from (ship axes).</summary>
+    public Node3D TrackOrigin => _trackOrigin ?? this;
     private Vector3 _gate, _gateVelocity, _centroid;   // the tracker's gate and its velocity, the echoes' middle (world)
     private double _sinceSweep = double.MaxValue;
     private byte _sweeps;

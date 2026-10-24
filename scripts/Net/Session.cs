@@ -227,12 +227,12 @@ public sealed class Session
     /// event as it was sent, quantised: fly that one, so this machine's
     /// round is the host's.
     /// </summary>
-    public FireEvent Fire(uint now, ushort ship, SectorPoint origin, Vector3 velocity, float damage)
+    public FireEvent Fire(uint now, ushort ship, SectorPoint origin, Vector3 velocity, float damage, byte kind = 0)
     {
         var fired = new FireEvent
         {
             Shooter = LocalPeer, Ship = ship, Sequence = _sequence++, Tick = now,
-            Origin = origin, Velocity = velocity, Damage = damage, Views = Views(now),
+            Origin = origin, Velocity = velocity, Damage = damage, Kind = kind, Views = Views(now),
         };
         byte[] bytes = fired.ToBytes();
         FireEvent sent = FireEvent.Read(new BitReader(bytes));

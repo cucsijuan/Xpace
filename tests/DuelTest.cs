@@ -14,8 +14,9 @@ namespace Xpace.Tests;
 ///
 ///   - a friend (on its datalink) and a stranger ahead: it finds the
 ///     stranger on its radar, locks it (moving the lock off the friend if
-///     it falls there), hits it with the gun and lets a radar missile go;
-///     the friend is never shot;
+///     it falls there), hits it with its laser (fixed along the nose: it
+///     puts its computer's lead point on the nose) and lets its radar
+///     missile and a heat seeker go; the friend is never shot;
 ///   - with nothing on its radar it searches where the stranger was, then
 ///     patrols round where it started;
 ///   - a heat seeker flying past it, for someone else: it carries on; one
@@ -55,6 +56,7 @@ public partial class DuelTest : Node
         var pilot = ai.GetNode<FighterAi>("Pilot");
         var radar = ai.GetNode<RadarDevice>("Radar");
         var launcher = ai.GetNode<LauncherDevice>("Launcher");
+        var laser = ai.GetNode<LaserDevice>("Laser");
         var dispenser = ai.GetNode<DispenserDevice>("Dispenser");
         var hull = ai.GetNode<ShipHull>("Hull");
 
@@ -64,7 +66,9 @@ public partial class DuelTest : Node
         // The attack: it has to find the stranger itself, and leave the friend alone
         bool lockedFriend = false, lockedStranger = false;
         float closest = float.MaxValue;
-        for (int i = 0; i < 90 * 60 && (stranger.Hits < 10 || launcher.Launched == 0); i++)
+        Check("it has a laser and no turret, one radar missile and two heat seekers",
+              ai.GetNodeOrNull<TurretDevice>("Turret") == null && launcher.MissilesLeft == 1 && launcher.HeatSeekersLeft == 2);
+        for (int i = 0; i < 120 * 60 && (stranger.Hits < 10 || launcher.MissilesLeft > 0 || launcher.HeatSeekersLeft == 2); i++)
         {
             await Frames(1);
             lockedFriend |= radar.Locked == friend;
@@ -72,7 +76,9 @@ public partial class DuelTest : Node
             closest = Math.Min(closest, ai.GlobalPosition.DistanceTo(stranger.GlobalPosition));
         }
         Check($"it finds the stranger with its own radar and locks it ({lockedStranger}, closing to {closest:0} m)", lockedStranger && closest < 1500);
-        Check($"its gun hits it ({stranger.Hits} hits) and it lets a radar missile go ({launcher.Launched})", stranger.Hits >= 10 && launcher.Launched >= 1);
+        Check($"its laser hits it ({stranger.Hits} hits, {laser.PulsesFired} pulses)", stranger.Hits >= 10);
+        Check($"it lets its radar missile and a heat seeker go ({1 - launcher.MissilesLeft} and {2 - launcher.HeatSeekersLeft})",
+              launcher.MissilesLeft == 0 && launcher.HeatSeekersLeft < 2);
         Check($"the friend on its datalink is never shot ({friend.Hits} hits{(lockedFriend ? "; the lock fell on it and was moved off" : "")})",
               friend.Hits == 0);
 

@@ -41,6 +41,11 @@
 [ext_resource type="PackedScene" path="res://scenes/ships/ai_fighter.tscn" id="41_ai_fighter"]
 [ext_resource type="Script" path="res://scripts/Space/Datalink.cs" id="42_datalink"]
 [ext_resource type="Material" path="res://assets/materials/synty_skybox_04.tres" id="43_skybox"]
+[ext_resource type="Script" path="res://scripts/Ship/LaserDevice.cs" id="44_laser"]
+[ext_resource type="Script" path="res://scripts/Cockpit/LeadSight.cs" id="45_sight"]
+[ext_resource type="Resource" path="res://assets/weapons/round_cannon.tres" id="46_cannon_look"]
+[ext_resource type="Resource" path="res://assets/weapons/round_laser.tres" id="47_laser_look"]
+[ext_resource type="Script" path="res://scripts/Space/RoundLook.cs" id="48_look"]
 
 [sub_resource type="Sky" id="Sky_space"]
 sky_material = ExtResource("43_skybox")
@@ -94,6 +99,7 @@ script = ExtResource("10_station")
 
 [node name="Projectiles" type="MultiMeshInstance3D" parent="." unique_id=1887929994]
 script = ExtResource("15_rounds")
+Looks = Array[ExtResource("48_look")]([ExtResource("46_cannon_look"), ExtResource("47_laser_look")])
 
 [node name="Drone1" type="Node3D" parent="." unique_id=1201583421]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -400, 80, -2200)
@@ -126,23 +132,6 @@ script = ExtResource("42_datalink")
 Channel = "raiders"
 
 [node name="Radar" type="Node3D" parent="Drone2" unique_id=1396506718]
-script = ExtResource("29_emitter")
-
-[node name="Drone3" type="Node3D" parent="." unique_id=912209569]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 200, 300, -3600)
-script = ExtResource("16_drone")
-Speed = 140.0
-Attacks = true
-MissileScene = ExtResource("24_ir_missile")
-
-[node name="NetBody" type="Node" parent="Drone3"]
-script = ExtResource("32_netbody")
-
-[node name="Datalink" type="Node" parent="Drone3"]
-script = ExtResource("42_datalink")
-Channel = "raiders"
-
-[node name="Radar" type="Node3D" parent="Drone3" unique_id=1495459481]
 script = ExtResource("29_emitter")
 
 [node name="Ship" type="AnimatableBody3D" parent="." unique_id=2058915107]
@@ -186,6 +175,16 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.2, -3)
 script = ExtResource("22_launcher")
 MissileScene = ExtResource("23_missile")
 HeatSeekerScene = ExtResource("24_ir_missile")
+
+[node name="Laser" type="Node3D" parent="Ship"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, -5.5)
+script = ExtResource("44_laser")
+
+[node name="Left" type="Marker3D" parent="Ship/Laser"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 0)
+
+[node name="Right" type="Marker3D" parent="Ship/Laser"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
 
 [node name="Dispenser" type="Node3D" parent="Ship"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 4)
@@ -240,6 +239,17 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("17_bracket")
 RadarPath = NodePath("../../../Radar")
+
+[node name="LeadSight" type="Control" parent="Ship/Pilot/Hud"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("45_sight")
+LaserPath = NodePath("../../../Laser")
 
 [node name="MouseWidget" type="Control" parent="Ship/Pilot/Hud" unique_id=567139452]
 layout_mode = 3

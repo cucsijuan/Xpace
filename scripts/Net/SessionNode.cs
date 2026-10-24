@@ -133,10 +133,10 @@ public partial class SessionNode : Node
     }
 
     /// <summary>A round leaves a muzzle of <paramref name="shooter"/> here (scene position and velocity).</summary>
-    public void Fire(Vector3 origin, Vector3 velocity, float damage, Node shooter = null)
+    public void Fire(Vector3 origin, Vector3 velocity, float damage, Node shooter = null, byte kind = 0)
     {
         ushort ship = IdOf(shooter) ?? NetIds.PlayerShip(Session.LocalPeer);
-        Show(Session.Fire(Now, ship, Sector(origin), velocity, damage));
+        Show(Session.Fire(Now, ship, Sector(origin), velocity, damage, kind));
     }
 
     /// <summary>The warhead of a missile flown here went off (scene position, and when in the tick).</summary>
@@ -252,7 +252,7 @@ public partial class SessionNode : Node
     {
         uint now = SectorClock.Instance?.Tick ?? e.Tick;
         float age = (now - e.Tick) * Session.TickSeconds;
-        Projectiles.Instance?.Show(Scene(e.At(now - e.Tick, Session.TickSeconds)), e.Velocity, age, e.Shooter, e.Sequence);
+        Projectiles.Instance?.Show(Scene(e.At(now - e.Tick, Session.TickSeconds)), e.Velocity, age, e.Shooter, e.Sequence, e.Kind);
     }
 
     private void Confirmed(HitEvent hit) => Projectiles.Instance?.Remove(hit.Shooter, hit.Sequence);

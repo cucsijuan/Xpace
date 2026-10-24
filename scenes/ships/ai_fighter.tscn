@@ -13,7 +13,7 @@
 [ext_resource type="Resource" path="res://assets/ship/displays/radar.tres" id="11_radar_screen"]
 [ext_resource type="Resource" path="res://assets/ship/displays/weapon.tres" id="12_weapon_screen"]
 [ext_resource type="Resource" path="res://assets/ship/displays/rwr.tres" id="13_rwr_screen"]
-[ext_resource type="Script" path="res://scripts/Ship/TurretDevice.cs" id="14_turret"]
+[ext_resource type="Script" path="res://scripts/Ship/LaserDevice.cs" id="14_laser"]
 [ext_resource type="Script" path="res://scripts/Ship/RadarDevice.cs" id="15_radar"]
 [ext_resource type="Script" path="res://scripts/Space/RadarEmitter.cs" id="16_emitter"]
 [ext_resource type="Script" path="res://scripts/Ship/LauncherDevice.cs" id="17_launcher"]
@@ -57,14 +57,20 @@ script = ExtResource("8_computer")
 script = ExtResource("9_display")
 Screens = Array[ExtResource("10_screen")]([ExtResource("11_radar_screen"), ExtResource("12_weapon_screen"), ExtResource("13_rwr_screen")])
 
-[node name="Turret" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.4, -5)
-script = ExtResource("14_turret")
+[node name="Laser" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, -5.5)
+script = ExtResource("14_laser")
+
+[node name="Left" type="Marker3D" parent="Laser"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 0)
+
+[node name="Right" type="Marker3D" parent="Laser"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
 
 [node name="Radar" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, -5.8)
 script = ExtResource("15_radar")
-TrackOriginPath = NodePath("../Turret")
+TrackOriginPath = NodePath("../Laser")
 EmitterPath = NodePath("Emitter")
 
 [node name="Emitter" type="Node3D" parent="Radar"]
@@ -76,7 +82,9 @@ PowerAt1Km = 40000.0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.6, -2)
 script = ExtResource("17_launcher")
 MissileScene = ExtResource("18_missile")
+Missiles = 1
 HeatSeekerScene = ExtResource("19_ir_missile")
+HeatSeekers = 2
 
 [node name="Dispenser" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 4)

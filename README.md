@@ -50,7 +50,7 @@ Elite Dangerous's keyboard and mouse controls. The middle mouse button switches 
 | Flight assist | Z |
 | Lock the target ahead (again: let it go) / the next one | T / G |
 | Fire | Left button, while flying |
-| Next weapon (gun, radar missiles, heat seekers) | N |
+| Next weapon (gun, radar missiles, heat seekers, pulse laser) | N |
 | Chaff / flare | C / V |
 | Look around | Mouse, while looking |
 | Zoom in (to read the cockpit's screens) | Hold the right button |
@@ -74,11 +74,12 @@ Every physics step (60 a second), `ShipBody` writes the stick, the inertial unit
 | 6 | `160h` | Missile launcher with the radar missiles' datalink, and heat seekers with a head on the rail |
 | 7 | `170h` | Radar warning receiver: the radars lighting the ship, and the plumes of missiles coming |
 | 8 | `180h` | Countermeasures dispenser: chaff and flares, a limited load of each |
+| 9 | `190h` | Pulse laser fixed along the nose (2,000 m/s bolts, heat), with the gunsight's lead point the program writes for the head-up display |
 
 AUTOEXEC.BAT leaves three programs resident; they work inside the interrupt, so the console stays free:
 
 - **FLIGHT.COM** (5% of the CPU): flight assist; its page goes on a FLIGHT screen, if the cockpit has one.
-- **FIRECTL.COM** (34% of the CPU): locks targets with T/G, smooths the radar's noisy positions with an alpha-beta filter and gets the velocity from them (turning the filter with the gyros, so the ship's own rotation is not taken for target motion), computes the lead (CORDIC for angles and distances), aims the turret and fires while the trigger is held; draws a green B-scope on the RADAR screen (bearing across, range up, 2 km marks, the locked target in brackets) and a page on the WEAPON screen: target, range, lead, SNR, turret angles, barrel heat bar and status (GUN TOO HOT, OUT OF ARC when the target is where the turret cannot point).
+- **FIRECTL.COM** (34% of the CPU): locks targets with T/G, smooths the radar's noisy positions with an alpha-beta filter and gets the velocity from them (turning the filter with the gyros, so the ship's own rotation is not taken for target motion), computes the lead (CORDIC for angles and distances), aims the turret and fires while the trigger is held; draws a green B-scope on the RADAR screen (bearing across, range up, 2 km marks, the locked target in brackets) and a page on the WEAPON screen: target, range, lead, SNR, turret angles, barrel heat bar and status (GUN TOO HOT, OUT OF ARC when the target is where the turret cannot point). With the pulse laser selected it fires the laser while the trigger is held, and works out the same solution for the laser's bolts: the lead point goes to the laser's sight and the head-up display draws a circle there, with a pipper where the pulses go at that range; put the pipper on the circle.
 
 - **RWR.COM**: draws the warning receiver's picture on the RWR screen, and works the dispenser: one bundle of chaff or one flare on each press of C or V, with what is left in the bottom right corner (C chaff, F flares).
 
@@ -124,8 +125,9 @@ godot --headless --fixed-fps 60 --path . res://tests/maneuver_test.tscn
 - `accuracy_test`: hit probability by range against a drone jinking at 2 g (four runs per range), and a jammer on the drone: no lock at 4 km, burn-through at 1.5 km. It currently gives about 33% at 500 m, 10% at 1 km, 2% at 2 km and 0% from 4 km (46% against a straight target at 2 km): an evading drone dies inside 1 km, one flying straight even at 2 km.
 
 - `hull_test`: rounds and a blast wear the hull away (its own rounds do not), the wreck drifts with nothing on the sensors, and the insurer's new ship comes back full.
-- `duel_test`: the game's fighter, with its own computer, locks a drone, hits it with the gun and fires a radar missile; breaks and throws flares against a heat seeker; and comes back after it is blown up.
+- `duel_test`: the game's fighter, with its own computer, locks a drone, hits it with its laser (pointing the nose at its computer's lead point) and fires its radar missile and a heat seeker; breaks and throws flares against a heat seeker; and comes back after it is blown up.
 - `raider_hunt_test`: in a session, the host's fighter and a drone find a guest's ship with their radars (never each other), the fighter's rounds hit it, judged by the host, and its missile is made on the guest's machine.
+- `laser_test`: next weapon selects the pulse laser; locked, the lead point FIRECTL writes is within a few mrad of where a pulse meets the drone; fired on the lead circle the pulses hit a crossing drone, fired on the drone itself they pass behind it; held down it overheats.
 - `maneuver_test`: firing while the ship turns (it keeps firing and hitting), the lock coming back after the target leaves the cone, and the floating origin moving the world back 40 km in the middle of a fight.
 
 - `missile_test`, `rwr_test`: radar and heat-seeking missiles against drones that break and drop chaff and flares; the warning receiver, its screen, and the dispenser worked by RWR.COM.

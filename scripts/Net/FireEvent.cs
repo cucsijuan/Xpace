@@ -16,7 +16,8 @@ namespace Xpace.Net;
 /// (lag compensation, see <see cref="LagCompensator"/>).
 ///
 ///   shooter 8, ship 16, sequence 16, tick 32, origin 3 x 32 (1/1024 m),
-///   velocity 3 x 17 (±4,096 m/s), damage 16 (1/100), views 4 bits count,
+///   velocity 3 x 17 (±4,096 m/s), damage 16 (1/100), kind 4 (what was
+///   fired: 0 a cannon round, 1 a laser pulse), views 4 bits count,
 ///   then each: ship 16, delay 16 (1/256 tick, up to 4 s)
 /// </summary>
 public struct FireEvent
@@ -37,6 +38,7 @@ public struct FireEvent
     public SectorPoint Origin;
     public Vector3 Velocity;
     public float Damage;
+    public byte Kind;                       // how it looks: Projectiles' looks
     public List<View> Views;
 
     /// <summary>Where the round is <paramref name="ticks"/> after it was fired.</summary>
@@ -52,6 +54,7 @@ public struct FireEvent
         Events.WritePoint(w, Origin);
         Events.WriteVelocity(w, Velocity);
         w.Write((uint)Math.Clamp(Math.Round(Damage * 100), 0, 65535), 16);
+        w.Write((uint)(Kind & 15), 4);
         WriteViews(w, Views);
         return w.ToArray();
     }
@@ -88,6 +91,7 @@ public struct FireEvent
             Velocity = Events.ReadVelocity(r),
         };
         e.Damage = r.Read(16) / 100f;
+        e.Kind = (byte)r.Read(4);
         e.Views = ReadViews(r);
         return e;
     }

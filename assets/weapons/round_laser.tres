@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="RoundLook" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/RoundLook.cs" id="1_look"]
+
+[resource]
+script = ExtResource("1_look")
+Colour = Color(1, 0.45, 0.4, 1)
+Glow = Color(1, 0.12, 0.08, 1)
+GlowEnergy = 6.0
+Length = 14.0
+MinWidth = 0.3
+WidthPerMetre = 0.004
