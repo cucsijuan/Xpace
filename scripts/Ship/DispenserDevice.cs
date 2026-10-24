@@ -16,7 +16,7 @@ namespace Xpace.Ship;
 /// +4 write: bit 0 throw a bundle of chaff, bit 1 a flare
 /// +5 how many it has thrown, counting up (the program sees a throw by it)
 /// </summary>
-public partial class DispenserDevice : Node3D, IShipDevice
+public partial class DispenserDevice : Node3D, IShipDevice, IRearmable
 {
     public const int Slot = 8;
     public const byte Type = 10;
@@ -69,13 +69,19 @@ public partial class DispenserDevice : Node3D, IShipDevice
         if (!bus.TakeWritten(Slot, 4))
             return;
         int asked = bus[Slot, 4];
-        if ((asked & 1) != 0 && ChaffLeft > 0 && _chaffWait <= 0)
+        Dispense(ship, (asked & 1) != 0, (asked & 2) != 0);
+    }
+
+    /// <summary>Throws a bundle of chaff and/or a flare, if there are some left and the chute is ready.</summary>
+    public void Dispense(ShipBody ship, bool chaff, bool flare)
+    {
+        if (chaff && ChaffLeft > 0 && _chaffWait <= 0)
         {
             ChaffLeft--;
             _chaffWait = CycleSeconds;
             Throw(ship, ChaffScene, ChaffKick);
         }
-        if ((asked & 2) != 0 && FlaresLeft > 0 && _flareWait <= 0)
+        if (flare && FlaresLeft > 0 && _flareWait <= 0)
         {
             FlaresLeft--;
             _flareWait = CycleSeconds;

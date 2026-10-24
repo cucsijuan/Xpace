@@ -40,20 +40,28 @@ namespace Xpace.Ship;
 ///
 /// Registers: +0 type 8  +1 version 3  +2 entries in the table  +3 updates
 /// so far  +4 flags (bit 0 something has us locked, bit 1 a new emitter in
-/// the last second, bit 2 a missile coming)  +5 audio (the program writes
+/// the last second, bit 2 a missile coming, bit 3 a radar guiding a
+/// missile at us: a launch)  +5 audio (the program writes
 /// it: bit 0 off)  +6 segment  +8 table offset.
 ///
 /// The table, up to 16 entries of 8 bytes: +0 id  +2 bearing (binary
 /// angle, 65536 to the turn, from the nose, right positive, in the ship's
 /// horizontal plane)  +4 range guessed (m)  +6 type (a letter)  +7 flags
-/// (bit 0 locked on us, bit 1 heard this step, bit 2 new, bit 3 a missile).
+/// (bit 0 locked on us, bit 1 heard this step, bit 2 new, bit 3 a missile,
+/// bit 4 guiding a missile at us).
+///
+/// A radar locked on the ship that also carries a datalink's words to a
+/// missile has a waveform of its own: the receiver calls it a launch, and
+/// it is the ship's own (a radar sits only on what it tracks). A heat
+/// seeker gives no such warning: only its plume, and whose it is for the
+/// receiver cannot tell.
 /// </summary>
 public partial class RwrDevice : Node3D, IShipDevice
 {
     public const int Slot = 7;
     public const byte Type = 8, Version = 3;
     public const int MaxEmitters = 16, EntrySize = 8;
-    public const byte FlagLocked = 1, FlagHeard = 2, FlagNew = 4, FlagMissile = 8;
+    public const byte FlagLocked = 1, FlagHeard = 2, FlagNew = 4, FlagMissile = 8, FlagLaunch = 16;
 
     /// <summary>The power switch (a cockpit switch can work it): off, it hears nothing.</summary>
     [Export] public bool Powered { get; set; } = true;
@@ -90,9 +98,11 @@ public partial class RwrDevice : Node3D, IShipDevice
         public float Bearing;           // radians, right positive
         public float Range;             // m, guessed
         public char Letter;
-        public double Heard, LockHeard = double.MaxValue, Age;
+        public double Heard, LockHeard = double.MaxValue, LaunchHeard = double.MaxValue, Age;
         public bool HeardNow, WasHeard;
         public bool Locked;
+        /// <summary>It is guiding a missile at us.</summary>
+        public bool Launch;
         /// <summary>Times the beam came onto the ship (each sweep past it, or the start of a lock).</summary>
         public int Pings;
         public bool IsMissile => Missile != null;
@@ -101,6 +111,8 @@ public partial class RwrDevice : Node3D, IShipDevice
     public IReadOnlyList<Contact> Contacts => _contacts;
     public bool LockWarning { get; private set; }
     public bool MissileWarning { get; private set; }
+    /// <summary>A radar is guiding a missile at this ship.</summary>
+    public bool LaunchWarning { get; private set; }
     /// <summary>The headset tones are on (the program switches them).</summary>
     public bool AudioOn { get; private set; } = true;
 
@@ -125,6 +137,7 @@ public partial class RwrDevice : Node3D, IShipDevice
         {
             c.Heard += delta;
             c.LockHeard += delta;
+            c.LaunchHeard += delta;
             c.Age += delta;
             c.WasHeard = c.HeardNow;
             c.HeardNow = false;
@@ -145,7 +158,7 @@ public partial class RwrDevice : Node3D, IShipDevice
                                  (c.IsMissile ? !IsInstanceValid(c.Missile) : c.Emitter is GodotObject o && !IsInstanceValid(o)));
 
         byte* table = ship.Computer.Memory + ShipMemory.Base + ShipMemory.Rwr;
-        bool locked = false, fresh = false, missile = false;
+        bool locked = false, fresh = false, missile = false, launch = false;
         int n = Math.Min(_contacts.Count, MaxEmitters);
         for (int i = 0; i < MaxEmitters; i++)
         {
@@ -158,6 +171,8 @@ public partial class RwrDevice : Node3D, IShipDevice
             }
             Contact c = _contacts[i];
             c.Locked = c.LockHeard <= LockHoldSeconds;
+            c.Launch = c.LaunchHeard <= LockHoldSeconds;
+            launch |= c.Launch;
             bool isNew = c.Age <= NewSeconds;
             locked |= c.Locked;
             fresh |= isNew && !c.IsMissile;
@@ -167,13 +182,14 @@ public partial class RwrDevice : Node3D, IShipDevice
             Put(entry, 4, (int)Math.Clamp(MathF.Round(c.Range), 0, 65535));
             entry[6] = (byte)c.Letter;
             entry[7] = (byte)((c.Locked ? FlagLocked : 0) | (c.HeardNow ? FlagHeard : 0) |
-                              (isNew ? FlagNew : 0) | (c.IsMissile ? FlagMissile : 0));
+                              (isNew ? FlagNew : 0) | (c.IsMissile ? FlagMissile : 0) | (c.Launch ? FlagLaunch : 0));
         }
         LockWarning = locked;
         MissileWarning = missile;
+        LaunchWarning = launch;
         bus[Slot, 2] = (byte)n;
         bus[Slot, 3] = ++_updates;
-        bus[Slot, 4] = (byte)((locked ? 1 : 0) | (fresh ? 2 : 0) | (missile ? 4 : 0));
+        bus[Slot, 4] = (byte)((locked ? 1 : 0) | (fresh ? 2 : 0) | (missile ? 4 : 0) | (launch ? 8 : 0));
     }
 
     public void AfterStep(ShipBody ship, double delta) { }
@@ -214,6 +230,8 @@ public partial class RwrDevice : Node3D, IShipDevice
         Heard(c, bearing, range, dt);
         if (e.Tracking)
             c.LockHeard = 0;
+        if (e.Tracking && e.Guiding)
+            c.LaunchHeard = 0;
     }
 
     /// <summary>The missile warner: a burning motor coming this way, in range.</summary>

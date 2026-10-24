@@ -23,6 +23,8 @@ public interface IRadarEmitter
     float PowerAt1Km { get; }
     /// <summary>It is tracking something: its pulses have the waveform of a lock.</summary>
     bool Tracking { get; }
+    /// <summary>Tracking, it also carries a datalink's words to a missile: a launch at what it tracks.</summary>
+    bool Guiding { get; }
     /// <summary>Pulses a second: what a warning receiver plays in the pilot's headset.</summary>
     float PrfHz { get; }
     /// <summary>Its main lobe crossed or sat on this point during the last step.</summary>
@@ -84,12 +86,14 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
 
     public RadarMode Mode => !Transmitting ? RadarMode.Off : Locked ? RadarMode.Track : RadarMode.Search;
     public Node Tracked => Locked ? Target : null;
+    public bool Guiding { get; private set; }
 
-    public void Follow(RadarMode mode, Node3D tracked)
+    public void Follow(RadarMode mode, Node3D tracked, bool guiding)
     {
         _puppet = true;
         _told = mode;
         Locked = mode == RadarMode.Track && tracked != null;
+        Guiding = Locked && guiding;
         if (Locked)
             Target = tracked;
     }
@@ -125,6 +129,8 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
         float half = Mathf.DegToRad(BeamwidthDegrees) / 2;
         if (Locked)
         {
+            if (Target == null || !IsInstanceValid(Target))
+                return false;                   // what it tracked is gone (chaff that blew away)
             Vector3 toTarget = GlobalBasis.Inverse() * (Target.GlobalPosition - GlobalPosition);
             return local.AngleTo(toTarget) <= half;
         }

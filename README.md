@@ -123,6 +123,8 @@ godot --headless --fixed-fps 60 --path . res://tests/maneuver_test.tscn
 - `combat_test`: FIRECTL.COM against drones: locks with T, measures the aiming error against the exact intercept, counts the hits of a burst at 2 km, destroys the drone, switches target with G and turns the radar off with `FIRECTL OFF`.
 - `accuracy_test`: hit probability by range against a drone jinking at 2 g (four runs per range), and a jammer on the drone: no lock at 4 km, burn-through at 1.5 km. It currently gives about 33% at 500 m, 10% at 1 km, 2% at 2 km and 0% from 4 km (46% against a straight target at 2 km): an evading drone dies inside 1 km, one flying straight even at 2 km.
 
+- `hull_test`: rounds and a blast wear the hull away (its own rounds do not), the wreck drifts with nothing on the sensors, and the insurer's new ship comes back full.
+- `duel_test`: the game's fighter, with its own computer, locks a drone, hits it with the gun and fires a radar missile; breaks and throws flares against a heat seeker; and comes back after it is blown up.
 - `maneuver_test`: firing while the ship turns (it keeps firing and hitting), the lock coming back after the target leaves the cone, and the floating origin moving the world back 40 km in the middle of a fight.
 
 - `missile_test`, `rwr_test`: radar and heat-seeking missiles against drones that break and drop chaff and flares; the warning receiver, its screen, and the dispenser worked by RWR.COM.

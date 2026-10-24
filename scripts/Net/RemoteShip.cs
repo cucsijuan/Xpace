@@ -62,7 +62,7 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
         AddToGroup("heat_sources");
         _radar = new RadarEmitter { Name = "Radar", Signature = RadarSignature, PowerAt1Km = RadarPowerAt1Km };
         AddChild(_radar);
-        _radar.Follow(RadarMode.Off, null);
+        _radar.Follow(RadarMode.Off, null, false);
         _plumes = FindChildren("*", "", true, false).OfType<EnginePlume>().ToArray();
     }
 
@@ -101,10 +101,12 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
         RemoteTrack.Pose p = Track.Sample();
         GlobalTransform = new Transform3D(new Basis(p.Orientation), (_origin?.Origin ?? default).To(p.Position));
         Velocity = p.Velocity;
-        Thrust = p.Thrust;
+        Thrust = p.Destroyed ? 0 : p.Thrust;
         foreach (EnginePlume plume in _plumes)
-            plume.Thrust = p.Thrust;
+            plume.Thrust = Thrust;
+        if (p.Destroyed && Visible)
+            Explosion.Spawn(GetParent(), GlobalPosition, 30f, 1.6, 16f);     // blown up on its owner's machine
         Visible = !p.Destroyed;
-        _radar.Follow(p.Radar, p.Radar == RadarMode.Track ? SessionNode.Instance?.NodeOf(p.RadarTarget) : null);
+        _radar.Follow(p.Radar, p.Radar == RadarMode.Track ? SessionNode.Instance?.NodeOf(p.RadarTarget) : null, p.RadarGuiding);
     }
 }

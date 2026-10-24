@@ -72,6 +72,9 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     /// <summary>Where the track is measured from: the turret's pivot.</summary>
     [Export] public NodePath TrackOriginPath;
 
+    /// <summary>What warning receivers hear of this radar (a <see cref="RadarEmitter"/>: it does what the radar does).</summary>
+    [Export] public NodePath EmitterPath;
+
     public const float ReferenceRcs = 10f;
 
     public IRadarTarget Locked { get; private set; }
@@ -87,11 +90,33 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     /// </summary>
     public int TrackNumber { get; private set; }
 
-    // What the others can tell of it in a session (the ship is a remote ship there, with its own emitter)
+    // What the others can tell of it: in a session, and to warning receivers through its emitter
     public RadarMode Mode => !On ? RadarMode.Off : Locked != null ? RadarMode.Track : RadarMode.Search;
     public Node Tracked => Locked as Node;
-    public void Follow(RadarMode mode, Node3D tracked) { }
 
+    /// <summary>The launcher's datalink is guiding a missile on this radar's track (the launcher says so every step).</summary>
+    public bool Guiding { get; set; }
+
+    /// <summary>A puppet (another machine's ship): its emitter does what the owner's radar does.</summary>
+    public void Follow(RadarMode mode, Node3D tracked, bool guiding) => _emitter?.Follow(mode, tracked, guiding);
+
+    /// <summary>Its emitter goes quiet (the ship is a wreck).</summary>
+    public void Silence() => _emitter?.Follow(RadarMode.Off, null, false);
+
+    private RadarEmitter _emitter;
+
+    /// <summary>An echo in the last sweep, where the radar put it (world): what the scope shows.</summary>
+    public struct Echo
+    {
+        public ushort Id;
+        public Vector3 Seen;
+        public float Snr;
+    }
+
+    /// <summary>The echoes of the last sweep (the contact table, as the program reads it).</summary>
+    public IReadOnlyList<Echo> Echoes => _echoes;
+
+    private readonly List<Echo> _echoes = new();
     private readonly List<IRadarTarget> _contacts = new();
     private IRadarTarget _lost;
     private double _lostFor;
@@ -105,6 +130,8 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     public override void _Ready()
     {
         _trackOrigin = TrackOriginPath == null || TrackOriginPath.IsEmpty ? this : GetNodeOrNull<Node3D>(TrackOriginPath) ?? this;
+        _emitter = EmitterPath == null || EmitterPath.IsEmpty ? null : GetNodeOrNull<RadarEmitter>(EmitterPath);
+        _emitter?.Follow(RadarMode.Off, null, false);
     }
 
     // ---------- the signal ----------
@@ -142,6 +169,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
 
     public unsafe void BeforeStep(ShipBody ship, double delta)
     {
+        _emitter?.Follow(Mode, Locked as Node3D, Locked != null && Guiding);
         ShipBus bus = ship.Computer.Bus;
         if (!_registersSet)
         {
@@ -172,6 +200,10 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
                 bus[Slot, 3] = (byte)_contacts.Count;
                 bus[Slot, 4] = ++_sweeps;
             }
+            if (Gone(Locked))
+                Locked = null;                      // freed (a ship gone from the sector, chaff blown away)
+            if (Gone(_lost))
+                _lost = null;
             if (Locked != null && !Follow(delta))
             {
                 _lost = Locked;                     // remember it for a while
@@ -215,7 +247,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
         if (id == 0 || !On)
             return;
         foreach (IRadarTarget t in _contacts)
-            if (t.RadarId == id && InCone(t) && Snr(t) >= LockSnr)
+            if (!Gone(t) && t.RadarId == id && InCone(t) && Snr(t) >= LockSnr)
                 Locked = t;
         if (Locked == null)
             return;
@@ -270,6 +302,8 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
         return true;
     }
 
+    private static bool Gone(IRadarTarget t) => t is GodotObject o && !IsInstanceValid(o);
+
     private bool InCone(IRadarTarget t)
     {
         Vector3 local = GlobalBasis.Inverse() * (t.GlobalPosition - GlobalPosition);
@@ -280,6 +314,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     private unsafe void Sweep(ShipBody ship, byte* table)
     {
         _contacts.Clear();
+        _echoes.Clear();
         foreach (Node node in GetTree().GetNodesInGroup("radar_targets"))
         {
             if (node is not IRadarTarget t || !InCone(t) || _contacts.Count >= MaxContacts)
@@ -290,6 +325,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
             Vector3 local = Measure(t.GlobalPosition, snr, GlobalPosition, GlobalBasis);
             byte* e = table + _contacts.Count * 16;
             _contacts.Add(t);
+            _echoes.Add(new Echo { Id = t.RadarId, Seen = GlobalPosition + GlobalBasis * local, Snr = snr });
             float az = Mathf.Atan2(local.X, -local.Z);
             float el = Mathf.Atan2(local.Y, new Vector2(local.X, local.Z).Length());
             Vector3 relative = t.Velocity - ship.LinearVelocity;

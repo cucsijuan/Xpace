@@ -13,9 +13,10 @@ namespace Xpace.Space;
 /// lights, it does not hide). The texture's streaks run along the flame,
 /// bright at the nozzle.
 ///
-/// Put the node at the nozzle with its +Z pointing aft. Whoever knows the
-/// push sets <see cref="Thrust"/> (a remote ship from its owner's
-/// snapshots): nothing burns with the engine idle, more flames and a longer
+/// Put the node at the nozzle with its +Z pointing aft. On a ship it reads
+/// the ship's main motor; otherwise whoever knows the push sets
+/// <see cref="Thrust"/> (a remote ship from its owner's snapshots):
+/// nothing burns with the engine idle, more flames and a longer
 /// one the harder it pushes. Without the flame model it falls back to a
 /// cone.
 /// </summary>
@@ -59,8 +60,19 @@ public partial class EnginePlume : Node3D
         AddChild(_light);
     }
 
+    private Ship.ShipBody _ship;
+    private bool _looked;
+
     public override void _Process(double delta)
     {
+        if (!_looked)
+        {
+            _looked = true;
+            for (Node n = GetParent(); n != null && _ship == null; n = n.GetParent())
+                _ship = n as Ship.ShipBody;
+        }
+        if (_ship != null)
+            Thrust = _ship.EngineThrust;
         float push = Math.Clamp(Thrust, 0, 1);
         bool burning = push >= MinThrust;
         if (_flames.Emitting != burning)

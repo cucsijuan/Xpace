@@ -9,9 +9,10 @@ namespace Xpace.Tools;
 /// Makes a ship's hitboxes from a collision mesh: the mesh is cut into its
 /// loose pieces (connected triangles; a model's collision mesh is usually a
 /// set of convex blocks), and every piece gets the smallest box, turned as
-/// the piece is, that holds it. The boxes are saved as a scene of
-/// CollisionShape3D nodes, in the model's frame, to put beside the model in
-/// a ship's scene (rounds and blasts hit them, see Net.Hitbox).
+/// the piece is, that holds it. The boxes are saved as a scene, a
+/// <see cref="Space.HitArea"/> of CollisionShape3D boxes in the model's
+/// frame, to put beside the model in a ship's scene (rounds and blasts hit
+/// them, see Net.Hitbox).
 ///
 ///   godot --headless --path . res://tools/hitboxes/hitbox_tool.tscn -- COLLISION.fbx OUT.tscn
 ///
@@ -72,7 +73,7 @@ public partial class HitboxTool : Node
         }
         model.Free();
 
-        var root = new Node3D { Name = "Hitboxes" };
+        var root = new Space.HitArea { Name = "Hitboxes", Monitoring = false, CollisionLayer = Space.Hitboxes.RoundLayer, CollisionMask = 0 };
         int count = 0;
         foreach (List<Vector3[]> piece in Pieces(triangles))
         {

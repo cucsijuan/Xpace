@@ -107,6 +107,7 @@ public partial class RwrTone : AudioStreamPlayer
                 missile = true;
                 continue;
             }
+            missile |= c.Launch;                    // a launch warbles as a plume does
             if (c.Locked)
                 locked ??= c;
             if (!_pings.TryGetValue(c, out int before))

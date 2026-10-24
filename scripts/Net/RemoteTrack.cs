@@ -35,6 +35,7 @@ public sealed class RemoteTrack
         public float Thrust;
         public RadarMode Radar;
         public ushort RadarTarget;
+        public bool RadarGuiding;
         public bool Extrapolated;
     }
 
@@ -137,6 +138,7 @@ public sealed class RemoteTrack
             Thrust = u < 0.5f ? a.Thrust : b.Thrust,
             Radar = u < 0.5f ? a.Radar : b.Radar,
             RadarTarget = u < 0.5f ? a.RadarTarget : b.RadarTarget,
+            RadarGuiding = u < 0.5f ? a.RadarGuiding : b.RadarGuiding,
         };
     }
 
@@ -162,5 +164,6 @@ public sealed class RemoteTrack
         Thrust = s.Thrust,
         Radar = s.Radar,
         RadarTarget = s.RadarTarget,
+        RadarGuiding = s.RadarGuiding,
     };
 }

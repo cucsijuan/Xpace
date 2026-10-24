@@ -29,6 +29,7 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
         public bool Harmless;               // for show: the session's host judges it
         public byte Shooter;
         public ushort Sequence;
+        public Godot.Collections.Array<Rid> Own;    // the shooter's own areas: a round never hits its own ship
     }
 
     private readonly List<Round> _rounds = new();
@@ -83,7 +84,7 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
         if (SessionNode.Instance is SessionNode session && session.Active)
             session.Fire(origin, velocity, damage, shooter);
         else if (_rounds.Count < MaxRounds)
-            _rounds.Add(new Round { Position = origin, Velocity = velocity, Damage = damage });
+            _rounds.Add(new Round { Position = origin, Velocity = velocity, Damage = damage, Own = Areas(shooter) });
     }
 
     /// <summary>A round that only flies for show, named by its shooter and sequence.</summary>
@@ -120,7 +121,7 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
                 }
                 continue;
             }
-            var query = PhysicsRayQueryParameters3D.Create(r.Position, next, Hitboxes.RoundLayer);
+            var query = PhysicsRayQueryParameters3D.Create(r.Position, next, Hitboxes.RoundLayer, r.Own);
             query.CollideWithAreas = true;
             query.CollideWithBodies = false;
             var hit = space.IntersectRay(query);
@@ -138,6 +139,19 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
             r.Position = next;
             _rounds[i] = r;
         }
+    }
+
+    private static Godot.Collections.Array<Rid> Areas(Node shooter)
+    {
+        var own = new Godot.Collections.Array<Rid>();
+        if (shooter == null)
+            return own;
+        if (shooter is CollisionObject3D self)
+            own.Add(self.GetRid());
+        foreach (Node n in shooter.FindChildren("*", "", true, false))
+            if (n is CollisionObject3D o)
+                own.Add(o.GetRid());
+        return own;
     }
 
     /// <summary>What takes the damage for a hitbox: the nearest damageable thing above it.</summary>

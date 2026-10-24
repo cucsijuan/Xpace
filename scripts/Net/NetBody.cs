@@ -42,8 +42,11 @@ public interface INetRadar
     /// <summary>What it tracks (null if nothing, or not a ship).</summary>
     Node Tracked { get; }
 
+    /// <summary>Tracking, it is guiding a missile at what it tracks (a datalink's words on its beam).</summary>
+    bool Guiding { get; }
+
     /// <summary>A puppet's radar: do what the owner's does.</summary>
-    void Follow(RadarMode mode, Node3D tracked);
+    void Follow(RadarMode mode, Node3D tracked, bool guiding);
 }
 
 /// <summary>
@@ -128,7 +131,7 @@ public partial class NetBody : Node, INetEntity
         Track = local ? null : new RemoteTrack { TickSeconds = tickSeconds };
         Ship.SetPhysicsProcess(local);
         if (!local)
-            _radar?.Follow(RadarMode.Off, null);       // quiet until the owner's first word
+            _radar?.Follow(RadarMode.Off, null, false);   // quiet until the owner's first word
         _moved = false;
         Joined = true;
     }
@@ -156,15 +159,16 @@ public partial class NetBody : Node, INetEntity
         _lastPosition = position;
         _lastOrientation = orientation;
         _moved = true;
-        RadarMode radar = _radar?.Mode ?? RadarMode.Off;
+        bool destroyed = !(_signature?.Alive ?? true);
+        RadarMode radar = destroyed ? RadarMode.Off : _radar?.Mode ?? RadarMode.Off;
         ushort tracked = ShipSnapshot.NoTarget;
         if (radar == RadarMode.Track && SessionNode.Instance?.IdOf(_radar.Tracked) is ushort id)
             tracked = id;
         return new ShipSnapshot
         {
             Tick = tick, Position = position, Orientation = orientation, Velocity = velocity, AngularVelocity = spin,
-            Destroyed = !(_signature?.Alive ?? true), Thrust = _script?.Thrust ?? 0,
-            Radar = radar, RadarTarget = tracked,
+            Destroyed = destroyed, Thrust = _script?.Thrust ?? 0,
+            Radar = radar, RadarTarget = tracked, RadarGuiding = radar == RadarMode.Track && _radar.Guiding,
         };
     }
 
@@ -189,7 +193,7 @@ public partial class NetBody : Node, INetEntity
         Ship.GlobalTransform = new Transform3D(new Basis(p.Orientation), (_origin?.Origin ?? default).To(p.Position));
         Ship.Visible = !p.Destroyed;
         _script?.Follow(p);
-        _radar?.Follow(p.Radar, p.Radar == RadarMode.Track ? SessionNode.Instance?.NodeOf(p.RadarTarget) : null);
+        _radar?.Follow(p.Radar, p.Radar == RadarMode.Track ? SessionNode.Instance?.NodeOf(p.RadarTarget) : null, p.RadarGuiding);
         if (_endTick is uint end && (shown >= end || ++_endWait > 60))
             End();
     }

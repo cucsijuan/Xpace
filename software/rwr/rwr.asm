@@ -22,7 +22,8 @@
 ;
 ; The symbol is the emitter's type letter (D drone, F fighter, U unknown)
 ; in a circle while it is only searching, in a diamond while it has the
-; ship locked. A missile coming (the receiver's plume warner sees its
+; ship locked, a diamond that blinks while it guides a missile at the ship
+; (a launch). A missile coming (the receiver's plume warner sees its
 ; motor) is an M in a diamond that blinks.
 ;
 ; Sixty times a second, on IRQ 5 (after the handlers installed before it),
@@ -45,7 +46,8 @@
 ;                            +5 audio (bit 0 off)  +6 segment  +8 table
 ;           an emitter (8 bytes): +0 id  +2 bearing (65536 to the turn,
 ;                            right positive)  +4 range (m)  +6 type letter
-;                            +7 flags (bit 0 locked on us, bit 3 a missile)
+;                            +7 flags (bit 0 locked on us, bit 3 a missile,
+;                            bit 4 guiding a missile at us)
 ;   180h  dispenser          +0 type 10  +2 chaff left  +3 flares left
 ;                            +4 write: bit 0 throw chaff, bit 1 a flare
 
@@ -174,6 +176,13 @@ step:
     mov dh, 2
     jmp .kind
 .radar:
+    test dh, 16                     ; guiding a missile at us: the diamond blinks
+    jz .steady
+    test byte [ticks], SLOTS
+    jnz .compare
+    mov dh, 2
+    jmp .kind
+.steady:
     and dh, 1
     inc dh                          ; 1 searching, 2 locked
 .kind:

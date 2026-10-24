@@ -109,6 +109,9 @@ public partial class SessionNode : Node
             {
                 body.Join(NetIds.PlayerShip(peer), true, Session.TickSeconds);
                 body.Ship.GlobalPosition += PilotSpacing * peer;
+                foreach (Node n in body.Ship.GetChildren())
+                    if (n is Xpace.Ship.ShipHull hull)
+                        hull.Spawn = body.Ship.GlobalTransform;     // a new ship comes back here
             }
             else
                 body.Join(next++, Session.IsHost, Session.TickSeconds);

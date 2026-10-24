@@ -38,6 +38,9 @@
 [ext_resource type="Script" path="res://scripts/Ship/DispenserDevice.cs" id="37_dispenser"]
 [ext_resource type="PackedScene" path="res://scenes/ships/remote_fighter.tscn" id="38_remote_fighter"]
 [ext_resource type="PackedScene" path="res://scenes/ships/fighter_03_hitboxes.tscn" id="39_hitboxes"]
+[ext_resource type="Script" path="res://scripts/Ship/ShipHull.cs" id="40_hull"]
+[ext_resource type="PackedScene" path="res://scenes/ships/ai_fighter.tscn" id="41_ai_fighter"]
+[ext_resource type="Script" path="res://scripts/Space/Datalink.cs" id="42_datalink"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -101,6 +104,10 @@ MissileScene = ExtResource("24_ir_missile")
 [node name="NetBody" type="Node" parent="Drone1"]
 script = ExtResource("32_netbody")
 
+[node name="Datalink" type="Node" parent="Drone1"]
+script = ExtResource("42_datalink")
+Channel = "raiders"
+
 [node name="Radar" type="Node3D" parent="Drone1" unique_id=440645909]
 script = ExtResource("29_emitter")
 TargetPath = NodePath("../../Ship")
@@ -115,6 +122,10 @@ MissileScene = ExtResource("24_ir_missile")
 
 [node name="NetBody" type="Node" parent="Drone2"]
 script = ExtResource("32_netbody")
+
+[node name="Datalink" type="Node" parent="Drone2"]
+script = ExtResource("42_datalink")
+Channel = "raiders"
 
 [node name="Radar" type="Node3D" parent="Drone2" unique_id=1396506718]
 script = ExtResource("29_emitter")
@@ -131,6 +142,10 @@ MissileScene = ExtResource("24_ir_missile")
 [node name="NetBody" type="Node" parent="Drone3"]
 script = ExtResource("32_netbody")
 
+[node name="Datalink" type="Node" parent="Drone3"]
+script = ExtResource("42_datalink")
+Channel = "raiders"
+
 [node name="Radar" type="Node3D" parent="Drone3" unique_id=1495459481]
 script = ExtResource("29_emitter")
 TargetPath = NodePath("../../Ship")
@@ -145,6 +160,9 @@ OwnedBy = 0
 
 [node name="Hitboxes" parent="Ship" instance=ExtResource("39_hitboxes")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="Hull" type="Node" parent="Ship"]
+script = ExtResource("40_hull")
 
 [node name="ShipComputer" type="Node" parent="Ship" unique_id=327885703]
 script = ExtResource("1_computer")
@@ -161,6 +179,12 @@ script = ExtResource("14_turret")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -5)
 script = ExtResource("13_radar")
 TrackOriginPath = NodePath("../Turret")
+EmitterPath = NodePath("Emitter")
+
+[node name="Emitter" type="Node3D" parent="Ship/Radar"]
+script = ExtResource("29_emitter")
+Signature = "F"
+PowerAt1Km = 40000.0
 
 [node name="Launcher" type="Node3D" parent="Ship" unique_id=938738450]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.2, -3)
@@ -237,6 +261,9 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("7_widget")
+
+[node name="Raider" parent="." instance=ExtResource("41_ai_fighter")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 600, 150, -4000)
 
 [node name="SessionNode" type="Node" parent="."]
 script = ExtResource("33_session")

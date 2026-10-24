@@ -37,7 +37,7 @@ namespace Xpace.Ship;
 /// 2 hit, 3 missed)  +12 its fuel (the speed change left, m/s)
 /// +14 heat seekers left  +15 the newest's kind (1 radar, 2 heat seeker)
 /// </summary>
-public partial class LauncherDevice : Node3D, IShipDevice
+public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
 {
     public const int Slot = 6;
     public const byte Type = 7;
@@ -93,6 +93,13 @@ public partial class LauncherDevice : Node3D, IShipDevice
 
     public override void _ExitTree() => _railHead?.Free();
 
+    /// <summary>A full load again (a new ship, a resupply).</summary>
+    public void Rearm()
+    {
+        MissilesLeft = Missiles;
+        HeatSeekersLeft = HeatSeekers;
+    }
+
     public void BeforeStep(ShipBody ship, double delta)
     {
         ShipBus bus = ship.Computer.Bus;
@@ -137,12 +144,18 @@ public partial class LauncherDevice : Node3D, IShipDevice
         else if (fire == 2 && CanFireHeat)
             Launch(ship, heat: true);
 
-        // The datalink: this step's radar measurement, to the missiles fired on that track
-        if (_radar?.Locked == null)
+        // The datalink: this step's radar measurement, to the missiles fired on that track (on the radar's beam: the target's warning receiver can tell)
+        if (_radar == null)
+            return;
+        _radar.Guiding = false;
+        if (_radar.Locked == null)
             return;
         foreach (Missile m in _inFlight)
             if (IsInstanceValid(m) && m.TrackNumber == _radar.TrackNumber && m.GlobalPosition.DistanceTo(GlobalPosition) <= DatalinkRange)
+            {
                 m.Uplink(_radar.TrackPosition - m.GlobalPosition);
+                _radar.Guiding = true;
+            }
     }
 
     private bool CanFire => MissilesLeft > 0 && _reload <= 0;

@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using Godot;
 using Xpace.Computer;
 using Xpace.Controls;
@@ -69,6 +71,7 @@ public partial class Pilot : Node3D
 
     private Camera3D _camera;
     private Label _hud;
+    private ShipHull _hull;
     private MouseWidget _widget;
     private ShipBody _ship;
     private CockpitScreen _focused, _picked;
@@ -340,6 +343,11 @@ public partial class Pilot : Node3D
         {
             string mode = _ship.DirectMode ? "DIRECT" : _ship.AssistOn ? "ASSIST ON" : "ASSIST OFF";
             state += $"   Throttle {_throttle * 100:+0;-0;0}%   {mode}   {_ship.LinearVelocity.Length():0} m/s";
+            _hull ??= _ship.GetChildren().OfType<ShipHull>().FirstOrDefault();
+            if (_hull?.Wrecked == true)
+                state = _hull.Insured ? $"SHIP DESTROYED. The insurer's new ship in {Math.Ceiling(_hull.RespawnIn):0} s." : "SHIP DESTROYED.";
+            else if (_hull != null)
+                state += $"   Hull {_hull.Fraction * 100:0}%";
         }
         string help = Input.MouseMode != Input.MouseModeEnum.Captured ? "Click to take the mouse."
             : _focused != null ? "Typing on the computer. Right-click to stop."

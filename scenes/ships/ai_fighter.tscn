@@ -1,0 +1,108 @@
+[gd_scene load_steps=27 format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="1_ship"]
+[ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="2_spec"]
+[ext_resource type="Script" path="res://scripts/Net/NetBody.cs" id="3_netbody"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Ship_Fighter_03.fbx" id="4_model"]
+[ext_resource type="Material" path="res://assets/materials/paint_raider.tres" id="5_paint"]
+[ext_resource type="PackedScene" path="res://scenes/ships/fighter_03_hitboxes.tscn" id="6_hitboxes"]
+[ext_resource type="Script" path="res://scripts/Ship/ShipHull.cs" id="7_hull"]
+[ext_resource type="Script" path="res://scripts/Computer/ShipComputer.cs" id="8_computer"]
+[ext_resource type="Script" path="res://scripts/Ship/DisplayDevice.cs" id="9_display"]
+[ext_resource type="Script" path="res://scripts/Ship/DisplayScreen.cs" id="10_screen"]
+[ext_resource type="Resource" path="res://assets/ship/displays/radar.tres" id="11_radar_screen"]
+[ext_resource type="Resource" path="res://assets/ship/displays/weapon.tres" id="12_weapon_screen"]
+[ext_resource type="Resource" path="res://assets/ship/displays/rwr.tres" id="13_rwr_screen"]
+[ext_resource type="Script" path="res://scripts/Ship/TurretDevice.cs" id="14_turret"]
+[ext_resource type="Script" path="res://scripts/Ship/RadarDevice.cs" id="15_radar"]
+[ext_resource type="Script" path="res://scripts/Space/RadarEmitter.cs" id="16_emitter"]
+[ext_resource type="Script" path="res://scripts/Ship/LauncherDevice.cs" id="17_launcher"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/missile.tscn" id="18_missile"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/ir_missile.tscn" id="19_ir_missile"]
+[ext_resource type="Script" path="res://scripts/Ship/DispenserDevice.cs" id="20_dispenser"]
+[ext_resource type="Script" path="res://scripts/Ship/RwrDevice.cs" id="21_rwr"]
+[ext_resource type="Script" path="res://scripts/Ship/ShipSignature.cs" id="22_signature"]
+[ext_resource type="Script" path="res://scripts/Space/EnginePlume.cs" id="23_plume"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Flame_Mesh_New.fbx" id="24_flame"]
+[ext_resource type="Texture2D" path="res://assets/synty/Gradient_Boost.png" id="25_boost"]
+[ext_resource type="Script" path="res://scripts/Ship/FighterAi.cs" id="26_ai"]
+[ext_resource type="Script" path="res://scripts/Space/Datalink.cs" id="27_datalink"]
+
+[sub_resource type="Resource" id="Spec_fighter"]
+script = ExtResource("2_spec")
+
+[node name="AiFighter" type="AnimatableBody3D"]
+script = ExtResource("1_ship")
+Spec = SubResource("Spec_fighter")
+
+[node name="NetBody" type="Node" parent="."]
+script = ExtResource("3_netbody")
+
+[node name="Model" parent="." instance=ExtResource("4_model")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="SM_Ship_Fighter_03" parent="Model" index="0"]
+material_override = ExtResource("5_paint")
+
+[node name="Hitboxes" parent="." instance=ExtResource("6_hitboxes")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="Hull" type="Node" parent="."]
+script = ExtResource("7_hull")
+
+[node name="ShipComputer" type="Node" parent="."]
+script = ExtResource("8_computer")
+
+[node name="Display" type="Node" parent="."]
+script = ExtResource("9_display")
+Screens = Array[ExtResource("10_screen")]([ExtResource("11_radar_screen"), ExtResource("12_weapon_screen"), ExtResource("13_rwr_screen")])
+
+[node name="Turret" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.4, -5)
+script = ExtResource("14_turret")
+
+[node name="Radar" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, -5.8)
+script = ExtResource("15_radar")
+TrackOriginPath = NodePath("../Turret")
+EmitterPath = NodePath("Emitter")
+
+[node name="Emitter" type="Node3D" parent="Radar"]
+script = ExtResource("16_emitter")
+Signature = "F"
+PowerAt1Km = 40000.0
+
+[node name="Launcher" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.6, -2)
+script = ExtResource("17_launcher")
+MissileScene = ExtResource("18_missile")
+HeatSeekerScene = ExtResource("19_ir_missile")
+
+[node name="Dispenser" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 4)
+script = ExtResource("20_dispenser")
+
+[node name="Rwr" type="Node3D" parent="."]
+script = ExtResource("21_rwr")
+
+[node name="Signature" type="Node3D" parent="."]
+script = ExtResource("22_signature")
+
+[node name="PlumeLeft" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.295, 0.075, 3.86)
+script = ExtResource("23_plume")
+FlameModel = ExtResource("24_flame")
+FlameTexture = ExtResource("25_boost")
+
+[node name="PlumeRight" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.295, 0.075, 3.86)
+script = ExtResource("23_plume")
+FlameModel = ExtResource("24_flame")
+FlameTexture = ExtResource("25_boost")
+
+[node name="Datalink" type="Node" parent="."]
+script = ExtResource("27_datalink")
+Channel = "raiders"
+
+[node name="Pilot" type="Node" parent="."]
+script = ExtResource("26_ai")

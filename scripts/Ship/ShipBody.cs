@@ -55,6 +55,9 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     /// <summary>Radians a second, world axes.</summary>
     public Vector3 AngularVelocity { get; set; }
 
+    /// <summary>Blown up (its <see cref="ShipHull"/> says so): no computer, no devices, no thrust; it only drifts.</summary>
+    public bool Wrecked { get; set; }
+
     /// <summary>The last commands, -1..1: pitch, roll, yaw torque; right, up, forward force.</summary>
     public readonly float[] Commands = new float[6];
 
@@ -93,6 +96,12 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     {
         ShipBus bus = Computer.Bus;
         Controls = ControlsSource?.Invoke() ?? default;
+        if (Wrecked)
+        {
+            System.Array.Clear(Commands);
+            Push((float)delta);
+            return;
+        }
         WriteControls(bus, Controls);
         WriteInertial(bus);
         foreach (IShipDevice d in _devices)
@@ -151,10 +160,25 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         }
     }
 
+    /// <summary>What the main motor pushes, 0 to 1: its plume and its heat (a puppet: what its owner's snapshots say).</summary>
+    public float EngineThrust => Wrecked ? 0 : _shownThrust ?? MathF.Max(0, Commands[5]);
+
+    private float? _shownThrust;
+    private bool _shownDestroyed;
+
     // In a session: the main motor's push is its heat and plume to the others
-    float INetShip.Thrust => MathF.Max(0, Commands[5]);
+    float INetShip.Thrust => EngineThrust;
     bool INetShip.Exploded => false;
-    void INetShip.Follow(RemoteTrack.Pose pose) { }
+
+    /// <summary>A puppet (another machine flies it): its motor as its owner says, and its end shown when it blows up.</summary>
+    void INetShip.Follow(RemoteTrack.Pose pose)
+    {
+        _shownThrust = pose.Destroyed ? 0 : pose.Thrust;
+        if (pose.Destroyed && !_shownDestroyed)
+            Space.Explosion.Spawn(GetParent(), GlobalPosition, 30f, 1.6, 16f);
+        _shownDestroyed = pose.Destroyed;
+    }
+
     void INetShip.End(bool exploded) { }
 
     private static void WriteControls(ShipBus bus, PilotControls c)

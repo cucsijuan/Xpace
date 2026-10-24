@@ -20,7 +20,8 @@ public enum RadarMode : byte { Off, Search, Track }
 ///   destroyed            1 bit
 ///   thrust               4 bits, its motor's push, 0 to 15 fifteenths of the most
 ///   radar                2 bits: off, searching, tracking; tracking, then
-///                        16 bits for the ship tracked (0FFFFh: none in the session)
+///                        16 bits for the ship tracked (0FFFFh: none in the
+///                        session) and 1 bit: guiding a missile at it
 ///
 /// Anything that flies is sent this way: ships, missiles.
 /// </summary>
@@ -41,6 +42,7 @@ public struct ShipSnapshot
     public float Thrust;                    // 0 to 1: what the motor pushes, of the most it can (its heat, its plume)
     public RadarMode Radar;
     public ushort RadarTarget;              // tracking: whom
+    public bool RadarGuiding;               // tracking: and guiding a missile at it
 
     public void Write(BitWriter w)
     {
@@ -55,7 +57,10 @@ public struct ShipSnapshot
         w.Write((uint)Math.Clamp(MathF.Round(Thrust * 15), 0, 15), 4);
         w.Write((uint)Radar, 2);
         if (Radar == RadarMode.Track)
+        {
             w.Write(RadarTarget, 16);
+            w.Write(RadarGuiding ? 1u : 0, 1);
+        }
     }
 
     public static ShipSnapshot Read(BitReader r)
@@ -69,6 +74,7 @@ public struct ShipSnapshot
         s.Thrust = r.Read(4) / 15f;
         s.Radar = (RadarMode)r.Read(2);
         s.RadarTarget = s.Radar == RadarMode.Track ? (ushort)r.Read(16) : NoTarget;
+        s.RadarGuiding = s.Radar == RadarMode.Track && r.Read(1) != 0;
         return s;
     }
 
