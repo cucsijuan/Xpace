@@ -4,7 +4,8 @@
 #   bin/xpace_native library    the ship's bus card and displays (xbus.c), the
 #                               missiles' microcontroller (mcu.c)
 #   ../disks/cos.img            the ship's diskette: COS, AUTOEXEC.BAT and the ship's software
-#   ../disks/missile.bin        the missile's firmware
+#   ../disks/missile.bin        the radar guided missile's firmware
+#   ../disks/irmissile.bin      the heat seeker's firmware
 #
 # Any generator works (Visual Studio, Make, Ninja...):
 #
@@ -88,19 +89,24 @@ assemble(BASIC.COM   ${SW86_DIR}/dos/basic.asm)
 assemble(FLIGHT.COM  ${XPACE_ROOT}/software/flight/flight.asm)
 assemble(FIRECTL.COM ${XPACE_ROOT}/software/firectl/firectl.asm)
 
-set(XPACE_FIRMWARE ${XPACE_ROOT}/disks/missile.bin)
-add_custom_command(OUTPUT ${XPACE_FIRMWARE}
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${XPACE_ROOT}/disks
-  COMMAND $<TARGET_FILE:asm86> ${XPACE_ROOT}/software/missile/missile.asm -o ${XPACE_FIRMWARE}
-  DEPENDS asm86 ${XPACE_ROOT}/software/missile/missile.asm
-  VERBATIM)
+set(XPACE_FIRMWARE)
+foreach(name missile irmissile)
+  set(out ${XPACE_ROOT}/disks/${name}.bin)
+  add_custom_command(OUTPUT ${out}
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${XPACE_ROOT}/disks
+    COMMAND $<TARGET_FILE:asm86> ${XPACE_ROOT}/software/missile/${name}.asm -o ${out}
+    DEPENDS asm86 ${XPACE_ROOT}/software/missile/${name}.asm
+    VERBATIM)
+  list(APPEND XPACE_FIRMWARE ${out})
+endforeach()
 add_custom_target(firmware ALL DEPENDS ${XPACE_FIRMWARE})
 
 set(FD $<TARGET_FILE:fdimage>)
 set(DISK_SOURCES
   ${SW86_DIR}/programs/hello/hello.asm ${SW86_DIR}/dos/apes.bas
   ${XPACE_ROOT}/software/flight/flight.asm ${XPACE_ROOT}/software/firectl/firectl.asm
-  ${XPACE_ROOT}/software/missile/missile.asm ${XPACE_ROOT}/software/autoexec.bat)
+  ${XPACE_ROOT}/software/missile/missile.asm ${XPACE_ROOT}/software/missile/irmissile.asm
+  ${XPACE_ROOT}/software/autoexec.bat)
 add_custom_command(OUTPUT ${XPACE_DISK}
   COMMAND ${CMAKE_COMMAND} -E make_directory ${XPACE_ROOT}/disks
   COMMAND ${CMAKE_COMMAND} -E rm -f ${XPACE_DISK}
@@ -117,6 +123,7 @@ add_custom_command(OUTPUT ${XPACE_DISK}
   COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/FIRECTL.COM
   COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/firectl/firectl.asm FIRECTL.ASM
   COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/missile/missile.asm MISSILE.ASM
+  COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/missile/irmissile.asm IRMISSIL.ASM
   COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/autoexec.bat AUTOEXEC.BAT
   COMMAND ${FD} boot ${XPACE_DISK} ${DISK_WORK}/boot.bin
   DEPENDS fdimage ${DISK_PROGRAMS} ${DISK_SOURCES}

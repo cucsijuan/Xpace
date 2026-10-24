@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.4 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.6 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -17,10 +17,16 @@
 ;   - while the fire button is held and the turret points within half a
 ;     degree of where it should, it fires. With no target it fires straight
 ;     ahead;
-;   - the next-weapon button switches between the cannon and the missiles
-;     (if the ship has a launcher); with the missiles selected, a press of
-;     the fire button lets one go at the locked target. The launcher's
-;     datalink guides it with the radar's track: keep the target locked.
+;   - the next-weapon button goes round the cannon, the radar missiles and
+;     the heat seekers (if the ship has a launcher); with a missile
+;     selected, a press of the fire button lets one go at the locked
+;     target. The launcher's datalink guides a radar missile with the
+;     radar's track: keep the target locked. A heat seeker needs no radar:
+;     the first press powers the head of the one on the rail, which looks
+;     ahead (or where the radar's target is), growls in the pilot's headset
+;     when it sees heat and locks on to it (IR TONE, IR LOCK); the second
+;     press lets it go, whatever the head sees. With none left there is no
+;     head to power.
 ;
 ; Angles, lengths and the square roots come from CORDIC: turning a vector
 ; onto the x axis in 14 small steps gives its angle and (times a known
@@ -51,10 +57,15 @@
 ;           a screen (16 bytes): +0 name  +6 mode (0 text, 1 graphics)
 ;                            +7 columns  +8 rows  +10 width  +12 height
 ;                            +14 memory (offset)
-;   160h  missile launcher   +0 type 7  +2 missiles left  +3 in flight
-;                            +6 fire (write 1)  the newest missile: +8 time
-;                            to go (1/8 s)  +10 status (bit 1 no word, 2 lost)
-;                            +11 1 flying, 2 hit, 3 missed  +12 fuel (m/s)
+;   160h  missile launcher   +0 type 7  +2 radar missiles left  +3 in flight
+;                            +4 status (bit 0 radar missile ready, 2 heat
+;                            seeker ready, 3 its head sees heat, 4 locked on)
+;                            +6 fire (write 1 radar, 2 heat seeker)
+;                            +7 bit 0 the heat seeker's head powered
+;                            the newest missile: +8 time to go (1/8 s)
+;                            +10 status (bit 1 no word, 2 lost)  +11 1 flying,
+;                            2 hit, 3 missed  +12 fuel (m/s)  +14 heat
+;                            seekers left  +15 the newest's kind (2 heat)
 
 org 100h
 
@@ -75,6 +86,7 @@ BUTTON_AHEAD equ 4
 BUTTON_NEXT equ 8
 BUTTON_FIRE equ 16
 BUTTON_WEAPON equ 32
+WEAPONS     equ 3                   ; the cannon, radar missiles, heat seekers
 LAUNCH_SHOWN equ 30                 ; steps 'LAUNCH' stays on the page
 RESULT_SHOWN equ 180                ; and 'HIT' or 'MISSED'
 
@@ -197,13 +209,30 @@ step:
     mov byte [firing], 0
     cmp byte [weapon], 0
     je .gun
-    test byte [pressed], BUTTON_FIRE    ; a missile: one a press, at the lock
+    test byte [pressed], BUTTON_FIRE    ; a missile: one a press
     jz .fired
-    cmp byte [locked], 0
+    cmp byte [weapon], 2
+    jne .radar_missile
+    cmp byte [head_on], 0           ; a heat seeker: the first press wakes its head
+    jne .heat_ready
+    call head_up
+    jmp .fired
+.heat_ready:
+    mov ah, 4                       ; the second lets it go, when the launcher is ready
+    jmp .ready
+.radar_missile:
+    cmp byte [locked], 0            ; a radar missile: at the lock
     je .fired
-    mov al, 1
+    mov ah, 1
+.ready:
+    mov dx, LAUNCHER + 4            ; is the launcher ready for this one?
+    in al, dx
+    test al, ah
+    jz .fired
+    mov al, [weapon]                ; 1 a radar missile, 2 a heat seeker
     mov dx, LAUNCHER + 6
     out dx, al
+    mov byte [head_on], 0           ; the next one on the rail starts with its head off
     mov word [launch_wait], LAUNCH_SHOWN
     jmp .fired
 .gun:
@@ -313,11 +342,32 @@ lock_next:
 next_weapon:
     cmp byte [has_launcher], 0
     je .done
-    xor byte [weapon], 1
+    inc byte [weapon]               ; the cannon, radar missiles, heat seekers
+    cmp byte [weapon], WEAPONS
+    jb .chosen
+    mov byte [weapon], 0
+.chosen:
+    xor al, al                      ; the heat seeker's head off, whatever comes now
+    mov [head_on], al
+    mov dx, LAUNCHER + 7
+    out dx, al
     cmp word [w_seg], 0
     je .done
     call draw_labels                ; the other weapon's page
     mov byte [screen_wait], 1
+.done:
+    ret
+
+; The heat seeker's head on, if there is one on the rail
+head_up:
+    mov dx, LAUNCHER + 14
+    in al, dx
+    test al, al
+    jz .done
+    mov byte [head_on], 1
+    mov al, 1
+    mov dx, LAUNCHER + 7
+    out dx, al
 .done:
     ret
 
@@ -991,8 +1041,7 @@ draw_missile_page:
     call put_unsigned
     mov di, (VALUE_COL << 8) | 5    ; missiles left
     call at
-    mov dx, LAUNCHER + 2
-    in al, dx
+    call missiles_left
     xor ah, ah
     call put_unsigned
     mov di, (VALUE_COL << 8) | 6    ; in flight
@@ -1020,6 +1069,16 @@ draw_missile_page:
     call put_missile_status
     jmp put_load
 
+; AL = how many of the weapon selected are left
+missiles_left:
+    mov dx, LAUNCHER + 2
+    cmp byte [weapon], 2
+    jne .radar
+    mov dx, LAUNCHER + 14
+.radar:
+    in al, dx
+    ret
+
 ; AX, or 0 with nothing locked
 if_locked:
     cmp byte [locked], 0
@@ -1032,7 +1091,9 @@ put_missile_status:
     mov si, s_launch
     mov ah, ATTR_WARN
     cmp word [launch_wait], 0
-    jne .put
+    je .no_launch
+    jmp .put
+.no_launch:
     mov dx, LAUNCHER + 11
     in al, dx
     cmp al, 1
@@ -1042,11 +1103,22 @@ put_missile_status:
     mov si, s_lost
     test al, 4
     jnz .put
-    mov si, s_no_link
     test al, 2
-    jnz .put
+    jz .heard
+    mov si, s_no_link
+    mov dx, LAUNCHER + 15
+    in al, dx
+    cmp al, 2
+    jne .put
+    mov si, s_no_heat               ; a heat seeker's head sees nothing
+    jmp .put
+.heard:
     mov si, s_guiding
     mov ah, ATTR_LOCKED
+    test al, 1
+    jnz .put
+    mov si, s_search                ; a heat seeker that has seen nothing yet
+    mov ah, ATTR_LABEL
     jmp .put
 .not_flying:
     cmp word [result_wait], 0
@@ -1058,21 +1130,45 @@ put_missile_status:
     mov ah, ATTR_LOCKED
     jmp .put
 .idle:
-    mov dx, LAUNCHER + 2
-    in al, dx
+    call missiles_left
     mov si, s_empty
     test al, al
     jz .put
+    cmp byte [weapon], 2
+    je .head
     mov si, s_no_target
     mov ah, ATTR_LABEL
     cmp byte [locked], 0
     je .put
     mov si, s_msl_ready
     mov ah, ATTR_LOCKED
+    jmp .put
+.head:
+    call head_status
 .put:
     mov di, 1
     call at
     jmp put_text
+
+; SI, AH = what the heat seeker's head is doing: off, searching, a tone, locked
+head_status:
+    mov si, s_head_off
+    mov ah, ATTR_LABEL
+    cmp byte [head_on], 0
+    je .done
+    mov dx, LAUNCHER + 4
+    in al, dx
+    mov si, s_ir_lock
+    mov ah, ATTR_LOCKED
+    test al, 16
+    jnz .done
+    mov si, s_ir_tone
+    test al, 8
+    jnz .done
+    mov si, s_search
+    mov ah, ATTR_LABEL
+.done:
+    ret
 
 ; The barrel's heat as a bar, green, yellow from half way, red too hot
 put_heat:
@@ -1212,10 +1308,18 @@ draw_labels:
     cmp byte [weapon], 0
     je .next
     mov si, m_labels
+    cmp byte [weapon], 2
+    jne .next
+    mov si, ir_labels
 .next:
     lodsw
     cmp ax, 0FFFFh
     je .done
+    cmp ax, 0FFFEh
+    jne .label
+    mov si, m_body
+    jmp .next
+.label:
     mov di, ax
     call at
     lodsb
@@ -1264,9 +1368,14 @@ labels:
     db ATTR_LABEL, '%', 0
     dw 0FFFFh
 
+ir_labels:
+    dw 0
+    db ATTR_TITLE, ' FIRECTL  IR  ', 0
+    dw 0FFFEh                       ; the rest as the missile page
 m_labels:
     dw 0
     db ATTR_TITLE, ' FIRECTL  MSL ', 0
+m_body:
     dw 2
     db ATTR_LABEL, 'TGT', 0
     dw 3
@@ -1278,7 +1387,7 @@ m_labels:
     dw (10 << 8) | 4
     db ATTR_LABEL, 'dB', 0
     dw 5
-    db ATTR_LABEL, 'MSL', 0
+    db ATTR_LABEL, 'LFT', 0
     dw 6
     db ATTR_LABEL, 'FLY', 0
     dw 7
@@ -1308,6 +1417,11 @@ s_lost          db 'MSL LOST   ', 0
 s_hit           db 'HIT        ', 0
 s_missed        db 'MISSED     ', 0
 s_empty         db 'NO MISSILES', 0
+s_ir_tone       db 'IR TONE    ', 0
+s_no_heat       db 'NO HEAT    ', 0
+s_ir_lock       db 'IR LOCK    ', 0
+s_search        db 'SEARCH     ', 0
+s_head_off      db 'SEEKER OFF ', 0
 
 buttons         db 0
 pressed         db 0
@@ -1316,8 +1430,9 @@ firing          db 0
 rounds_left     db 0
 screen_wait     db 1
 turret_status   db 0
-weapon          db 0                ; 0 the cannon, 1 the missiles
+weapon          db 0                ; 0 the cannon, 1 radar missiles, 2 heat seekers
 has_launcher    db 0
+head_on         db 0                ; the heat seeker's head powered
 last_result     db 0
 launch_wait     dw 0
 result_wait     dw 0
@@ -1496,6 +1611,8 @@ remove:
     pop ds
     xor al, al                      ; radar off
     mov dx, RADAR + 2
+    out dx, al
+    mov dx, LAUNCHER + 7            ; the heat seeker's head off
     out dx, al
     mov ax, [es:w_seg]              ; the resident copy's screens
     mov [w_seg], ax

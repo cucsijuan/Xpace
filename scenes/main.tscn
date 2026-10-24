@@ -1,4 +1,4 @@
-[gd_scene load_steps=31 format=3]
+[gd_scene load_steps=34 format=3]
 
 [ext_resource type="Script" path="res://scripts/Computer/ShipComputer.cs" id="1_computer"]
 [ext_resource type="PackedScene" path="res://scenes/cockpits/fighter_cockpit.tscn" id="2_cockpit"]
@@ -22,6 +22,9 @@
 [ext_resource type="Resource" path="res://assets/ship/displays/weapon.tres" id="21_weapon"]
 [ext_resource type="Script" path="res://scripts/Ship/LauncherDevice.cs" id="22_launcher"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/missile.tscn" id="23_missile"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/ir_missile.tscn" id="24_ir_missile"]
+[ext_resource type="Script" path="res://scripts/Space/HeatSun.cs" id="25_heat"]
+[ext_resource type="Script" path="res://scripts/Cockpit/SeekerTone.cs" id="26_growl"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -59,6 +62,7 @@ environment = SubResource("Environment_space")
 [node name="Sun" type="DirectionalLight3D" parent="."]
 transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 0, 0, 0)
 light_energy = 1.4
+script = ExtResource("25_heat")
 
 [node name="Starfield" type="MultiMeshInstance3D" parent="."]
 script = ExtResource("5_stars")
@@ -123,6 +127,10 @@ TrackOriginPath = NodePath("../Turret")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.2, -3)
 script = ExtResource("22_launcher")
 MissileScene = ExtResource("23_missile")
+HeatSeekerScene = ExtResource("24_ir_missile")
+
+[node name="SeekerTone" type="AudioStreamPlayer" parent="Ship/Launcher"]
+script = ExtResource("26_growl")
 
 [node name="Cockpit" parent="Ship" instance=ExtResource("2_cockpit")]
 
