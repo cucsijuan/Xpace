@@ -119,13 +119,13 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
                 }
                 continue;
             }
-            var query = PhysicsRayQueryParameters3D.Create(r.Position, next, Drone.HitLayer);
+            var query = PhysicsRayQueryParameters3D.Create(r.Position, next, Hitboxes.RoundLayer);
             query.CollideWithAreas = true;
             query.CollideWithBodies = false;
             var hit = space.IntersectRay(query);
-            if (hit.Count > 0 && hit["collider"].As<Node>()?.GetParent()?.GetParent() is Drone drone)
+            if (hit.Count > 0 && Damageable(hit["collider"].As<Node>()) is IDamageable victim)
             {
-                drone.Hit(r.Damage);
+                victim.Hit(r.Damage);
                 _rounds.RemoveAt(i);
                 continue;
             }
@@ -137,6 +137,15 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
             r.Position = next;
             _rounds[i] = r;
         }
+    }
+
+    /// <summary>What takes the damage for a hitbox: the nearest damageable thing above it.</summary>
+    private static IDamageable Damageable(Node n)
+    {
+        for (; n != null; n = n.GetParent())
+            if (n is IDamageable d)
+                return d;
+        return null;
     }
 
     public override void _Process(double delta)

@@ -29,7 +29,6 @@ public partial class SessionTest : Node
         public bool IsLocal { get; init; }
         public RemoteTrack Track { get; init; }
         public Hitbox[] Hitboxes => new[] { Box };
-        public bool Hittable => true;
         public SectorPoint Position;
         public Vector3 Velocity;
         public float Damage;

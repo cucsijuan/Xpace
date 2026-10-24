@@ -36,7 +36,6 @@ public sealed class LagCompensator
         public byte Id;
         public RemoteTrack History;
         public Hitbox[] Boxes;
-        public Func<bool> Hittable;
     }
 
     private sealed class Round
@@ -49,11 +48,8 @@ public sealed class LagCompensator
     private readonly List<Target> _targets = new();
     private readonly List<Round> _rounds = new();
 
-    public void Register(byte id, RemoteTrack history, params Hitbox[] boxes) => Register(id, history, null, boxes);
-
-    /// <param name="hittable">Whether rounds can hit it now; null for always.</param>
-    public void Register(byte id, RemoteTrack history, Func<bool> hittable, params Hitbox[] boxes) =>
-        _targets.Add(new Target { Id = id, History = history, Boxes = boxes, Hittable = hittable });
+    public void Register(byte id, RemoteTrack history, params Hitbox[] boxes) =>
+        _targets.Add(new Target { Id = id, History = history, Boxes = boxes });
 
     public void Unregister(byte id) => _targets.RemoveAll(t => t.Id == id);
 
@@ -98,10 +94,12 @@ public sealed class LagCompensator
             SectorPoint from = e.At(n, TickSeconds), to = e.At(n + 1, TickSeconds);
             foreach (Target t in _targets)
             {
-                if (t.Id == e.Shooter || t.Hittable?.Invoke() == false)
+                if (t.Id == e.Shooter)
                     continue;
                 double after = e.Tick + n + 1 - round.Rewind.GetValueOrDefault(t.Id);
                 RemoteTrack.Pose p0 = t.History.Sample(after - 1), p1 = t.History.Sample(after);
+                if (p1.Destroyed)
+                    continue;               // blown up then: the round goes through where it was
                 foreach (Hitbox box in t.Boxes)
                     if (box.Swept(from, to, p0, p1))
                     {

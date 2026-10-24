@@ -19,7 +19,6 @@ public partial class RemoteShip : Node3D, INetEntity
     public bool Driven { get; set; }
 
     public Hitbox[] Hitboxes { get; private set; }
-    public bool Hittable => true;
 
     /// <summary>Metres a second, world axes, as last shown (for sensors).</summary>
     public Vector3 Velocity { get; private set; }
@@ -57,6 +56,6 @@ public partial class RemoteShip : Node3D, INetEntity
         RemoteTrack.Pose p = Track.Sample();
         GlobalTransform = new Transform3D(new Basis(p.Orientation), (_origin?.Origin ?? default).To(p.Position));
         Velocity = p.Velocity;
-        Visible = true;
+        Visible = !p.Destroyed;
     }
 }

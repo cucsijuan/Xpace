@@ -28,6 +28,13 @@ public static class RadarIds
     }
 }
 
+/// <summary>Where rounds look for what they hit.</summary>
+public static class Hitboxes
+{
+    /// <summary>The physics layer of the areas rounds hit, on any kind of ship; the damage goes to the nearest <see cref="IDamageable"/> above the area.</summary>
+    public const uint RoundLayer = 2;
+}
+
 /// <summary>Something weapons can hurt: rounds, a warhead's blast.</summary>
 public interface IDamageable
 {

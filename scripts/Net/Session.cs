@@ -5,7 +5,7 @@ using Xpace.Space;
 
 namespace Xpace.Net;
 
-/// <summary>A ship (or drone) in a session: one machine owns it, the others show it.</summary>
+/// <summary>A ship in a session, of any kind: one machine owns it, the others show it.</summary>
 public interface INetEntity
 {
     byte NetId { get; }
@@ -20,9 +20,6 @@ public interface INetEntity
     RemoteTrack Track { get; }
 
     Hitbox[] Hitboxes { get; }
-
-    /// <summary>Rounds can hit it now (a drone blown up and not back yet cannot be).</summary>
-    bool Hittable { get; }
 
     /// <summary>The host says a round hit it. Only the owner's copy takes damage.</summary>
     void TakeHit(HitEvent hit);
@@ -93,7 +90,7 @@ public sealed class Session
         RemoteTrack history = e.Track;
         if (e.IsLocal)                              // a snapshot every tick: 2 s
             _histories[e.NetId] = history = new RemoteTrack { TickSeconds = TickSeconds, Capacity = 120 };
-        Judge.Register(e.NetId, history, () => e.Hittable, e.Hitboxes);
+        Judge.Register(e.NetId, history, e.Hitboxes);
     }
 
     public void Remove(byte id)

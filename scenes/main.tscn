@@ -30,6 +30,7 @@
 [ext_resource type="Script" uid="uid://co14mxnlyoaws" path="res://scripts/Space/RadarEmitter.cs" id="29_emitter"]
 [ext_resource type="Script" uid="uid://dnpkqqauajrlf" path="res://scripts/Ship/ShipSignature.cs" id="30_signature"]
 [ext_resource type="Script" uid="uid://cxdb8imy7mdxh" path="res://scripts/Cockpit/RwrTone.cs" id="31_rwr_tone"]
+[ext_resource type="Script" path="res://scripts/Net/NetBody.cs" id="32_netbody"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -93,6 +94,9 @@ AnchorPath = NodePath("../Ship")
 Attacks = true
 MissileScene = ExtResource("24_ir_missile")
 
+[node name="NetBody" type="Node" parent="Drone1"]
+script = ExtResource("32_netbody")
+
 [node name="Radar" type="Node3D" parent="Drone1" unique_id=440645909]
 script = ExtResource("29_emitter")
 TargetPath = NodePath("../../Ship")
@@ -104,6 +108,9 @@ Speed = 100.0
 AnchorPath = NodePath("../Ship")
 Attacks = true
 MissileScene = ExtResource("24_ir_missile")
+
+[node name="NetBody" type="Node" parent="Drone2"]
+script = ExtResource("32_netbody")
 
 [node name="Radar" type="Node3D" parent="Drone2" unique_id=1396506718]
 script = ExtResource("29_emitter")
@@ -117,6 +124,9 @@ AnchorPath = NodePath("../Ship")
 Attacks = true
 MissileScene = ExtResource("24_ir_missile")
 
+[node name="NetBody" type="Node" parent="Drone3"]
+script = ExtResource("32_netbody")
+
 [node name="Radar" type="Node3D" parent="Drone3" unique_id=1495459481]
 script = ExtResource("29_emitter")
 TargetPath = NodePath("../../Ship")
@@ -124,6 +134,10 @@ TargetPath = NodePath("../../Ship")
 [node name="Ship" type="AnimatableBody3D" parent="." unique_id=2058915107]
 script = ExtResource("6_ship")
 Spec = SubResource("Spec_fighter")
+
+[node name="NetBody" type="Node" parent="Ship"]
+script = ExtResource("32_netbody")
+OwnedBy = 0
 
 [node name="Hull" type="CollisionShape3D" parent="Ship" unique_id=1531879955]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -1)

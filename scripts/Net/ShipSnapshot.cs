@@ -13,6 +13,7 @@ namespace Xpace.Net;
 ///                        3 x 11 bits for the others (within 0.12 degrees)
 ///   velocity             3 x 17 bits, ±4,096 m/s (steps of 1/16 m/s)
 ///   angular velocity     3 x 16 bits, ±16 rad/s (steps of 1/2048 rad/s)
+///   destroyed            1 bit
 /// </summary>
 public struct ShipSnapshot
 {
@@ -26,6 +27,7 @@ public struct ShipSnapshot
     public Quaternion Orientation;
     public Vector3 Velocity;
     public Vector3 AngularVelocity;
+    public bool Destroyed;                  // blown up and not back: shown hidden, cannot be hit
 
     public void Write(BitWriter w)
     {
@@ -36,6 +38,7 @@ public struct ShipSnapshot
         WriteOrientation(w, Orientation);
         WriteVector(w, Velocity, VelocityRange, VelocityBits);
         WriteVector(w, AngularVelocity, AngularRange, AngularBits);
+        w.Write(Destroyed ? 1u : 0, 1);
     }
 
     public static ShipSnapshot Read(BitReader r)
@@ -45,6 +48,7 @@ public struct ShipSnapshot
         s.Orientation = ReadOrientation(r);
         s.Velocity = ReadVector(r, VelocityRange, VelocityBits);
         s.AngularVelocity = ReadVector(r, AngularRange, AngularBits);
+        s.Destroyed = r.Read(1) != 0;
         return s;
     }
 

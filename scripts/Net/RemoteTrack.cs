@@ -31,6 +31,7 @@ public sealed class RemoteTrack
         public Quaternion Orientation;
         public Vector3 Velocity;
         public Vector3 AngularVelocity;
+        public bool Destroyed;
         public bool Extrapolated;
     }
 
@@ -129,6 +130,7 @@ public sealed class RemoteTrack
             Orientation = a.Orientation.Slerp(b.Orientation, u),
             Velocity = a.Velocity.Lerp(b.Velocity, u),
             AngularVelocity = a.AngularVelocity.Lerp(b.AngularVelocity, u),
+            Destroyed = a.Destroyed || b.Destroyed,
         };
     }
 
@@ -150,5 +152,6 @@ public sealed class RemoteTrack
         Orientation = s.Orientation,
         Velocity = s.Velocity,
         AngularVelocity = s.AngularVelocity,
+        Destroyed = s.Destroyed,
     };
 }
