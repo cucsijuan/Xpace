@@ -1,4 +1,5 @@
 using Godot;
+using Xpace.Net;
 
 namespace Xpace.Space;
 
@@ -72,6 +73,12 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     [Export] public double ToneSeconds = 0.5;           // the head holds the heat this long before it fires
 
     public ushort RadarId { get; private set; }
+
+    /// <summary>
+    /// Another machine flies this drone (a network session's host): it only
+    /// follows the host's snapshots, with no mind of its own.
+    /// </summary>
+    public RemoteTrack Puppet { get; set; }
     public Vector3 Velocity { get; private set; }
     public bool Alive { get; private set; } = true;
     public int Hits { get; private set; }
@@ -159,6 +166,11 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
             _respawn -= delta;
             if (_respawn <= 0)
                 Respawn();
+            return;
+        }
+        if (Puppet != null)
+        {
+            Follow();
             return;
         }
         _painted -= delta;
@@ -387,6 +399,18 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     {
         var direction = new Vector3(_rng.RandfRange(-1, 1), _rng.RandfRange(-0.4f, 0.4f), _rng.RandfRange(-1, 1)).Normalized();
         return Centre + direction * _rng.RandfRange(0.4f, 1f) * WanderRadius;
+    }
+
+    private void Follow()
+    {
+        if (!Puppet.ShownTick.HasValue)
+            return;
+        RemoteTrack.Pose p = Puppet.Sample();
+        FloatingOrigin origin = null;
+        for (Node n = GetParent(); n != null && origin == null; n = n.GetParent())
+            origin = n as FloatingOrigin;
+        GlobalTransform = new Transform3D(new Basis(p.Orientation), (origin?.Origin ?? default).To(p.Position));
+        Velocity = p.Velocity;
     }
 
     /// <summary>A round or a blast hit it.</summary>

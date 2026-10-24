@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 using Xpace.Space;
 
@@ -15,6 +16,17 @@ public struct Hitbox
     public Vector3 HalfSize;
 
     public Hitbox(Vector3 centre, Vector3 size) { Centre = centre; HalfSize = size / 2; }
+
+    /// <summary>The box shapes below a node, in its frame (the shapes' own turns are ignored).</summary>
+    public static Hitbox[] FromShapes(Node3D root)
+    {
+        var boxes = new List<Hitbox>();
+        Transform3D toRoot = root.GlobalTransform.AffineInverse();
+        foreach (Node n in root.FindChildren("*", nameof(CollisionShape3D), true, false))
+            if (n is CollisionShape3D { Shape: BoxShape3D box } shape)
+                boxes.Add(new Hitbox(toRoot * shape.GlobalPosition, box.Size));
+        return boxes.ToArray();
+    }
 
     /// <summary>
     /// Whether a round moving from <paramref name="from"/> to <paramref name="to"/>

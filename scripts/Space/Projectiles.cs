@@ -1,11 +1,16 @@
 using System.Collections.Generic;
 using Godot;
+using Xpace.Net;
 
 namespace Xpace.Space;
 
 /// <summary>
 /// Every round in flight: moved each physics step, checked for hits with a
 /// ray along the step, drawn as tracers in one MultiMesh.
+///
+/// In a network session the host judges the rounds: they are fired through
+/// the session (<see cref="SessionNode"/>), fly here only for show, and go
+/// when the host says they hit (<see cref="Remove"/>).
 /// </summary>
 public partial class Projectiles : MultiMeshInstance3D, IOriginShift
 {
@@ -21,9 +26,14 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
     {
         public Vector3 Position, Velocity;
         public float Damage, Age;
+        public bool Harmless;               // for show: the session's host judges it
+        public byte Shooter;
+        public ushort Sequence;
     }
 
     private readonly List<Round> _rounds = new();
+
+    public int Flying => _rounds.Count;
 
     public override void _Ready()
     {
@@ -69,9 +79,25 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
 
     public void Fire(Vector3 origin, Vector3 velocity, float damage)
     {
-        if (_rounds.Count < MaxRounds)
+        if (SessionNode.Instance is SessionNode session && session.Active)
+            session.Fire(origin, velocity, damage);
+        else if (_rounds.Count < MaxRounds)
             _rounds.Add(new Round { Position = origin, Velocity = velocity, Damage = damage });
     }
+
+    /// <summary>A round that only flies for show, named by its shooter and sequence.</summary>
+    public void Show(Vector3 position, Vector3 velocity, float age, byte shooter, ushort sequence)
+    {
+        if (_rounds.Count < MaxRounds && age < Life)
+            _rounds.Add(new Round
+            {
+                Position = position, Velocity = velocity, Age = age, Harmless = true, Shooter = shooter, Sequence = sequence,
+            });
+    }
+
+    /// <summary>The host says this round hit: it goes.</summary>
+    public void Remove(byte shooter, ushort sequence) =>
+        _rounds.RemoveAll(r => r.Harmless && r.Shooter == shooter && r.Sequence == sequence);
 
     public override void _PhysicsProcess(double delta)
     {
@@ -81,11 +107,22 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
         {
             Round r = _rounds[i];
             Vector3 next = r.Position + r.Velocity * dt;
+            r.Age += dt;
+            if (r.Harmless)
+            {
+                if (r.Age > Life)
+                    _rounds.RemoveAt(i);
+                else
+                {
+                    r.Position = next;
+                    _rounds[i] = r;
+                }
+                continue;
+            }
             var query = PhysicsRayQueryParameters3D.Create(r.Position, next, Drone.HitLayer);
             query.CollideWithAreas = true;
             query.CollideWithBodies = false;
             var hit = space.IntersectRay(query);
-            r.Age += dt;
             if (hit.Count > 0 && hit["collider"].As<Node>()?.GetParent()?.GetParent() is Drone drone)
             {
                 drone.Hit(r.Damage);

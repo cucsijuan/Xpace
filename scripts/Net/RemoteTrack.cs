@@ -54,10 +54,12 @@ public sealed class RemoteTrack
 
     public int Received { get; private set; }
 
+    /// <summary>Snapshots kept: 64 is 3 s at 20 a second.</summary>
+    public int Capacity = 64;
+
     /// <summary>The tick of the newest snapshot here; null before the first.</summary>
     public uint? NewestTick => _snapshots.Count > 0 ? _snapshots[^1].Tick : null;
 
-    private const int Capacity = 64;
     private readonly List<ShipSnapshot> _snapshots = new();
     private double _lateness;
     private uint _period = uint.MaxValue;
