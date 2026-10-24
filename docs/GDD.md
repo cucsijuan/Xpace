@@ -109,7 +109,7 @@ Jump computation is a good example of the CPU as a mechanic: a better navigation
 ### 5.2 Software
 
 - **Operating system:** COS, CucsiCorp's DOS, which already exists in sw86. The ship boots from its "diskette" (in the game, a cartridge or a ROM).
-- **In-game languages:** CBasic for beginners and ASM for those who need speed. Both already exist, along with the EDIT editor.
+- **In-game languages:** CBasic for beginners, C (Small-C: `.COM` and `.EXE` programs, several source files, libraries, `#asm` for the hot loops) for larger programs, and ASM for those who need speed. All three already exist, along with the EDIT editor.
 - **Factory software:** each manufacturer sells its programs: flight control, targeting, electronic warfare, navigation and automated trading.
 - **Software is a product:** it has versions, licences, bugs and patches. There is pirated software and a market of player-made programs (at first, inside the game itself).
 
@@ -216,11 +216,11 @@ Shields, armour, point defence systems and countermeasures: flares, chaff, jammi
   - **missiles:** emulated only if the player fired them or they are heading for the player.
 - **Real PC CPU budget:** measured in M0, the full pc86 board executes about 107 million instructions a second on one core (a 2026 office PC, MSVC Release build). That is about **260 machines at 4.77 MHz per core**, plenty for the player's ship, its turrets and nearby missiles. Each instance reserves 1 MB today; missiles would suit a vm86 variant with little memory, 64 KB or less.
 - **Spatial scale:** a floating origin (`FloatingOrigin`) moves the world back whenever the ship is 1 km from the origin, so single-precision floats never lose the millimetres the cockpit needs; Godot's double-precision build stays an option for very large sectors.
-- **Tools:** asm86 on the PC for the factory software; COS, ASM and CBasic inside the game for players.
+- **Tools:** asm86 (and Small-C, built for the PC) for the factory software; COS, ASM, CBasic and Small-C inside the game for players.
 
 ## 11. Assessment and recommendations
 
-**The strongest point.** The idea has something none of its references have: in X4 and Elite a ship is a spreadsheet of numbers; here the ship is a machine you can understand and modify. And much of the hardware and software already exists and works: the 8086, COS, the assembler, CBasic and EDIT. That is a huge advantage over 0x10c, which had to invent all of that.
+**The strongest point.** The idea has something none of its references have: in X4 and Elite a ship is a spreadsheet of numbers; here the ship is a machine you can understand and modify. And much of the hardware and software already exists and works: the 8086, COS, the assembler, CBasic, the C compiler and EDIT. That is a huge advantage over 0x10c, which had to invent all of that.
 
 **The main risk is scope.** What is described here is four games: a combat simulator, an X4, an Avorion and a 0x10c. 0x10c was cancelled precisely for trying to do too much. The recommendation is to build in layers, each playable on its own:
 

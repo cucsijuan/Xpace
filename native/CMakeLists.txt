@@ -3,7 +3,8 @@
 #   bin/pc86 library            the machine (CPU, BIOS, VGA, keyboard, timer, DMA, diskette)
 #   bin/xpace_native library    the ship's bus card and displays (xbus.c), the
 #                               missiles' microcontroller (mcu.c)
-#   ../disks/cos.img            the ship's diskette: COS, AUTOEXEC.BAT and the ship's software
+#   ../disks/cos.img            the ship's diskette: COS, AUTOEXEC.BAT, the ship's software and
+#                               Small-C, the C compiler (with CLIB.LIB and the headers)
 #   ../disks/missile.bin        the radar guided missile's firmware
 #   ../disks/irmissile.bin      the heat seeker's firmware
 #
@@ -103,8 +104,52 @@ endforeach()
 add_custom_target(firmware ALL DEPENDS ${XPACE_FIRMWARE})
 
 set(FD $<TARGET_FILE:fdimage>)
+
+# ---------- Small-C, the C compiler ----------
+# Built for this computer first; that one makes the library (CLIB.LIB) and
+# compiles itself into SMALLC.EXE for the diskette. (Left out with an
+# sw86 older than Small-C.)
+
+set(CC_DIR ${SW86_DIR}/smallc)
+set(CC_DISK_COMMANDS)
+set(CC_HEADERS)
+if(EXISTS ${CC_DIR}/main.c)
+  set(CC_SOURCES)
+  foreach(f main lex decl expr gen stmt link)
+    list(APPEND CC_SOURCES ${CC_DIR}/${f}.c)
+  endforeach()
+  file(GLOB CC_HEADERS ${CC_DIR}/include/*.h)
+  file(GLOB CC_LIB_SOURCES ${CC_DIR}/lib/*.asm ${CC_DIR}/lib/*.c)
+  list(SORT CC_LIB_SOURCES)
+  add_executable(smallc ${CC_SOURCES})
+  set_target_properties(smallc PROPERTIES C_STANDARD 99 RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+  if(MSVC)
+    target_compile_definitions(smallc PRIVATE _CRT_SECURE_NO_WARNINGS)
+  endif()
+  add_custom_command(OUTPUT ${DISK_WORK}/CLIB.LIB
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${DISK_WORK}
+    COMMAND $<TARGET_FILE:smallc> -I${CC_DIR}/include/ -c -o ${DISK_WORK}/CLIB.LIB ${CC_LIB_SOURCES}
+    DEPENDS smallc ${CC_LIB_SOURCES} ${CC_HEADERS}
+    VERBATIM)
+  add_custom_command(OUTPUT ${DISK_WORK}/SMALLC.EXE
+    COMMAND $<TARGET_FILE:smallc> -n -L${DISK_WORK}/CLIB.LIB -I${CC_DIR}/include/ -e -S -o ${DISK_WORK}/SMALLC.EXE ${CC_SOURCES}
+    COMMAND $<TARGET_FILE:asm86> ${DISK_WORK}/SMALLC.ASM -o ${DISK_WORK}/SMALLC.EXE
+    DEPENDS smallc asm86 ${DISK_WORK}/CLIB.LIB ${CC_SOURCES} ${CC_DIR}/smallc.h ${CC_HEADERS}
+    VERBATIM)
+  list(APPEND DISK_PROGRAMS ${DISK_WORK}/CLIB.LIB ${DISK_WORK}/SMALLC.EXE)
+  list(APPEND CC_DISK_COMMANDS
+    COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/SMALLC.EXE
+    COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/CLIB.LIB
+    COMMAND ${FD} add ${XPACE_DISK} ${SW86_DIR}/programs/hello/hello.c HELLO.C)
+  foreach(h ${CC_HEADERS})
+    get_filename_component(name ${h} NAME)
+    string(TOUPPER ${name} name)
+    list(APPEND CC_DISK_COMMANDS COMMAND ${FD} add ${XPACE_DISK} ${h} ${name})
+  endforeach()
+endif()
+
 set(DISK_SOURCES
-  ${SW86_DIR}/programs/hello/hello.asm ${SW86_DIR}/dos/apes.bas
+  ${SW86_DIR}/programs/hello/hello.asm ${SW86_DIR}/dos/apes.bas ${CC_HEADERS}
   ${XPACE_ROOT}/software/flight/flight.asm ${XPACE_ROOT}/software/firectl/firectl.asm
   ${XPACE_ROOT}/software/rwr/rwr.asm
   ${XPACE_ROOT}/software/missile/missile.asm ${XPACE_ROOT}/software/missile/irmissile.asm
@@ -120,6 +165,7 @@ add_custom_command(OUTPUT ${XPACE_DISK}
   COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/BASIC.COM
   COMMAND ${FD} add ${XPACE_DISK} ${SW86_DIR}/programs/hello/hello.asm HELLO.ASM
   COMMAND ${FD} add ${XPACE_DISK} ${SW86_DIR}/dos/apes.bas APES.BAS
+  ${CC_DISK_COMMANDS}
   COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/FLIGHT.COM
   COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/flight/flight.asm FLIGHT.ASM
   COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/FIRECTL.COM
