@@ -1,4 +1,4 @@
-; rwr.asm - CucsiCorp Threat Warning 1.1 (RWR.COM)
+; rwr.asm - CucsiCorp Threat Warning 1.2 (RWR.COM)
 ;
 ;   RWR         stays resident and shows the radar warning receiver
 ;   RWR OFF     takes it out of memory
@@ -6,9 +6,14 @@
 ; The warning receiver hears the radars whose beams light the ship. On the
 ; RWR screen (graphics) the ship sits in the middle, nose up, and every
 ; emitter is drawn at its bearing, as far out as the receiver guesses it
-; to be: a ring every 2 km, 8 km at the edge (anything further sits just
-; inside the edge, anything very close just off the ship). The guess comes
+; to be: the edge is 8, 6, 4, 2 or 1 km away (written in the top left
+; corner), with a ring every quarter of that; anything further sits just
+; inside the edge, anything very close just off the ship. The guess comes
 ; from the strength of the signal, so it is only roughly right.
+;
+; With the RWR screen picked as the screen of interest, its keys work:
+; zoom in and out step the range, sound switches the receiver's tones off
+; and on (MUTE in the bottom left corner while off).
 ;
 ; The symbol is the emitter's type letter (D drone, F fighter, U unknown)
 ; in a circle while it is only searching, in a diamond while it has the
@@ -25,11 +30,13 @@
 ; The devices (16 ports each, words little-endian):
 ;
 ;   150h  display card       +2 segment  +4 screen table  +6 screens
+;                            +8 keys pressed so far  +9 the last key (1 zoom
+;                            in, 2 zoom out, 3 sound)  +10 its screen
 ;           a screen (16 bytes): +0 name  +6 mode (0 text, 1 graphics)
 ;                            +7 columns  +8 rows  +10 width  +12 height
 ;                            +14 memory (offset)
 ;   170h  warning receiver   +0 type 8  +2 emitters in the table
-;                            +6 segment  +8 table (offset)
+;                            +5 audio (bit 0 off)  +6 segment  +8 table
 ;           an emitter (8 bytes): +0 id  +2 bearing (65536 to the turn,
 ;                            right positive)  +4 range (m)  +6 type letter
 ;                            +7 flags (bit 0 locked on us, bit 3 a missile)
@@ -44,8 +51,13 @@ IRQ_VECTOR  equ 0Dh
 IRQ_BIT     equ 20h
 
 SLOTS       equ 16                  ; lines in the receiver's table
-EDGE_RANGE  equ 8000                ; metres at the edge
-RINGS       equ 4                   ; a ring every EDGE_RANGE / RINGS
+SCALES      equ 5                   ; ranges at the edge (the table 'scales')
+RINGS       equ 4                   ; a ring every quarter of the range
+KEY_IN      equ 1                   ; the screen keys
+KEY_OUT     equ 2
+KEY_SOUND   equ 3
+LABEL_X     equ 2                   ; the range, top left
+LABEL_Y     equ 2
 SYMBOL_HALF equ 6                   ; the symbols are 13 x 13
 TICKS       equ 12                  ; marks round the edge, every 30 degrees
 TICK_TURN   equ 5461                ; 65536 / TICKS
@@ -95,6 +107,19 @@ on_irq:
 ; drawn there, the old symbol off and the new one on
 step:
     inc byte [ticks]
+    mov dx, DISPLAYS + 8            ; a screen key since the last look?
+    in al, dx
+    cmp al, [keys_seen]
+    je .line
+    mov [keys_seen], al
+    mov dx, DISPLAYS + 10
+    in al, dx
+    cmp al, [my_screen]
+    jne .line
+    mov dx, DISPLAYS + 9
+    in al, dx
+    call screen_key
+.line:
     mov bl, [slot]
     mov al, bl
     inc al
@@ -172,13 +197,12 @@ step:
 ; range, kept between just off the ship and just inside the edge
 place:
     mov ax, [range]
-    cmp ax, EDGE_RANGE
+    cmp ax, [edge_range]
     jb .inside
-    mov ax, EDGE_RANGE
+    mov ax, [edge_range]
 .inside:
     mul word [radius]
-    mov cx, EDGE_RANGE
-    div cx                          ; AX = pixels out
+    div word [edge_range]           ; AX = pixels out
     mov cx, [radius]
     sub cx, SYMBOL_HALF + 1
     cmp ax, cx
@@ -273,15 +297,29 @@ xor_symbol:
     pop cx
     pop ax
     mov al, ah                      ; the letter, 5 x 5 in the middle
-    sub al, 'A'
+    add cx, SYMBOL_HALF - 2
+    add dx, SYMBOL_HALF - 2
+    jmp xor_char
+
+; AL a character (A to Z, 0 to 9; anything else draws nothing): XORs it,
+; 5 x 5, with its top left at (CX, DX). Keeps CX and DX.
+xor_char:
+    push cx
+    push dx
+    sub al, '0'
+    cmp al, 9
+    jbe .digit
+    sub al, 'A' - '0'
     cmp al, 25
     ja .done
+    jmp .look
+.digit:
+    add al, 26                      ; the digits come after the letters
+.look:
     mov bl, 10
     mul bl
     mov si, ax
     add si, font
-    add cx, SYMBOL_HALF - 2
-    add dx, SYMBOL_HALF - 2
     call address
     mov bp, 5
 .letter:
@@ -300,7 +338,77 @@ xor_symbol:
     dec bp
     jnz .letter
 .done:
+    pop dx
+    pop cx
     ret
+
+; DS:SI text (ASCIIZ): XORs it from (CX, DX), 6 pixels a character
+xor_text:
+    lodsb
+    test al, al
+    jz .done
+    push si
+    call xor_char
+    pop si
+    add cx, 6
+    jmp xor_text
+.done:
+    ret
+
+; A screen key for the RWR screen: AL the key
+screen_key:
+    mov es, [screen_seg]
+    cmp al, KEY_SOUND
+    je .sound
+    mov bl, [scale]
+    cmp al, KEY_IN
+    jne .out
+    cmp bl, SCALES - 1
+    jae .done
+    inc bl
+    jmp .rescale
+.out:
+    cmp al, KEY_OUT
+    jne .done
+    test bl, bl
+    jz .done
+    dec bl
+.rescale:
+    push bx
+    call put_label                  ; the old range off
+    pop bx
+    mov [scale], bl
+    call put_label                  ; the new one on (the symbols move as their lines come round)
+    ret
+.sound:
+    xor byte [muted], 1
+    mov al, [muted]
+    mov dx, RWR + 5
+    out dx, al
+    mov si, s_mute
+    mov cx, LABEL_X
+    mov dx, [scr_h]
+    sub dx, 7
+    jmp xor_text
+.done:
+    ret
+
+; The range of the scale in use: edge_range, and its label XORed top left
+put_label:
+    mov bl, [scale]
+    xor bh, bh
+    mov si, bx
+    shl si, 1
+    mov ax, [scales + si]
+    mov [edge_range], ax
+    mov si, bx                      ; its label: 3 characters a scale
+    shl si, 1
+    add si, bx
+    shl si, 1
+    add si, labels
+    mov cx, LABEL_X
+    mov dx, LABEL_Y
+    jmp xor_text
 
 ; DI = the offset of the byte holding pixel (CX, DX), BL = how many bits
 ; into it the pixel starts. Keeps CX and DX.
@@ -361,9 +469,32 @@ font        dw 03F00h, 0C0C0h, 0FFC0h, 0C0C0h, 0C0C0h    ; A
             dw 0C0C0h, 03300h, 00C00h, 03300h, 0C0C0h    ; X
             dw 0C0C0h, 03300h, 00C00h, 00C00h, 00C00h    ; Y
             dw 0FFC0h, 00300h, 00C00h, 03000h, 0FFC0h    ; Z
+            dw 03F00h, 0C3C0h, 0CCC0h, 0F0C0h, 03F00h    ; 0
+            dw 00C00h, 03C00h, 00C00h, 00C00h, 03F00h    ; 1
+            dw 0FF00h, 000C0h, 03F00h, 0C000h, 0FFC0h    ; 2
+            dw 0FF00h, 000C0h, 00F00h, 000C0h, 0FF00h    ; 3
+            dw 0C300h, 0C300h, 0FFC0h, 00300h, 00300h    ; 4
+            dw 0FFC0h, 0C000h, 0FF00h, 000C0h, 0FF00h    ; 5
+            dw 03F00h, 0C000h, 0FF00h, 0C0C0h, 03F00h    ; 6
+            dw 0FFC0h, 000C0h, 00300h, 00C00h, 00C00h    ; 7
+            dw 03F00h, 0C0C0h, 03F00h, 0C0C0h, 03F00h    ; 8
+            dw 03F00h, 0C0C0h, 03FC0h, 000C0h, 03F00h    ; 9
+
+scales      dw 8000, 6000, 4000, 2000, 1000
+labels      db '8K', 0, 0, 0, 0     ; 6 bytes a scale
+            db '6K', 0, 0, 0, 0
+            db '4K', 0, 0, 0, 0
+            db '2K', 0, 0, 0, 0
+            db '1K', 0, 0, 0, 0
+s_mute      db 'MUTE', 0
 
 slot        db 0
 ticks       db 0
+scale       db 0                    ; which of 'scales'
+muted       db 0
+keys_seen   db 0                    ; the display card's key count, last look
+my_screen   db 0FFh                 ; the RWR screen's place in the screen table
+edge_range  dw 8000
 table_seg   dw 0
 table_off   dw 0
 screen_seg  dw 0
@@ -429,6 +560,19 @@ install:
     mov dx, msg_no_screen
     jmp quit_message
 .screen:
+    mov ax, bx                      ; its place in the screen table
+    mov dx, DISPLAYS + 4
+    push ax
+    in ax, dx
+    mov cx, ax
+    pop ax
+    sub ax, cx
+    mov cl, 4
+    shr ax, cl
+    mov [my_screen], al
+    mov dx, DISPLAYS + 8
+    in al, dx
+    mov [keys_seen], al
     mov byte [es:bx + 6], 1         ; graphics
     mov ax, [es:bx + 10]
     mov [scr_w], ax
@@ -454,6 +598,11 @@ install:
     call screen_segment
     mov [screen_seg], ax
     call draw_rings
+    mov es, [screen_seg]
+    call put_label
+    xor al, al                      ; the tones on
+    mov dx, RWR + 5
+    out dx, al
 
     mov ax, 3500h + IRQ_VECTOR
     int 21h
@@ -487,6 +636,9 @@ remove:
     mov ax, 2500h + IRQ_VECTOR
     int 21h
     pop ds
+    xor al, al                      ; the tones back on
+    mov dx, RWR + 5
+    out dx, al
     mov ax, [es:screen_seg]         ; the resident copy's screen goes dark
     mov cx, [es:screen_words]
     push es

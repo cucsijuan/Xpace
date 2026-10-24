@@ -20,6 +20,7 @@ public static class FlightInput
     public const string FirePrimary = "fire_primary", TargetAhead = "target_ahead", NextTarget = "next_target";
     public const string NextWeapon = "next_weapon";
     public const string Zoom = "zoom";
+    public const string DisplayZoomIn = "display_zoom_in", DisplayZoomOut = "display_zoom_out", DisplaySound = "display_sound";
 
     public static void Register()
     {
@@ -43,6 +44,9 @@ public static class FlightInput
         Add(NextTarget, Key(Godot.Key.G), Button(JoyButton.DpadRight));
         Add(NextWeapon, Key(Godot.Key.N), Button(JoyButton.DpadUp));
         Add(Zoom, new InputEventMouseButton { ButtonIndex = MouseButton.Right }, Button(JoyButton.RightStick));
+        Add(DisplayZoomIn, Key(Godot.Key.Bracketleft));          // the screen of interest's keys
+        Add(DisplayZoomOut, Key(Godot.Key.Bracketright));
+        Add(DisplaySound, Key(Godot.Key.M));
     }
 
     private static void Add(string action, params InputEvent[] events)

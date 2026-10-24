@@ -5,11 +5,29 @@ using Xpace.Native;
 
 namespace Xpace.Ship;
 
+/// <summary>A key of the screens' bezels: the program that owns the screen decides what it does.</summary>
+public enum DisplayKey
+{
+    None,
+    /// <summary>A shorter range: see closer.</summary>
+    ZoomIn,
+    /// <summary>A longer range.</summary>
+    ZoomOut,
+    /// <summary>The screen's system's sound, off or on.</summary>
+    Sound,
+}
+
 /// <summary>
 /// The ship's display card: the screens listed in <see cref="Screens"/>,
 /// memory-mapped in segment D000. Bus slot 5 (150h):
 ///
-///   +0 type 6  +1 version 2  +2 segment  +4 screen table (offset)  +6 screens
+///   +0 type 6  +1 version 3  +2 segment  +4 screen table (offset)  +6 screens
+///   +7 the screen of interest (the one the pilot picked; FFh none)
+///   +8 keys pressed so far  +9 the last key (<see cref="DisplayKey"/>)
+///   +10 the screen it was for
+///
+/// A program looks at +8 now and then: when it has moved on and +10 is its
+/// own screen, the key in +9 is for it.
 ///
 /// The screen table has 16 bytes a screen:
 ///
@@ -24,7 +42,8 @@ namespace Xpace.Ship;
 public partial class DisplayDevice : Node, IShipDevice
 {
     public const int Slot = 5;
-    public const byte Type = 6, Version = 2;
+    public const byte Type = 6, Version = 3;
+    public const byte NoScreen = 0xFF;
     public const int EntrySize = 16, MaxScreens = 16;
     public const ushort FirstBuffer = 0x2000;
 
@@ -32,6 +51,12 @@ public partial class DisplayDevice : Node, IShipDevice
 
     private ShipBody _ship;
     private Output[] _outputs = Array.Empty<Output>();
+    private byte _keys, _lastKey, _keyScreen = NoScreen;
+
+    /// <summary>The screen of interest's index, or -1.</summary>
+    public int Selected { get; private set; } = -1;
+    /// <summary>Its name, or "".</summary>
+    public string SelectedName => Selected >= 0 ? _outputs[Selected].Spec.Name : "";
 
     private sealed class Output
     {
@@ -86,16 +111,54 @@ public partial class DisplayDevice : Node, IShipDevice
 
     private Output Find(string name)
     {
-        foreach (Output o in _outputs)
-            if (string.Equals(o.Spec.Name, name, StringComparison.OrdinalIgnoreCase))
-                return o;
-        return null;
+        int i = IndexOf(name);
+        return i < 0 ? null : _outputs[i];
+    }
+
+    public int IndexOf(string name)
+    {
+        for (int i = 0; i < _outputs.Length; i++)
+            if (string.Equals(_outputs[i].Spec.Name, name, StringComparison.OrdinalIgnoreCase))
+                return i;
+        return -1;
+    }
+
+    /// <summary>Makes the screen with that name the screen of interest ("" or an unknown name: none).</summary>
+    public void Select(string name) => Selected = IndexOf(name ?? "");
+
+    /// <summary>A bezel key for the screen of interest.</summary>
+    public void PressKey(DisplayKey key)
+    {
+        if (Selected >= 0)
+            Queue(Selected, key);
+    }
+
+    /// <summary>A bezel key for the screen with that name (a cockpit button wired to it).</summary>
+    public void PressKeyOn(string screen, DisplayKey key)
+    {
+        int i = IndexOf(screen);
+        if (i >= 0)
+            Queue(i, key);
+    }
+
+    private void Queue(int screen, DisplayKey key)
+    {
+        _keys++;
+        _lastKey = (byte)key;
+        _keyScreen = (byte)screen;
     }
 
     public unsafe void BeforeStep(ShipBody ship, double delta)
     {
         if (_ship != null)
+        {
+            ShipBus b = ship.Computer.Bus;
+            b[Slot, 7] = Selected < 0 ? NoScreen : (byte)Selected;
+            b[Slot, 8] = _keys;
+            b[Slot, 9] = _lastKey;
+            b[Slot, 10] = _keyScreen;
             return;
+        }
         _ship = ship;
         ShipBus bus = ship.Computer.Bus;
         bus[Slot, 0] = Type;
@@ -103,6 +166,8 @@ public partial class DisplayDevice : Node, IShipDevice
         bus.SetWord(Slot, 2, unchecked((short)ShipMemory.Segment));
         bus.SetWord(Slot, 4, ShipMemory.Screens);
         bus[Slot, 6] = (byte)_outputs.Length;
+        bus[Slot, 7] = NoScreen;
+        bus[Slot, 10] = NoScreen;
 
         byte* table = ship.Computer.Memory + ShipMemory.Base + ShipMemory.Screens;
         for (int i = 0; i < _outputs.Length; i++)

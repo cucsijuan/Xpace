@@ -19,8 +19,14 @@ namespace Xpace.Cockpit;
 /// wheel zooms in steps and stays there until the middle button or the
 /// wheel brings it back.
 ///
-/// The first click takes the mouse; Esc (while not typing) gives it back.
-/// F5 saves the computer, F9 loads it.
+/// Clicking a screen also makes it the screen of interest (a thin yellow
+/// frame): [ and ] change its range, M its system's sound. The cockpit's
+/// controls (buttons, sliders, knobs) glow while pointed at; in view mode
+/// they are worked with the middle of the view, with the mouse free with
+/// the cursor: click, drag a slider or a knob, or turn it with the wheel.
+///
+/// The first click takes the mouse (unless it lands on a control); Esc
+/// (while not typing) gives it back. F5 saves the computer, F9 loads it.
 /// </summary>
 public partial class Pilot : Node3D
 {
@@ -59,7 +65,8 @@ public partial class Pilot : Node3D
     private Label _hud;
     private MouseWidget _widget;
     private ShipBody _ship;
-    private CockpitScreen _focused;
+    private CockpitScreen _focused, _picked;
+    private ICockpitInteractive _hovered, _dragging;
     private float _lookYaw, _lookPitch;
     private float _fov, _wheelFov;
     private Vector2 _stick;
@@ -101,30 +108,35 @@ public partial class Pilot : Node3D
         bool captured = Input.MouseMode == Input.MouseModeEnum.Captured;
         switch (e)
         {
+            case InputEventMouseMotion motion when _dragging != null:
+                _dragging.Drag(motion.Relative);
+                break;
             case InputEventMouseMotion motion when captured && _settleFrames == 0:
                 if (Viewing)
                     Look(motion.Relative);
                 else
                     MoveStick(motion.Relative);
                 break;
-            case InputEventMouseButton { Pressed: true } button when !captured:
+            case InputEventMouseButton { Pressed: false, ButtonIndex: MouseButton.Left }:
+                _dragging?.Release();
+                _dragging = null;
+                break;
+            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.WheelUp or MouseButton.WheelDown } wheel:
+                int notches = wheel.ButtonIndex == MouseButton.WheelUp ? 1 : -1;
+                if (_hovered is CockpitControl control)
+                    control.Wheel(notches);
+                else if (captured)
+                    _wheelFov = notches > 0 ? Mathf.Max(_wheelFov / WheelZoomStep, MinZoomFov) : Mathf.Min(_wheelFov * WheelZoomStep, _fov);
+                break;
+            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } when !captured || Viewing:
+                if (!Work() && !captured)
+                    CaptureMouse();
+                break;
+            case InputEventMouseButton { Pressed: true } when !captured:
                 CaptureMouse();
                 break;
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Middle }:
                 SetViewing(!Viewing);
-                break;
-            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.WheelUp }:
-                _wheelFov = Mathf.Max(_wheelFov / WheelZoomStep, MinZoomFov);
-                break;
-            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.WheelDown }:
-                _wheelFov = Mathf.Min(_wheelFov * WheelZoomStep, _fov);
-                break;
-            case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } when Viewing:
-                Node ahead = ThingAhead();
-                if (ahead is CockpitButton pushed)
-                    pushed.Press();
-                else
-                    Focus(ahead as CockpitScreen);
                 break;
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Right }:
                 Focus(null);
@@ -136,8 +148,43 @@ public partial class Pilot : Node3D
                     Save();
                 else if (key.Keycode == Key.F9)
                     Load();
+                else if (e.IsActionPressed(FlightInput.DisplayZoomIn))
+                    Display?.PressKey(DisplayKey.ZoomIn);
+                else if (e.IsActionPressed(FlightInput.DisplayZoomOut))
+                    Display?.PressKey(DisplayKey.ZoomOut);
+                else if (e.IsActionPressed(FlightInput.DisplaySound))
+                    Display?.PressKey(DisplayKey.Sound);
                 break;
         }
+    }
+
+    private DisplayDevice Display => _ship?.Device<DisplayDevice>();
+
+    /// <summary>A click on what the pilot points at: a screen is picked (and typed on, the computer's), a control worked. False if there is nothing there.</summary>
+    private bool Work()
+    {
+        switch (PointedAt())
+        {
+            case CockpitScreen screen:
+                Pick(screen);
+                Focus(screen.Source == ScreenSource.Computer ? screen : null);
+                return true;
+            case ICockpitInteractive control:
+                control.Press();
+                _dragging = control;
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    private void Pick(CockpitScreen screen)
+    {
+        if (_picked != null)
+            _picked.Selected = false;
+        _picked = screen;
+        screen.Selected = true;
+        Display?.Select(screen.Source == ScreenSource.Display ? screen.DisplayName : "");
     }
 
     public override void _Notification(int what)
@@ -251,6 +298,13 @@ public partial class Pilot : Node3D
     {
         if (_settleFrames > 0)
             _settleFrames--;
+        ICockpitInteractive hovered = _dragging ?? PointedAt() as ICockpitInteractive;
+        if (hovered != _hovered)
+        {
+            _hovered?.Hover(false);
+            hovered?.Hover(true);
+            _hovered = hovered;
+        }
         bool zoom = Input.MouseMode == Input.MouseModeEnum.Captured && Input.IsActionPressed(FlightInput.Zoom);
         float fov = zoom ? Mathf.Min(ZoomFov, _wheelFov) : _wheelFov;
         _camera.Fov = Mathf.Lerp(_camera.Fov, fov, 1 -Mathf.Exp(-ZoomSpeed * (float)delta));
@@ -273,8 +327,8 @@ public partial class Pilot : Node3D
         }
         string help = Input.MouseMode != Input.MouseModeEnum.Captured ? "Click to take the mouse."
             : _focused != null ? "Typing on the computer. Right-click to stop."
-            : Viewing ? "Looking: click a screen to type on it or a button to press it, wheel or right button to zoom. Middle button: fly."
-            : "Flying: mouse pitch/roll, W/S throttle, X stop, A/D yaw, Q/E R/F strafe, Z assist, T/G target, click fire, wheel or right button zoom. Middle button: look.";
+            : Viewing ? "Looking: click a screen to pick it (the computer's to type), work buttons and sliders; [ ] range, M sound on the picked screen; wheel or right button zoom. Middle button: fly."
+            : "Flying: mouse pitch/roll, W/S throttle, X stop, A/D yaw, Q/E R/F strafe, Z assist, T/G target, click fire, [ ] M picked screen, wheel or right button zoom. Middle button: look.";
         if (_noticeTime > 0)
         {
             _noticeTime -= delta;
@@ -285,11 +339,21 @@ public partial class Pilot : Node3D
 
     // ---------- screens, buttons and saving ----------
 
-    // The screen or button the pilot is looking at, within reach.
-    private Node ThingAhead()
+    // The screen or control the pilot points at, within reach: the middle of
+    // the view while looking around, the cursor while the mouse is free.
+    private Node PointedAt()
     {
-        Vector3 from = _camera.GlobalPosition;
-        Vector3 to = from - _camera.GlobalBasis.Z * ReachMetres;
+        if (Input.MouseMode != Input.MouseModeEnum.Captured)
+        {
+            Vector2 cursor = GetViewport().GetMousePosition();
+            return Ray(_camera.ProjectRayOrigin(cursor), _camera.ProjectRayNormal(cursor));
+        }
+        return Viewing ? Ray(_camera.GlobalPosition, -_camera.GlobalBasis.Z) : null;
+    }
+
+    private Node Ray(Vector3 from, Vector3 direction)
+    {
+        Vector3 to = from + direction * ReachMetres;
         var query = PhysicsRayQueryParameters3D.Create(from, to);
         query.CollideWithAreas = true;
         query.CollideWithBodies = false;

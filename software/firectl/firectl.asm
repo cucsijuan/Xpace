@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.6 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.7 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -33,7 +33,10 @@
 ; constant) its length, with shifts and adds only.
 ;
 ; It draws on the ship's screens it finds by name: a radar scope on RADAR
-; (graphics: bearing across, range up, the locked target in brackets) and
+; (graphics: bearing across, range up to 8, 6, 4, 2 or 1 km, written in
+; the top left corner, a dotted line every quarter; the locked target in
+; brackets; with RADAR the screen of interest, its zoom keys step the
+; range) and
 ; a page on WEAPON (text, 14 x 10 or more: the target, the turret and its
 ; heat). Without them it works the same, unseen.
 ;
@@ -54,6 +57,8 @@
 ;                            +12 fire (write 1)  +13 status (bit 2 too hot)
 ;                            +15 rounds fired
 ;   150h  display card       +2 segment  +4 screen table  +6 screens
+;                            +8 keys pressed so far  +9 the last key (1 zoom
+;                            in, 2 zoom out)  +10 its screen
 ;           a screen (16 bytes): +0 name  +6 mode (0 text, 1 graphics)
 ;                            +7 columns  +8 rows  +10 width  +12 height
 ;                            +14 memory (offset)
@@ -92,7 +97,9 @@ RESULT_SHOWN equ 180                ; and 'HIT' or 'MISSED'
 
 FIRE_TOLERANCE equ 91               ; half a degree, in binary angle
 SCOPE_HALF  equ 10923               ; 60 degrees either side
-SCOPE_RANGE equ 8000                ; metres to the top
+SCOPE_SCALES equ 5                  ; ranges to the top (the table 'scope_scales')
+KEY_IN      equ 1                   ; the screen keys
+KEY_OUT     equ 2
 
 SCREEN_EVERY equ 6
 ATTR_LABEL  equ 03h
@@ -169,6 +176,20 @@ step:
     call next_weapon
 .no_weapon:
     call launcher_news
+
+    mov dx, DISPLAYS + 8            ; a screen key for RADAR since the last look?
+    in al, dx
+    cmp al, [keys_seen]
+    je .no_key
+    mov [keys_seen], al
+    mov dx, DISPLAYS + 10
+    in al, dx
+    cmp al, [r_screen]
+    jne .no_key
+    mov dx, DISPLAYS + 9
+    in al, dx
+    call scope_key
+.no_key:
 
     mov dx, TURRET + 6              ; where the turret points now
     in ax, dx
@@ -824,7 +845,7 @@ place_mark:
     jl .off
     cmp ax, 2 * SCOPE_HALF
     jg .off
-    cmp bx, SCOPE_RANGE
+    cmp bx, [scope_range]
     jae .off
     mov cx, [r_w]                   ; x = bearing across the width
     dec cx
@@ -836,8 +857,7 @@ place_mark:
     mov cx, [r_h]
     dec cx
     mul cx
-    mov cx, SCOPE_RANGE
-    div cx
+    div word [scope_range]
     mov dx, [r_h]
     dec dx
     sub dx, ax
@@ -925,6 +945,79 @@ xor_mark:
 
 ; XOR the pixels AX (the leftmost in the top bits) onto BP rows from
 ; (CX, DX) down
+; A zoom key for the scope: AL the key. The marks follow at the next drawing.
+scope_key:
+    cmp word [r_seg], 0
+    je .done
+    mov bl, [r_scale]
+    cmp al, KEY_IN
+    jne .out
+    cmp bl, SCOPE_SCALES - 1
+    jae .done
+    inc bl
+    jmp .rescale
+.out:
+    cmp al, KEY_OUT
+    jne .done
+    test bl, bl
+    jz .done
+    dec bl
+.rescale:
+    push es
+    mov es, [r_seg]
+    push bx
+    call scope_label                ; the old range off
+    pop bx
+    mov [r_scale], bl
+    call scope_label                ; the new one on
+    pop es
+.done:
+    ret
+
+; The scale in use: scope_range, and its label XORed in the top left
+; corner (ES the scope)
+scope_label:
+    mov bl, [r_scale]
+    xor bh, bh
+    shl bx, 1
+    mov ax, [scope_scales + bx]
+    mov [scope_range], ax
+    mov al, [scope_digits + bx]     ; its digit (a word apart, the same index)
+    mov cx, 3
+    mov dx, 3
+    call xor_glyph
+    mov al, 10                      ; K
+    mov cx, 9
+    mov dx, 3
+    jmp xor_glyph
+
+; AL a glyph (0 to 9 the digits, 10 K): XORed 5 x 5 with its top left at
+; (CX, DX) on the scope
+xor_glyph:
+    mov bl, 10
+    mul bl
+    mov si, ax
+    add si, glyphs
+    mov ax, dx
+    mul word [r_pitch]
+    mov di, cx
+    shr di, 1
+    shr di, 1
+    add di, ax
+    and cl, 3
+    shl cl, 1
+    mov bp, 5
+.row:
+    mov ax, [si]
+    shr ax, cl
+    xor [es:di], ah
+    xor [es:di + 1], al
+    add si, 2
+    add di, [r_pitch]
+    dec bp
+    jnz .row
+    ret
+
 xor_rows:
     push ax
     mov ax, dx
@@ -1437,6 +1530,25 @@ last_result     db 0
 launch_wait     dw 0
 result_wait     dw 0
 mark_count      db 0
+r_scale         db 0                ; which of scope_scales
+r_screen        db 0FFh             ; the RADAR screen's place in the screen table
+keys_seen       db 0                ; the display card's key count, last look
+scope_range     dw 8000             ; metres to the top of the scope
+scope_scales    dw 8000, 6000, 4000, 2000, 1000
+scope_digits    dw 8, 6, 4, 2, 1
+; 0 to 9 and K, 5 x 5 in bright 2-bit pixels, a word a row
+glyphs:
+            dw 03F00h, 0C3C0h, 0CCC0h, 0F0C0h, 03F00h    ; 0
+            dw 00C00h, 03C00h, 00C00h, 00C00h, 03F00h    ; 1
+            dw 0FF00h, 000C0h, 03F00h, 0C000h, 0FFC0h    ; 2
+            dw 0FF00h, 000C0h, 00F00h, 000C0h, 0FF00h    ; 3
+            dw 0C300h, 0C300h, 0FFC0h, 00300h, 00300h    ; 4
+            dw 0FFC0h, 0C000h, 0FF00h, 000C0h, 0FF00h    ; 5
+            dw 03F00h, 0C000h, 0FF00h, 0C0C0h, 03F00h    ; 6
+            dw 0FFC0h, 000C0h, 00300h, 00C00h, 00C00h    ; 7
+            dw 03F00h, 0C0C0h, 03F00h, 0C0C0h, 03F00h    ; 8
+            dw 03F00h, 0C0C0h, 03FC0h, 000C0h, 03F00h    ; 9
+                dw 0C0C0h, 0C300h, 0FC00h, 0C300h, 0C0C0h    ; K
 r_seg           dw 0                ; the RADAR screen's segment (0: none)
 r_w             dw 0                ; its size in pixels
 r_h             dw 0
@@ -1530,6 +1642,19 @@ install:
     jb .no_scope
     cmp word [es:bx + 12], 16
     jb .no_scope
+    mov ax, bx                      ; its place in the screen table
+    push ax
+    mov dx, DISPLAYS + 4
+    in ax, dx
+    mov cx, ax
+    pop ax
+    sub ax, cx
+    mov cl, 4
+    shr ax, cl
+    mov [r_screen], al
+    mov dx, DISPLAYS + 8
+    in al, dx
+    mov [keys_seen], al
     mov byte [es:bx + 6], 1         ; graphics
     mov ax, [es:bx + 10]
     mov [r_w], ax
@@ -1545,6 +1670,10 @@ install:
     call screen_segment
     mov [r_seg], ax
     call draw_grid
+    push es
+    mov es, [r_seg]
+    call scope_label
+    pop es
 .no_scope:
     mov si, n_weapon
     call find_screen

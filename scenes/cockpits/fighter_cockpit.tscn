@@ -7,6 +7,7 @@
 [ext_resource type="Script" uid="uid://de2fxlxm51ali" path="res://scripts/Cockpit/CockpitScreen.cs" id="5_screen"]
 [ext_resource type="Script" path="res://scripts/Cockpit/CockpitLever.cs" id="6_lever"]
 [ext_resource type="Script" path="res://scripts/Cockpit/CockpitButton.cs" id="7_button"]
+[ext_resource type="Script" path="res://scripts/Cockpit/CockpitSlider.cs" id="8_slider"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_16ts0"]
 shading_mode = 0
@@ -129,7 +130,20 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.654, 0.388, -0.415)
 script = ExtResource("7_button")
 CutFrom = NodePath("../Body/SM_Veh_POV_Cockpit_01")
 CutBox = AABB(-0.6754, 0.3585, 0.3937, 0.0363, 0.0585, 0.0479)
+Target = NodePath("ShipComputer")
+Method = &"Reset"
 PressOffset = Vector3(0.0032, -0.0003, -0.0023)
+
+[node name="RwrVolume" type="Node3D" parent="." node_paths=PackedStringArray("CutFrom")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2126, 0.4292, -0.8238)
+script = ExtResource("8_slider")
+Property = &"Volume"
+MinOffset = Vector3(0, -0.0388, 0.0138)
+MaxOffset = Vector3(0, 0.027, -0.0096)
+CutFrom = NodePath("../Body/SM_Veh_POV_Cockpit_01")
+CutBox = AABB(0.205, 0.417, 0.815, 0.015, 0.033, 0.018)
+Target = NodePath("Rwr/RwrTone")
+Radius = 0.02
 
 [editable path="Body"]
 [editable path="Frame"]

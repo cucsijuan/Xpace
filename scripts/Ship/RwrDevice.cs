@@ -38,9 +38,10 @@ namespace Xpace.Ship;
 /// bright the plume looks, give or take <see cref="PlumeRangeError"/>.
 /// A missile that has burnt out coasts unseen. In the table as type 'M'.
 ///
-/// Registers: +0 type 8  +1 version 2  +2 entries in the table  +3 updates
+/// Registers: +0 type 8  +1 version 3  +2 entries in the table  +3 updates
 /// so far  +4 flags (bit 0 something has us locked, bit 1 a new emitter in
-/// the last second, bit 2 a missile coming)  +6 segment  +8 table offset.
+/// the last second, bit 2 a missile coming)  +5 audio (the program writes
+/// it: bit 0 off)  +6 segment  +8 table offset.
 ///
 /// The table, up to 16 entries of 8 bytes: +0 id  +2 bearing (binary
 /// angle, 65536 to the turn, from the nose, right positive, in the ship's
@@ -50,7 +51,7 @@ namespace Xpace.Ship;
 public partial class RwrDevice : Node3D, IShipDevice
 {
     public const int Slot = 7;
-    public const byte Type = 8, Version = 2;
+    public const byte Type = 8, Version = 3;
     public const int MaxEmitters = 16, EntrySize = 8;
     public const byte FlagLocked = 1, FlagHeard = 2, FlagNew = 4, FlagMissile = 8;
 
@@ -97,6 +98,8 @@ public partial class RwrDevice : Node3D, IShipDevice
     public IReadOnlyList<Contact> Contacts => _contacts;
     public bool LockWarning { get; private set; }
     public bool MissileWarning { get; private set; }
+    /// <summary>The headset tones are on (the program switches them).</summary>
+    public bool AudioOn { get; private set; } = true;
 
     private readonly List<Contact> _contacts = new();
     private bool _registersSet;
@@ -129,6 +132,7 @@ public partial class RwrDevice : Node3D, IShipDevice
         foreach (Node node in GetTree().GetNodesInGroup("missiles"))
             if (node is Missile m && m.Shooter != ship)
                 Watch(ship, m, (float)delta);
+        AudioOn = (bus[Slot, 5] & 1) == 0;
         _contacts.RemoveAll(c => c.Heard > (c.IsMissile ? PlumeHoldSeconds : HoldSeconds) ||
                                  (c.IsMissile ? !IsInstanceValid(c.Missile) : c.Emitter is GodotObject o && !IsInstanceValid(o)));
 

@@ -14,6 +14,10 @@ namespace Xpace.Cockpit;
 ///   a search beam     a short burst of its pulses each time it sweeps past
 ///   a lock            its pulses without a break, for as long as it holds
 ///   a missile coming  a two-tone warble over everything else
+///
+/// <see cref="Volume"/> is the knob on the panel (0 to 1, heard as its
+/// square, so the travel sounds even); the program can switch the sound
+/// off through the receiver (<see cref="RwrDevice.AudioOn"/>).
 /// </summary>
 public partial class RwrTone : AudioStreamPlayer
 {
@@ -26,6 +30,7 @@ public partial class RwrTone : AudioStreamPlayer
     [Export] public float NewLevel = 0.04f, PingLevel = 0.04f, LockLevel = 0.035f, MissileLevel = 0.06f;
     [Export] public float PulseDuty = 0.3f;              // how much of each pulse period sounds
     [Export] public float Dullness = 0.6f;               // the headset's top end cut, 0 none to 1 all
+    [Export(PropertyHint.Range, "0,1,0.01")] public float Volume { get; set; } = 0.59f;
 
     /// <summary>What it plays without a break now: "missile", "lock" or "" (for tests and the HUD).</summary>
     public string Sounding { get; private set; } = "";
@@ -81,7 +86,8 @@ public partial class RwrTone : AudioStreamPlayer
                 sample += Pulse(_steadyPhase) * _steadyLevel;
             }
             _smooth += (sample - _smooth) * (1 - Dullness * 0.95f);
-            _playback.PushFrame(new Vector2(_smooth, _smooth));
+            float output = _rwr.AudioOn ? _smooth * Volume * Volume : 0;
+            _playback.PushFrame(new Vector2(output, output));
         }
     }
 

@@ -119,6 +119,7 @@ public partial class RwrTest : Node3D
         }
         Check("the lock warning is on", _rwr.LockWarning && (_ship.Computer.Bus[RwrDevice.Slot, 4] & 1) != 0);
         SavePicture("user://rwr_test.png");
+        await ScreenKeys();
 
         // The ship turns 90 degrees right: everything moves 90 degrees left
         var before = Find(_emitters[0]).Bearing;
@@ -224,37 +225,111 @@ public partial class RwrTest : Node3D
 
     // ---------- the screen ----------
 
-    private const int Size = 128, Radius = Size / 2 - 1, EdgeRange = 8000, Half = 6;
+    private const int Size = 128, Radius = Size / 2 - 1, Half = 6;
+    private int _edgeRange = 8000;
 
     private static readonly ushort[] Circle = { 0x0F80, 0x3060, 0x6030, 0x4010, 0x8008, 0x8008, 0x8008, 0x8008, 0x8008, 0x4010, 0x6030, 0x3060, 0x0F80 };
     private static readonly ushort[] Diamond = { 0x0200, 0x0500, 0x0880, 0x1040, 0x2020, 0x4010, 0x8008, 0x4010, 0x2020, 0x1040, 0x0880, 0x0500, 0x0200 };
 
     /// <summary>Where RWR.COM puts a contact (as it works it out, near enough).</summary>
-    private static (int x, int y) Expected(RwrDevice.Contact c)
+    private (int x, int y) Expected(RwrDevice.Contact c)
     {
-        int r = (int)(Math.Min(c.Range, EdgeRange) * Radius / EdgeRange);
+        int r = (int)(Math.Min(c.Range, _edgeRange) * Radius / _edgeRange);
         r = Math.Clamp(r, Half + 3, Radius - Half - 1);
         return (Size / 2 + (int)MathF.Round(r * MathF.Sin(c.Bearing)), Size / 2 - (int)MathF.Round(r * MathF.Cos(c.Bearing)));
     }
 
-    private unsafe int Pixel(int x, int y)
+    private int Pixel(int x, int y) => Pixel("RWR", Size, x, y);
+
+    private unsafe int Pixel(string name, int width, int x, int y)
     {
-        if (x < 0 || y < 0 || x >= Size || y >= Size)
+        if (x < 0 || y < 0 || x >= width)
             return 0;
-        byte* screen = Screen();
-        return (screen[y * Size / 4 + x / 4] >> (6 - 2 * (x & 3))) & 3;
+        byte* screen = Screen(name);
+        return (screen[y * width / 4 + x / 4] >> (6 - 2 * (x & 3))) & 3;
     }
 
-    private unsafe byte* Screen()
+    private unsafe byte* Screen(string name)
     {
         byte* memory = _ship.Computer.Memory + ShipMemory.Base;
+        string padded = name.PadRight(6);
         for (int i = 0; i < _ship.Computer.Bus[DisplayDevice.Slot, 6]; i++)
         {
             byte* e = memory + ShipMemory.Screens + i * DisplayDevice.EntrySize;
-            if (e[0] == 'R' && e[1] == 'W' && e[2] == 'R' && e[3] == ' ')
+            bool same = true;
+            for (int k = 0; k < 6; k++)
+                same &= e[k] == padded[k];
+            if (same)
                 return memory + *(ushort*)(e + 14);
         }
-        throw new InvalidOperationException("no RWR screen");
+        throw new InvalidOperationException($"no {name} screen");
+    }
+
+    /// <summary>The pixels of a corner of a screen, as one string (to see whether its writing changed).</summary>
+    private string Corner(string name, int width, int x0, int y0)
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int y = y0; y < y0 + 5; y++)
+            for (int x = x0; x < x0 + 12; x++)
+                sb.Append(Pixel(name, width, x, y));
+        return sb.ToString();
+    }
+
+    /// <summary>
+    /// The screen keys: the RWR screen picked, zoom in twice (8 to 4 km): the
+    /// label changes and the drone at 3 km moves out; sound off and on again.
+    /// The RADAR screen picked: its zoom key changes the scope's range, and
+    /// not the RWR's.
+    /// </summary>
+    private async Task ScreenKeys()
+    {
+        RwrDevice.Contact drone = Find(_emitters[0]);
+        string label8 = Corner("RWR", Size, 2, 2);
+        int before = Distance(drone);
+        _display.Select("RWR");
+        _display.PressKey(DisplayKey.ZoomIn);
+        await Seconds(0.1);
+        _display.PressKey(DisplayKey.ZoomIn);
+        _edgeRange = 4000;
+        await Seconds(0.6);                       // every line looked at again
+        string label4 = Corner("RWR", Size, 2, 2);
+        string symbol = SymbolAt(drone, out _, out _);
+        Check($"zoom in twice: the RWR's label changes (8K to 4K)", label4 != label8 && label4.Contains('3'));
+        Check($"and the drone at 3 km moves out ({before} to {Distance(drone)} pixels from the middle, a {symbol})",
+              symbol == "circle" && Distance(drone) > before * 1.7f);
+        _display.PressKey(DisplayKey.ZoomOut);
+        await Seconds(0.1);
+        _display.PressKey(DisplayKey.ZoomOut);
+        _edgeRange = 8000;
+        await Seconds(0.6);
+        Check("zoom out twice: back to 8K", Corner("RWR", Size, 2, 2) == label8);
+
+        string mute = Corner("RWR", Size, 2, Size - 7);
+        _display.PressKey(DisplayKey.Sound);
+        await Seconds(0.1);
+        Check($"the sound key mutes the receiver's tones and says so", !_rwr.AudioOn && Corner("RWR", Size, 2, Size - 7) != mute);
+        _display.PressKey(DisplayKey.Sound);
+        await Seconds(0.1);
+        Check("and again: on", _rwr.AudioOn && Corner("RWR", Size, 2, Size - 7) == mute);
+
+        const int radarWidth = 160;
+        string scope8 = Corner("RADAR", radarWidth, 3, 3);
+        string rwrLabel = Corner("RWR", Size, 2, 2);
+        _display.Select("RADAR");
+        _display.PressKey(DisplayKey.ZoomIn);
+        await Seconds(0.1);
+        Check("the RADAR picked: its zoom key changes the scope's range", Corner("RADAR", radarWidth, 3, 3) != scope8);
+        Check("and leaves the RWR's alone", Corner("RWR", Size, 2, 2) == rwrLabel);
+        _display.PressKey(DisplayKey.ZoomOut);
+        await Seconds(0.1);
+        Check("zoom out: the scope's range back", Corner("RADAR", radarWidth, 3, 3) == scope8);
+        _display.Select("");
+    }
+
+    private int Distance(RwrDevice.Contact c)
+    {
+        SymbolAt(c, out int x, out int y);
+        return (int)new Vector2(x - Size / 2, y - Size / 2).Length();
     }
 
     /// <summary>The shape found near where the contact should be: circle, diamond or nothing.</summary>

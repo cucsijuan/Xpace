@@ -1,35 +1,35 @@
-[gd_scene load_steps=38 format=3]
+[gd_scene format=3 uid="uid://5wj6kcjm7jnh"]
 
-[ext_resource type="Script" path="res://scripts/Computer/ShipComputer.cs" id="1_computer"]
-[ext_resource type="PackedScene" path="res://scenes/cockpits/fighter_cockpit.tscn" id="2_cockpit"]
-[ext_resource type="Script" path="res://scripts/Cockpit/Pilot.cs" id="4_pilot"]
-[ext_resource type="Script" path="res://scripts/Space/Starfield.cs" id="5_stars"]
-[ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="6_ship"]
-[ext_resource type="Script" path="res://scripts/Cockpit/MouseWidget.cs" id="7_widget"]
-[ext_resource type="Script" path="res://scripts/Space/AsteroidField.cs" id="8_rocks"]
-[ext_resource type="Script" path="res://scripts/Space/SpaceDust.cs" id="9_dust"]
-[ext_resource type="Script" path="res://scripts/Space/PlaceholderStation.cs" id="10_station"]
-[ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="11_spec"]
-[ext_resource type="Script" path="res://scripts/Ship/DisplayDevice.cs" id="12_display"]
-[ext_resource type="Script" path="res://scripts/Ship/RadarDevice.cs" id="13_radar"]
-[ext_resource type="Script" path="res://scripts/Ship/TurretDevice.cs" id="14_turret"]
-[ext_resource type="Script" path="res://scripts/Space/Projectiles.cs" id="15_rounds"]
-[ext_resource type="Script" path="res://scripts/Space/Drone.cs" id="16_drone"]
-[ext_resource type="Script" path="res://scripts/Cockpit/TargetBracket.cs" id="17_bracket"]
-[ext_resource type="Script" path="res://scripts/Space/FloatingOrigin.cs" id="18_origin"]
-[ext_resource type="Script" path="res://scripts/Ship/DisplayScreen.cs" id="19_screen"]
+[ext_resource type="Script" uid="uid://c2vctpjj0ce8" path="res://scripts/Computer/ShipComputer.cs" id="1_computer"]
+[ext_resource type="PackedScene" uid="uid://ho2rnp52wjg6" path="res://scenes/cockpits/fighter_cockpit.tscn" id="2_cockpit"]
+[ext_resource type="Script" uid="uid://cgkl0vftvxi6k" path="res://scripts/Cockpit/Pilot.cs" id="4_pilot"]
+[ext_resource type="Script" uid="uid://ruptu1fjvqqg" path="res://scripts/Space/Starfield.cs" id="5_stars"]
+[ext_resource type="Script" uid="uid://bhbpgfgybh0nt" path="res://scripts/Ship/ShipBody.cs" id="6_ship"]
+[ext_resource type="Script" uid="uid://c2sx2rsqw81y1" path="res://scripts/Cockpit/MouseWidget.cs" id="7_widget"]
+[ext_resource type="Script" uid="uid://c74qxnce11yka" path="res://scripts/Space/AsteroidField.cs" id="8_rocks"]
+[ext_resource type="Script" uid="uid://dmloccduosk8w" path="res://scripts/Space/SpaceDust.cs" id="9_dust"]
+[ext_resource type="Script" uid="uid://c7chsve02emo" path="res://scripts/Space/PlaceholderStation.cs" id="10_station"]
+[ext_resource type="Script" uid="uid://crtawnlsvvjj0" path="res://scripts/Ship/ShipSpec.cs" id="11_spec"]
+[ext_resource type="Script" uid="uid://ddb4d5eq3ibf1" path="res://scripts/Ship/DisplayDevice.cs" id="12_display"]
+[ext_resource type="Script" uid="uid://c4xgxkaeap2pe" path="res://scripts/Ship/RadarDevice.cs" id="13_radar"]
+[ext_resource type="Script" uid="uid://hnoum77bd66n" path="res://scripts/Ship/TurretDevice.cs" id="14_turret"]
+[ext_resource type="Script" uid="uid://fx37j1uvmpsi" path="res://scripts/Space/Projectiles.cs" id="15_rounds"]
+[ext_resource type="Script" uid="uid://cvjc8qbq1xqql" path="res://scripts/Space/Drone.cs" id="16_drone"]
+[ext_resource type="Script" uid="uid://donqkx4277rct" path="res://scripts/Cockpit/TargetBracket.cs" id="17_bracket"]
+[ext_resource type="Script" uid="uid://1so3qsj34bt" path="res://scripts/Space/FloatingOrigin.cs" id="18_origin"]
+[ext_resource type="Script" uid="uid://b4gjqqy4j5n51" path="res://scripts/Ship/DisplayScreen.cs" id="19_screen"]
 [ext_resource type="Resource" path="res://assets/ship/displays/radar.tres" id="20_radar"]
 [ext_resource type="Resource" path="res://assets/ship/displays/weapon.tres" id="21_weapon"]
-[ext_resource type="Script" path="res://scripts/Ship/LauncherDevice.cs" id="22_launcher"]
+[ext_resource type="Script" uid="uid://b6skib0xpkite" path="res://scripts/Ship/LauncherDevice.cs" id="22_launcher"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/missile.tscn" id="23_missile"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/ir_missile.tscn" id="24_ir_missile"]
-[ext_resource type="Script" path="res://scripts/Space/HeatSun.cs" id="25_heat"]
-[ext_resource type="Script" path="res://scripts/Cockpit/SeekerTone.cs" id="26_growl"]
+[ext_resource type="Script" uid="uid://migam7qb2ubp" path="res://scripts/Space/HeatSun.cs" id="25_heat"]
+[ext_resource type="Script" uid="uid://4wjv7ww48u5f" path="res://scripts/Cockpit/SeekerTone.cs" id="26_growl"]
 [ext_resource type="Resource" path="res://assets/ship/displays/rwr.tres" id="27_rwr"]
-[ext_resource type="Script" path="res://scripts/Ship/RwrDevice.cs" id="28_rwr"]
-[ext_resource type="Script" path="res://scripts/Space/RadarEmitter.cs" id="29_emitter"]
-[ext_resource type="Script" path="res://scripts/Ship/ShipSignature.cs" id="30_signature"]
-[ext_resource type="Script" path="res://scripts/Cockpit/RwrTone.cs" id="31_rwr_tone"]
+[ext_resource type="Script" uid="uid://kq8v2hcv8sm8" path="res://scripts/Ship/RwrDevice.cs" id="28_rwr"]
+[ext_resource type="Script" uid="uid://co14mxnlyoaws" path="res://scripts/Space/RadarEmitter.cs" id="29_emitter"]
+[ext_resource type="Script" uid="uid://dnpkqqauajrlf" path="res://scripts/Ship/ShipSignature.cs" id="30_signature"]
+[ext_resource type="Script" uid="uid://cxdb8imy7mdxh" path="res://scripts/Cockpit/RwrTone.cs" id="31_rwr_tone"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -42,7 +42,6 @@ glow_enabled = true
 
 [sub_resource type="StandardMaterial3D" id="Material_planet"]
 albedo_color = Color(0.32, 0.45, 0.62, 1)
-roughness = 1.0
 
 [sub_resource type="SphereMesh" id="Mesh_planet"]
 material = SubResource("Material_planet")
@@ -57,131 +56,132 @@ script = ExtResource("11_spec")
 [sub_resource type="BoxShape3D" id="Shape_hull"]
 size = Vector3(5, 3, 10)
 
-[node name="Main" type="Node3D"]
+[node name="Main" type="Node3D" unique_id=1548194627]
 script = ExtResource("18_origin")
 ShipPath = NodePath("Ship")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1286936831]
 environment = SubResource("Environment_space")
 
-[node name="Sun" type="DirectionalLight3D" parent="."]
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=2053005665]
 transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 0, 0, 0)
 light_energy = 1.4
 script = ExtResource("25_heat")
 
-[node name="Starfield" type="MultiMeshInstance3D" parent="."]
+[node name="Starfield" type="MultiMeshInstance3D" parent="." unique_id=412625802]
 script = ExtResource("5_stars")
 
-[node name="Planet" type="MeshInstance3D" parent="."]
+[node name="Planet" type="MeshInstance3D" parent="." unique_id=2084746623]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26000, -9000, -60000)
 mesh = SubResource("Mesh_planet")
 
-[node name="Asteroids" type="MultiMeshInstance3D" parent="."]
+[node name="Asteroids" type="MultiMeshInstance3D" parent="." unique_id=51359718]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3400)
 script = ExtResource("8_rocks")
 
-[node name="Station" type="Node3D" parent="."]
+[node name="Station" type="Node3D" parent="." unique_id=1661568946]
 transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 450, 60, -1200)
 script = ExtResource("10_station")
 
-[node name="Projectiles" type="MultiMeshInstance3D" parent="."]
+[node name="Projectiles" type="MultiMeshInstance3D" parent="." unique_id=1887929994]
 script = ExtResource("15_rounds")
 
-[node name="Drone1" type="Node3D" parent="."]
+[node name="Drone1" type="Node3D" parent="." unique_id=1201583421]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -400, 80, -2200)
 script = ExtResource("16_drone")
+AnchorPath = NodePath("../Ship")
 Attacks = true
 MissileScene = ExtResource("24_ir_missile")
-AnchorPath = NodePath("../Ship")
 
-[node name="Radar" type="Node3D" parent="Drone1"]
+[node name="Radar" type="Node3D" parent="Drone1" unique_id=440645909]
 script = ExtResource("29_emitter")
 TargetPath = NodePath("../../Ship")
 
-[node name="Drone2" type="Node3D" parent="."]
+[node name="Drone2" type="Node3D" parent="." unique_id=933921391]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 900, -60, -3000)
 script = ExtResource("16_drone")
-Attacks = true
-MissileScene = ExtResource("24_ir_missile")
 Speed = 100.0
 AnchorPath = NodePath("../Ship")
-
-[node name="Radar" type="Node3D" parent="Drone2"]
-script = ExtResource("29_emitter")
-TargetPath = NodePath("../../Ship")
-
-[node name="Drone3" type="Node3D" parent="."]
-transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 200, 300, -3600)
-script = ExtResource("16_drone")
 Attacks = true
 MissileScene = ExtResource("24_ir_missile")
-Speed = 140.0
-AnchorPath = NodePath("../Ship")
 
-[node name="Radar" type="Node3D" parent="Drone3"]
+[node name="Radar" type="Node3D" parent="Drone2" unique_id=1396506718]
 script = ExtResource("29_emitter")
 TargetPath = NodePath("../../Ship")
 
-[node name="Ship" type="RigidBody3D" parent="."]
+[node name="Drone3" type="Node3D" parent="." unique_id=912209569]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 200, 300, -3600)
+script = ExtResource("16_drone")
+Speed = 140.0
+AnchorPath = NodePath("../Ship")
+Attacks = true
+MissileScene = ExtResource("24_ir_missile")
+
+[node name="Radar" type="Node3D" parent="Drone3" unique_id=1495459481]
+script = ExtResource("29_emitter")
+TargetPath = NodePath("../../Ship")
+
+[node name="Ship" type="RigidBody3D" parent="." unique_id=2058915107]
 script = ExtResource("6_ship")
 Spec = SubResource("Spec_fighter")
 
-[node name="Hull" type="CollisionShape3D" parent="Ship"]
+[node name="Hull" type="CollisionShape3D" parent="Ship" unique_id=1531879955]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -1)
 shape = SubResource("Shape_hull")
 
-[node name="ShipComputer" type="Node" parent="Ship"]
+[node name="ShipComputer" type="Node" parent="Ship" unique_id=327885703]
 script = ExtResource("1_computer")
 
-[node name="Display" type="Node" parent="Ship"]
+[node name="Display" type="Node" parent="Ship" unique_id=1227318872]
 script = ExtResource("12_display")
 Screens = Array[ExtResource("19_screen")]([ExtResource("20_radar"), ExtResource("21_weapon"), ExtResource("27_rwr")])
 
-[node name="Turret" type="Node3D" parent="Ship"]
+[node name="Turret" type="Node3D" parent="Ship" unique_id=1909061706]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 0.5, -6.5)
 script = ExtResource("14_turret")
 
-[node name="Radar" type="Node3D" parent="Ship"]
+[node name="Radar" type="Node3D" parent="Ship" unique_id=720871894]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -5)
 script = ExtResource("13_radar")
 TrackOriginPath = NodePath("../Turret")
 
-[node name="Launcher" type="Node3D" parent="Ship"]
+[node name="Launcher" type="Node3D" parent="Ship" unique_id=938738450]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.2, -3)
 script = ExtResource("22_launcher")
 MissileScene = ExtResource("23_missile")
 HeatSeekerScene = ExtResource("24_ir_missile")
 
-[node name="SeekerTone" type="AudioStreamPlayer" parent="Ship/Launcher"]
+[node name="SeekerTone" type="AudioStreamPlayer" parent="Ship/Launcher" unique_id=1115448228]
 script = ExtResource("26_growl")
 
-[node name="Rwr" type="Node3D" parent="Ship"]
+[node name="Rwr" type="Node3D" parent="Ship" unique_id=1738774826]
 script = ExtResource("28_rwr")
 
-[node name="RwrTone" type="AudioStreamPlayer" parent="Ship/Rwr"]
+[node name="RwrTone" type="AudioStreamPlayer" parent="Ship/Rwr" unique_id=727146807]
 script = ExtResource("31_rwr_tone")
 
-[node name="Signature" type="Node3D" parent="Ship"]
+[node name="Signature" type="Node3D" parent="Ship" unique_id=1823601226]
 script = ExtResource("30_signature")
 
-[node name="Cockpit" parent="Ship" instance=ExtResource("2_cockpit")]
+[node name="Cockpit" parent="Ship" unique_id=2034381439 instance=ExtResource("2_cockpit")]
 
-[node name="Dust" type="GPUParticles3D" parent="Ship"]
+[node name="Dust" type="GPUParticles3D" parent="Ship" unique_id=650690288]
 script = ExtResource("9_dust")
 
-[node name="Pilot" type="Node3D" parent="Ship" node_paths=PackedStringArray("Eye")]
+[node name="Pilot" type="Node3D" parent="Ship" unique_id=777180979 node_paths=PackedStringArray("Eye")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.007278681, -0.16143978)
 script = ExtResource("4_pilot")
 Eye = NodePath("../Cockpit/Eye")
 
-[node name="Camera3D" type="Camera3D" parent="Ship/Pilot"]
+[node name="Camera3D" type="Camera3D" parent="Ship/Pilot" unique_id=481021367]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
 fov = 70.0
 near = 0.02
 far = 120000.0
 
-[node name="Hud" type="CanvasLayer" parent="Ship/Pilot"]
+[node name="Hud" type="CanvasLayer" parent="Ship/Pilot" unique_id=1174691002]
 
-[node name="Label" type="Label" parent="Ship/Pilot/Hud"]
+[node name="Label" type="Label" parent="Ship/Pilot/Hud" unique_id=626323394]
 offset_left = 12.0
 offset_top = 8.0
 offset_right = 1400.0
@@ -189,16 +189,19 @@ offset_bottom = 80.0
 theme_override_colors/font_color = Color(0.75, 0.9, 0.8, 1)
 theme_override_font_sizes/font_size = 14
 
-[node name="TargetBracket" type="Control" parent="Ship/Pilot/Hud"]
+[node name="TargetBracket" type="Control" parent="Ship/Pilot/Hud" unique_id=2095934135]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("17_bracket")
 RadarPath = NodePath("../../../Radar")
 
-[node name="MouseWidget" type="Control" parent="Ship/Pilot/Hud"]
+[node name="MouseWidget" type="Control" parent="Ship/Pilot/Hud" unique_id=567139452]
+layout_mode = 3
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
@@ -208,5 +211,7 @@ offset_left = -60.0
 offset_top = -60.0
 offset_right = 60.0
 offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("7_widget")
