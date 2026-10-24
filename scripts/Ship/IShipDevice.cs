@@ -21,4 +21,5 @@ public static class ShipMemory
     public const int Base = Segment << 4;
     public const ushort Contacts = 0x1000, Track = 0x1100;               // the radar's picture
     public const ushort Screens = 0x1200;                                 // the display card's screen table; screens from 2000h
+    public const ushort Rwr = 0x1300;                                     // the warning receiver's emitters
 }

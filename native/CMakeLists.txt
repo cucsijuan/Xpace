@@ -87,6 +87,7 @@ assemble(EDIT.COM    ${SW86_DIR}/dos/edit.asm)
 assemble(BASIC.COM   ${SW86_DIR}/dos/basic.asm)
 assemble(FLIGHT.COM  ${XPACE_ROOT}/software/flight/flight.asm)
 assemble(FIRECTL.COM ${XPACE_ROOT}/software/firectl/firectl.asm)
+assemble(RWR.COM     ${XPACE_ROOT}/software/rwr/rwr.asm)
 
 set(XPACE_FIRMWARE ${XPACE_ROOT}/disks/missile.bin)
 add_custom_command(OUTPUT ${XPACE_FIRMWARE}
@@ -100,7 +101,8 @@ set(FD $<TARGET_FILE:fdimage>)
 set(DISK_SOURCES
   ${SW86_DIR}/programs/hello/hello.asm ${SW86_DIR}/dos/apes.bas
   ${XPACE_ROOT}/software/flight/flight.asm ${XPACE_ROOT}/software/firectl/firectl.asm
-  ${XPACE_ROOT}/software/missile/missile.asm ${XPACE_ROOT}/software/autoexec.bat)
+  ${XPACE_ROOT}/software/rwr/rwr.asm ${XPACE_ROOT}/software/missile/missile.asm
+  ${XPACE_ROOT}/software/autoexec.bat)
 add_custom_command(OUTPUT ${XPACE_DISK}
   COMMAND ${CMAKE_COMMAND} -E make_directory ${XPACE_ROOT}/disks
   COMMAND ${CMAKE_COMMAND} -E rm -f ${XPACE_DISK}
@@ -116,6 +118,8 @@ add_custom_command(OUTPUT ${XPACE_DISK}
   COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/flight/flight.asm FLIGHT.ASM
   COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/FIRECTL.COM
   COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/firectl/firectl.asm FIRECTL.ASM
+  COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/RWR.COM
+  COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/rwr/rwr.asm RWR.ASM
   COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/missile/missile.asm MISSILE.ASM
   COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/autoexec.bat AUTOEXEC.BAT
   COMMAND ${FD} boot ${XPACE_DISK} ${DISK_WORK}/boot.bin

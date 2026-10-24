@@ -24,6 +24,22 @@ texture_filter = 1
 [sub_resource type="QuadMesh" id="QuadMesh_ij54t"]
 size = Vector2(0.11, 0.088)
 
+[sub_resource type="StandardMaterial3D" id="Material_rwr_screen"]
+shading_mode = 0
+albedo_color = Color(0.1, 0.5, 0.35, 1)
+texture_filter = 1
+
+[sub_resource type="QuadMesh" id="QuadMesh_rwr"]
+size = Vector2(0.095, 0.095)
+
+[sub_resource type="StandardMaterial3D" id="Material_rwr_housing"]
+albedo_color = Color(0.13, 0.14, 0.15, 1)
+roughness = 0.7
+
+[sub_resource type="BoxMesh" id="BoxMesh_rwr_housing"]
+material = SubResource("Material_rwr_housing")
+size = Vector3(0.108, 0.108, 0.024)
+
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_c7hnr"]
 shading_mode = 0
 albedo_color = Color(0.1, 0.5, 0.35, 1)
@@ -79,6 +95,19 @@ script = ExtResource("5_screen")
 Source = 1
 DisplayName = "WEAPON"
 Size = Vector2(0.048, 0.074)
+
+[node name="RwrHousing" type="MeshInstance3D" parent="." unique_id=503117264]
+transform = Transform3D(1, 0, 0, 0, 0.951057, 0.309017, 0, -0.309017, 0.951057, -0.115, 0.4239, -0.8281)
+mesh = SubResource("BoxMesh_rwr_housing")
+
+[node name="RwrScreen" type="MeshInstance3D" parent="." unique_id=1771093544]
+transform = Transform3D(1, 0, 0, 0, 0.951057, 0.309017, 0, -0.309017, 0.951057, -0.115, 0.4277, -0.8160)
+material_override = SubResource("Material_rwr_screen")
+mesh = SubResource("QuadMesh_rwr")
+script = ExtResource("5_screen")
+Source = 1
+DisplayName = "RWR"
+Size = Vector2(0.095, 0.095)
 
 [node name="Stick" type="Node3D" parent="." node_paths=PackedStringArray("Part")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.000184, -0.32514, -0.484651)
