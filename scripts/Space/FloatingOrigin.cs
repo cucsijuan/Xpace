@@ -22,8 +22,8 @@ public partial class FloatingOrigin : Node3D
     [Export] public NodePath ShipPath;
     [Export] public float Threshold = 1000f;
 
-    /// <summary>Where the current origin is in the universe: the sum of every shift.</summary>
-    public Vector3 Offset { get; private set; }
+    /// <summary>Where the current origin is in the sector: the sum of every shift, in double precision.</summary>
+    public SectorPoint Origin { get; private set; }
 
     private Node3D _ship;
 
@@ -42,7 +42,7 @@ public partial class FloatingOrigin : Node3D
 
     public void Shift(Vector3 offset)
     {
-        Offset += offset;
+        Origin += offset;
         foreach (Node child in GetChildren())
             if (child is Node3D node && !node.TopLevel)
                 node.GlobalPosition -= offset;

@@ -242,6 +242,8 @@ Multiplayer is co-op and drop-in PvP invasions, not an MMO: a small session (a h
 | Lag compensation | On the host, for hits (below). |
 | Deterministic lockstep, prediction with rollback | Not used, see above. |
 
+**Built so far** (`scripts/Net`, tested by `tests/net_test.tscn` over a simulated link): a 33-byte snapshot (660 bytes a second per ship at 20 Hz, before delta compression), the sector tick, and remote ships interpolated with an adaptive playout delay. Following an owner flying hard 5 g manoeuvres, the remote ship is off by 0.1 cm on average on a 100 ms line with 5% loss (shown 200 ms late), and 0.2 cm on bad wifi (150 ms, 20% loss, 266 ms late).
+
 **Rounds and hits.** Cannon rounds are not hitscan (1,200 m/s: 1.7 s to 2 km) and in space they fly straight, so a reliable fire event (tick, origin, velocity) lets every machine simulate the same round with no further traffic. The host keeps about a second of history of every ship and tests each round's segment against the target **as the shooter saw it**: now, minus the interpolation delay, minus half the shooter's round trip (Source-style lag compensation, favouring the shooter).
 
 **Latency is a physical cause.** Missiles run on the host; a player's radar datalink reaches them across the network, so network latency becomes datalink latency. Likewise the radar and FIRECTL's filter see remote ships slightly late, which is sensor error, not dice: better hardware and software still make a measurable difference.
