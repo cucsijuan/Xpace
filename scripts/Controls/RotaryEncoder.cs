@@ -1,21 +1,21 @@
 using Godot;
 
-namespace Xpace.Cockpit;
+namespace Xpace.Controls;
 
 /// <summary>
-/// A rotary encoder of the cockpit model: a knob that turns in detents
-/// (see <see cref="CockpitControl"/> for placing it and its
-/// <see cref="CockpitControl.Target"/>). Each detent, by the wheel or by
+/// A rotary encoder: a knob that turns in detents (see
+/// <see cref="InteractiveControl"/> for its scene and
+/// <see cref="InteractiveControl.Target"/>). Each detent, by the wheel or by
 /// dragging sideways, either adds <see cref="Step"/> to the property
 /// <see cref="Property"/> (held between <see cref="Min"/> and
 /// <see cref="Max"/>, or going round with <see cref="Wraps"/>) or calls
 /// <see cref="Method"/> with <see cref="UpArguments"/> or
 /// <see cref="DownArguments"/> (a zoom knob for a screen: Display,
-/// PressKeyOn, ["RWR", 1] and ["RWR", 2]). The knob turns about
-/// <see cref="Axis"/> (its own frame) by <see cref="DegreesPerStep"/> a
+/// PressKeyOn, ["RWR", 1] and ["RWR", 2]). The knob (the Part) turns about
+/// <see cref="Axis"/> (the scene's frame) by <see cref="DegreesPerStep"/> a
 /// detent.
 /// </summary>
-public partial class CockpitEncoder : CockpitControl
+public partial class RotaryEncoder : InteractiveControl
 {
     [Export] public StringName Property = "";
     [Export] public float Step = 1f, Min = 0f, Max = 10f;
@@ -61,7 +61,7 @@ public partial class CockpitEncoder : CockpitControl
     private void Turn(int way)
     {
         _detents += way;
-        Basis = RestBasis * new Basis(Axis.Normalized(), -Mathf.DegToRad(DegreesPerStep) * _detents);
+        MovePart(new Transform3D(new Basis(Axis.Normalized(), -Mathf.DegToRad(DegreesPerStep) * _detents), Vector3.Zero));
         Node target = TargetNode;
         if (target == null)
             return;

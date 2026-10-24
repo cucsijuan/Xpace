@@ -1,0 +1,39 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/Cockpit/CockpitScreen.cs" id="1_screen"]
+[ext_resource type="PackedScene" path="res://scenes/controls/sliders/synty_cockpit_slider.tscn" id="2_slider"]
+
+[sub_resource type="StandardMaterial3D" id="Material_housing"]
+albedo_color = Color(0.13, 0.14, 0.15, 1)
+roughness = 0.7
+
+[sub_resource type="BoxMesh" id="Mesh_housing"]
+material = SubResource("Material_housing")
+size = Vector3(0.108, 0.108, 0.024)
+
+[sub_resource type="StandardMaterial3D" id="Material_screen"]
+shading_mode = 0
+albedo_color = Color(0.1, 0.5, 0.35, 1)
+texture_filter = 1
+
+[sub_resource type="QuadMesh" id="Mesh_screen"]
+size = Vector2(0.095, 0.095)
+
+[node name="RwrPanel" type="Node3D"]
+
+[node name="Housing" type="MeshInstance3D" parent="."]
+mesh = SubResource("Mesh_housing")
+
+[node name="Screen" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.0127)
+material_override = SubResource("Material_screen")
+mesh = SubResource("Mesh_screen")
+script = ExtResource("1_screen")
+Source = 1
+DisplayName = "RWR"
+Size = Vector2(0.095, 0.095)
+
+[node name="Volume" parent="." instance=ExtResource("2_slider")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0976, -0.0005, -0.0016)
+Target = NodePath("Rwr/RwrTone")
+Property = &"Volume"

@@ -1,0 +1,21 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/Controls/ToggleSwitch.cs" id="1_toggle"]
+[ext_resource type="ArrayMesh" path="res://assets/synty/parts/pov_cockpit_01/toggle_base.res" id="2_base"]
+[ext_resource type="ArrayMesh" path="res://assets/synty/parts/pov_cockpit_01/toggle_lever.res" id="3_lever"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="4_atlas"]
+
+[node name="SyntyCockpitToggle" type="Node3D" node_paths=PackedStringArray("Part")]
+script = ExtResource("1_toggle")
+Hinge = Vector3(0, 0, 0.0047)
+OffAngle = 40.0
+Part = NodePath("Lever")
+Radius = 0.02
+
+[node name="Base" type="MeshInstance3D" parent="."]
+material_override = ExtResource("4_atlas")
+mesh = ExtResource("2_base")
+
+[node name="Lever" type="MeshInstance3D" parent="."]
+material_override = ExtResource("4_atlas")
+mesh = ExtResource("3_lever")

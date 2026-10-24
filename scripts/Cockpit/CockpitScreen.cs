@@ -1,5 +1,6 @@
 using Godot;
 using Xpace.Computer;
+using Xpace.Controls;
 using Xpace.Ship;
 
 namespace Xpace.Cockpit;
@@ -24,7 +25,7 @@ public enum ScreenSource
 /// pilot is pointing at it.
 /// </summary>
 [Tool]
-public partial class CockpitScreen : MeshInstance3D, ICockpitInteractive
+public partial class CockpitScreen : MeshInstance3D, IInteractive
 {
     [Export] public ScreenSource Source;
 

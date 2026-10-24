@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/Tools/MeshPartTool.cs" id="1_tool"]
+[ext_resource type="Resource" path="res://tools/mesh_parts/lists/synty_pov_cockpit_01.tres" id="2_list"]
+
+[node name="MeshPartTool" type="Node"]
+script = ExtResource("1_tool")
+List = ExtResource("2_list")

@@ -55,6 +55,9 @@ public partial class RwrDevice : Node3D, IShipDevice
     public const int MaxEmitters = 16, EntrySize = 8;
     public const byte FlagLocked = 1, FlagHeard = 2, FlagNew = 4, FlagMissile = 8;
 
+    /// <summary>The power switch (a cockpit switch can work it): off, it hears nothing.</summary>
+    [Export] public bool Powered { get; set; } = true;
+
     [ExportGroup("Quality")]
     [Export] public float Sensitivity = 1f;
     [Export] public float DetectSnr = 10f;
@@ -126,12 +129,17 @@ public partial class RwrDevice : Node3D, IShipDevice
             c.WasHeard = c.HeardNow;
             c.HeardNow = false;
         }
-        foreach (Node node in GetTree().GetNodesInGroup("radar_emitters"))
-            if (node is IRadarEmitter e && !ship.IsAncestorOf(node))
-                Listen(ship, e, (float)delta);
-        foreach (Node node in GetTree().GetNodesInGroup("missiles"))
-            if (node is Missile m && m.Shooter != ship)
-                Watch(ship, m, (float)delta);
+        if (!Powered)
+            _contacts.Clear();
+        else
+        {
+            foreach (Node node in GetTree().GetNodesInGroup("radar_emitters"))
+                if (node is IRadarEmitter e && !ship.IsAncestorOf(node))
+                    Listen(ship, e, (float)delta);
+            foreach (Node node in GetTree().GetNodesInGroup("missiles"))
+                if (node is Missile m && m.Shooter != ship)
+                    Watch(ship, m, (float)delta);
+        }
         AudioOn = (bus[Slot, 5] & 1) == 0;
         _contacts.RemoveAll(c => c.Heard > (c.IsMissile ? PlumeHoldSeconds : HoldSeconds) ||
                                  (c.IsMissile ? !IsInstanceValid(c.Missile) : c.Emitter is GodotObject o && !IsInstanceValid(o)));

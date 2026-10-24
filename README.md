@@ -27,13 +27,14 @@ That builds, from the submodules:
 
 None of these go into the repository.
 
-The art comes from Synty's POLYGON Sci-Fi Space pack, whose licence does not allow redistributing its files, so they are not in the repository either. With the pack's source files in `.raw-assets/SourceFiles` (or anywhere, passing `-DPACK=<path>`), copy the ones the game uses into `assets/synty/`:
+The art comes from Synty's POLYGON Sci-Fi Space pack, whose licence does not allow redistributing its files, so they are not in the repository either. With the pack's source files in `.raw-assets/SourceFiles` (or anywhere, passing `-DPACK=<path>`), copy the ones the game uses into `assets/synty/`, have Godot import them and cut the cockpit's sliders and switches out into meshes of their own (`assets/synty/parts/`, see [docs/tools/mesh-parts.md](docs/tools/mesh-parts.md)):
 
 ```sh
-cmake -P tools/import_synty.cmake
+dotnet build
+cmake -DGODOT=<path to the Godot .NET binary> -P tools/import_synty.cmake
 ```
 
-Then open the project in Godot (.NET) and build it.
+Without `-DGODOT` it only copies the files. Then open the project in Godot (.NET).
 
 ## Controls
 
@@ -119,10 +120,13 @@ All of them exit with 0 when everything passed.
 | `scripts/Native` | P/Invoke over the pc86 and xpace_native libraries |
 | `scripts/Computer` | `ShipComputer` (the ship's PC), `ShipBus` (the bus registers), the key map |
 | `scripts/Ship` | `ShipBody` (physics, controls, inertial unit, thrusters, watchdog), radar, turret, the display card and its `DisplayScreen` resources, `ShipSpec`, `PilotControls` |
-| `scripts/Cockpit` | The pilot (Elite-style controls, looking), cockpit screens (placed in cockpit scenes, each picks what it shows), the mouse widget |
+| `scripts/Cockpit` | The pilot (Elite-style controls, looking, picking screens), cockpit screens (placed in cockpit scenes, each picks what it shows), stick and throttle, the headset tones, the mouse widget |
+| `scripts/Controls` | Buttons, sliders, switches, encoders: wired to what the ship exposes ([docs/controls.md](docs/controls.md)) |
+| `scripts/Tools` | The mesh part tool ([docs/tools/mesh-parts.md](docs/tools/mesh-parts.md)) |
 | `scripts/Space` | Stars, asteroids, space dust, the placeholder station, drones, rounds, the floating origin |
 | `software` | The ship's software: `flight/flight.asm`, `firectl/firectl.asm`, `autoexec.bat` |
-| `scenes` | `main.tscn`: the ship in the asteroid field; `cockpits/`: cockpit scenes (model, screens, the `Eye` marker for the camera) |
+| `scenes` | `main.tscn`: the ship in the asteroid field; `cockpits/`: cockpit scenes (model, panels, the `Eye` marker for the camera); `panels/`: screens and controls grouped and wired; `controls/`: one scene per control, by kind (`sliders/`, `switches/`...); `weapons/`: missiles, chaff, flares |
 | `assets` | `materials/`: shared materials; `ship/displays/`: the display screens (`DisplayScreen` resources); `synty/`: the Synty files (not in the repository) |
-| `tools` | `import_synty.cmake`: copies the Synty files the game uses |
+| `tools` | `import_synty.cmake`: copies the Synty files the game uses (and with `-DGODOT`, extracts the mesh parts); `mesh_parts/`: the mesh part tool's scene and its lists |
+| `docs` | `GDD.md`: the game design; `controls.md`: controls and panels; `tools/`: the tools |
 | `tests` | Computer, flight, combat and accuracy tests; the combat demo |

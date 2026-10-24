@@ -1,0 +1,21 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/Controls/SliderControl.cs" id="1_slider"]
+[ext_resource type="ArrayMesh" path="res://assets/synty/parts/pov_cockpit_01/slider_track.res" id="2_track"]
+[ext_resource type="ArrayMesh" path="res://assets/synty/parts/pov_cockpit_01/slider_knob.res" id="3_knob"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="4_atlas"]
+
+[node name="SyntyCockpitSlider" type="Node3D" node_paths=PackedStringArray("Part")]
+script = ExtResource("1_slider")
+Bottom = -0.0415
+Top = 0.0331
+Part = NodePath("Knob")
+Radius = 0.045
+
+[node name="Track" type="MeshInstance3D" parent="."]
+material_override = ExtResource("4_atlas")
+mesh = ExtResource("2_track")
+
+[node name="Knob" type="MeshInstance3D" parent="."]
+material_override = ExtResource("4_atlas")
+mesh = ExtResource("3_knob")

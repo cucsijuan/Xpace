@@ -1,0 +1,79 @@
+[gd_resource type="Resource" script_class="MeshPartList" load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scripts/Tools/MeshPartList.cs" id="1_list"]
+[ext_resource type="Script" path="res://scripts/Tools/MeshPart.cs" id="2_part"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Veh_POV_Cockpit_01.fbx" id="3_model"]
+
+[sub_resource type="Resource" id="Part_slider_knob"]
+script = ExtResource("2_part")
+Name = "slider_knob"
+Box = AABB(-0.2198, 0.4129, -0.8325, 0.0144, 0.0326, 0.0174)
+Origin = Vector3(-0.212609, 0.422951, -0.829434)
+RotationDegrees = Vector3(-18, 0, 0)
+
+[sub_resource type="Resource" id="Part_slider_track"]
+script = ExtResource("2_part")
+Name = "slider_track"
+Box = AABB(-0.2244, 0.372, -0.8478, 0.0236, 0.1019, 0.0367)
+Origin = Vector3(-0.212609, 0.422951, -0.829434)
+RotationDegrees = Vector3(-18, 0, 0)
+
+[sub_resource type="Resource" id="Part_slider2_knob"]
+script = ExtResource("2_part")
+Name = "slider2_knob"
+Mode = 2
+Box = AABB(-0.1675, 0.4247, -0.8382, 0.0145, 0.0326, 0.0174)
+
+[sub_resource type="Resource" id="Part_slider2_track"]
+script = ExtResource("2_part")
+Name = "slider2_track"
+Mode = 2
+Box = AABB(-0.1717, 0.372, -0.8478, 0.0236, 0.1019, 0.0367)
+
+[sub_resource type="Resource" id="Part_slider3_knob"]
+script = ExtResource("2_part")
+Name = "slider3_knob"
+Mode = 2
+Box = AABB(-0.1306, 0.3856, -0.8241, 0.0145, 0.0326, 0.0174)
+
+[sub_resource type="Resource" id="Part_slider3_track"]
+script = ExtResource("2_part")
+Name = "slider3_track"
+Mode = 2
+Box = AABB(-0.1352, 0.372, -0.8478, 0.0236, 0.1019, 0.0367)
+
+[sub_resource type="Resource" id="Part_toggle_lever"]
+script = ExtResource("2_part")
+Name = "toggle_lever"
+Box = AABB(0.2682, 0.3769, -0.8232, 0.0198, 0.0274, 0.0362)
+Origin = Vector3(0.278119, 0.382973, -0.824285)
+RotationDegrees = Vector3(-18, 0, 0)
+
+[sub_resource type="Resource" id="Part_toggle_base"]
+script = ExtResource("2_part")
+Name = "toggle_base"
+Box = AABB(0.261, 0.3614, -0.835, 0.0342, 0.0432, 0.0214)
+Origin = Vector3(0.278119, 0.382973, -0.824285)
+RotationDegrees = Vector3(-18, 0, 0)
+
+[sub_resource type="Resource" id="Part_toggle2_lever"]
+script = ExtResource("2_part")
+Name = "toggle2_lever"
+Mode = 2
+Box = AABB(0.269, 0.4313, -0.8419, 0.0198, 0.0274, 0.0362)
+
+[sub_resource type="Resource" id="Part_toggle2_base"]
+script = ExtResource("2_part")
+Name = "toggle2_base"
+Mode = 2
+Box = AABB(0.2618, 0.4158, -0.8536, 0.0342, 0.0432, 0.0214)
+
+[resource]
+script = ExtResource("1_list")
+Source = ExtResource("3_model")
+SourceMesh = NodePath("SM_Veh_POV_Cockpit_01")
+Placement = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+OutputFolder = "res://assets/synty/parts/pov_cockpit_01"
+RemainderName = "cockpit_body"
+Parts = Array[ExtResource("2_part")]([SubResource("Part_slider_knob"), SubResource("Part_slider_track"), SubResource("Part_slider2_knob"), SubResource("Part_slider2_track"), SubResource("Part_slider3_knob"), SubResource("Part_slider3_track"), SubResource("Part_toggle_lever"), SubResource("Part_toggle_base"), SubResource("Part_toggle2_lever"), SubResource("Part_toggle2_base")])
+SurveyBox = AABB(-0.32, 0.34, -0.95, 0.66, 0.18, 0.25)

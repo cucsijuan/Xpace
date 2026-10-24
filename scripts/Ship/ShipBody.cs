@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using Xpace.Computer;
+using Xpace.Controls;
 
 namespace Xpace.Ship;
 
@@ -21,7 +22,7 @@ namespace Xpace.Ship;
 /// the thruster controller takes the controls directly (direct mode).
 /// See software/flight/flight.asm for the registers.
 /// </summary>
-public partial class ShipBody : RigidBody3D
+public partial class ShipBody : RigidBody3D, IControlHost
 {
     public const int SlotControls = 0, SlotInertial = 1, SlotThrusters = 2;
     public const byte TypeControls = 1, TypeInertial = 2, TypeThrusters = 3;

@@ -6,8 +6,10 @@
 [ext_resource type="Material" path="res://assets/materials/synty_cockpit_glass.tres" id="4_glass"]
 [ext_resource type="Script" uid="uid://de2fxlxm51ali" path="res://scripts/Cockpit/CockpitScreen.cs" id="5_screen"]
 [ext_resource type="Script" path="res://scripts/Cockpit/CockpitLever.cs" id="6_lever"]
-[ext_resource type="Script" path="res://scripts/Cockpit/CockpitButton.cs" id="7_button"]
-[ext_resource type="Script" path="res://scripts/Cockpit/CockpitSlider.cs" id="8_slider"]
+[ext_resource type="Script" path="res://scripts/Controls/PushButton.cs" id="7_button"]
+[ext_resource type="ArrayMesh" path="res://assets/synty/parts/pov_cockpit_01/cockpit_body.res" id="8_body_mesh"]
+[ext_resource type="PackedScene" path="res://scenes/panels/cockpit/rwr_panel.tscn" id="9_rwr_panel"]
+[ext_resource type="PackedScene" path="res://scenes/panels/cockpit/radar_panel.tscn" id="10_radar_panel"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_16ts0"]
 shading_mode = 0
@@ -17,38 +19,6 @@ texture_filter = 1
 [sub_resource type="QuadMesh" id="QuadMesh_t0lbf"]
 size = Vector2(0.2, 0.15)
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_jk3vi"]
-shading_mode = 0
-albedo_color = Color(0.1, 0.5, 0.35, 1)
-texture_filter = 1
-
-[sub_resource type="QuadMesh" id="QuadMesh_ij54t"]
-size = Vector2(0.11, 0.088)
-
-[sub_resource type="StandardMaterial3D" id="Material_rwr_screen"]
-shading_mode = 0
-albedo_color = Color(0.1, 0.5, 0.35, 1)
-texture_filter = 1
-
-[sub_resource type="QuadMesh" id="QuadMesh_rwr"]
-size = Vector2(0.095, 0.095)
-
-[sub_resource type="StandardMaterial3D" id="Material_rwr_housing"]
-albedo_color = Color(0.13, 0.14, 0.15, 1)
-roughness = 0.7
-
-[sub_resource type="BoxMesh" id="BoxMesh_rwr_housing"]
-material = SubResource("Material_rwr_housing")
-size = Vector3(0.108, 0.108, 0.024)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_c7hnr"]
-shading_mode = 0
-albedo_color = Color(0.1, 0.5, 0.35, 1)
-texture_filter = 1
-
-[sub_resource type="QuadMesh" id="QuadMesh_38mym"]
-size = Vector2(0.048, 0.074)
-
 [node name="FighterCockpit" type="Node3D" unique_id=106818159]
 
 [node name="Body" parent="." unique_id=274325208 instance=ExtResource("1_body")]
@@ -56,6 +26,7 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
 [node name="SM_Veh_POV_Cockpit_01" parent="Body" index="0" unique_id=2105568551]
 material_override = ExtResource("3_atlas")
+mesh = ExtResource("8_body_mesh")
 
 [node name="SM_Veh_POV_Joystick_01" parent="Body/SM_Veh_POV_Cockpit_01" index="0" unique_id=714031852]
 material_override = ExtResource("3_atlas")
@@ -79,36 +50,11 @@ mesh = SubResource("QuadMesh_t0lbf")
 script = ExtResource("5_screen")
 Size = Vector2(0.2, 0.15)
 
-[node name="RadarScreen" type="MeshInstance3D" parent="." unique_id=1812102070]
+[node name="RadarPanel" parent="." instance=ExtResource("10_radar_panel")]
 transform = Transform3D(1, 0, 0, 0, 0.951057, 0.309017, 0, -0.309017, 0.951057, 0.165, 0.4239, -0.8281)
-material_override = SubResource("StandardMaterial3D_jk3vi")
-mesh = SubResource("QuadMesh_ij54t")
-script = ExtResource("5_screen")
-Source = 1
-DisplayName = "RADAR"
-Size = Vector2(0.11, 0.088)
 
-[node name="WeaponScreen" type="MeshInstance3D" parent="." unique_id=928610721]
-transform = Transform3D(0.99193674, 0, 0, 0, 0.9402661, 0.30801478, 0, -0.30551082, 0.94797254, 0.03923233, 0.42284563, -0.8307447)
-material_override = SubResource("StandardMaterial3D_c7hnr")
-mesh = SubResource("QuadMesh_38mym")
-script = ExtResource("5_screen")
-Source = 1
-DisplayName = "WEAPON"
-Size = Vector2(0.048, 0.074)
-
-[node name="RwrHousing" type="MeshInstance3D" parent="." unique_id=503117264]
+[node name="RwrPanel" parent="." instance=ExtResource("9_rwr_panel")]
 transform = Transform3D(1, 0, 0, 0, 0.951057, 0.309017, 0, -0.309017, 0.951057, -0.115, 0.4239, -0.8281)
-mesh = SubResource("BoxMesh_rwr_housing")
-
-[node name="RwrScreen" type="MeshInstance3D" parent="." unique_id=1771093544]
-transform = Transform3D(1, 0, 0, 0, 0.951057, 0.309017, 0, -0.309017, 0.951057, -0.115, 0.4277, -0.8160)
-material_override = SubResource("Material_rwr_screen")
-mesh = SubResource("QuadMesh_rwr")
-script = ExtResource("5_screen")
-Source = 1
-DisplayName = "RWR"
-Size = Vector2(0.095, 0.095)
 
 [node name="Stick" type="Node3D" parent="." node_paths=PackedStringArray("Part")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.000184, -0.32514, -0.484651)
@@ -133,17 +79,6 @@ CutBox = AABB(-0.6754, 0.3585, 0.3937, 0.0363, 0.0585, 0.0479)
 Target = NodePath("ShipComputer")
 Method = &"Reset"
 PressOffset = Vector3(0.0032, -0.0003, -0.0023)
-
-[node name="RwrVolume" type="Node3D" parent="." node_paths=PackedStringArray("CutFrom")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.2126, 0.4292, -0.8238)
-script = ExtResource("8_slider")
-Property = &"Volume"
-MinOffset = Vector3(0, -0.0388, 0.0138)
-MaxOffset = Vector3(0, 0.027, -0.0096)
-CutFrom = NodePath("../Body/SM_Veh_POV_Cockpit_01")
-CutBox = AABB(0.205, 0.417, 0.815, 0.015, 0.033, 0.018)
-Target = NodePath("Rwr/RwrTone")
-Radius = 0.02
 
 [editable path="Body"]
 [editable path="Frame"]

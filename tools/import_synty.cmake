@@ -3,9 +3,13 @@
 # redistributing its files, so they stay out of the repository; without them
 # the game falls back to placeholder geometry.
 #
-#   cmake -DPACK=<path to SourceFiles> -P tools/import_synty.cmake
+#   cmake -DPACK=<path to SourceFiles> -DGODOT=<path to Godot .NET> -P tools/import_synty.cmake
 #
-# PACK defaults to .raw-assets/SourceFiles in the project.
+# PACK defaults to .raw-assets/SourceFiles in the project. With GODOT, it
+# then has Godot import them and runs the mesh part tool on every list in
+# tools/mesh_parts/lists (the cockpit's sliders and switches, as meshes of
+# their own, into assets/synty/parts; see docs/tools/mesh-parts.md). The
+# C# project must be built first (dotnet build).
 
 get_filename_component(ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 if(NOT PACK)
@@ -35,3 +39,23 @@ foreach(t IN LISTS TEXTURES)
   file(COPY "${PACK}/Textures/${t}.png" DESTINATION "${DEST}")
 endforeach()
 message(STATUS "Synty files copied to ${DEST}")
+
+if(GODOT)
+  execute_process(COMMAND "${GODOT}" --headless --path "${ROOT}" --import
+                  RESULT_VARIABLE imported)
+  if(NOT imported EQUAL 0)
+    message(FATAL_ERROR "Godot could not import the project (${imported})")
+  endif()
+  file(GLOB LISTS RELATIVE "${ROOT}" "${ROOT}/tools/mesh_parts/lists/*.tres")
+  foreach(list IN LISTS LISTS)
+    execute_process(COMMAND "${GODOT}" --headless --path "${ROOT}" res://tools/mesh_parts/mesh_part_tool.tscn
+                            -- "res://${list}" extract
+                    RESULT_VARIABLE extracted)
+    if(NOT extracted EQUAL 0)
+      message(FATAL_ERROR "The mesh part tool failed on ${list}")
+    endif()
+  endforeach()
+  message(STATUS "Mesh parts extracted into ${DEST}/parts")
+else()
+  message(STATUS "Next: Godot import, then the mesh part tool (or run this again with -DGODOT=<godot>)")
+endif()

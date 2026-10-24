@@ -1,5 +1,6 @@
 using Godot;
 using Xpace.Computer;
+using Xpace.Controls;
 using Xpace.Ship;
 
 namespace Xpace.Cockpit;
@@ -50,9 +51,14 @@ public partial class Pilot : Node3D
     /// <summary>The throttle stops at zero on its way through; seconds of pushing to go past it.</summary>
     [Export] public float ThrottleDetent = 0.4f;
 
-    /// <summary>Wheel zoom: each notch divides the field of view by this, down to MinZoomFov.</summary>
+    /// <summary>
+    /// Wheel zoom: each notch divides the field of view by this, from
+    /// MinZoomFov (in) to MaxWheelFov (out, wider than normal); on the way
+    /// through the normal view it stops there for a notch.
+    /// </summary>
     [Export] public float WheelZoomStep = 1.25f;
     [Export] public float MinZoomFov = 12f;
+    [Export] public float MaxWheelFov = 100f;
 
     [Export] public string SavePath = "user://computer.sav";
 
@@ -66,7 +72,7 @@ public partial class Pilot : Node3D
     private MouseWidget _widget;
     private ShipBody _ship;
     private CockpitScreen _focused, _picked;
-    private ICockpitInteractive _hovered, _dragging;
+    private IInteractive _hovered, _dragging;
     private float _lookYaw, _lookPitch;
     private float _fov, _wheelFov;
     private Vector2 _stick;
@@ -123,10 +129,10 @@ public partial class Pilot : Node3D
                 break;
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.WheelUp or MouseButton.WheelDown } wheel:
                 int notches = wheel.ButtonIndex == MouseButton.WheelUp ? 1 : -1;
-                if (_hovered is CockpitControl control)
+                if (_hovered is InteractiveControl control)
                     control.Wheel(notches);
                 else if (captured)
-                    _wheelFov = notches > 0 ? Mathf.Max(_wheelFov / WheelZoomStep, MinZoomFov) : Mathf.Min(_wheelFov * WheelZoomStep, _fov);
+                    WheelZoom(notches);
                 break;
             case InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left } when !captured || Viewing:
                 if (!Work() && !captured)
@@ -169,7 +175,7 @@ public partial class Pilot : Node3D
                 Pick(screen);
                 Focus(screen.Source == ScreenSource.Computer ? screen : null);
                 return true;
-            case ICockpitInteractive control:
+            case IInteractive control:
                 control.Press();
                 _dragging = control;
                 return true;
@@ -211,6 +217,14 @@ public partial class Pilot : Node3D
             _lookYaw = _lookPitch = 0;          // and the head looks ahead again
             _camera.Rotation = Vector3.Zero;
         }
+    }
+
+    // A notch of the wheel: in (up) or out, with a stop at the normal view
+    private void WheelZoom(int notches)
+    {
+        float next = notches > 0 ? _wheelFov / WheelZoomStep : _wheelFov * WheelZoomStep;
+        bool crosses = (_wheelFov - _fov) * (next - _fov) < 0;
+        _wheelFov = crosses ? _fov : Mathf.Clamp(next, MinZoomFov, MaxWheelFov);
     }
 
     private void Look(Vector2 relative)
@@ -298,7 +312,7 @@ public partial class Pilot : Node3D
     {
         if (_settleFrames > 0)
             _settleFrames--;
-        ICockpitInteractive hovered = _dragging ?? PointedAt() as ICockpitInteractive;
+        IInteractive hovered = _dragging ?? PointedAt() as IInteractive;
         if (hovered != _hovered)
         {
             _hovered?.Hover(false);

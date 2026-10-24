@@ -1,16 +1,17 @@
 using Godot;
 
-namespace Xpace.Cockpit;
+namespace Xpace.Controls;
 
 /// <summary>
-/// A push button of the cockpit model (see <see cref="CockpitControl"/> for
-/// placing it and its <see cref="CockpitControl.Target"/>). Pressing it
-/// calls <see cref="Method"/> on the target with <see cref="Arguments"/>
+/// A push button (see <see cref="InteractiveControl"/> for its scene and
+/// <see cref="InteractiveControl.Target"/>). Pressing it calls
+/// <see cref="Method"/> on the target with <see cref="Arguments"/>
 /// (ShipComputer: Reset, PowerOn, PowerOff; Display: PressKeyOn "RWR" 1...),
 /// or flips the bool property <see cref="Toggle"/> instead. The cap sinks by
-/// PressOffset (metres, in its parent's frame) for PressTime.
+/// <see cref="PressOffset"/> (metres, in the scene's frame) for
+/// <see cref="PressTime"/>.
 /// </summary>
-public partial class CockpitButton : CockpitControl
+public partial class PushButton : InteractiveControl
 {
     [Export] public StringName Method = "";
     [Export] public Godot.Collections.Array Arguments = new();
@@ -26,7 +27,7 @@ public partial class CockpitButton : CockpitControl
     public override void Press()
     {
         _held = PressTime;
-        Position = RestPosition + PressOffset;
+        MovePart(new Transform3D(Basis.Identity, PressOffset));
         Node target = TargetNode;
         if (target == null)
             return;
@@ -42,6 +43,6 @@ public partial class CockpitButton : CockpitControl
             return;
         _held -= delta;
         if (_held <= 0)
-            Position = RestPosition;
+            MovePart(Transform3D.Identity);
     }
 }

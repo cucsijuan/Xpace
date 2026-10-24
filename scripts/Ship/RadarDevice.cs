@@ -55,6 +55,8 @@ public partial class RadarDevice : Node3D, IShipDevice
     [Export] public float ConeDegrees = 60f;
     [Export] public double SweepSeconds = 0.5;
     [Export] public double ReacquireSeconds = 3;
+    /// <summary>The power switch (a cockpit switch can work it): off, it sends nothing, whatever the program asks.</summary>
+    [Export] public bool Powered { get; set; } = true;
 
     [ExportGroup("Quality")]
     /// <summary>Where a 10 m² target is just detected (more power, further).</summary>
@@ -144,7 +146,7 @@ public partial class RadarDevice : Node3D, IShipDevice
             bus.SetWord(Slot, 12, ShipMemory.Contacts);
             bus.SetWord(Slot, 14, ShipMemory.Track);
         }
-        On = bus[Slot, 2] != 0;
+        On = Powered && bus[Slot, 2] != 0;
         byte* memory = ship.Computer.Memory + ShipMemory.Base;
 
         if (!On)

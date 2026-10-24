@@ -169,7 +169,6 @@ script = ExtResource("30_signature")
 script = ExtResource("9_dust")
 
 [node name="Pilot" type="Node3D" parent="Ship" unique_id=777180979 node_paths=PackedStringArray("Eye")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.007278681, -0.16143978)
 script = ExtResource("4_pilot")
 Eye = NodePath("../Cockpit/Eye")
 
