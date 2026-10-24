@@ -1,0 +1,33 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/Net/RemoteShip.cs" id="1_remote"]
+[ext_resource type="PackedScene" uid="uid://c24bvglq01n2e" path="res://assets/synty/SM_Ship_Fighter_03.fbx" id="2_model"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="3_atlas"]
+[ext_resource type="PackedScene" path="res://scenes/ships/fighter_03_hitboxes.tscn" id="4_hitboxes"]
+[ext_resource type="Script" path="res://scripts/Space/EnginePlume.cs" id="5_plume"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Flame_Mesh_New.fbx" id="6_flame"]
+[ext_resource type="Texture2D" path="res://assets/synty/Gradient_Boost.png" id="7_boost"]
+
+[node name="RemoteFighter" type="Node3D"]
+script = ExtResource("1_remote")
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="SM_Ship_Fighter_03" parent="Model" index="0"]
+material_override = ExtResource("3_atlas")
+
+[node name="Hitboxes" parent="." instance=ExtResource("4_hitboxes")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="PlumeLeft" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.295, 0.075, 3.86)
+script = ExtResource("5_plume")
+FlameModel = ExtResource("6_flame")
+FlameTexture = ExtResource("7_boost")
+
+[node name="PlumeRight" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.295, 0.075, 3.86)
+script = ExtResource("5_plume")
+FlameModel = ExtResource("6_flame")
+FlameTexture = ExtResource("7_boost")

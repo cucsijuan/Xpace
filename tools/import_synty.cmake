@@ -25,10 +25,13 @@ set(MODELS
   SM_Veh_POV_Cockpit_Frame_01
   SM_Veh_POV_Cockpit_Frame_02
   SM_Veh_POV_Cockpit_Frame_03
+  SM_Ship_Fighter_03
+  FX_Meshes/SM_Flame_Mesh_New
 )
 set(TEXTURES
   PolygonSciFiSpace_Texture_01_A
   PolygonSciFiSpace_Emissive_01
+  FX_Textures/Gradient_Boost
 )
 
 file(MAKE_DIRECTORY "${DEST}")

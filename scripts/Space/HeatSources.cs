@@ -45,7 +45,7 @@ public static class Heat
         brightest = null;
         foreach (Node node in tree.GetNodesInGroup("heat_sources"))
         {
-            if (node is not IHeatSource source)
+            if (node is not IHeatSource source || node is Node3D n && !n.IsVisibleInTree())
                 continue;
             float heat = source.HeatAt(from, out Vector3 direction);
             if (heat <= 0 || direction.Dot(look) < cos)

@@ -19,6 +19,7 @@ public static class FlightInput
     public const string FlightAssist = "flight_assist", Boost = "boost";
     public const string FirePrimary = "fire_primary", TargetAhead = "target_ahead", NextTarget = "next_target";
     public const string NextWeapon = "next_weapon";
+    public const string Chaff = "chaff", Flare = "flare";
     public const string Zoom = "zoom";
     public const string DisplayZoomIn = "display_zoom_in", DisplayZoomOut = "display_zoom_out", DisplaySound = "display_sound";
 
@@ -43,6 +44,8 @@ public static class FlightInput
         Add(TargetAhead, Key(Godot.Key.T), Button(JoyButton.B));
         Add(NextTarget, Key(Godot.Key.G), Button(JoyButton.DpadRight));
         Add(NextWeapon, Key(Godot.Key.N), Button(JoyButton.DpadUp));
+        Add(Chaff, Key(Godot.Key.C), Button(JoyButton.DpadLeft));
+        Add(Flare, Key(Godot.Key.V), Button(JoyButton.DpadDown));
         Add(Zoom, new InputEventMouseButton { ButtonIndex = MouseButton.Right }, Button(JoyButton.RightStick));
         Add(DisplayZoomIn, Key(Godot.Key.Bracketleft));          // the screen of interest's keys
         Add(DisplayZoomOut, Key(Godot.Key.Bracketright));

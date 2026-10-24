@@ -1,6 +1,7 @@
 using System;
 using Godot;
 using Xpace.Computer;
+using Xpace.Net;
 
 namespace Xpace.Space;
 
@@ -29,6 +30,12 @@ namespace Xpace.Space;
 /// cone beside the target pulls the centre to itself; the sun in the cone
 /// outshines everything.
 ///
+/// In a network session it flies on the machine that fired it (a
+/// <see cref="NetBody"/> below it makes it known to the others, who show
+/// a puppet). Its fuse goes off against what that machine shows; the host
+/// works out what the fragments reached, rewinding each ship to where that
+/// machine showed it.
+///
 /// The firmware's ports (base 100h): +0 type 9  +1 datalink counter (a
 /// heat seeker: counts up while the head sees heat)  +2 +4 +6 the target
 /// from the missile (m), or for a heat seeker the way its head points
@@ -36,7 +43,7 @@ namespace Xpace.Space;
 /// (1/16 m/s²)  +14 status  +16 fuel (m/s)  +18 time to go (1/8 s)
 /// +20 +22 +24 accelerometers (1/16 m/s²). The axes are the world's.
 /// </summary>
-public partial class Missile : Node3D
+public partial class Missile : Node3D, INetShip
 {
     public const byte Type = 9;
     public const byte StatusGuiding = 1, StatusNoWord = 2, StatusLost = 4;
@@ -219,6 +226,12 @@ public partial class Missile : Node3D
             return false;
 
         Vector3 burst = GlobalPosition + Velocity * bestT;
+        // In a session the host works out what the fragments reached; a missile
+        // outside it (no NetBody) hurts only what this machine owns
+        bool session = SessionNode.Instance?.Active == true;
+        bool judged = session && NetBody.Of(this) is NetBody { Joined: true };
+        if (judged)
+            SessionNode.Instance.Blast(this, burst, bestT / dt, Damage, LethalRadius, BlastRadius);
         foreach (Node node in GetTree().GetNodesInGroup("radar_targets"))
         {
             if (node is not IRadarTarget t || !t.Alive || node is not IDamageable victim)
@@ -228,9 +241,10 @@ public partial class Missile : Node3D
                 continue;
             float r = MathF.Max(d, LethalRadius) / LethalRadius;
             float damage = Damage / (r * r);
-            victim.Hit(damage);
             if (t == Target)
                 DamageDealt = damage;
+            if (!judged && !(session && NetBody.IsPuppet(node)))
+                victim.Hit(damage);
         }
         Result = Outcome.Hit;
         Explosion.Spawn(GetParent(), burst, 14f, 0.8, 10f);
@@ -269,13 +283,39 @@ public partial class Missile : Node3D
         return ((p + v * at).Length(), at);
     }
 
-    /// <summary>The nose along the push while the motor burns, along the flight when it does not.</summary>
-    private void Point(float dt)
+    float INetShip.Thrust => _applied.Length() / MaxAcceleration;
+
+    bool INetShip.Exploded => Result != Outcome.Flying;
+
+    /// <summary>A puppet: the owner's velocity, and its motor pushing along the nose.</summary>
+    void INetShip.Follow(RemoteTrack.Pose pose)
+    {
+        Velocity = pose.Velocity;
+        _applied = -GlobalBasis.Z * (pose.Thrust * MaxAcceleration);
+        Plume();
+    }
+
+    void INetShip.End(bool exploded)
+    {
+        Result = exploded ? Outcome.Hit : Outcome.Missed;
+        if (exploded)
+            Explosion.Spawn(GetParent(), GlobalPosition, 14f, 0.8, 10f);
+    }
+
+    /// <summary>The flame and its glow, as hard as the motor pushes.</summary>
+    private void Plume()
     {
         float push = _applied.Length();
         _flame.Visible = push > 1;
         _flame.Scale = Vector3.One * Math.Clamp(push / MaxAcceleration, 0.3f, 1f);
         _glow.LightEnergy = push > 1 ? 3f * push / MaxAcceleration : 0;
+    }
+
+    /// <summary>The nose along the push while the motor burns, along the flight when it does not.</summary>
+    private void Point(float dt)
+    {
+        Plume();
+        float push = _applied.Length();
         Vector3 nose = push > 1 ? _applied : Velocity;
         if (nose.LengthSquared() < 1e-4f)
             return;

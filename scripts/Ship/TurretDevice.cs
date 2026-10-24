@@ -132,7 +132,7 @@ public partial class TurretDevice : Node3D, IShipDevice
             Vector3 direction = (-bore.Z + bore.X * _rng.Randfn(0, spread) + bore.Y * _rng.Randfn(0, spread)).Normalized();
             Azimuth += _rng.Randfn(0, RecoilKickMrad / 1000f);
             Elevation += _rng.Randfn(0, RecoilKickMrad / 1000f);
-            Projectiles.Instance?.Fire(_muzzle.GlobalPosition, ship.LinearVelocity + direction * MuzzleSpeed, Damage);
+            Projectiles.Instance?.Fire(_muzzle.GlobalPosition, ship.LinearVelocity + direction * MuzzleSpeed, Damage, ship);
             _flash.LightEnergy = 6;
         }
     }

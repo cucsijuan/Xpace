@@ -21,14 +21,16 @@ public partial class SessionSceneTest : Node
 {
     private const float Dt = 1f / 60;
     private const float MuzzleSpeed = 1200;
-    private const byte GuestPeer = 1, DroneId = SessionNode.FirstHostId;
+    private const byte GuestPeer = 1;
+    private const ushort DroneId = SessionNode.FirstHostId;
+    private static readonly ushort GuestShipId = NetIds.PlayerShip(GuestPeer);
     private static readonly Hitbox Box = new(Vector3.Zero, new Vector3(5, 3, 10));
     private int _failures;
 
     /// <summary>A ship on the machine that is plain code.</summary>
     private sealed class GuestShip : INetEntity
     {
-        public byte NetId { get; init; }
+        public ushort NetId { get; init; }
         public bool IsLocal { get; init; }
         public RemoteTrack Track { get; init; }
         public Hitbox[] Hitboxes => new[] { Box };
@@ -81,10 +83,10 @@ public partial class SessionSceneTest : Node
         var net = new SimulatedNetwork { Latency = 0.06, Jitter = 0.02, Loss = 0.05 };
         host.Start(Session.HostPeer, net.Join(Session.HostPeer));
         var guest = new Session(GuestPeer, net.Join(GuestPeer)) { TickSeconds = Dt };
-        var ship = new GuestShip { NetId = GuestPeer, IsLocal = true };
+        var ship = new GuestShip { NetId = GuestShipId, IsLocal = true };
         guest.Add(ship);
-        GuestShip seenDrone = null;
-        guest.SpawnRemote = id => id == DroneId ? seenDrone = new GuestShip { NetId = id, Track = new RemoteTrack { TickSeconds = Dt } } : null;
+        var seenDrone = new GuestShip { NetId = DroneId, Track = new RemoteTrack { TickSeconds = Dt } };
+        guest.Add(seenDrone);                       // the host's ships are in every machine's scene
         int guestHeard = 0, guestFired = 0, hostFired = 0, mostFlying = 0;
         guest.HitConfirmed += _ => guestHeard++;
 
@@ -102,7 +104,7 @@ public partial class SessionSceneTest : Node
                 Vector3 at = default(SectorPoint).To(p.Position);
                 if (MathF.Abs(at.X) < 800)
                 {
-                    guest.Fire(tick, default, Lead(at, p.Velocity) * MuzzleSpeed, 10);
+                    guest.Fire(tick, GuestShipId, default, Lead(at, p.Velocity) * MuzzleSpeed, 10);
                     guestFired++;
                 }
             }
@@ -165,7 +167,7 @@ public partial class SessionSceneTest : Node
         };
         host.Add(hostShip);
         GuestShip seenPlayer = null;
-        host.SpawnRemote = id => id == GuestPeer ? seenPlayer = new GuestShip { NetId = id, Track = new RemoteTrack { TickSeconds = Dt } } : null;
+        host.SpawnRemote = id => id == GuestShipId ? seenPlayer = new GuestShip { NetId = id, Track = new RemoteTrack { TickSeconds = Dt } } : null;
         guest.Start(GuestPeer, net.Join(GuestPeer));
 
         int guestFired = 0, hostFired = 0;
@@ -204,7 +206,7 @@ public partial class SessionSceneTest : Node
             {
                 var gun = new SectorPoint(0, -600, 0);
                 RemoteTrack.Pose p = seenPlayer.Track.Sample();
-                host.Fire(tick, gun, Lead(gun.To(p.Position), p.Velocity) * MuzzleSpeed, 5);
+                host.Fire(tick, NetIds.PlayerShip(Session.HostPeer), gun, Lead(gun.To(p.Position), p.Velocity) * MuzzleSpeed, 5);
                 hostFired++;
             }
         }

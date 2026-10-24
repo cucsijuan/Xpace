@@ -57,6 +57,9 @@ public partial class RwrTest : Node3D
         _signature = new ShipSignature { Name = "Signature" };
         _ship.AddChild(_signature);
         _ship.AddChild(_rwr);
+        _dispenser = new DispenserDevice { Name = "Dispenser", Position = new Vector3(0, -0.8f, 4), Chaff = 6, Flares = 6 };
+        _ship.AddChild(_dispenser);
+        _ship.ControlsSource = () => new PilotControls { Chaff = _chaffButton, Flare = _flareButton };
         AddChild(_ship);
 
         for (int i = 0; i < Cases.Length; i++)
@@ -120,6 +123,7 @@ public partial class RwrTest : Node3D
         Check("the lock warning is on", _rwr.LockWarning && (_ship.Computer.Bus[RwrDevice.Slot, 4] & 1) != 0);
         SavePicture("user://rwr_test.png");
         await ScreenKeys();
+        await Dispense();
 
         // The ship turns 90 degrees right: everything moves 90 degrees left
         var before = Find(_emitters[0]).Bearing;
@@ -226,6 +230,67 @@ public partial class RwrTest : Node3D
     // ---------- the screen ----------
 
     private const int Size = 128, Radius = Size / 2 - 1, Half = 6;
+
+    private DispenserDevice _dispenser;
+    private bool _chaffButton, _flareButton;
+
+    /// <summary>The bottom right corner, where RWR.COM writes what the dispenser has left.</summary>
+    private string Counts()
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int y = Size - 7; y < Size - 2; y++)
+            for (int x = Size - 44; x < Size; x++)
+                sb.Append(Pixel("RWR", Size, x, y));
+        return sb.ToString();
+    }
+
+    private int Count<T>() where T : Node
+    {
+        int n = 0;
+        foreach (Node node in FindChildren("*", "", true, false))
+            if (node is T)
+                n++;
+        return n;
+    }
+
+    /// <summary>
+    /// The pilot's chaff and flare buttons, through RWR.COM: one throw on
+    /// each press however long it is held, out of the dispenser behind the
+    /// ship; the counts in the corner change; an empty dispenser throws
+    /// nothing.
+    /// </summary>
+    private async Task Dispense()
+    {
+        await Seconds(0.3);
+        string full = Counts();
+        Check("the dispenser's counts are on the RWR screen", full.Contains('3'));
+        _chaffButton = true;
+        await Seconds(1);                         // held: still one
+        _chaffButton = false;
+        await Seconds(0.3);
+        string oneChaff = Counts();
+        Check($"a press of the chaff button throws one bundle ({6 - _dispenser.ChaffLeft} thrown, {Count<ChaffCloud>()} in the sky)",
+              _dispenser.ChaffLeft == 5 && Count<ChaffCloud>() == 1);
+        Check("and the count changes", oneChaff != full);
+        _flareButton = true;
+        await Seconds(0.1);
+        _flareButton = false;
+        await Seconds(0.3);
+        Check($"the flare button throws a flare ({Count<Flare>()} burning)", _dispenser.FlaresLeft == 5 && Count<Flare>() == 1);
+        Check("and its count changes", Counts() != oneChaff);
+        Flare flare = null;
+        foreach (Node node in FindChildren("*", "", true, false))
+            flare ??= node as Flare;
+        Check($"it leaves behind the ship ({flare?.GlobalPosition.Z ?? 0:0.0} m aft)", flare != null && flare.GlobalPosition.Z > 3);
+        for (int i = 0; i < 6; i++)
+        {
+            _chaffButton = true;
+            await Seconds(0.1);
+            _chaffButton = false;
+            await Seconds(0.3);
+        }
+        Check($"pressed six more times, the five left go and no more ({_dispenser.ChaffLeft} left)", _dispenser.ChaffLeft == 0);
+    }
     private int _edgeRange = 8000;
 
     private static readonly ushort[] Circle = { 0x0F80, 0x3060, 0x6030, 0x4010, 0x8008, 0x8008, 0x8008, 0x8008, 0x8008, 0x4010, 0x6030, 0x3060, 0x0F80 };

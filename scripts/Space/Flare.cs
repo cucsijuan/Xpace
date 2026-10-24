@@ -10,27 +10,27 @@ namespace Xpace.Space;
 /// with, so it is the dropper's turn that takes the target out of the
 /// seeker's view.
 /// </summary>
-public partial class Flare : Node3D, IHeatSource
+public partial class Flare : Node3D, IHeatSource, IDropped
 {
     [Export] public float PeakHeat = 80f;               // a drone's motor is 50 from behind
     [Export] public float IgniteSeconds = 0.15f;
     [Export] public float BurnSeconds = 2f;
 
     public Vector3 Velocity { get; set; }
-    public bool Burning => _age < BurnSeconds;
+    public bool Burning => Age < BurnSeconds;
+    public float Age { get; set; }
 
     /// <summary>Lights up, burns at its peak, then dies down over the last half.</summary>
     public float HeatNow
     {
         get
         {
-            float ignite = Math.Clamp(_age / IgniteSeconds, 0, 1);
-            float fade = 1 - Math.Clamp((_age - BurnSeconds * 0.5f) / (BurnSeconds * 0.5f), 0, 1);
+            float ignite = Math.Clamp(Age / IgniteSeconds, 0, 1);
+            float fade = 1 - Math.Clamp((Age - BurnSeconds * 0.5f) / (BurnSeconds * 0.5f), 0, 1);
             return PeakHeat * ignite * fade;
         }
     }
 
-    private float _age;
     private MeshInstance3D _ball;
     private OmniLight3D _light;
 
@@ -55,7 +55,7 @@ public partial class Flare : Node3D, IHeatSource
 
     public override void _PhysicsProcess(double delta)
     {
-        _age += (float)delta;
+        Age += (float)delta;
         GlobalPosition += Velocity * (float)delta;
         float glow = HeatNow / PeakHeat;
         _ball.Scale = Vector3.One * Math.Max(0.05f, glow);

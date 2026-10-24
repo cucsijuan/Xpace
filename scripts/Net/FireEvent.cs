@@ -15,22 +15,23 @@ namespace Xpace.Net;
 /// The host tests the round against each ship as the shooter saw it
 /// (lag compensation, see <see cref="LagCompensator"/>).
 ///
-///   shooter 8, sequence 16, tick 32, origin 3 x 32 (1/1024 m),
-///   velocity 3 x 17 (±4,096 m/s), damage 16 (1/100), views 3 bits count,
-///   then each: ship 8, delay 16 (1/256 tick, up to 4 s)
+///   shooter 8, ship 16, sequence 16, tick 32, origin 3 x 32 (1/1024 m),
+///   velocity 3 x 17 (±4,096 m/s), damage 16 (1/100), views 4 bits count,
+///   then each: ship 16, delay 16 (1/256 tick, up to 4 s)
 /// </summary>
 public struct FireEvent
 {
-    public const int MaxViews = 7;
+    public const int MaxViews = 15;
     private const double DelayScale = 256;
 
     public struct View
     {
-        public byte Ship;
+        public ushort Ship;
         public double DelayTicks;           // how far in the past the shooter showed it
     }
 
-    public byte Shooter;
+    public byte Shooter;                    // the machine
+    public ushort Ship;                     // the ship that fired: never hit by its own round
     public ushort Sequence;                 // the shooter's round count: names the round in hit events
     public uint Tick;
     public SectorPoint Origin;
@@ -45,22 +46,34 @@ public struct FireEvent
     {
         var w = new BitWriter();
         w.Write(Shooter, 8);
+        w.Write(Ship, 16);
         w.Write(Sequence, 16);
         w.Write(Tick, 32);
-        foreach (double x in new[] { Origin.X, Origin.Y, Origin.Z })
-            w.WriteSigned((int)Math.Round(Math.Clamp(x * ShipSnapshot.PositionScale, int.MinValue, int.MaxValue)), 32);
-        w.WriteScaled(Velocity.X, ShipSnapshot.VelocityRange, 17);
-        w.WriteScaled(Velocity.Y, ShipSnapshot.VelocityRange, 17);
-        w.WriteScaled(Velocity.Z, ShipSnapshot.VelocityRange, 17);
+        Events.WritePoint(w, Origin);
+        Events.WriteVelocity(w, Velocity);
         w.Write((uint)Math.Clamp(Math.Round(Damage * 100), 0, 65535), 16);
-        int count = Math.Min(Views?.Count ?? 0, MaxViews);
-        w.Write((uint)count, 3);
+        WriteViews(w, Views);
+        return w.ToArray();
+    }
+
+    internal static void WriteViews(BitWriter w, List<View> views)
+    {
+        int count = Math.Min(views?.Count ?? 0, MaxViews);
+        w.Write((uint)count, 4);
         for (int i = 0; i < count; i++)
         {
-            w.Write(Views[i].Ship, 8);
-            w.Write((uint)Math.Clamp(Math.Round(Views[i].DelayTicks * DelayScale), 0, 65535), 16);
+            w.Write(views[i].Ship, 16);
+            w.Write((uint)Math.Clamp(Math.Round(views[i].DelayTicks * DelayScale), 0, 65535), 16);
         }
-        return w.ToArray();
+    }
+
+    internal static List<View> ReadViews(BitReader r)
+    {
+        int count = (int)r.Read(4);
+        var views = new List<View>(count);
+        for (int i = 0; i < count; i++)
+            views.Add(new View { Ship = (ushort)r.Read(16), DelayTicks = r.Read(16) / DelayScale });
+        return views;
     }
 
     public static FireEvent Read(BitReader r)
@@ -68,32 +81,24 @@ public struct FireEvent
         var e = new FireEvent
         {
             Shooter = (byte)r.Read(8),
+            Ship = (ushort)r.Read(16),
             Sequence = (ushort)r.Read(16),
             Tick = r.Read(32),
+            Origin = Events.ReadPoint(r),
+            Velocity = Events.ReadVelocity(r),
         };
-        double x = r.ReadSigned(32) / ShipSnapshot.PositionScale;
-        double y = r.ReadSigned(32) / ShipSnapshot.PositionScale;
-        double z = r.ReadSigned(32) / ShipSnapshot.PositionScale;
-        e.Origin = new SectorPoint(x, y, z);
-        float vx = (float)r.ReadScaled(ShipSnapshot.VelocityRange, 17);
-        float vy = (float)r.ReadScaled(ShipSnapshot.VelocityRange, 17);
-        float vz = (float)r.ReadScaled(ShipSnapshot.VelocityRange, 17);
-        e.Velocity = new Vector3(vx, vy, vz);
         e.Damage = r.Read(16) / 100f;
-        int count = (int)r.Read(3);
-        e.Views = new List<View>(count);
-        for (int i = 0; i < count; i++)
-            e.Views.Add(new View { Ship = (byte)r.Read(8), DelayTicks = r.Read(16) / DelayScale });
+        e.Views = ReadViews(r);
         return e;
     }
 }
 
-/// <summary>The host's verdict on a round, sent reliably to everyone: it hit this ship at this tick.</summary>
+/// <summary>The host's verdict on a round or a blast, sent reliably to everyone: it hit this ship at this tick.</summary>
 public struct HitEvent
 {
     public byte Shooter;
     public ushort Sequence;
-    public byte Target;
+    public ushort Target;
     public uint Tick;                       // in the shooter's timeline: the tick the round reached the ship
     public float Damage;
 
@@ -102,7 +107,7 @@ public struct HitEvent
         var w = new BitWriter();
         w.Write(Shooter, 8);
         w.Write(Sequence, 16);
-        w.Write(Target, 8);
+        w.Write(Target, 16);
         w.Write(Tick, 32);
         w.Write((uint)Math.Clamp(Math.Round(Damage * 100), 0, 65535), 16);
         return w.ToArray();
@@ -112,7 +117,7 @@ public struct HitEvent
     {
         Shooter = (byte)r.Read(8),
         Sequence = (ushort)r.Read(16),
-        Target = (byte)r.Read(8),
+        Target = (ushort)r.Read(16),
         Tick = r.Read(32),
         Damage = r.Read(16) / 100f,
     };

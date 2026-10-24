@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Godot;
 using Xpace.Computer;
 using Xpace.Controls;
+using Xpace.Net;
 
 namespace Xpace.Ship;
 
@@ -26,7 +27,7 @@ namespace Xpace.Ship;
 /// the thruster controller takes the controls directly (direct mode).
 /// See software/flight/flight.asm for the registers.
 /// </summary>
-public partial class ShipBody : AnimatableBody3D, IControlHost
+public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
 {
     public const int SlotControls = 0, SlotInertial = 1, SlotThrusters = 2;
     public const byte TypeControls = 1, TypeInertial = 2, TypeThrusters = 3;
@@ -150,6 +151,12 @@ public partial class ShipBody : AnimatableBody3D, IControlHost
         }
     }
 
+    // In a session: the main motor's push is its heat and plume to the others
+    float INetShip.Thrust => MathF.Max(0, Commands[5]);
+    bool INetShip.Exploded => false;
+    void INetShip.Follow(RemoteTrack.Pose pose) { }
+    void INetShip.End(bool exploded) { }
+
     private static void WriteControls(ShipBus bus, PilotControls c)
     {
         bus.SetWord(SlotControls, 2, Axis(c.Pitch));
@@ -160,7 +167,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost
         bus.SetWord(SlotControls, 12, Axis(c.Throttle));
         bus[SlotControls, 14] = (byte)((c.AssistButton ? 1 : 0) | (c.BoostButton ? 2 : 0) |
                                         (c.TargetAhead ? 4 : 0) | (c.NextTarget ? 8 : 0) | (c.Trigger ? 16 : 0) |
-                                        (c.NextWeapon ? 32 : 0));
+                                        (c.NextWeapon ? 32 : 0) | (c.Chaff ? 64 : 0) | (c.Flare ? 128 : 0));
     }
 
     /// <summary>

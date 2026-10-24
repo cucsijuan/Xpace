@@ -32,6 +32,9 @@ public sealed class RemoteTrack
         public Vector3 Velocity;
         public Vector3 AngularVelocity;
         public bool Destroyed;
+        public float Thrust;
+        public RadarMode Radar;
+        public ushort RadarTarget;
         public bool Extrapolated;
     }
 
@@ -131,6 +134,9 @@ public sealed class RemoteTrack
             Velocity = a.Velocity.Lerp(b.Velocity, u),
             AngularVelocity = a.AngularVelocity.Lerp(b.AngularVelocity, u),
             Destroyed = a.Destroyed || b.Destroyed,
+            Thrust = u < 0.5f ? a.Thrust : b.Thrust,
+            Radar = u < 0.5f ? a.Radar : b.Radar,
+            RadarTarget = u < 0.5f ? a.RadarTarget : b.RadarTarget,
         };
     }
 
@@ -153,5 +159,8 @@ public sealed class RemoteTrack
         Velocity = s.Velocity,
         AngularVelocity = s.AngularVelocity,
         Destroyed = s.Destroyed,
+        Thrust = s.Thrust,
+        Radar = s.Radar,
+        RadarTarget = s.RadarTarget,
     };
 }

@@ -271,6 +271,8 @@ public partial class Pilot : Node3D
             TargetAhead = keys && Input.IsActionPressed(FlightInput.TargetAhead),
             NextTarget = keys && Input.IsActionPressed(FlightInput.NextTarget),
             NextWeapon = keys && Input.IsActionPressed(FlightInput.NextWeapon),
+            Chaff = keys && Input.IsActionPressed(FlightInput.Chaff),
+            Flare = keys && Input.IsActionPressed(FlightInput.Flare),
         };
     }
 

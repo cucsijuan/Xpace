@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Xpace.Net;
 using Xpace.Ship;
@@ -86,6 +87,25 @@ public partial class LagTest : Node
         var h = new HitEvent { Shooter = 3, Sequence = 7, Target = 1, Tick = 99, Damage = 12.5f };
         HitEvent hb = HitEvent.Read(new BitReader(h.ToBytes()));
         Check("a hit event too", hb.Shooter == 3 && hb.Sequence == 7 && hb.Target == 1 && hb.Tick == 99 && hb.Damage == 12.5f);
+
+        // A wing-like box, 10 m by 0.2 m, turned 45 degrees about Z: a round along X at y = 3 crosses it (at x = 3), and misses it unturned
+        var still = new RemoteTrack.Pose { Orientation = Quaternion.Identity };
+        var turned = new Hitbox(Vector3.Zero, new Vector3(10, 0.2f, 1), new Basis(Vector3.Back, Mathf.Pi / 4));
+        var flat = new Hitbox(Vector3.Zero, new Vector3(10, 0.2f, 1));
+        SectorPoint from = new(-10, 3, 0), to = new(10, 3, 0);
+        Check("a turned hitbox is hit where it lies, not where it would unturned",
+              turned.Swept(from, to, still, still) && !flat.Swept(from, to, still, still) &&
+              !turned.Swept(new SectorPoint(-10, -3, 0), new SectorPoint(-4, -3, 0), still, still));
+
+        // The remote fighter: its boxes from the model's collision, turned with the model
+        var fighter = GD.Load<PackedScene>("res://scenes/ships/remote_fighter.tscn").Instantiate<RemoteShip>();
+        AddChild(fighter);
+        Hitbox[] boxes = fighter.Hitboxes;
+        int plumes = fighter.FindChildren("*", "", true, false).OfType<EnginePlume>().Count();
+        bool noseAhead = boxes.Min(b => b.Centre.Z) < -4 && boxes.Max(b => b.Centre.Z) > 3;
+        Check($"the remote fighter has its {boxes.Length} hitboxes (the screen and radar make none), some turned, nose ahead, and {plumes} plumes",
+              boxes.Length == 23 && boxes.Any(b => !b.ToBox.IsEqualApprox(Basis.Identity)) && noseAhead && plumes == 2);
+        fighter.QueueFree();
     }
 
     /// <summary>

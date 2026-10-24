@@ -17,7 +17,8 @@ public partial class SessionTest : Node
 {
     private const float Dt = 1f / 60;
     private const float MuzzleSpeed = 1200;
-    private const byte Host = 0, Guest1 = 1, Guest2 = 2, DroneId = 16;
+    private const byte Host = 0, Guest1 = 1, Guest2 = 2;
+    private static readonly ushort DroneId = SessionNode.FirstHostId, Ship1 = NetIds.PlayerShip(Guest1), Ship2 = NetIds.PlayerShip(Guest2);
     private static readonly SectorPoint Sector = new(150_000, 0, 0);
     private static readonly Hitbox Box = new(Vector3.Zero, new Vector3(5, 3, 10));
     private int _failures;
@@ -25,7 +26,7 @@ public partial class SessionTest : Node
     /// <summary>A ship as one machine has it: the true one if it owns it, else a remote copy.</summary>
     private sealed class Fake : INetEntity
     {
-        public byte NetId { get; init; }
+        public ushort NetId { get; init; }
         public bool IsLocal { get; init; }
         public RemoteTrack Track { get; init; }
         public Hitbox[] Hitboxes => new[] { Box };
@@ -50,7 +51,7 @@ public partial class SessionTest : Node
     {
         var net = new SimulatedNetwork { Latency = 0.06, Jitter = 0.02, Loss = 0.05 };
         var machines = new Dictionary<byte, Session>();
-        var copies = new Dictionary<(byte machine, byte ship), Fake>();
+        var copies = new Dictionary<(byte machine, ushort ship), Fake>();
         var heard = new Dictionary<byte, int>();
         var drawn = new Dictionary<byte, int>();
         foreach (byte peer in new[] { Host, Guest1, Guest2 })
@@ -71,11 +72,13 @@ public partial class SessionTest : Node
 
         // Who owns what: the drone crosses 1 km in front of guest 1; guest 2 flies past
         var drone = new Fake { NetId = DroneId, IsLocal = true, Position = Sector + new Vector3(-600, 0, -1000), Velocity = new Vector3(200, 0, 0) };
-        var ship1 = new Fake { NetId = Guest1, IsLocal = true, Position = Sector };
-        var ship2 = new Fake { NetId = Guest2, IsLocal = true, Position = Sector + new Vector3(0, 300, -400), Velocity = new Vector3(0, 0, 80) };
+        var ship1 = new Fake { NetId = Ship1, IsLocal = true, Position = Sector };
+        var ship2 = new Fake { NetId = Ship2, IsLocal = true, Position = Sector + new Vector3(0, 300, -400), Velocity = new Vector3(0, 0, 80) };
         machines[Host].Add(drone);
         machines[Guest1].Add(ship1);
         machines[Guest2].Add(ship2);
+        foreach (byte guest in new[] { Guest1, Guest2 })    // the host's ships are in every machine's scene
+            machines[guest].Add(copies[(guest, DroneId)] = new Fake { NetId = DroneId, Track = new RemoteTrack { TickSeconds = Dt } });
 
         var flying = new List<FireEvent>();
         var seen = new HashSet<ushort>();
@@ -111,22 +114,22 @@ public partial class SessionTest : Node
                 Vector3 p = Sector.To(now.Position), v = now.Velocity;
                 if (tick % 6 == 0 && MathF.Abs(p.X) < 800)
                 {
-                    flying.Add(machines[Guest1].Fire(tick, Sector, Lead(p, v) * MuzzleSpeed, 10));
+                    flying.Add(machines[Guest1].Fire(tick, Ship1, Sector, Lead(p, v) * MuzzleSpeed, 10));
                     fired++;
                 }
             }
 
             // The host's gun, 600 m below guest 1, fires a round a second at the guest it sees
-            if (copies.TryGetValue((Host, Guest1), out Fake seenShip) && seenShip.Track.ShownTick.HasValue && tick % 60 == 0)
+            if (copies.TryGetValue((Host, Ship1), out Fake seenShip) && seenShip.Track.ShownTick.HasValue && tick % 60 == 0)
             {
                 SectorPoint gun = Sector + new Vector3(0, -600, 0);
                 RemoteTrack.Pose p = seenShip.Track.Sample();
-                machines[Host].Fire(tick, gun, Lead(gun.To(p.Position), p.Velocity) * MuzzleSpeed, 5);
+                machines[Host].Fire(tick, NetIds.PlayerShip(Host), gun, Lead(gun.To(p.Position), p.Velocity) * MuzzleSpeed, 5);
                 hostFired++;
             }
 
             // Guest 2 sees guest 1's ship through the host
-            if (copies.TryGetValue((Guest2, Guest1), out Fake relayed) && relayed.Track.ShownTick.HasValue)
+            if (copies.TryGetValue((Guest2, Ship1), out Fake relayed) && relayed.Track.ShownTick.HasValue)
             {
                 relayError += relayed.Track.Sample().Position.To(Sector).Length();
                 relaySamples++;
@@ -144,7 +147,7 @@ public partial class SessionTest : Node
         int total = drone.Hits + ship1.Hits;
         Check($"everyone hears every hit (host {heard[Host]}, guest 1 {heard[Guest1]}, guest 2 {heard[Guest2]} of {total})",
               heard[Host] == total && heard[Guest1] == total && heard[Guest2] == total);
-        Check($"remote copies take no damage", copies[(Guest1, DroneId)].Damage == 0 && copies[(Host, Guest1)].Damage == 0);
+        Check($"remote copies take no damage", copies[(Guest1, DroneId)].Damage == 0 && copies[(Host, Ship1)].Damage == 0);
         Check($"guest 2 draws guest 1's {fired} rounds and the host's {hostFired} ({drawn[Guest2]}), guest 1 the host's ({drawn[Guest1]})",
               drawn[Guest2] == fired + hostFired && drawn[Guest1] == hostFired && drawn[Host] == fired);
         Check($"guest 2 sees guest 1's ship through the host ({relayError / Math.Max(1, relaySamples) * 1000:0.0} mm off)",

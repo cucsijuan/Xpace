@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using Xpace.Computer;
+using Xpace.Net;
 using Xpace.Space;
 
 namespace Xpace.Ship;
@@ -46,7 +47,7 @@ namespace Xpace.Ship;
 /// table  +4 sweeps so far  +5 locked (1/0)  +6 write: lock this id (0 lets
 /// go)  +8 the locked id  +10 segment  +12 table offset  +14 track offset
 /// </summary>
-public partial class RadarDevice : Node3D, IShipDevice
+public partial class RadarDevice : Node3D, IShipDevice, INetRadar
 {
     public const int Slot = 3;
     public const byte Type = 4;
@@ -85,6 +86,11 @@ public partial class RadarDevice : Node3D, IShipDevice
     /// the same track.
     /// </summary>
     public int TrackNumber { get; private set; }
+
+    // What the others can tell of it in a session (the ship is a remote ship there, with its own emitter)
+    public RadarMode Mode => !On ? RadarMode.Off : Locked != null ? RadarMode.Track : RadarMode.Search;
+    public Node Tracked => Locked as Node;
+    public void Follow(RadarMode mode, Node3D tracked) { }
 
     private readonly List<IRadarTarget> _contacts = new();
     private IRadarTarget _lost;
@@ -267,7 +273,8 @@ public partial class RadarDevice : Node3D, IShipDevice
     private bool InCone(IRadarTarget t)
     {
         Vector3 local = GlobalBasis.Inverse() * (t.GlobalPosition - GlobalPosition);
-        return t.Alive && local.Length() >= 1 && Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees);
+        bool shown = t is not Node3D n || n.IsVisibleInTree();      // a destroyed ship's puppet hides
+        return t.Alive && shown && local.Length() >= 1 && Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees);
     }
 
     private unsafe void Sweep(ShipBody ship, byte* table)

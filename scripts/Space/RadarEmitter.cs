@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using Xpace.Net;
 
 namespace Xpace.Space;
 
@@ -39,9 +40,11 @@ public interface IRadarEmitter
 ///
 /// Only the main lobe counts: sidelobes are too weak to matter here.
 /// Put it under a ship (it looks along the ship's -Z) and give it the
-/// target it hunts; it goes quiet while the ship is dead.
+/// target it hunts; it goes quiet while the ship is dead. On a puppet
+/// ship (a network session) it does what the owner's radar does: it
+/// sweeps while that one searches and sits on what that one tracks.
 /// </summary>
-public partial class RadarEmitter : Node3D, IRadarEmitter
+public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
 {
     [Export] public bool On = true;
     [Export] public string Signature { get; set; } = "D";
@@ -63,6 +66,8 @@ public partial class RadarEmitter : Node3D, IRadarEmitter
     private double _scan;
     private float _beamFrom, _beamTo;            // the beam's azimuth at the start and end of the step
     private IRadarTarget _owner;
+    private bool _puppet;
+    private RadarMode _told;
 
     public override void _Ready()
     {
@@ -75,13 +80,27 @@ public partial class RadarEmitter : Node3D, IRadarEmitter
         _beamFrom = _beamTo = BeamAzimuth(_scan);
     }
 
-    private bool Transmitting => On && (_owner == null || _owner.Alive);
+    private bool Transmitting => _puppet ? _told != RadarMode.Off : On && (_owner == null || _owner.Alive);
+
+    public RadarMode Mode => !Transmitting ? RadarMode.Off : Locked ? RadarMode.Track : RadarMode.Search;
+    public Node Tracked => Locked ? Target : null;
+
+    public void Follow(RadarMode mode, Node3D tracked)
+    {
+        _puppet = true;
+        _told = mode;
+        Locked = mode == RadarMode.Track && tracked != null;
+        if (Locked)
+            Target = tracked;
+    }
 
     public override void _PhysicsProcess(double delta)
     {
         _scan = (_scan + delta) % ScanSeconds;
         _beamFrom = _beamTo;
         _beamTo = BeamAzimuth(_scan);
+        if (_puppet)
+            return;                             // the owner's radar decides
         if (!Transmitting || Target == null || !IsInstanceValid(Target))
         {
             Locked = false;

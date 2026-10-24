@@ -10,7 +10,7 @@ namespace Xpace.Space;
 /// dropped with, so it only parts from the ship that dropped it if that
 /// ship manoeuvres (or by the little the dispenser kicks it).
 /// </summary>
-public partial class ChaffCloud : Node3D, IRadarTarget
+public partial class ChaffCloud : Node3D, IRadarTarget, IDropped
 {
     [Export] public float PeakCrossSection = 2.5f;     // m², a bit less than a light fighter
     [Export] public float BloomSeconds = 0.4f;
@@ -19,20 +19,20 @@ public partial class ChaffCloud : Node3D, IRadarTarget
 
     public ushort RadarId { get; private set; }
     public Vector3 Velocity { get; set; }
-    public bool Alive => _age < LifeSeconds;
+    public bool Alive => Age < LifeSeconds;
+    public float Age { get; set; }
 
     /// <summary>Blooms to its peak, holds, then fades out over the last 60% of its life.</summary>
     public float RadarCrossSection
     {
         get
         {
-            float bloom = Math.Clamp(_age / BloomSeconds, 0, 1);
-            float fade = 1 - Math.Clamp((_age - LifeSeconds * 0.4f) / (LifeSeconds * 0.6f), 0, 1);
+            float bloom = Math.Clamp(Age / BloomSeconds, 0, 1);
+            float fade = 1 - Math.Clamp((Age - LifeSeconds * 0.4f) / (LifeSeconds * 0.6f), 0, 1);
             return PeakCrossSection * bloom * fade;
         }
     }
 
-    private float _age;
     private Node3D _strips;
     private StandardMaterial3D _foil;
 
@@ -68,9 +68,9 @@ public partial class ChaffCloud : Node3D, IRadarTarget
     public override void _PhysicsProcess(double delta)
     {
         float dt = (float)delta;
-        _age += dt;
+        Age += dt;
         GlobalPosition += Velocity * dt;
-        _strips.Scale = Vector3.One * (1 + _age * SpreadSpeed);
+        _strips.Scale = Vector3.One * (1 + Age * SpreadSpeed);
         _foil.AlbedoColor = _foil.AlbedoColor with { A = Math.Clamp(RadarCrossSection / PeakCrossSection + 0.2f, 0, 1) };
         if (!Alive)
             QueueFree();

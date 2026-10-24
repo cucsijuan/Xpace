@@ -1,6 +1,7 @@
-; rwr.asm - CucsiCorp Threat Warning 1.2 (RWR.COM)
+; rwr.asm - CucsiCorp Threat Warning 1.3 (RWR.COM)
 ;
-;   RWR         stays resident and shows the radar warning receiver
+;   RWR         stays resident and shows the radar warning receiver;
+;               works the countermeasures dispenser
 ;   RWR OFF     takes it out of memory
 ;
 ; The warning receiver hears the radars whose beams light the ship. On the
@@ -14,6 +15,10 @@
 ; With the RWR screen picked as the screen of interest, its keys work:
 ; zoom in and out step the range, sound switches the receiver's tones off
 ; and on (MUTE in the bottom left corner while off).
+;
+; If the ship has a countermeasures dispenser, the pilot's chaff and flare
+; buttons throw one of each on every press, and the bottom right corner
+; shows how many are left: C chaff, F flares.
 ;
 ; The symbol is the emitter's type letter (D drone, F fighter, U unknown)
 ; in a circle while it is only searching, in a diamond while it has the
@@ -29,6 +34,7 @@
 ;
 ; The devices (16 ports each, words little-endian):
 ;
+;   100h  pilot's controls   +14 buttons: bit 6 chaff, 7 flare
 ;   150h  display card       +2 segment  +4 screen table  +6 screens
 ;                            +8 keys pressed so far  +9 the last key (1 zoom
 ;                            in, 2 zoom out, 3 sound)  +10 its screen
@@ -40,13 +46,21 @@
 ;           an emitter (8 bytes): +0 id  +2 bearing (65536 to the turn,
 ;                            right positive)  +4 range (m)  +6 type letter
 ;                            +7 flags (bit 0 locked on us, bit 3 a missile)
+;   180h  dispenser          +0 type 10  +2 chaff left  +3 flares left
+;                            +4 write: bit 0 throw chaff, bit 1 a flare
 
 org 100h
 
+CTRL        equ 100h
 DISPLAYS    equ 150h
 RWR         equ 170h
+CMDS        equ 180h
 TYPE_DISPLAYS equ 6
 TYPE_RWR    equ 8
+TYPE_CMDS   equ 10
+BUTTON_CHAFF equ 64
+BUTTON_FLARE equ 128
+CM_WIDTH    equ 7 * 6 + 2           ; 'C24 F24' and a margin, bottom right
 IRQ_VECTOR  equ 0Dh
 IRQ_BIT     equ 20h
 
@@ -71,7 +85,7 @@ DIM         equ 1
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPRW10'             ; 103h
+signature   db 'XPRW13'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -107,6 +121,10 @@ on_irq:
 ; drawn there, the old symbol off and the new one on
 step:
     inc byte [ticks]
+    cmp byte [cm_present], 0
+    je .keys
+    call dispense
+.keys:
     mov dx, DISPLAYS + 8            ; a screen key since the last look?
     in al, dx
     cmp al, [keys_seen]
@@ -191,6 +209,85 @@ step:
     mov [di + 4], ax
     call xor_symbol
 .done:
+    ret
+
+; The pilot's chaff and flare buttons: one throw on each press; and the
+; counts left, looked at every 8th step and drawn again if they changed
+dispense:
+    mov dx, CTRL + 14
+    in al, dx
+    mov ah, [cm_buttons]
+    mov [cm_buttons], al
+    not ah
+    and al, ah                      ; pressed since the last look
+    and al, BUTTON_CHAFF | BUTTON_FLARE
+    jz .count
+    mov cl, 6
+    shr al, cl                      ; bit 0 chaff, bit 1 a flare
+    mov dx, CMDS + 4
+    out dx, al
+.count:
+    test byte [ticks], 7
+    jnz .done
+    mov dx, CMDS + 2
+    in ax, dx                       ; AL chaff, AH flares
+    cmp ax, [cm_shown]
+    je .done
+    push ax
+    call put_counts                 ; the old counts off
+    pop ax
+    mov [cm_shown], ax
+    call put_counts                 ; the new ones on
+.done:
+    ret
+
+; The counts in cm_shown, 'C' chaff and 'F' flares, XORed bottom right
+; (nothing while none is shown yet)
+put_counts:
+    cmp word [cm_shown], 0FFFFh
+    je .none
+    push ds
+    pop es
+    mov di, cm_text
+    mov al, 'C'
+    stosb
+    mov al, [cm_shown]
+    call put_count
+    mov al, ' '
+    stosb
+    mov al, 'F'
+    stosb
+    mov al, [cm_shown + 1]
+    call put_count
+    xor al, al
+    stosb
+    mov es, [screen_seg]
+    mov si, cm_text
+    mov cx, [scr_w]
+    sub cx, CM_WIDTH
+    mov dx, [scr_h]
+    sub dx, 7
+    jmp xor_text
+.none:
+    ret
+
+; AL a count (99 at most shown): its digits at ES:DI
+put_count:
+    cmp al, 99
+    jbe .fits
+    mov al, 99
+.fits:
+    xor ah, ah
+    mov bl, 10
+    div bl                          ; AL tens, AH units
+    test al, al
+    jz .units
+    add al, '0'
+    stosb
+.units:
+    mov al, ah
+    add al, '0'
+    stosb
     ret
 
 ; bearing, range -> want_x, want_y: out from the middle as far as the
@@ -487,11 +584,15 @@ labels      db '8K', 0, 0, 0, 0     ; 6 bytes a scale
             db '2K', 0, 0, 0, 0
             db '1K', 0, 0, 0, 0
 s_mute      db 'MUTE', 0
+cm_text     db 'C99 F99', 0
 
 slot        db 0
 ticks       db 0
 scale       db 0                    ; which of 'scales'
 muted       db 0
+cm_present  db 0                    ; the ship has a dispenser
+cm_buttons  db 0                    ; the pilot's buttons, last look
+cm_shown    dw 0FFFFh               ; the counts drawn: chaff, flares
 keys_seen   db 0                    ; the display card's key count, last look
 my_screen   db 0FFh                 ; the RWR screen's place in the screen table
 edge_range  dw 8000
@@ -603,6 +704,15 @@ install:
     xor al, al                      ; the tones on
     mov dx, RWR + 5
     out dx, al
+    mov dx, CMDS                    ; a dispenser to work?
+    in al, dx
+    cmp al, TYPE_CMDS
+    jne .no_dispenser
+    mov byte [cm_present], 1
+    mov dx, CTRL + 14
+    in al, dx
+    mov [cm_buttons], al
+.no_dispenser:
 
     mov ax, 3500h + IRQ_VECTOR
     int 21h
@@ -910,6 +1020,7 @@ tick_x      dw 0
 n_rwr           db 'RWR   '
 
 msg_installed   db 'Threat warning resident: on the RWR screen.', 13, 10
+                db 'Chaff and flares on the pilot', 39, 's buttons.', 13, 10
                 db 'RWR OFF removes it.', 13, 10, '$'
 msg_already     db 'Threat warning is already resident.', 13, 10, '$'
 msg_not_running db 'Threat warning is not resident, or another program took', 13, 10

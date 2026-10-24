@@ -4,7 +4,8 @@ namespace Xpace.Net;
 
 /// <summary>
 /// What carries packets between the machines in a session: EOS P2P in the
-/// game, <see cref="SimulatedNetwork"/> in tests. Peers are named by a
+/// game, <see cref="EnetTransport"/> on a LAN, <see cref="SimulatedNetwork"/>
+/// in tests. Peers are named by a
 /// byte; the host is peer 0.
 /// </summary>
 public interface INetTransport
@@ -17,6 +18,9 @@ public interface INetTransport
 
     /// <summary>The next packet that has arrived, if any.</summary>
     bool Poll(out byte peer, out byte[] packet);
+
+    /// <summary>Sends now what is queued (the session calls it at the end of each tick).</summary>
+    void Flush() { }
 }
 
 /// <summary>

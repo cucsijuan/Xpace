@@ -6,26 +6,53 @@ using Xpace.Space;
 namespace Xpace.Net;
 
 /// <summary>
-/// A box in a ship's own frame that rounds can hit. Hits are tested in
-/// plain code, not by the physics engine, so the host can test them
-/// against where a ship was in the past.
+/// A box in a ship's own frame that rounds can hit, turned as it sits on
+/// the ship (a wing's box lies along the wing). Hits are tested in plain
+/// code, not by the physics engine, so the host can test them against
+/// where a ship was in the past.
 /// </summary>
 public struct Hitbox
 {
     public Vector3 Centre;
     public Vector3 HalfSize;
+    /// <summary>From the ship's frame to the box's (its turn, undone); zero means not turned.</summary>
+    public Basis ToBox;
 
-    public Hitbox(Vector3 centre, Vector3 size) { Centre = centre; HalfSize = size / 2; }
+    public Hitbox(Vector3 centre, Vector3 size) : this(centre, size, Basis.Identity) { }
 
-    /// <summary>The box shapes below a node, in its frame (the shapes' own turns are ignored).</summary>
+    public Hitbox(Vector3 centre, Vector3 size, Basis turn)
+    {
+        Centre = centre;
+        HalfSize = size / 2;
+        ToBox = turn.Orthonormalized().Inverse();
+    }
+
+    /// <summary>
+    /// The box shapes below a node, in its frame, each turned as its shape
+    /// is. Shapes of an area or body below it that is not on the rounds'
+    /// layer (<see cref="Hitboxes.RoundLayer"/>) are something else (a
+    /// screen the mouse can point at) and are left out.
+    /// </summary>
     public static Hitbox[] FromShapes(Node3D root)
     {
         var boxes = new List<Hitbox>();
         Transform3D toRoot = root.GlobalTransform.AffineInverse();
         foreach (Node n in root.FindChildren("*", nameof(CollisionShape3D), true, false))
-            if (n is CollisionShape3D { Shape: BoxShape3D box } shape)
-                boxes.Add(new Hitbox(toRoot * shape.GlobalPosition, box.Size));
+            if (n is CollisionShape3D { Shape: BoxShape3D box } shape && !OtherUse(shape, root))
+            {
+                Transform3D t = toRoot * shape.GlobalTransform;
+                Vector3 scale = t.Basis.Scale;
+                boxes.Add(new Hitbox(t.Origin, box.Size * scale, t.Basis.Orthonormalized()));
+            }
         return boxes.ToArray();
+    }
+
+    private static bool OtherUse(Node shape, Node root)
+    {
+        for (Node p = shape.GetParent(); p != null && p != root; p = p.GetParent())
+            if (p is CollisionObject3D o)
+                return (o.CollisionLayer & Hitboxes.RoundLayer) == 0;
+        return false;
     }
 
     /// <summary>
@@ -37,8 +64,9 @@ public struct Hitbox
     /// </summary>
     public readonly bool Swept(SectorPoint from, SectorPoint to, RemoteTrack.Pose before, RemoteTrack.Pose after)
     {
-        Vector3 a = before.Orientation.Inverse() * before.Position.To(from) - Centre;
-        Vector3 b = after.Orientation.Inverse() * after.Position.To(to) - Centre;
+        Basis toBox = ToBox == default ? Basis.Identity : ToBox;
+        Vector3 a = toBox * (before.Orientation.Inverse() * before.Position.To(from) - Centre);
+        Vector3 b = toBox * (after.Orientation.Inverse() * after.Position.To(to) - Centre);
         return Segment(a, b, HalfSize);
     }
 

@@ -1,4 +1,5 @@
 using Godot;
+using Xpace.Net;
 
 namespace Xpace.Space;
 
@@ -28,8 +29,12 @@ namespace Xpace.Space;
 /// locked it points the heat seeker's head on its rail there; if the head
 /// holds the heat for <see cref="ToneSeconds"/>, in range, it fires. A
 /// target flying cold, nose on, shows it little heat.
+///
+/// In a network session on a machine that does not own it, it is a
+/// puppet: its mind is off, and it only shows what its owner's snapshots
+/// say (its velocity for the radars, blowing up and coming back).
 /// </summary>
-public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IHeatSource
+public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IHeatSource, INetShip
 {
 
     [Export] public float Speed = 120f;
@@ -113,6 +118,8 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
         ChaffLeft = ChaffCharges;
         FlaresLeft = FlareCharges;
         MissilesLeft = MissileCharges;
+        ChaffScene ??= GD.Load<PackedScene>("res://scenes/weapons/chaff.tscn");
+        FlareScene ??= GD.Load<PackedScene>("res://scenes/weapons/flare.tscn");
         foreach (Node child in GetChildren())
             _radar ??= child as RadarEmitter;
         if (MissileScene != null)
@@ -337,12 +344,9 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
             return;
         _chaffWait = ChaffInterval;
         ChaffLeft--;
-        ChaffCloud chaff = ChaffScene?.Instantiate<ChaffCloud>() ?? new ChaffCloud();
-        GetParent().AddChild(chaff);
         Vector3 heading = Velocity.Normalized();
-        chaff.GlobalPosition = GlobalPosition - heading * 5;
         var scatter = new Vector3(_rng.Randfn(), _rng.Randfn(), _rng.Randfn()).Normalized();
-        chaff.Velocity = Velocity + (scatter - heading).Normalized() * ChaffKick;
+        Countermeasures.Drop(GetParent(), ChaffScene, GlobalPosition - heading * 5, Velocity + (scatter - heading).Normalized() * ChaffKick);
     }
 
     /// <summary>A flare behind it, every FlareInterval while a missile comes.</summary>
@@ -352,12 +356,9 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
             return;
         _flareWait = FlareInterval;
         FlaresLeft--;
-        Flare flare = FlareScene?.Instantiate<Flare>() ?? new Flare();
-        GetParent().AddChild(flare);
         Vector3 heading = Velocity.Normalized();
-        flare.GlobalPosition = GlobalPosition - heading * 5;
         var scatter = new Vector3(_rng.Randfn(), _rng.Randfn(), _rng.Randfn()).Normalized();
-        flare.Velocity = Velocity + (scatter - heading).Normalized() * FlareKick;
+        Countermeasures.Drop(GetParent(), FlareScene, GlobalPosition - heading * 5, Velocity + (scatter - heading).Normalized() * FlareKick);
     }
 
     /// <summary>A full dispenser again (a test, a resupply).</summary>
@@ -410,6 +411,26 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
         _respawn = RespawnSeconds;
         Explosion.Spawn(GetParent(), GlobalPosition);
     }
+
+    // A drone's motor always burns at cruise
+    float INetShip.Thrust => Alive ? 1 : 0;
+
+    bool INetShip.Exploded => false;                // it never leaves: it comes back
+
+    void INetShip.Follow(RemoteTrack.Pose pose)
+    {
+        Velocity = pose.Velocity;
+        if (pose.Destroyed && Alive)
+            Explode();
+        else if (!pose.Destroyed && !Alive)
+        {
+            _health = Health;
+            Alive = true;
+            _body.Visible = true;
+        }
+    }
+
+    void INetShip.End(bool exploded) { }
 
     private void Respawn()
     {

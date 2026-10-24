@@ -77,10 +77,11 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
         }
     }
 
-    public void Fire(Vector3 origin, Vector3 velocity, float damage)
+    /// <summary>A round leaves a muzzle of <paramref name="shooter"/> (in a session, it is never hit by its own round).</summary>
+    public void Fire(Vector3 origin, Vector3 velocity, float damage, Node shooter = null)
     {
         if (SessionNode.Instance is SessionNode session && session.Active)
-            session.Fire(origin, velocity, damage);
+            session.Fire(origin, velocity, damage, shooter);
         else if (_rounds.Count < MaxRounds)
             _rounds.Add(new Round { Position = origin, Velocity = velocity, Damage = damage });
     }

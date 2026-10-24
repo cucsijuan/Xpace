@@ -50,6 +50,8 @@ Elite Dangerous's keyboard and mouse controls. The middle mouse button switches 
 | Flight assist | Z |
 | Lock the target ahead / the next one | T / G |
 | Fire | Left button, while flying |
+| Next weapon (gun, radar missiles, heat seekers) | N |
+| Chaff / flare | C / V |
 | Look around | Mouse, while looking |
 | Zoom in (to read the cockpit's screens) | Hold the right button |
 | Type on the computer | While looking, click its screen; right-click lets go |
@@ -69,11 +71,16 @@ Every physics step (60 a second), `ShipBody` writes the stick, the inertial unit
 | 3 | `130h` | Radar (contact table and track in memory at D000:1000; measures position only, with the noise its SNR allows) |
 | 4 | `140h` | Gimballed turret with a 1,200 m/s kinetic cannon |
 | 5 | `150h` | Display card: the cockpit's screens, found by name in a table at D000:1200; each shows text (CGA-style cells) or 2-bit graphics with phosphor persistence |
+| 6 | `160h` | Missile launcher with the radar missiles' datalink, and heat seekers with a head on the rail |
+| 7 | `170h` | Radar warning receiver: the radars lighting the ship, and the plumes of missiles coming |
+| 8 | `180h` | Countermeasures dispenser: chaff and flares, a limited load of each |
 
-AUTOEXEC.BAT leaves two programs resident; they work inside the interrupt, so the console stays free:
+AUTOEXEC.BAT leaves three programs resident; they work inside the interrupt, so the console stays free:
 
 - **FLIGHT.COM** (5% of the CPU): flight assist; its page goes on a FLIGHT screen, if the cockpit has one.
 - **FIRECTL.COM** (34% of the CPU): locks targets with T/G, smooths the radar's noisy positions with an alpha-beta filter and gets the velocity from them (turning the filter with the gyros, so the ship's own rotation is not taken for target motion), computes the lead (CORDIC for angles and distances), aims the turret and fires while the trigger is held; draws a green B-scope on the RADAR screen (bearing across, range up, 2 km marks, the locked target in brackets) and a page on the WEAPON screen: target, range, lead, SNR, turret angles, barrel heat bar and status (GUN TOO HOT, OUT OF ARC when the target is where the turret cannot point).
+
+- **RWR.COM**: draws the warning receiver's picture on the RWR screen, and works the dispenser: one bundle of chaff or one flare on each press of C or V, with what is left in the bottom right corner (C chaff, F flares).
 
 A target lost at the edge of the radar's ±60° cone is taken back by itself if it comes back within 3 s.
 
@@ -86,7 +93,18 @@ A target lost at the edge of the radar's ±60° cone is taken back by itself if 
 
 A better radar (more range, a narrower beam), a better turret or better software shows.
 
-`FLIGHT OFF` and `FIRECTL OFF` take them out of memory (the last one installed first). The registers are documented at the top of [flight.asm](software/flight/flight.asm) and [firectl.asm](software/firectl/firectl.asm).
+`FLIGHT OFF`, `FIRECTL OFF` and `RWR OFF` take them out of memory (the last one installed first). The registers are documented at the top of [flight.asm](software/flight/flight.asm) and [firectl.asm](software/firectl/firectl.asm).
+
+## Playing together
+
+On a LAN, or over the internet with the port open on the host (UDP 24680 by default):
+
+```sh
+godot --path . -- --host [port]                 # the host
+godot --path . -- --join address[:port]         # every other player
+```
+
+Each player's ship and its computer run only on that player's machine; the host flies the drones and judges every hit. Missiles fly on the machine that fired them; chaff, flares and radar locks are seen by everyone. How it works: [docs/GDD.md](docs/GDD.md), section 10.1.
 
 ## Tests
 
@@ -106,6 +124,9 @@ godot --headless --fixed-fps 60 --path . res://tests/maneuver_test.tscn
 - `accuracy_test`: hit probability by range against a drone jinking at 2 g (four runs per range), and a jammer on the drone: no lock at 4 km, burn-through at 1.5 km. It currently gives about 33% at 500 m, 10% at 1 km, 2% at 2 km and 0% from 4 km (46% against a straight target at 2 km): an evading drone dies inside 1 km, one flying straight even at 2 km.
 
 - `maneuver_test`: firing while the ship turns (it keeps firing and hitting), the lock coming back after the target leaves the cone, and the floating origin moving the world back 40 km in the middle of a fight.
+
+- `missile_test`, `rwr_test`: radar and heat-seeking missiles against drones that break and drop chaff and flares; the warning receiver, its screen, and the dispenser worked by RWR.COM.
+- Networking (no `--fixed-fps` needed): `net_test` (snapshots and interpolation), `lag_test` (lag compensation), `session_test`, `session_scene_test`, `udp_test` (real sockets on the loopback), `net_missile_test` (missiles, blasts, chaff, flares and radar locks across a session).
 
 `tests/combat_demo.tscn` opens the game with a script at the controls (it locks and fires by itself), to watch or record.
 

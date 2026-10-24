@@ -31,6 +31,13 @@
 [ext_resource type="Script" uid="uid://dnpkqqauajrlf" path="res://scripts/Ship/ShipSignature.cs" id="30_signature"]
 [ext_resource type="Script" uid="uid://cxdb8imy7mdxh" path="res://scripts/Cockpit/RwrTone.cs" id="31_rwr_tone"]
 [ext_resource type="Script" path="res://scripts/Net/NetBody.cs" id="32_netbody"]
+[ext_resource type="Script" path="res://scripts/Net/SessionNode.cs" id="33_session"]
+[ext_resource type="Script" path="res://scripts/Net/NetLauncher.cs" id="34_launcher"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/chaff.tscn" id="35_chaff"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/flare.tscn" id="36_flare"]
+[ext_resource type="Script" path="res://scripts/Ship/DispenserDevice.cs" id="37_dispenser"]
+[ext_resource type="PackedScene" path="res://scenes/ships/remote_fighter.tscn" id="38_remote_fighter"]
+[ext_resource type="PackedScene" path="res://scenes/ships/fighter_03_hitboxes.tscn" id="39_hitboxes"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -53,9 +60,6 @@ rings = 64
 
 [sub_resource type="Resource" id="Spec_fighter"]
 script = ExtResource("11_spec")
-
-[sub_resource type="BoxShape3D" id="Shape_hull"]
-size = Vector3(5, 3, 10)
 
 [node name="Main" type="Node3D" unique_id=1548194627]
 script = ExtResource("18_origin")
@@ -139,9 +143,8 @@ Spec = SubResource("Spec_fighter")
 script = ExtResource("32_netbody")
 OwnedBy = 0
 
-[node name="Hull" type="CollisionShape3D" parent="Ship" unique_id=1531879955]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -1)
-shape = SubResource("Shape_hull")
+[node name="Hitboxes" parent="Ship" instance=ExtResource("39_hitboxes")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
 [node name="ShipComputer" type="Node" parent="Ship" unique_id=327885703]
 script = ExtResource("1_computer")
@@ -164,6 +167,12 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.2, -3)
 script = ExtResource("22_launcher")
 MissileScene = ExtResource("23_missile")
 HeatSeekerScene = ExtResource("24_ir_missile")
+
+[node name="Dispenser" type="Node3D" parent="Ship"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 4)
+script = ExtResource("37_dispenser")
+ChaffScene = ExtResource("35_chaff")
+FlareScene = ExtResource("36_flare")
 
 [node name="SeekerTone" type="AudioStreamPlayer" parent="Ship/Launcher" unique_id=1115448228]
 script = ExtResource("26_growl")
@@ -228,3 +237,11 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("7_widget")
+
+[node name="SessionNode" type="Node" parent="."]
+script = ExtResource("33_session")
+RemoteShipScene = ExtResource("38_remote_fighter")
+Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_missile"), ExtResource("35_chaff"), ExtResource("36_flare")])
+
+[node name="NetLauncher" type="Node" parent="."]
+script = ExtResource("34_launcher")

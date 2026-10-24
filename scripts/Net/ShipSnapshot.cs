@@ -4,8 +4,12 @@ using Xpace.Space;
 
 namespace Xpace.Net;
 
+/// <summary>What a ship's radar is doing, as the others can tell from its pulses.</summary>
+public enum RadarMode : byte { Off, Search, Track }
+
 /// <summary>
-/// A ship's state at one sector tick, as its owner sends it: 33 bytes.
+/// A ship's state at one sector tick, as its owner sends it: 34 bytes, 36
+/// while its radar tracks something.
 ///
 ///   tick                 32 bits
 ///   position             3 x 32 bits, 1/1024 m, to ±2,097 km from the sector's centre
@@ -14,10 +18,16 @@ namespace Xpace.Net;
 ///   velocity             3 x 17 bits, ±4,096 m/s (steps of 1/16 m/s)
 ///   angular velocity     3 x 16 bits, ±16 rad/s (steps of 1/2048 rad/s)
 ///   destroyed            1 bit
+///   thrust               4 bits, its motor's push, 0 to 15 fifteenths of the most
+///   radar                2 bits: off, searching, tracking; tracking, then
+///                        16 bits for the ship tracked (0FFFFh: none in the session)
+///
+/// Anything that flies is sent this way: ships, missiles.
 /// </summary>
 public struct ShipSnapshot
 {
-    public const int Bytes = 33;
+    public const int Bytes = 34, MaxBytes = 36;
+    public const ushort NoTarget = 0xFFFF;
     public const double PositionScale = 1024, VelocityRange = 4096, AngularRange = 16;
     private const int QuaternionBits = 11, VelocityBits = 17, AngularBits = 16;
     private static readonly double QuaternionRange = 1 / Math.Sqrt(2);
@@ -28,6 +38,9 @@ public struct ShipSnapshot
     public Vector3 Velocity;
     public Vector3 AngularVelocity;
     public bool Destroyed;                  // blown up and not back: shown hidden, cannot be hit
+    public float Thrust;                    // 0 to 1: what the motor pushes, of the most it can (its heat, its plume)
+    public RadarMode Radar;
+    public ushort RadarTarget;              // tracking: whom
 
     public void Write(BitWriter w)
     {
@@ -39,6 +52,10 @@ public struct ShipSnapshot
         WriteVector(w, Velocity, VelocityRange, VelocityBits);
         WriteVector(w, AngularVelocity, AngularRange, AngularBits);
         w.Write(Destroyed ? 1u : 0, 1);
+        w.Write((uint)Math.Clamp(MathF.Round(Thrust * 15), 0, 15), 4);
+        w.Write((uint)Radar, 2);
+        if (Radar == RadarMode.Track)
+            w.Write(RadarTarget, 16);
     }
 
     public static ShipSnapshot Read(BitReader r)
@@ -49,6 +66,9 @@ public struct ShipSnapshot
         s.Velocity = ReadVector(r, VelocityRange, VelocityBits);
         s.AngularVelocity = ReadVector(r, AngularRange, AngularBits);
         s.Destroyed = r.Read(1) != 0;
+        s.Thrust = r.Read(4) / 15f;
+        s.Radar = (RadarMode)r.Read(2);
+        s.RadarTarget = s.Radar == RadarMode.Track ? (ushort)r.Read(16) : NoTarget;
         return s;
     }
 

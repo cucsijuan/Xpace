@@ -15,4 +15,6 @@ public struct PilotControls
     public bool TargetAhead;
     public bool NextTarget;
     public bool NextWeapon;         // cycles the weapons (Elite's next fire group)
+    public bool Chaff;              // the countermeasures dispenser
+    public bool Flare;
 }
