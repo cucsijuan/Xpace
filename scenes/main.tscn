@@ -1,4 +1,4 @@
-[gd_scene load_steps=36 format=3]
+[gd_scene load_steps=38 format=3]
 
 [ext_resource type="Script" path="res://scripts/Computer/ShipComputer.cs" id="1_computer"]
 [ext_resource type="PackedScene" path="res://scenes/cockpits/fighter_cockpit.tscn" id="2_cockpit"]
@@ -28,6 +28,8 @@
 [ext_resource type="Resource" path="res://assets/ship/displays/rwr.tres" id="27_rwr"]
 [ext_resource type="Script" path="res://scripts/Ship/RwrDevice.cs" id="28_rwr"]
 [ext_resource type="Script" path="res://scripts/Space/RadarEmitter.cs" id="29_emitter"]
+[ext_resource type="Script" path="res://scripts/Ship/ShipSignature.cs" id="30_signature"]
+[ext_resource type="Script" path="res://scripts/Cockpit/RwrTone.cs" id="31_rwr_tone"]
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 1
@@ -88,6 +90,8 @@ script = ExtResource("15_rounds")
 [node name="Drone1" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -400, 80, -2200)
 script = ExtResource("16_drone")
+Attacks = true
+MissileScene = ExtResource("24_ir_missile")
 AnchorPath = NodePath("../Ship")
 
 [node name="Radar" type="Node3D" parent="Drone1"]
@@ -97,6 +101,8 @@ TargetPath = NodePath("../../Ship")
 [node name="Drone2" type="Node3D" parent="."]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 900, -60, -3000)
 script = ExtResource("16_drone")
+Attacks = true
+MissileScene = ExtResource("24_ir_missile")
 Speed = 100.0
 AnchorPath = NodePath("../Ship")
 
@@ -107,6 +113,8 @@ TargetPath = NodePath("../../Ship")
 [node name="Drone3" type="Node3D" parent="."]
 transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 200, 300, -3600)
 script = ExtResource("16_drone")
+Attacks = true
+MissileScene = ExtResource("24_ir_missile")
 Speed = 140.0
 AnchorPath = NodePath("../Ship")
 
@@ -149,6 +157,12 @@ script = ExtResource("26_growl")
 
 [node name="Rwr" type="Node3D" parent="Ship"]
 script = ExtResource("28_rwr")
+
+[node name="RwrTone" type="AudioStreamPlayer" parent="Ship/Rwr"]
+script = ExtResource("31_rwr_tone")
+
+[node name="Signature" type="Node3D" parent="Ship"]
+script = ExtResource("30_signature")
 
 [node name="Cockpit" parent="Ship" instance=ExtResource("2_cockpit")]
 

@@ -1,6 +1,7 @@
 using System;
 using System.Threading.Tasks;
 using Godot;
+using Xpace.Cockpit;
 using Xpace.Computer;
 using Xpace.Ship;
 using Xpace.Space;
@@ -22,6 +23,8 @@ public partial class RwrTest : Node3D
 {
     private ShipBody _ship;
     private RwrDevice _rwr;
+    private RwrTone _tone;
+    private ShipSignature _signature;
     private DisplayDevice _display;
     private int _failures;
 
@@ -49,6 +52,10 @@ public partial class RwrTest : Node3D
         _ship.AddChild(new TurretDevice { Name = "Turret", Position = new Vector3(0.9f, 0.8f, -3f) });
         _ship.AddChild(new RadarDevice { Name = "Radar", Position = new Vector3(0, 0.5f, -5f), TrackOriginPath = "../Turret" });
         _rwr = new RwrDevice { Name = "Rwr" };
+        _tone = new RwrTone { Name = "RwrTone" };
+        _rwr.AddChild(_tone);
+        _signature = new ShipSignature { Name = "Signature" };
+        _ship.AddChild(_signature);
         _ship.AddChild(_rwr);
         AddChild(_ship);
 
@@ -131,8 +138,80 @@ public partial class RwrTest : Node3D
         Check("and after a while the fighter leaves the table", Find(_emitters[1]) == null);
         Check("and the screen", CountBright(fighter) == 0);
 
+        await Attack();
+
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
+    }
+
+    /// <summary>
+    /// A drone that attacks: 3 km ahead, coming at the ship, which sits still
+    /// with its motor idle (only the warm hull for the drone's heat seeker to
+    /// see, nose on). Its radar sweeps the ship, locks it; its head finds the
+    /// heat; it fires; the plume warner sees the missile and the screen blinks
+    /// an M; the missile reaches the ship.
+    /// </summary>
+    private async Task Attack()
+    {
+        GD.Print("     an attacking drone, 3 km ahead:");
+        var drone = new Drone
+        {
+            Attacks = true, Evades = false, Defends = false, Speed = 120,
+            MissileScene = GD.Load<PackedScene>("res://scenes/weapons/ir_missile.tscn"),
+            Position = new Vector3(0, 60, -3000),
+        };
+        var radar = new RadarEmitter { Name = "Radar", Target = _ship, PrfHz = 900 };
+        drone.AddChild(radar);
+        AddChild(drone);
+        drone.LookAt(_ship.GlobalPosition, Vector3.Up);
+        drone.Fly((_ship.GlobalPosition - drone.GlobalPosition).Normalized() * drone.Speed);
+
+        int beepsBefore = _tone.Beeps;
+        bool searched = false, locked = false, lockTone = false, warned = false, alarm = false;
+        int blinksOn = 0, blinksOff = 0;
+        float launchRange = 0, closest = float.MaxValue;
+        Missile missile = null;
+        for (int step = 0; step < 40 * 60 && _signature.Hits == 0; step++)
+        {
+            await Seconds(1.0 / 60);
+            RwrDevice.Contact c = Find(radar);
+            searched |= c != null && !c.Locked;
+            locked |= c?.Locked == true;
+            lockTone |= _tone.Sounding == "lock";
+            if (missile == null && drone.Launched > 0)
+            {
+                launchRange = drone.GlobalPosition.DistanceTo(_ship.GlobalPosition);
+                foreach (Node n in GetTree().GetNodesInGroup("missiles"))
+                    if (n is Missile m && m.Shooter == drone)
+                        missile = m;
+            }
+            if (missile != null && IsInstanceValid(missile))
+                closest = MathF.Min(closest, missile.ClosestApproach);
+            foreach (RwrDevice.Contact m in _rwr.Contacts)
+                if (m.IsMissile)
+                {
+                    warned = true;
+                    if (step % 4 == 0)
+                    {
+                        if (SymbolAt(m, out _, out _) == "diamond")
+                            blinksOn++;
+                        else
+                            blinksOff++;
+                    }
+                }
+            alarm |= _tone.Sounding == "missile";
+        }
+        Check("the drone's search beam is heard first", searched);
+        Check($"a new radar and its sweeps beep ({_tone.Beeps - beepsBefore} beeps)", _tone.Beeps - beepsBefore >= 3);
+        Check("its radar locks the ship: a diamond and a steady tone", locked && lockTone);
+        Check($"its head finds the warm hull, nose on, and it fires ({drone.Launched} fired, at {launchRange:0} m)",
+              drone.Launched > 0 && launchRange <= drone.MissileRange);
+        Check("the plume warner sees the missile coming", warned);
+        Check($"the missile blinks on the screen (on {blinksOn}, off {blinksOff} looks)", blinksOn > 0 && blinksOff > 0);
+        Check("and the headset warbles", alarm);
+        Check($"the missile reaches the ship ({_signature.Hits} hits, {_signature.DamageTaken:0} damage, closest {closest:0.0} m)",
+              _signature.Hits > 0);
+        drone.QueueFree();
     }
 
     private RwrDevice.Contact Find(RadarEmitter e)

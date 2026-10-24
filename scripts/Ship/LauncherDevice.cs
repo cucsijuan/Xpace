@@ -173,6 +173,7 @@ public partial class LauncherDevice : Node3D, IShipDevice
         Missile m = heat ? HeatSeekerScene.Instantiate<Missile>() : MissileScene?.Instantiate<Missile>() ?? new Missile();
         m.Target = _radar?.Locked ?? (HeatTone ? _head.Sees as IRadarTarget : null);
         m.TrackNumber = heat ? -1 : _radar.TrackNumber;   // a heat seeker hears no datalink
+        m.Shooter = ship;
         m.SeekerLook = heat && HeadPowered ? _head.Look : -GlobalBasis.Z;
         m.TreeExiting += () =>
         {

@@ -20,6 +20,14 @@ namespace Xpace.Space;
 ///
 /// Its motor is hot: brightest from behind, where the nozzle is, dimmer
 /// from the side and the front.
+///
+/// With <see cref="Attacks"/> it hunts what its radar (a
+/// <see cref="RadarEmitter"/> below it) hunts: inside
+/// <see cref="EngageRange"/> it turns to put it on the nose, too close it
+/// flies on past and comes round again. Once its radar has the target
+/// locked it points the heat seeker's head on its rail there; if the head
+/// holds the heat for <see cref="ToneSeconds"/>, in range, it fires. A
+/// target flying cold, nose on, shows it little heat.
 /// </summary>
 public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IHeatSource
 {
@@ -52,6 +60,17 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     [Export] public float FlareKick = 20f;
     [Export] public PackedScene FlareScene;
 
+    [ExportGroup("Attack")]
+    [Export] public bool Attacks;
+    [Export] public float EngageRange = 3500f;          // it turns on its radar's target inside this
+    [Export] public float BreakOffRange = 500f;         // closer than this it flies on past
+    [Export] public double ExtendSeconds = 8;           // and comes round again after this
+    [Export] public PackedScene MissileScene;           // a heat seeker
+    [Export] public int MissileCharges = 2;
+    [Export] public float MissileRange = 2500f, MinMissileRange = 600f;
+    [Export] public double MissileInterval = 12;
+    [Export] public double ToneSeconds = 0.5;           // the head holds the heat this long before it fires
+
     public ushort RadarId { get; private set; }
     public Vector3 Velocity { get; private set; }
     public bool Alive { get; private set; } = true;
@@ -63,6 +82,12 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     public bool MissileWarning { get; private set; }
     public int ChaffLeft { get; private set; }
     public int FlaresLeft { get; private set; }
+    public int MissilesLeft { get; private set; }
+    public int Launched { get; private set; }
+    /// <summary>Turning on its target, this step.</summary>
+    public bool Attacking { get; private set; }
+    /// <summary>The head on its rail sees heat.</summary>
+    public bool HeadTone => _head.Tone;
 
     private Node3D _anchor, _body;
     private Vector3 _waypoint;
@@ -72,6 +97,10 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     private Vector3 _jink;
     private double _jinkLeft, _painted, _hitRecently, _chaffWait, _flareWait;
     private Vector3 _breakSide;
+    private RadarEmitter _radar;
+    private IRadarTarget _quarry;
+    private readonly SeekerHead _head = new();
+    private double _toneFor, _missileWait, _extend;
     private readonly RandomNumberGenerator _rng = new();
 
     public override void _Ready()
@@ -84,6 +113,15 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
         _health = Health;
         ChaffLeft = ChaffCharges;
         FlaresLeft = FlareCharges;
+        MissilesLeft = MissileCharges;
+        foreach (Node child in GetChildren())
+            _radar ??= child as RadarEmitter;
+        if (MissileScene != null)
+        {
+            Missile pattern = MissileScene.Instantiate<Missile>();
+            pattern.SetUpHead(_head);
+            pattern.Free();
+        }
         Velocity = -GlobalBasis.Z * Speed;
         _waypoint = GlobalPosition + Velocity * 10;
         BuildModel();
@@ -127,6 +165,8 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
         _hitRecently -= delta;
         _chaffWait -= delta;
         _flareWait -= delta;
+        _missileWait -= delta;
+        _extend -= delta;
         Missile threat = Defends ? Incoming() : null;
         MissileWarning = threat != null;
         if (threat != null)
@@ -141,12 +181,25 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
             if (Evades)
                 Jink(dt);
         }
+        Node3D quarry = Attacks && _radar != null && IsInstanceValid(_radar.Target) ? _radar.Target : null;
+        Attacking = false;
+        if (quarry != null && threat == null && _extend <= 0)
+        {
+            float range = GlobalPosition.DistanceTo(quarry.GlobalPosition);
+            if (range < BreakOffRange)
+            {
+                _extend = ExtendSeconds;            // on past it, then round again
+                _waypoint = GlobalPosition + Velocity.Normalized() * 2500;
+            }
+            else
+                Attacking = range < EngageRange;
+        }
         if (!Straight)
         {
-            if (GlobalPosition.DistanceTo(_waypoint) < 300)
+            if (!Attacking && GlobalPosition.DistanceTo(_waypoint) < 300)
                 _waypoint = NewWaypoint();
             Vector3 heading = Velocity.Normalized();
-            Vector3 wanted = (_waypoint - GlobalPosition).Normalized();
+            Vector3 wanted = ((Attacking ? quarry.GlobalPosition : _waypoint) - GlobalPosition).Normalized();
             float angle = heading.AngleTo(wanted);
             if (angle > 0.001f)
             {
@@ -160,6 +213,51 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
         GlobalPosition += Velocity * dt;
         if (Velocity.LengthSquared() > 1)
             LookAt(GlobalPosition + Velocity, Vector3.Up);
+        if (quarry != null)
+            Aim(quarry, dt);
+    }
+
+    /// <summary>
+    /// The head on the rail: on the radar's target while the radar holds a
+    /// lock, along the nose otherwise. Heat held long enough, in range: a
+    /// missile goes.
+    /// </summary>
+    private void Aim(Node3D quarry, float dt)
+    {
+        if (MissileScene == null)
+            return;
+        Vector3 nose = -GlobalBasis.Z;
+        if (_head.Look.AngleTo(nose) > Mathf.DegToRad(_head.GimbalLimitDegrees))
+            _head.Look = nose;                      // against the stops: it rests caged on the nose
+        Vector3 to = _radar.Locked ? quarry.GlobalPosition - GlobalPosition : nose;
+        _head.Point(GetTree(), GlobalPosition, nose, to, dt);
+        _toneFor = _radar.Locked && _head.Tone ? _toneFor + dt : 0;
+        float range = GlobalPosition.DistanceTo(quarry.GlobalPosition);
+        if (_toneFor < ToneSeconds || MissilesLeft <= 0 || _missileWait > 0 || range > MissileRange || range < MinMissileRange)
+            return;
+        Missile m = MissileScene.Instantiate<Missile>();
+        m.Shooter = this;
+        m.Target = _quarry ??= Signature(quarry);
+        m.SeekerLook = _head.Look;
+        GetParent().AddChild(m);
+        m.GlobalTransform = GlobalTransform;
+        m.GlobalPosition = GlobalPosition + nose * 6 - GlobalBasis.Y * 1.5f;
+        m.Velocity = Velocity + nose * 20;
+        MissilesLeft--;
+        Launched++;
+        _missileWait = MissileInterval;
+        _toneFor = 0;
+    }
+
+    /// <summary>What of the target a radar sees (the target, or something below it that is a radar target).</summary>
+    private static IRadarTarget Signature(Node3D target)
+    {
+        if (target is IRadarTarget t)
+            return t;
+        foreach (Node child in target.GetChildren())
+            if (child is IRadarTarget c)
+                return c;
+        return null;
     }
 
     public void ShiftOrigin(Vector3 offset) => _waypoint -= offset;
@@ -268,6 +366,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     {
         ChaffLeft = ChaffCharges;
         FlaresLeft = FlareCharges;
+        MissilesLeft = MissileCharges;
     }
 
     public float HeatAt(Vector3 from, out Vector3 direction)

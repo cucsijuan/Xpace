@@ -1,4 +1,4 @@
-; rwr.asm - CucsiCorp Threat Warning 1.0 (RWR.COM)
+; rwr.asm - CucsiCorp Threat Warning 1.1 (RWR.COM)
 ;
 ;   RWR         stays resident and shows the radar warning receiver
 ;   RWR OFF     takes it out of memory
@@ -12,7 +12,8 @@
 ;
 ; The symbol is the emitter's type letter (D drone, F fighter, U unknown)
 ; in a circle while it is only searching, in a diamond while it has the
-; ship locked.
+; ship locked. A missile coming (the receiver's plume warner sees its
+; motor) is an M in a diamond that blinks.
 ;
 ; Sixty times a second, on IRQ 5 (after the handlers installed before it),
 ; it looks at one line of the receiver's table: each symbol about four
@@ -31,7 +32,7 @@
 ;                            +6 segment  +8 table (offset)
 ;           an emitter (8 bytes): +0 id  +2 bearing (65536 to the turn,
 ;                            right positive)  +4 range (m)  +6 type letter
-;                            +7 flags (bit 0 locked on us)
+;                            +7 flags (bit 0 locked on us, bit 3 a missile)
 
 org 100h
 
@@ -93,6 +94,7 @@ on_irq:
 ; One line of the table: what it should show; if that is not what is
 ; drawn there, the old symbol off and the new one on
 step:
+    inc byte [ticks]
     mov bl, [slot]
     mov al, bl
     inc al
@@ -122,8 +124,16 @@ step:
     pop ds
     mov [bearing], ax
     mov [range], cx
+    test dh, 8
+    jz .radar
+    test byte [ticks], SLOTS        ; a missile blinks: away every other look
+    jnz .compare
+    mov dh, 2
+    jmp .kind
+.radar:
     and dh, 1
     inc dh                          ; 1 searching, 2 locked
+.kind:
     xchg dl, dh
     mov [want_kind], dx             ; kind, letter
     call place
@@ -353,6 +363,7 @@ font        dw 03F00h, 0C0C0h, 0FFC0h, 0C0C0h, 0C0C0h    ; A
             dw 0FFC0h, 00300h, 00C00h, 03000h, 0FFC0h    ; Z
 
 slot        db 0
+ticks       db 0
 table_seg   dw 0
 table_off   dw 0
 screen_seg  dw 0

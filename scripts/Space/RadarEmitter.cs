@@ -22,6 +22,8 @@ public interface IRadarEmitter
     float PowerAt1Km { get; }
     /// <summary>It is tracking something: its pulses have the waveform of a lock.</summary>
     bool Tracking { get; }
+    /// <summary>Pulses a second: what a warning receiver plays in the pilot's headset.</summary>
+    float PrfHz { get; }
     /// <summary>Its main lobe crossed or sat on this point during the last step.</summary>
     bool Illuminates(Vector3 point);
 }
@@ -44,6 +46,7 @@ public partial class RadarEmitter : Node3D, IRadarEmitter
     [Export] public bool On = true;
     [Export] public string Signature { get; set; } = "D";
     [Export] public float PowerAt1Km { get; set; } = 1e4f;
+    [Export] public float PrfHz { get; set; } = 900f;
     [Export] public float ConeDegrees = 60f;
     [Export] public float BeamwidthDegrees = 3f;
     [Export] public float ScanSeconds = 2f;

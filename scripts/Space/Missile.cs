@@ -69,6 +69,8 @@ public partial class Missile : Node3D
     public IHeatSource SeekerSees => _head.Sees;
     /// <summary>What the datalink speaks of (set by the launcher).</summary>
     public IRadarTarget Target { get; set; }
+    /// <summary>Who fired it: its own warning receiver knows its plume.</summary>
+    public Node Shooter { get; set; }
     public float FuelLeft { get; private set; }
     public Outcome Result { get; private set; } = Outcome.Flying;
     /// <summary>What the firmware reports: guiding, no word from the ship, lost.</summary>
