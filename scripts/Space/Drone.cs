@@ -14,9 +14,14 @@ namespace Xpace.Space;
 /// makes it break hard across the missile's line of sight and, while a
 /// radar has it locked, drop chaff. The chaff leaves with the drone's own
 /// velocity, so it is the break that pulls the two apart. A missile that
-/// has burnt out coasts unseen.
+/// has burnt out coasts unseen. It drops flares too, against heat seekers:
+/// its warner cannot tell one missile from another, so it drops them
+/// against any.
+///
+/// Its motor is hot: brightest from behind, where the nozzle is, dimmer
+/// from the side and the front.
 /// </summary>
-public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift
+public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IHeatSource
 {
     public const uint HitLayer = 2;                     // what rounds look for
 
@@ -30,6 +35,8 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift
     [Export] public float RadarCrossSection { get; set; } = 3f;   // m², about a light fighter's
     [Export] public bool Evades = true;
     [Export] public float WeaveG = 0.5f, EvadeG = 2f;
+    [Export] public float MotorHeat = 50f;              // seen from straight behind
+    [Export] public float FrontHeat = 0.3f;             // the share of it seen from ahead or the side
 
     [ExportGroup("Countermeasures")]
     [Export] public bool Defends = true;
@@ -40,6 +47,10 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift
     [Export] public double ChaffInterval = 1.5;
     [Export] public float ChaffKick = 15f;              // m/s the dispenser throws a bundle
     [Export] public PackedScene ChaffScene;
+    [Export] public int FlareCharges = 6;
+    [Export] public double FlareInterval = 1.0;
+    [Export] public float FlareKick = 20f;
+    [Export] public PackedScene FlareScene;
 
     public ushort RadarId { get; private set; }
     public Vector3 Velocity { get; private set; }
@@ -51,6 +62,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift
     /// <summary>Its warner sees a missile coming, this step.</summary>
     public bool MissileWarning { get; private set; }
     public int ChaffLeft { get; private set; }
+    public int FlaresLeft { get; private set; }
 
     private Node3D _anchor, _body;
     private Vector3 _waypoint;
@@ -58,7 +70,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift
     private double _respawn;
     private StandardMaterial3D _paint;
     private Vector3 _jink;
-    private double _jinkLeft, _painted, _hitRecently, _chaffWait;
+    private double _jinkLeft, _painted, _hitRecently, _chaffWait, _flareWait;
     private Vector3 _breakSide;
     private readonly RandomNumberGenerator _rng = new();
 
@@ -67,9 +79,11 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift
         RadarId = RadarIds.Next();
         _rng.Seed = RadarId * 7919UL;
         AddToGroup("radar_targets");
+        AddToGroup("heat_sources");
         _anchor = AnchorPath == null || AnchorPath.IsEmpty ? null : GetNodeOrNull<Node3D>(AnchorPath);
         _health = Health;
         ChaffLeft = ChaffCharges;
+        FlaresLeft = FlareCharges;
         Velocity = -GlobalBasis.Z * Speed;
         _waypoint = GlobalPosition + Velocity * 10;
         BuildModel();
@@ -112,12 +126,14 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift
         _painted -= delta;
         _hitRecently -= delta;
         _chaffWait -= delta;
+        _flareWait -= delta;
         Missile threat = Defends ? Incoming() : null;
         MissileWarning = threat != null;
         if (threat != null)
         {
             Break(threat, dt);
             DropChaff();
+            DropFlare();
         }
         else
         {
@@ -232,8 +248,39 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift
         chaff.Velocity = Velocity + (scatter - heading).Normalized() * ChaffKick;
     }
 
+    /// <summary>A flare behind it, every FlareInterval while a missile comes.</summary>
+    private void DropFlare()
+    {
+        if (FlaresLeft <= 0 || _flareWait > 0)
+            return;
+        _flareWait = FlareInterval;
+        FlaresLeft--;
+        Flare flare = FlareScene?.Instantiate<Flare>() ?? new Flare();
+        GetParent().AddChild(flare);
+        Vector3 heading = Velocity.Normalized();
+        flare.GlobalPosition = GlobalPosition - heading * 5;
+        var scatter = new Vector3(_rng.Randfn(), _rng.Randfn(), _rng.Randfn()).Normalized();
+        flare.Velocity = Velocity + (scatter - heading).Normalized() * FlareKick;
+    }
+
     /// <summary>A full dispenser again (a test, a resupply).</summary>
-    public void Rearm() => ChaffLeft = ChaffCharges;
+    public void Rearm()
+    {
+        ChaffLeft = ChaffCharges;
+        FlaresLeft = FlareCharges;
+    }
+
+    public float HeatAt(Vector3 from, out Vector3 direction)
+    {
+        if (!Alive)
+        {
+            direction = Vector3.Zero;
+            return 0;
+        }
+        float heat = Heat.Point(GlobalPosition, MotorHeat, from, out direction);
+        float behind = Mathf.Max(0, -direction.Dot(GlobalBasis.Z.Normalized()));
+        return heat * (FrontHeat + (1 - FrontHeat) * behind);
+    }
 
     private Vector3 Centre => _anchor?.GlobalPosition ?? Vector3.Zero;
 
@@ -269,7 +316,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift
     private void Respawn()
     {
         _health = Health;
-        ChaffLeft = ChaffCharges;
+        Rearm();
         Alive = true;
         _body.Visible = true;
         var direction = new Vector3(_rng.RandfRange(-1, 1), _rng.RandfRange(-0.3f, 0.3f), _rng.RandfRange(-1, 1)).Normalized();

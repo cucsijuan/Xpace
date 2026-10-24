@@ -21,8 +21,18 @@ namespace Xpace.Space;
 /// distance (none beyond <see cref="BlastRadius"/>), so a near miss hurts
 /// and only a close one kills.
 ///
-/// The firmware's ports (base 100h): +0 type 9  +1 datalink counter
-/// +2 +4 +6 the target from the missile (m)  +8 +10 +12 acceleration wanted
+/// A heat seeker (<see cref="HeatSeeker"/>) has no datalink: its head
+/// (<see cref="SeekerHead"/>) follows the centre of the heat in its cone,
+/// and the firmware is told where the head points. It leaves the rail
+/// looking where the launcher's head looked; if that saw nothing, it looks
+/// ahead and follows the first heat that comes into view. A flare in the
+/// cone beside the target pulls the centre to itself; the sun in the cone
+/// outshines everything.
+///
+/// The firmware's ports (base 100h): +0 type 9  +1 datalink counter (a
+/// heat seeker: counts up while the head sees heat)  +2 +4 +6 the target
+/// from the missile (m), or for a heat seeker the way its head points
+/// (1/16384, always)  +8 +10 +12 acceleration wanted
 /// (1/16 m/s²)  +14 status  +16 fuel (m/s)  +18 time to go (1/8 s)
 /// +20 +22 +24 accelerometers (1/16 m/s²). The axes are the world's.
 /// </summary>
@@ -30,6 +40,7 @@ public partial class Missile : Node3D
 {
     public const byte Type = 9;
     public const byte StatusGuiding = 1, StatusNoWord = 2, StatusLost = 4;
+    public const int DirectionScale = 16384;
 
     public enum Outcome { Flying, Hit, Missed }
 
@@ -44,7 +55,18 @@ public partial class Missile : Node3D
     [Export] public uint InstructionsPerSecond = 400_000;
     [Export(PropertyHint.File, "*.bin")] public string FirmwarePath = "res://disks/missile.bin";
 
+    [ExportGroup("Heat seeker")]
+    [Export] public bool HeatSeeker;
+    [Export] public float SeekerFieldDegrees = 8f;     // the whole cone it looks at
+    [Export] public float SeekerSensitivity = 1e-6f;   // the least heat it notices
+    [Export] public float SeekerSlewDegrees = 60f;     // how fast the gimbal turns, per second
+    [Export] public float GimbalLimitDegrees = 50f;    // how far off the nose it can look
+
     public Vector3 Velocity { get; set; }
+    /// <summary>Where a heat seeker's head points, world axes (the launcher aims it first).</summary>
+    public Vector3 SeekerLook { get => _head.Look; set => _head.Look = value; }
+    /// <summary>The brightest thing in the head's view this step (null: nothing it notices).</summary>
+    public IHeatSource SeekerSees => _head.Sees;
     /// <summary>What the datalink speaks of (set by the launcher).</summary>
     public IRadarTarget Target { get; set; }
     public float FuelLeft { get; private set; }
@@ -70,23 +92,24 @@ public partial class Missile : Node3D
     private Vector3 _applied;
     private MeshInstance3D _flame;
     private OmniLight3D _glow;
+    private readonly SeekerHead _head = new();
 
-    private static byte[] _firmware;
-    private static string _firmwareFrom;
+    private static readonly System.Collections.Generic.Dictionary<string, byte[]> _firmware = new();
 
     public override void _Ready()
     {
         FuelLeft = DeltaV;
         AddToGroup("missiles");
-        if (_firmware == null || _firmwareFrom != FirmwarePath)
+        if (!_firmware.TryGetValue(FirmwarePath, out byte[] firmware))
         {
-            _firmware = Godot.FileAccess.GetFileAsBytes(FirmwarePath);
-            _firmwareFrom = FirmwarePath;
-            if (_firmware.Length == 0)
+            firmware = Godot.FileAccess.GetFileAsBytes(FirmwarePath);
+            _firmware[FirmwarePath] = firmware;
+            if (firmware.Length == 0)
                 GD.PushError($"Missile: cannot read {FirmwarePath} (build it: see native/CMakeLists.txt)");
         }
-        _mcu = new Microcontroller(_firmware) { InstructionsPerSecond = InstructionsPerSecond };
+        _mcu = new Microcontroller(firmware) { InstructionsPerSecond = InstructionsPerSecond };
         _mcu[0] = Type;
+        SetUpHead(_head);
         BuildModel();
     }
 
@@ -111,7 +134,11 @@ public partial class Missile : Node3D
     }
 
     /// <summary>A datalink message: where the ship's radar puts the target, from this missile.</summary>
-    public void Uplink(Vector3 targetFromMissile) => _uplink = targetFromMissile;
+    public void Uplink(Vector3 targetFromMissile)
+    {
+        if (!HeatSeeker)
+            _uplink = targetFromMissile;
+    }
 
     public override void _PhysicsProcess(double delta)
     {
@@ -120,6 +147,8 @@ public partial class Missile : Node3D
         float dt = (float)delta;
         Age += dt;
 
+        if (HeatSeeker)
+            Seek(dt);
         if (_uplink is Vector3 r)
         {
             _mcu.SetWord(2, (int)MathF.Round(r.X));
@@ -205,6 +234,27 @@ public partial class Missile : Node3D
         Explosion.Spawn(GetParent(), burst, 14f, 0.8, 10f);
         QueueFree();
         return true;
+    }
+
+    /// <summary>Gives a head this missile's seeker (the launcher builds the one on its rail with it).</summary>
+    public void SetUpHead(SeekerHead head)
+    {
+        head.FieldDegrees = SeekerFieldDegrees;
+        head.Sensitivity = SeekerSensitivity;
+        head.SlewDegrees = SeekerSlewDegrees;
+        head.GimbalLimitDegrees = GimbalLimitDegrees;
+    }
+
+    /// <summary>The head follows the heat; the firmware reads where it points, and a new word when it sees something.</summary>
+    private void Seek(float dt)
+    {
+        bool tracking = _head.Track(GetTree(), GlobalPosition, -GlobalBasis.Z, dt);
+        Vector3 look = _head.Look * DirectionScale;     // the gimbal's angles, always there
+        _mcu.SetWord(2, (int)MathF.Round(look.X));
+        _mcu.SetWord(4, (int)MathF.Round(look.Y));
+        _mcu.SetWord(6, (int)MathF.Round(look.Z));
+        if (tracking)
+            _mcu[1] = ++_linkCounter;
     }
 
     /// <summary>The closest distance to t over the next dt seconds, and when.</summary>

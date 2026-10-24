@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/Missile.cs" id="1_missile"]
+
+[node name="IrMissile" type="Node3D"]
+script = ExtResource("1_missile")
+DeltaV = 1200.0
+LifeSeconds = 20.0
+FirmwarePath = "res://disks/irmissile.bin"
+HeatSeeker = true
