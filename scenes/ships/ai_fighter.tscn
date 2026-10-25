@@ -47,6 +47,7 @@ rings = 16
 [node name="AiFighter" type="AnimatableBody3D"]
 script = ExtResource("1_ship")
 Spec = ExtResource("48_hull")
+HideWhenDestroyed = Array[NodePath]([NodePath("Model"), NodePath("PlumeLeft"), NodePath("PlumeRight"), NodePath("ShieldBubble")])
 
 [node name="NetBody" type="Node" parent="."]
 script = ExtResource("3_netbody")

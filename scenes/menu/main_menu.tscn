@@ -1,10 +1,14 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene format=3 uid="uid://ccoblqadctngr"]
 
-[ext_resource type="Script" path="res://scripts/Menu/MainMenu.cs" id="1_menu"]
+[ext_resource type="Script" uid="uid://sbruvmem2qpv" path="res://scripts/Menu/MainMenu.cs" id="1_menu"]
 [ext_resource type="Material" path="res://assets/materials/synty_skybox_04.tres" id="2_skybox"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Ship_Fighter_03.fbx" id="3_ship"]
+[ext_resource type="PackedScene" uid="uid://c24bvglq01n2e" path="res://assets/synty/SM_Ship_Fighter_03.fbx" id="3_ship"]
 [ext_resource type="Material" path="res://assets/materials/paint_raider.tres" id="4_paint"]
 [ext_resource type="Theme" path="res://assets/ui/menu_theme.tres" id="5_theme"]
+[ext_resource type="Script" path="res://scripts/Menu/MenuShip.cs" id="7_menuship"]
+[ext_resource type="Script" path="res://scripts/Space/EnginePlume.cs" id="8_plume"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Flame_Mesh_New.fbx" id="9_flame"]
+[ext_resource type="Texture2D" path="res://assets/synty/Gradient_Boost.png" id="10_boost"]
 [ext_resource type="PackedScene" path="res://scenes/menu/settings_menu.tscn" id="6_settings"]
 
 [sub_resource type="Sky" id="Sky_space"]
@@ -20,31 +24,44 @@ ambient_light_energy = 0.6
 tonemap_mode = 2
 glow_enabled = true
 
-[node name="MainMenu" type="Node3D"]
+[node name="MainMenu" type="Node3D" unique_id=305615630]
 script = ExtResource("1_menu")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=130376335]
 environment = SubResource("Environment_space")
 
-[node name="Sun" type="DirectionalLight3D" parent="."]
+[node name="Sun" type="DirectionalLight3D" parent="." unique_id=1866414150]
 transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 0, 0)
 light_energy = 1.4
 
-[node name="Ship" parent="." instance=ExtResource("3_ship")]
-transform = Transform3D(-0.866025, 0, -0.5, 0, 1, 0, 0.5, 0, -0.866025, 0, 0, 0)
+[node name="Ship" parent="." unique_id=3446935 instance=ExtResource("3_ship")]
+transform = Transform3D(-0.8660251, 0, -0.50000006, -0.31039128, 0.7839828, 0.5376132, 0.39199147, 0.6207826, -0.6789488, -0.8069687, 0, 0)
+script = ExtResource("7_menuship")
 
 [node name="SM_Ship_Fighter_03" parent="Ship" index="0"]
 material_override = ExtResource("4_paint")
 
-[node name="Pivot" type="Node3D" parent="."]
+[node name="PlumeLeft" type="Node3D" parent="Ship"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 2.295, 0.075, -3.86)
+script = ExtResource("8_plume")
+FlameModel = ExtResource("9_flame")
+FlameTexture = ExtResource("10_boost")
 
-[node name="Camera3D" type="Camera3D" parent="Pivot"]
-transform = Transform3D(1, 0, 0, 0, 0.990268, 0.139173, 0, -0.139173, 0.990268, -6, 3, 20)
+[node name="PlumeRight" type="Node3D" parent="Ship"]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -2.295, 0.075, -3.86)
+script = ExtResource("8_plume")
+FlameModel = ExtResource("9_flame")
+FlameTexture = ExtResource("10_boost")
+
+[node name="Pivot" type="Node3D" parent="." unique_id=1492023583]
+
+[node name="Camera3D" type="Camera3D" parent="Pivot" unique_id=566799252]
+transform = Transform3D(1, 0, 0, 0, 0.99026805, 0.13917302, 0, -0.13917302, 0.99026805, -6, 3, 20)
 fov = 50.0
 
-[node name="Ui" type="CanvasLayer" parent="."]
+[node name="Ui" type="CanvasLayer" parent="." unique_id=1434814046]
 
-[node name="Root" type="Control" parent="Ui"]
+[node name="Root" type="Control" parent="Ui" unique_id=726453996]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -53,7 +70,7 @@ grow_horizontal = 2
 grow_vertical = 2
 theme = ExtResource("5_theme")
 
-[node name="Menu" type="VBoxContainer" parent="Ui/Root"]
+[node name="Menu" type="VBoxContainer" parent="Ui/Root" unique_id=830210536]
 unique_name_in_owner = true
 layout_mode = 1
 anchors_preset = 4
@@ -66,46 +83,46 @@ offset_bottom = 200.0
 grow_vertical = 2
 theme_override_constants/separation = 14
 
-[node name="Title" type="Label" parent="Ui/Root/Menu"]
+[node name="Title" type="Label" parent="Ui/Root/Menu" unique_id=1412922292]
 layout_mode = 2
 theme_override_colors/font_color = Color(1, 0.65, 0.2, 1)
 theme_override_font_sizes/font_size = 64
 text = "XPACE"
 
-[node name="Gap" type="Control" parent="Ui/Root/Menu"]
+[node name="Gap" type="Control" parent="Ui/Root/Menu" unique_id=1702507752]
 custom_minimum_size = Vector2(0, 24)
 layout_mode = 2
 
-[node name="SinglePlayer" type="Button" parent="Ui/Root/Menu"]
+[node name="SinglePlayer" type="Button" parent="Ui/Root/Menu" unique_id=1750373436]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Single Player"
 alignment = 0
 
-[node name="Multiplayer" type="Button" parent="Ui/Root/Menu"]
+[node name="Multiplayer" type="Button" parent="Ui/Root/Menu" unique_id=270074132]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Multiplayer"
 alignment = 0
 
-[node name="SettingsButton" type="Button" parent="Ui/Root/Menu"]
+[node name="SettingsButton" type="Button" parent="Ui/Root/Menu" unique_id=1434956495]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Settings"
 alignment = 0
 
-[node name="Quit" type="Button" parent="Ui/Root/Menu"]
+[node name="Quit" type="Button" parent="Ui/Root/Menu" unique_id=128781192]
 unique_name_in_owner = true
 layout_mode = 2
 text = "Quit"
 alignment = 0
 
-[node name="Status" type="Label" parent="Ui/Root/Menu"]
+[node name="Status" type="Label" parent="Ui/Root/Menu" unique_id=733415452]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(400, 0)
 layout_mode = 2
 autowrap_mode = 3
 
-[node name="Settings" parent="Ui/Root" instance=ExtResource("6_settings")]
+[node name="Settings" parent="Ui/Root" unique_id=1881053221 instance=ExtResource("6_settings")]
 unique_name_in_owner = true
 layout_mode = 1

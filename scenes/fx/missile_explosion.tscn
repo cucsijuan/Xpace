@@ -1,0 +1,28 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/ExplosionFx.cs" id="1_fx"]
+[ext_resource type="Texture2D" path="res://assets/synty/ExplosionCloud.png" id="2_cloud"]
+[ext_resource type="Texture2D" path="res://assets/synty/SphereGlow.png" id="3_glow"]
+
+[sub_resource type="Gradient" id="Gradient_fire"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(1, 0.53, 0.1, 1, 1, 0.27, 0.1, 0)
+
+[sub_resource type="Curve" id="Curve_grow"]
+_data = [Vector2(0, 0), 0.0, 1.0, 0, 1, Vector2(1, 1), 1.0, 0.0, 1, 0]
+point_count = 2
+
+[node name="MissileExplosion" type="Node3D"]
+script = ExtResource("1_fx")
+ReferenceSize = 14.0
+FireTexture = ExtResource("2_cloud")
+FireCount = Vector2i(15, 30)
+FireSize = Vector2(1, 4)
+FireLife = Vector2(0.1, 1)
+FireColors = SubResource("Gradient_fire")
+FireGrowth = SubResource("Curve_grow")
+SparkTexture = ExtResource("3_glow")
+SparkCount = Vector2i(20, 60)
+SparkSize = Vector2(0.01, 0.05)
+SparkSpeed = Vector2(1, 30)
+SparkLife = Vector2(0.3, 1)

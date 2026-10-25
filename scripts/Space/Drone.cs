@@ -501,7 +501,10 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     private void Explode()
     {
         Alive = false;
-        _body.Visible = false;
+        // gone into the fire and smoke
+        var fade = _body.CreateTween();
+        fade.TweenInterval(Explosion.FadeFrom);
+        fade.TweenMethod(Callable.From<float>(g => { if (!Alive) Explosion.Fade(_body, g); }), 0f, 1f, Explosion.CoverSeconds - Explosion.FadeFrom);
         _respawn = RespawnSeconds;
         if (_radar != null)
             Lose();
@@ -522,7 +525,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
         {
             _health = Health;
             Alive = true;
-            _body.Visible = true;
+            Explosion.Fade(_body, 0);
         }
     }
 
@@ -533,7 +536,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
         _health = Health;
         Rearm();
         Alive = true;
-        _body.Visible = true;
+        Explosion.Fade(_body, 0);
         var direction = new Vector3(_rng.RandfRange(-1, 1), _rng.RandfRange(-0.3f, 0.3f), _rng.RandfRange(-1, 1)).Normalized();
         GlobalPosition = Centre + direction * 3500f;
         _waypoint = NewWaypoint();

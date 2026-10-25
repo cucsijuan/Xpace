@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Godot;
 using Xpace.Computer;
 using Xpace.Net;
@@ -100,6 +101,7 @@ public partial class Missile : Node3D, INetShip
     private byte _linkCounter;
     private Vector3 _applied;
     private MeshInstance3D _flame;
+    private MissilePlume _plume;
     private OmniLight3D _glow;
     private readonly SeekerHead _head = new();
 
@@ -124,8 +126,17 @@ public partial class Missile : Node3D, INetShip
 
     public override void _ExitTree() => _mcu?.Dispose();
 
+    /// <summary>
+    /// The scene's own body (a "Model" child) and motor (a <see cref="MissilePlume"/>
+    /// child); a missile with none gets a plain body and flame.
+    /// </summary>
     private void BuildModel()
     {
+        _plume = FindChildren("*", "", true, false).OfType<MissilePlume>().FirstOrDefault();
+        _glow = new OmniLight3D { LightColor = new Color(1f, 0.6f, 0.3f), LightEnergy = 0, OmniRange = 30f };
+        AddChild(_glow);
+        if (GetNodeOrNull("Model") != null && _plume != null)
+            return;
         var hull = new StandardMaterial3D { AlbedoColor = new Color(0.8f, 0.8f, 0.78f), Roughness = 0.5f };
         var fire = new StandardMaterial3D
         {
@@ -138,8 +149,6 @@ public partial class Missile : Node3D, INetShip
         AddChild(new MeshInstance3D { Mesh = new BoxMesh { Size = new Vector3(0.03f, 0.7f, 0.4f) }, MaterialOverride = hull, Position = new Vector3(0, 0, 1.1f) });
         _flame = new MeshInstance3D { Mesh = new SphereMesh { Radius = 0.25f, Height = 1.5f }, MaterialOverride = fire, Position = new Vector3(0, 0, 1.7f), Visible = false };
         AddChild(_flame);
-        _glow = new OmniLight3D { LightColor = new Color(1f, 0.6f, 0.3f), LightEnergy = 0, OmniRange = 30f };
-        AddChild(_glow);
     }
 
     /// <summary>A datalink message: where the ship's radar puts the target, from this missile.</summary>
@@ -317,8 +326,13 @@ public partial class Missile : Node3D, INetShip
     private void Plume()
     {
         float push = _applied.Length();
-        _flame.Visible = push > 1;
-        _flame.Scale = Vector3.One * Math.Clamp(push / MaxAcceleration, 0.3f, 1f);
+        if (_plume != null)
+            _plume.Thrust = push / MaxAcceleration;
+        else
+        {
+            _flame.Visible = push > 1;
+            _flame.Scale = Vector3.One * Math.Clamp(push / MaxAcceleration, 0.3f, 1f);
+        }
         _glow.LightEnergy = push > 1 ? 3f * push / MaxAcceleration : 0;
     }
 

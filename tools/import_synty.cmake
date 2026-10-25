@@ -27,6 +27,9 @@ set(MODELS
   SM_Veh_POV_Cockpit_Frame_03
   SM_Ship_Fighter_03
   FX_Meshes/SM_Flame_Mesh_New
+  FX_Meshes/SM_Pebble_Debris_03
+  SM_Prop_Missile_01
+  SM_Prop_Missile_03
   SM_Env_Astroid_01
   SM_Env_Astroid_02
   SM_Env_Astroid_03
@@ -41,6 +44,10 @@ set(TEXTURES
   PolygonSciFiSpace_Texture_01_A
   PolygonSciFiSpace_Emissive_01
   FX_Textures/Gradient_Boost
+  FX_Textures/Explosion
+  FX_Textures/ExplosionCloud
+  FX_Textures/SphereGlow
+  FX_Textures/Transparent_Line
   FX_Textures/PolygonSciFiSpace_Skybox_04_Front
   FX_Textures/PolygonSciFiSpace_Skybox_04_Back
   FX_Textures/PolygonSciFiSpace_Skybox_04_Left

@@ -52,12 +52,14 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
     public float HullLevel { get; private set; }
 
     public ushort RadarId { get; private set; }
-    public bool Alive => Visible;
+    public bool Alive => Visible && !_down;
 
     private FloatingOrigin _origin;
     private RadarEmitter _radar;
     private Xpace.Ship.JammerDevice _jammer;
     private EnginePlume[] _plumes;
+    private bool _down;                         // blown up on its owner's machine
+    private double _downFor;
 
     public override void _Ready()
     {
@@ -89,7 +91,7 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
     public float HeatAt(Vector3 from, out Vector3 direction)
     {
         float heat = Heat.Point(GlobalPosition, 1, from, out direction);
-        if (!Visible)
+        if (!Alive)
             return 0;
         float behind = Mathf.Max(0, -direction.Dot(GlobalBasis.Z.Normalized()));
         return heat * (HullHeatAtFull * HullLevel + MotorHeat * Thrust * (FrontHeat + (1 - FrontHeat) * behind));
@@ -117,9 +119,27 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
         HullLevel = p.Destroyed ? 0 : p.Heat;
         foreach (EnginePlume plume in _plumes)
             plume.Thrust = Thrust;
-        if (p.Destroyed && Visible)
-            Explosion.Spawn(GetParent(), GlobalPosition, 30f, 1.6, 16f);     // blown up on its owner's machine
-        Visible = !p.Destroyed;
+        if (p.Destroyed)
+        {
+            // blown up on its owner's machine: it goes once the fire and smoke hide it
+            if (!_down)
+            {
+                _down = true;
+                _downFor = 0;
+                if (Visible)
+                    Explosion.Spawn(GetParent(), GlobalPosition, 30f, 1.6, 16f);
+            }
+            else
+                _downFor += delta;
+            if (Visible)
+                Explosion.Fade(this, Explosion.Gone(_downFor));
+        }
+        else
+        {
+            if (_down || !Visible)
+                Explosion.Fade(this, 0);
+            _down = false;
+        }
         _radar.Follow(p.Radar, p.Radar == RadarMode.Track ? SessionNode.Instance?.NodeOf(p.RadarTarget) : null, p.RadarGuiding);
         if (p.Jam != JamMode.Off)
             _jammer.Spec = SessionNode.Instance?.JammerModel(p.JamModel) ?? Jammer ?? _jammer.Spec;

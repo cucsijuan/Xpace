@@ -1,0 +1,64 @@
+[gd_scene load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/ExplosionFx.cs" id="1_fx"]
+[ext_resource type="Texture2D" path="res://assets/synty/ExplosionCloud.png" id="2_cloud"]
+[ext_resource type="Texture2D" path="res://assets/synty/SphereGlow.png" id="3_glow"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Pebble_Debris_03.fbx" id="4_pebble"]
+
+[sub_resource type="Gradient" id="Gradient_fire"]
+offsets = PackedFloat32Array(0, 0.2, 1)
+colors = PackedColorArray(1, 0.56, 0, 0.89, 0.8, 0.45, 0, 0, 0, 0, 0, 0)
+
+[sub_resource type="Gradient" id="Gradient_trail"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(1, 0.56, 0, 0.89, 0, 0, 0, 0)
+
+[sub_resource type="Curve" id="Curve_grow"]
+_data = [Vector2(0, 0), 0.0, 13.8, 0, 1, Vector2(0.05, 0.69), 13.8, 0.33, 1, 1, Vector2(1, 1), 0.33, 0.0, 1, 0]
+point_count = 3
+
+[sub_resource type="Gradient" id="Gradient_smoke"]
+offsets = PackedFloat32Array(0, 0.03, 0.1, 0.5, 1)
+colors = PackedColorArray(0.2, 0.16, 0.13, 0, 0.2, 0.16, 0.13, 0.15, 0.16, 0.14, 0.13, 0.85, 0.13, 0.13, 0.13, 0.6, 0.12, 0.12, 0.12, 0)
+
+[sub_resource type="Curve" id="Curve_smoke"]
+_data = [Vector2(0, 0.35), 0.0, 3.0, 0, 1, Vector2(0.2, 0.95), 3.0, 0.06, 1, 1, Vector2(1, 1), 0.06, 0.0, 1, 0]
+point_count = 3
+
+[sub_resource type="StandardMaterial3D" id="Material_pebble"]
+albedo_color = Color(0.28, 0.28, 0.28, 1)
+roughness = 0.9
+
+[node name="ShipExplosion" type="Node3D"]
+script = ExtResource("1_fx")
+ReferenceSize = 15.0
+SmokeTexture = ExtResource("2_cloud")
+SmokeCount = Vector2i(14, 20)
+SmokeSize = Vector2(6, 12)
+SmokeSpeed = Vector2(0.5, 4)
+SmokeLife = Vector2(3, 6)
+SmokeColors = SubResource("Gradient_smoke")
+SmokeGrowth = SubResource("Curve_smoke")
+SmokeRadius = 2.0
+FireTexture = ExtResource("2_cloud")
+FireCount = Vector2i(25, 35)
+FireSize = Vector2(4, 8)
+FireLife = Vector2(1, 5)
+FireColors = SubResource("Gradient_fire")
+FireGrowth = SubResource("Curve_grow")
+FireRadius = 3.0
+SparkTexture = ExtResource("3_glow")
+SparkCount = Vector2i(60, 90)
+SparkSize = Vector2(0.05, 0.05)
+SparkSpeed = Vector2(1, 30)
+SparkLife = Vector2(1, 1)
+DebrisModel = ExtResource("4_pebble")
+DebrisMaterial = SubResource("Material_pebble")
+DebrisCount = 30
+DebrisSize = Vector2(0.1, 1)
+DebrisSpeed = Vector2(1, 20)
+DebrisLife = Vector2(0.5, 3)
+DebrisFireRate = 50.0
+DebrisFireSize = Vector2(0.2, 0.5)
+DebrisFireLife = Vector2(0.5, 1)
+DebrisFireColors = SubResource("Gradient_trail")

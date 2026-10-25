@@ -1,7 +1,13 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/Space/Missile.cs" id="1_missile"]
 [ext_resource type="Script" path="res://scripts/Net/NetBody.cs" id="2_netbody"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Missile_01.fbx" id="3_model"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="4_atlas"]
+[ext_resource type="Script" path="res://scripts/Space/MissilePlume.cs" id="5_plume"]
+[ext_resource type="Texture2D" path="res://assets/synty/Explosion.png" id="6_flash"]
+[ext_resource type="Texture2D" path="res://assets/synty/Transparent_Line.png" id="7_line"]
+[ext_resource type="Texture2D" path="res://assets/synty/ExplosionCloud.png" id="8_cloud"]
 
 [node name="IrMissile" type="Node3D"]
 script = ExtResource("1_missile")
@@ -13,3 +19,16 @@ HeatSeeker = true
 [node name="NetBody" type="Node" parent="."]
 script = ExtResource("2_netbody")
 OwnedBy = 2
+
+[node name="Model" parent="." instance=ExtResource("3_model")]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 0, 0.558)
+
+[node name="SM_Prop_Missile_01" parent="Model" index="0"]
+material_override = ExtResource("4_atlas")
+
+[node name="Plume" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.558)
+script = ExtResource("5_plume")
+FlashTexture = ExtResource("6_flash")
+StreakTexture = ExtResource("7_line")
+SmokeTexture = ExtResource("8_cloud")

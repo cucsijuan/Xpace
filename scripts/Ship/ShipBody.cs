@@ -38,6 +38,8 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     [Export] public ShipSpec Spec;
     [Export] public NodePath ComputerPath = "ShipComputer";
     [Export] public double WatchdogSeconds = 0.1;
+    /// <summary>What goes when it blows up, fading into the fire and smoke (its outside: model, plumes), until it comes back.</summary>
+    [Export] public Godot.Collections.Array<NodePath> HideWhenDestroyed = new();
 
     /// <summary>Who flies the ship; null leaves the controls centred.</summary>
     public Func<PilotControls> ControlsSource;
@@ -115,6 +117,22 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
             if (d is T t)
                 return t;
         return null;
+    }
+
+    private double _downFor;
+
+    public override void _Process(double delta)
+    {
+        if (HideWhenDestroyed.Count == 0)
+            return;
+        bool down = Wrecked || _shownDestroyed;
+        if (!down && _downFor == 0)
+            return;
+        _downFor = down ? _downFor + delta : 0;
+        float gone = down ? Space.Explosion.Gone(_downFor) : 0;
+        foreach (NodePath path in HideWhenDestroyed)
+            if (GetNodeOrNull<Node3D>(path) is Node3D part)
+                Space.Explosion.Fade(part, gone);
     }
 
     public override void _PhysicsProcess(double delta)
