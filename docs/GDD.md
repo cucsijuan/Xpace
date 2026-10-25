@@ -155,6 +155,36 @@ Shields, armour, point defence systems and countermeasures: flares, chaff, jammi
 - Firing, accelerating and jumping generate **heat**. Heat raises the infrared signature and, past a limit, damages modules.
 - Switching systems on and off is part of the tactics, and can also be done from software.
 
+### 6.5 The drive: generator, veil and engines
+
+Ships and missiles fly by different technologies.
+
+- **Missiles are rockets.** They carry propellant, which in this world is cheap: a missile has a delta-v budget, and nothing else slows it. That is why a missile can catch a ship whose engines are stronger than its motor.
+- **Ships fly on their generator.** The generator makes the energy every system runs on, but most of it goes to the engines, which turn it into thrust. On paper these engines could accelerate without end. In practice two things stop them: the **veil** sets a top speed, and the **heat and stress** of turning energy into thrust set how hard and how long they can push.
+
+**The veil (top speed).** Making the generator's energy raises a field round the ship, the veil, which holds on to the local medium: the thin plasma of the sector, at rest in the sector's frame (stations and beacons sit still in it, and speeds are measured against it). The engines throw their energy against the veil, in the direction they point, and that is the thrust. The veil also holds the ship back: a drag that grows with the square of the speed through the medium.
+
+- The top speed is where full thrust and the veil's drag balance. It is physics, not software: no program can fly faster than the engine and the veil allow.
+- At combat speeds the drag is small (a ship coasting with flight assist off still drifts much as in empty space), and strong near the top speed. It brakes the ship naturally, but far more slowly than the thrusters can: from 250 m/s the veil alone takes about 13 s to halve the speed, the reverse thrusters under 4 s.
+- A stronger engine gives a higher top speed and more acceleration. The manoeuvring thrusters (RCS) work the same way, with smaller emitters.
+- Starting values for the current fighter: main engine 50 m/s², veil drag 3.1e-4 per metre (a_drag = k v²), so a top speed of about 400 m/s at full rated thrust; less when heat holds the engine back (see below). Flight assist's 250 m/s stays the cruise it asks for.
+
+**The engine's controller (how hard and how long).** Every engine has its own embedded controller: a microcontroller with its own firmware in ROM, like a missile's, built into the engine and not part of the ship's computer. The ship's software asks for thrust; the controller decides what the engine actually gives.
+
+- **Stress:** it never gives more than the hull is rated to take (a peak acceleration in g).
+- **Heat:** turning energy into thrust heats the engine's core; the cooling system carries the heat away to the radiators. Past the cut-out temperature the controller switches the engine off, and on again once it has cooled to the resume temperature: the engine pulses, and the thrust it can keep up is what the cooling can carry away. A burst above that (the boost button) is possible until the heat cuts it.
+- The ship's computer reads the controller on the bus: the core temperature, the limits, and whether it is cutting. FLIGHT can show it and a pilot (or the AI) can manage it.
+
+**Cooling and energy.** With the power distribution, energy given to the engines also drives the cooling harder: pumps and radiators carry more heat, so the engine cuts later and keeps up more thrust. The heat goes out of the ship all the same, and the radiators glowing brighter is a brighter infrared signature: speed against stealth. Heat seekers see a hard-driven ship from further away.
+
+**Overclocking: the controller's flaws.** The controller is hardware, so the ship's software cannot just switch it off. But it was built to a price, and it has flaws a modified FLIGHT, or a program written from nothing, can use to get more out of an engine than it was made for. The cost is physical: the engine's real temperature climbs past what it can take, it wears (it gives less thrust), the structure takes damage, and in the end the engine fails and takes the ship with it. An overheated engine also glows: an overclocked ship is a bright target.
+
+1. **It trusts the coolant reading.** The controller does not measure its core: it works out the core's temperature from the coolant loop's, which the cooling unit puts on the ship's bus (one bus, cheaper). That register can be written: the cooling unit has a calibration mode for the shipyard. A program that writes a lower temperature than the real one makes the engine cut later, or not at all.
+2. **It samples.** The controller checks the temperature only so many times a second and judges the heat by the thrust it saw at those moments. A program that pushes hard between samples and eases off at them, timed to the interrupt, gets more mean thrust than the controller counts. It needs exact timing: the kind of thing an 8086 programmer can do.
+3. **The bench mode (a backdoor).** For testing at the shipyard, with outside cooling, the engine has a bench mode with no thermal cut-out, entered by a sequence of writes to its service port. No manual mentions it. It is found by dumping the controller's firmware through its diagnostic port and reading the 8086 code. It is the most powerful hack and the most dangerous one: nothing stops the engine until it breaks.
+
+Engines are products: a manufacturer can close a flaw in a newer firmware, so an old engine can be worth more to someone who knows what to do with it. Going past the hull's stress rating is never blocked by software either, but the structure takes damage the moment it happens.
+
 ## 7. Ship fittings
 
 - **Slot sizes:** S, M, L and XL (capital ships).
@@ -271,7 +301,7 @@ Missiles, blasts and countermeasures (`tests/net_missile_test.tscn`, from both s
 
 **Frames of reference.** Positions travel as sector-absolute doubles; the floating origin stays a local matter of each machine.
 
-**Cheating.** With owner authority a player could lie about their ship. For co-op and invasions a plausibility check on the host is enough: speeds and accelerations the hull and its delta-v allow, rates of fire the turret allows. Only lobby members are accepted as P2P peers. There is no host migration: if the host leaves, the session ends.
+**Cheating.** With owner authority a player could lie about their ship. For co-op and invasions a plausibility check on the host is enough: speeds and accelerations the engine, the veil and the hull allow (an overclocked engine is allowed, its heat and damage are part of the ship's state), rates of fire the turret allows. Only lobby members are accepted as P2P peers. There is no host migration: if the host leaves, the session ends.
 
 ## 11. Assessment and recommendations
 
@@ -333,6 +363,7 @@ Missiles, blasts and countermeasures (`tests/net_missile_test.tscn`, from both s
 | Planets | No landing for now; only stations and structures. Landing is for the future. |
 | Death | No permadeath; Elite-style insurance. |
 | Travel between sectors | Jumps: owned gates and the ship's own jump drive. |
+| Propulsion | Missiles are rockets (propellant, a delta-v budget). Ships fly on their generator: the engines push against the veil, which sets the top speed; each engine's embedded controller limits stress and heat, and can be overclocked through its flaws, at a physical cost (6.5). |
 | Name | Codename Xpace. |
 
 ### Pending
@@ -341,3 +372,4 @@ Missiles, blasts and countermeasures (`tests/net_missile_test.tscn`, from both s
 - Which modular parts the Synty kit has, and how they show in the numbers.
 - Insurance: what is lost on death (cargo, software)?
 - How far politics goes beyond the Elite base.
+- The drive's numbers (veil drag, cut-out and resume temperatures, cooling, stress ratings) and how much energy to the engines helps the cooling; to be tuned in play.
