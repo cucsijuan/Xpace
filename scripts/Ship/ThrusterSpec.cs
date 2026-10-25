@@ -18,8 +18,8 @@ public partial class ThrusterSpec : Resource
 
     [ExportGroup("Push (newtons)")]
     [Export] public float ReverseThrust = 700_000f;
-    [Export] public float LateralThrust = 800_000f;     // right and left: yaw bends the path with these
-    [Export] public float VerticalThrust = 1_400_000f;  // up and down: pitch bends the path with these
+    [Export] public float LateralThrust = 1_000_000f;     // right and left: yaw bends the path with these
+    [Export] public float VerticalThrust = 2_000_000f;  // up and down: pitch bends the path with these
 
     /// <summary>Turning, newton metres: about the ship's X (pitch), Y (yaw), Z (roll).</summary>
     [Export] public Vector3 Torque = new(168_000f, 112_000f, 168_000f);

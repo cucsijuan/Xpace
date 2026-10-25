@@ -6,6 +6,6 @@
 script = ExtResource("1_spec")
 Model = "T-35"
 ReverseThrust = 700000.0
-LateralThrust = 800000.0
-VerticalThrust = 1400000.0
+LateralThrust = 1000000.0
+VerticalThrust = 2000000.0
 Torque = Vector3(168000, 112000, 168000)

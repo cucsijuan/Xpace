@@ -98,16 +98,21 @@ public partial class FlightTest : Node
         await Seconds(6);
         await PressSafe();
         Check("the SAFE button turns safe turns on", Line(_display.Text("FLIGHT"), "SAFE TURNS").Contains("ON"));
-        float expected = 0.75f * _ship.Spec.Vertical / _ship.Spec.Mass / 150;
+        float across = _ship.Spec.Vertical / _ship.Spec.Mass / 150;    // what the thrusters across alone bend the path at
         var (safeRate, safeSlip) = await PullUp(3);
-        Check($"safe: full stick pitches at what the push across allows, {expected:0.000} rad/s ({safeRate:0.000}), the nose on the path ({safeSlip:0.0} deg)",
-              Near(safeRate, expected, 0.015f) && safeSlip < 8);
+        Check($"safe: full stick pitches faster than the thrusters across alone bend the path ({across:0.000} rad/s): {safeRate:0.000}, the nose within the slip window ({safeSlip:0.0} deg)",
+              safeRate > across * 1.1f && safeRate < top.X && safeSlip < 18);
         await Seconds(3);
         _ship.Spec.VerticalThrust *= 2;
         var (strongRate, strongSlip) = await PullUp(3);
-        Check($"twice the thrust up and down: twice the safe rate ({strongRate:0.000} rad/s, nose {strongSlip:0.0} deg off)",
-              Near(strongRate, 2 * expected, 0.03f) && strongSlip < 8);
+        Check($"twice the thrust up and down: a faster safe turn ({strongRate:0.000} rad/s against {safeRate:0.000}, nose {strongSlip:0.0} deg off)",
+              strongRate > safeRate * 1.3f && strongSlip < 18);
         _ship.Spec.VerticalThrust /= 2;
+        await Seconds(3);
+        _controls.Throttle = 250 / topSpeed;
+        await Seconds(10);
+        var (fastRate, fastSlip) = await PullUp(3);
+        GD.Print($"     safe at {Velocity().Z:0} m/s: {Mathf.RadToDeg(fastRate):0.0} deg/s, nose {fastSlip:0.0} deg off (the thrusters across alone: {Mathf.RadToDeg(_ship.Spec.Vertical / _ship.Spec.Mass / 250):0.0})");
         await PressSafe();
         Check("SAFE again turns them off", Line(_display.Text("FLIGHT"), "SAFE TURNS").Contains("OFF"));
         _controls.Throttle = 0;

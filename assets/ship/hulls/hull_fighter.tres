@@ -8,6 +8,7 @@ script = ExtResource("1_spec")
 Mass = 20000.0
 Thrusters = ExtResource("2_thrusters")
 VeilDrag = 0.00031
+VeilCross = Vector2(0.006, 0.006)
 VeilSpin = Vector3(0.93, 1.75, 0.47)
 RatedAcceleration = 75.0
 Inertia = Vector3(80000, 100000, 40000)

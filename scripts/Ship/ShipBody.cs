@@ -256,7 +256,8 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         {
             Rating(forward / s.Mass * 8), Rating(s.Reverse / s.Mass * 8), Rating(s.Lateral / s.Mass * 8), Rating(s.Vertical / s.Mass * 8),
             Rating(turn.X * 1024), Rating(turn.Y * 1024), Rating(turn.Z * 1024),
-            Rating(s.TopSpeed(forward) * 8), Rating(s.TopSpeed(s.Reverse) * 8), Rating(s.TopSpeed(s.Lateral) * 8), Rating(s.TopSpeed(s.Vertical) * 8),
+            Rating(s.TopSpeed(forward) * 8), Rating(s.TopSpeed(s.Reverse) * 8),
+            Rating(s.TopSpeed(s.Lateral, s.VeilCross.X) * 8), Rating(s.TopSpeed(s.Vertical, s.VeilCross.Y) * 8),
             Rating(top.X * 1024), Rating(top.Y * 1024), Rating(top.Z * 1024),
         };
         byte* table = Computer.Memory + ShipMemory.Base + ShipMemory.Ratings;
@@ -298,7 +299,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         float forward = Commands[5] >= 0 ? Commands[5] * s.MainThrust : Commands[5] * s.Reverse;
         var force = new Vector3(Commands[3] * s.Lateral, Commands[4] * s.Vertical, -forward);
         ShipState before = State;
-        ShipState after = ShipMotion.Step(before, force, torque, s.Mass, s.Inertia, dt, s.VeilDrag, s.VeilSpin);
+        ShipState after = ShipMotion.Step(before, force, torque, s.Mass, s.Inertia, dt, s.VeilAxes, s.VeilSpin);
         float crash = ShipContact.Collide(ref after, before.Position, _hitboxes, _bound, s, _near);
         State = after;
         if (crash > 0)

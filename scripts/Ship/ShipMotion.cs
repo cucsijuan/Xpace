@@ -17,8 +17,10 @@ public struct ShipState
 /// body under thrust and torque, with no gravity or contacts. The only drag
 /// is the veil's (GDD 6.5): the field the ship's generator raises holds on
 /// to the sector's thin medium, at rest in the sector's frame, and pulls
-/// back with k v² (a top speed where it matches the thrust); it drags on
-/// turning too, about each of the ship's axes (a top turn rate).
+/// back with k v² (a top speed where it matches the thrust), harder across
+/// the hull than along its nose (so the path follows the nose, at a cost in
+/// speed, as in air); it drags on turning too, about each of the ship's
+/// axes (a top turn rate).
 ///
 /// One step is a pure function of the state and the commands, so a step
 /// can be re-run (to replay a ship from a saved state) and gives the same
@@ -26,8 +28,8 @@ public struct ShipState
 /// sines or cosines from the system's maths library.
 ///
 /// Semi-implicit Euler, like the engine's rigid bodies: the velocity first
-/// (the thrust, then the veil's drag, taken implicitly: v / (1 + k |v| dt),
-/// steady at any speed), then the position with the new velocity, and the
+/// (the thrust, then the veil's drag along each of the ship's axes, taken
+/// implicitly: v / (1 + k |v| dt), steady at any speed), then the position with the new velocity, and the
 /// orientation turned by exactly the step's angle. As in the engine, the body has no gyroscopic
 /// term: with no torque it keeps turning about the same axis at the same rate.
 /// </summary>
@@ -36,15 +38,22 @@ public static class ShipMotion
     /// <param name="force">Newtons, along the ship's own axes.</param>
     /// <param name="torque">Newton metres, about the ship's own axes.</param>
     /// <param name="inertia">Moments of inertia about the ship's own X, Y, Z (kg m²).</param>
-    /// <param name="drag">The veil's k, per metre: a deceleration of k v² (0: none, as in empty space).</param>
+    /// <param name="drag">The veil's k along the ship's X (across), Y (up and down), Z (the nose), per metre: a deceleration of k |v| v that way (0: none, as in empty space).</param>
     /// <param name="spinDrag">The veil against turning about the ship's X, Y, Z, per radian: k w² about each (0: none).</param>
     public static ShipState Step(ShipState s, Vector3 force, Vector3 torque, float mass, Vector3 inertia, float dt,
-                                 float drag = 0, Vector3 spinDrag = default)
+                                 Vector3 drag = default, Vector3 spinDrag = default)
     {
         Quaternion q = s.Orientation;
         s.Velocity += q * (force / mass) * dt;
-        if (drag > 0)
-            s.Velocity /= 1 + drag * s.Velocity.Length() * dt;
+        if (drag != Vector3.Zero)
+        {
+            float speed = s.Velocity.Length();
+            Vector3 v = q.Inverse() * s.Velocity;
+            v.X /= 1 + drag.X * speed * dt;
+            v.Y /= 1 + drag.Y * speed * dt;
+            v.Z /= 1 + drag.Z * speed * dt;
+            s.Velocity = q * v;
+        }
         s.AngularVelocity += q * (torque / inertia) * dt;
         if (spinDrag != Vector3.Zero)
         {

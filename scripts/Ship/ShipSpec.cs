@@ -32,6 +32,13 @@ public partial class ShipSpec : Resource
     /// </summary>
     [Export] public float VeilDrag = 3.1e-4f;
     /// <summary>
+    /// The veil's drag across the hull, per metre: sideways (X) and up and
+    /// down (Y). Harder than along the nose, it bleeds off the slide and
+    /// bends the path after the nose (more the faster it goes), at a cost in
+    /// speed; and it keeps strafing slow.
+    /// </summary>
+    [Export] public Vector2 VeilCross = new(6e-3f, 6e-3f);
+    /// <summary>
     /// The veil against turning, per radian, about the ship's X (pitch), Y
     /// (yaw) and Z (roll): a deceleration of k w². With the thrusters' turn
     /// it sets the top turn rate, sqrt(torque / inertia / k).
@@ -68,8 +75,14 @@ public partial class ShipSpec : Resource
     /// <summary>Turning accelerations at full, rad/s².</summary>
     public Vector3 TurnAcceleration => TurnTorque / Inertia;
 
-    /// <summary>Where a push (N) meets the veil's drag (m/s); no veil: no top.</summary>
-    public float TopSpeed(float force) => VeilDrag > 0 ? Mathf.Sqrt(force / Mass / VeilDrag) : float.PositiveInfinity;
+    /// <summary>The veil's drag along the ship's X (across), Y (up and down), Z (the nose), per metre.</summary>
+    public Vector3 VeilAxes => new(VeilCross.X, VeilCross.Y, VeilDrag);
+
+    /// <summary>Where a push (N) along the nose meets the veil's drag (m/s); no veil: no top.</summary>
+    public float TopSpeed(float force) => TopSpeed(force, VeilDrag);
+
+    /// <summary>Where a push (N) meets a drag of k per metre (m/s); none: no top.</summary>
+    public float TopSpeed(float force, float k) => k > 0 ? Mathf.Sqrt(force / Mass / k) : float.PositiveInfinity;
 
     /// <summary>Where the full turn meets the veil, per axis (rad/s); no veil about an axis: no top.</summary>
     public Vector3 TopTurnRate()

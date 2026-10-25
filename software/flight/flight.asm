@@ -20,12 +20,15 @@
 ; it has. The pilot's FA button switches between the two.
 ;
 ; Safe turns (the pilot's SAFE button, with flight assist on): full stick
-; asks only for the pitch and yaw rates the thrusters can bend the ship's
-; path to at its speed, so the ship goes where it points instead of
-; sliding on: a rate of (acceleration across) / (forward speed), from the
-; thrusters' rating plate, less a share kept for holding the speed. The
-; faster the ship, the gentler its turns; better thrusters turn it harder.
-; Without a rating plate on the bus there are no safe turns.
+; asks only for the pitch and yaw rates the ship can bend its path to at
+; its speed, so it goes where it points instead of sliding on: the rate
+; the thrusters across give, (acceleration across) / (forward speed), from
+; the rating plate, and more while the nose leads the path by less than
+; SLIP_WINDOW (measured: the speed across against the speed ahead). A
+; little slide lets the main engine and the veil bend the path too, as
+; much as this ship's have it in them. The faster the ship, the gentler
+; its turns; better thrusters turn it harder. Without a rating plate on
+; the bus there are no safe turns.
 ;
 ; The pilot's boost button, held, drives the main engine's cooling harder
 ; (the cooling unit's boost): the engine keeps up more thrust before its
@@ -89,7 +92,8 @@ PLATE_SEG   equ 0D000h              ; the whole rating plate (version 2)
 PLATE       equ 1400h
 GAIN_RATE   equ 96                  ; command for each unit of turn-rate error
 GAIN_SPEED  equ 204                 ; command for each unit of speed error
-SAFE_SHARE  equ 768                 ; safe turns use 3/4 of the push across (x 1024)
+SAFE_SHARE  equ 1024                ; safe turns use all the push across (x 1024)
+SLIP_WINDOW equ 286                 ; and let the nose lead the path by up to 16 degrees (1/1024 rad)
 SAFE_SLOW   equ 16                  ; below 2 m/s forward a turn bends nothing: no limit
 
 SCREEN_EVERY equ 6                  ; steps between screen updates (10 a second)
@@ -296,11 +300,17 @@ turn_limits:
     in ax, dx
     mov cx, [max_pitch]
     call safe_rate
+    mov bx, [motion + 8]            ; the slide up and down
+    mov cx, [max_pitch]
+    call slip_room
     push ax
     mov dx, RATINGS + 6             ; sideways: yaw bends it
     in ax, dx
     mov cx, [max_yaw]
     call safe_rate
+    mov bx, [motion + 6]            ; the slide sideways
+    mov cx, [max_yaw]
+    call slip_room
     mov bx, ax
     pop ax
 .set:
@@ -384,6 +394,51 @@ safe_rate:
 .most:
     mov ax, cx
 .done:
+    ret
+
+; AX = the safe rate so far, BX = the speed across (1/8 m/s), CX = the
+; most: AX = that plus what the slip window still has room for, the most
+; times (window - slip) / window, held to the most
+slip_room:
+    push ax
+    mov ax, bx
+    test ax, ax
+    jns .across
+    neg ax
+.across:
+    mov bx, [motion + 10]
+    test bx, bx
+    jns .ahead
+    neg bx
+.ahead:
+    cmp bx, SAFE_SLOW
+    jb .none                        ; slow: no limit anyway
+    push cx
+    mov cx, 1024
+    mul cx                          ; DX:AX = across x 1024
+    pop cx
+    cmp dx, bx
+    jae .none                       ; sliding more than ahead: no room
+    div bx                          ; AX = the slip (1/1024 rad)
+    cmp ax, SLIP_WINDOW
+    jae .none
+    mov bx, SLIP_WINDOW
+    sub bx, ax
+    mov ax, cx
+    mul bx
+    mov bx, SLIP_WINDOW
+    div bx                          ; AX = the most x room / window
+    pop bx
+    add ax, bx
+    jc .most
+    cmp ax, cx
+    jbe .done
+.most:
+    mov ax, cx
+.done:
+    ret
+.none:
+    pop ax
     ret
 
 ; Per axis: input, where its full-scale setpoint is kept, measurement,

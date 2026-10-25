@@ -84,7 +84,7 @@ public partial class DriveTest : Node3D
         var spec = new ShipSpec();
         var s = new ShipState { Orientation = Quaternion.Identity };
         for (int i = 0; i < 120 * 60; i++)
-            s = ShipMotion.Step(s, new Vector3(0, 0, -spec.MainThrust), Vector3.Zero, spec.Mass, spec.Inertia, 1f / 60, spec.VeilDrag);
+            s = ShipMotion.Step(s, new Vector3(0, 0, -spec.MainThrust), Vector3.Zero, spec.Mass, spec.Inertia, 1f / 60, spec.VeilAxes);
         float top = MathF.Sqrt(spec.MainThrust / spec.Mass / spec.VeilDrag);
         Check($"the veil: full thrust tops out at {s.Velocity.Length():0} m/s ({top:0} where thrust meets drag)",
               MathF.Abs(s.Velocity.Length() - top) < top * 0.01f);
@@ -92,13 +92,13 @@ public partial class DriveTest : Node3D
         float t = 0;
         while (s.Velocity.Length() > 125)
         {
-            s = ShipMotion.Step(s, Vector3.Zero, Vector3.Zero, spec.Mass, spec.Inertia, 1f / 60, spec.VeilDrag);
+            s = ShipMotion.Step(s, Vector3.Zero, Vector3.Zero, spec.Mass, spec.Inertia, 1f / 60, spec.VeilAxes);
             t += 1f / 60;
         }
         Check($"coasting from 250 m/s the veil halves the speed in {t:0.0} s", t > 12 && t < 14);
         s = new ShipState { Orientation = Quaternion.Identity, Velocity = new Vector3(0, 0, -50) };
         for (int i = 0; i < 60; i++)
-            s = ShipMotion.Step(s, Vector3.Zero, Vector3.Zero, spec.Mass, spec.Inertia, 1f / 60, spec.VeilDrag);
+            s = ShipMotion.Step(s, Vector3.Zero, Vector3.Zero, spec.Mass, spec.Inertia, 1f / 60, spec.VeilAxes);
         Check($"at combat speeds it hardly brakes: 50 m/s is {s.Velocity.Length():0.0} a second later", s.Velocity.Length() > 49);
     }
 
