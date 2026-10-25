@@ -25,7 +25,7 @@ jobs:
     # The machine and the bus card for Windows, built there with its own compiler.
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
 
@@ -34,7 +34,7 @@ jobs:
           cmake -S native -B native/build
           cmake --build native/build --config Release --target libraries
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: windows-native
           path: native/bin/*.dll
@@ -43,11 +43,11 @@ jobs:
     needs: windows-native
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
 
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 8.0.x
 
@@ -70,7 +70,7 @@ jobs:
           cmake -S native -B native/build
           cmake --build native/build --config Release
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v5
         with:
           name: windows-native
           path: native/bin
@@ -124,7 +124,8 @@ jobs:
 
       - name: Build and import
         run: |
-          dotnet build Xpace.csproj --configuration Release
+          # Debug: what the editor and the tests load (the export builds its own)
+          dotnet build Xpace.csproj
           "$GODOT" --headless --path . --import
 
       - name: Tests
@@ -134,7 +135,7 @@ jobs:
           if [ -n "$ART" ]; then tests="$tests flight combat session_scene power"; fi
           for t in $tests; do
             echo "::group::$t"
-            timeout 600 "$GODOT" --headless --fixed-fps 60 --path . "res://tests/${t}_test.tscn"
+            timeout 300 "$GODOT" --headless --fixed-fps 60 --path . "res://tests/${t}_test.tscn"
             echo "::endgroup::"
           done
 
@@ -156,7 +157,7 @@ jobs:
           (cd build/linux && zip -qr "../../$NAME-linux.zip" .)
           (cd build/windows && zip -qr "../../$NAME-windows.zip" .)
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         if: github.ref_type != 'tag'
         with:
           name: ${{ env.NAME }}
