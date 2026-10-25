@@ -8,7 +8,7 @@ namespace Xpace.Net;
 public enum RadarMode : byte { Off, Search, Track }
 
 /// <summary>
-/// A ship's state at one sector tick, as its owner sends it: 34 bytes, 36
+/// A ship's state at one sector tick, as its owner sends it: 35 bytes, 37
 /// while its radar tracks something.
 ///
 ///   tick                 32 bits
@@ -19,15 +19,18 @@ public enum RadarMode : byte { Off, Search, Track }
 ///   angular velocity     3 x 16 bits, ±16 rad/s (steps of 1/2048 rad/s)
 ///   destroyed            1 bit
 ///   thrust               4 bits, its motor's push, 0 to 15 fifteenths of the most
+///   heat                 4 bits, its hull's, in tenths of 100% (to 150%)
 ///   radar                2 bits: off, searching, tracking; tracking, then
 ///                        16 bits for the ship tracked (0FFFFh: none in the
 ///                        session) and 1 bit: guiding a missile at it
 ///
-/// Anything that flies is sent this way: ships, missiles.
+/// Anything that flies is sent this way: ships, missiles. Or as a delta
+/// (<see cref="Wire.WriteDelta"/>) from an older snapshot the other end
+/// is known to have.
 /// </summary>
 public struct ShipSnapshot
 {
-    public const int Bytes = 34, MaxBytes = 36;
+    public const int Bytes = 35, MaxBytes = 37;
     public const ushort NoTarget = 0xFFFF;
     public const double PositionScale = 1024, VelocityRange = 4096, AngularRange = 16;
     private const int QuaternionBits = 11, VelocityBits = 17, AngularBits = 16;
@@ -40,43 +43,14 @@ public struct ShipSnapshot
     public Vector3 AngularVelocity;
     public bool Destroyed;                  // blown up and not back: shown hidden, cannot be hit
     public float Thrust;                    // 0 to 1: what the motor pushes, of the most it can (its heat, its plume)
+    public float Heat;                      // its hull's heat, 1 at 100% (what a heat seeker sees of it besides the motor)
     public RadarMode Radar;
     public ushort RadarTarget;              // tracking: whom
     public bool RadarGuiding;               // tracking: and guiding a missile at it
 
-    public void Write(BitWriter w)
-    {
-        w.Write(Tick, 32);
-        WritePosition(w, Position.X);
-        WritePosition(w, Position.Y);
-        WritePosition(w, Position.Z);
-        WriteOrientation(w, Orientation);
-        WriteVector(w, Velocity, VelocityRange, VelocityBits);
-        WriteVector(w, AngularVelocity, AngularRange, AngularBits);
-        w.Write(Destroyed ? 1u : 0, 1);
-        w.Write((uint)Math.Clamp(MathF.Round(Thrust * 15), 0, 15), 4);
-        w.Write((uint)Radar, 2);
-        if (Radar == RadarMode.Track)
-        {
-            w.Write(RadarTarget, 16);
-            w.Write(RadarGuiding ? 1u : 0, 1);
-        }
-    }
+    public void Write(BitWriter w) => Encode().Write(w);
 
-    public static ShipSnapshot Read(BitReader r)
-    {
-        var s = new ShipSnapshot { Tick = r.Read(32) };
-        s.Position = new SectorPoint(ReadPosition(r), ReadPosition(r), ReadPosition(r));
-        s.Orientation = ReadOrientation(r);
-        s.Velocity = ReadVector(r, VelocityRange, VelocityBits);
-        s.AngularVelocity = ReadVector(r, AngularRange, AngularBits);
-        s.Destroyed = r.Read(1) != 0;
-        s.Thrust = r.Read(4) / 15f;
-        s.Radar = (RadarMode)r.Read(2);
-        s.RadarTarget = s.Radar == RadarMode.Track ? (ushort)r.Read(16) : NoTarget;
-        s.RadarGuiding = s.Radar == RadarMode.Track && r.Read(1) != 0;
-        return s;
-    }
+    public static ShipSnapshot Read(BitReader r) => Wire.Read(r).Decode();
 
     public byte[] ToBytes()
     {
@@ -85,53 +59,264 @@ public struct ShipSnapshot
         return w.ToArray();
     }
 
-    private static void WritePosition(BitWriter w, double x) =>
-        w.WriteSigned((int)Math.Round(Math.Clamp(x * PositionScale, int.MinValue, int.MaxValue)), 32);
-
-    private static double ReadPosition(BitReader r) => r.ReadSigned(32) / PositionScale;
-
-    /// <summary>
-    /// The largest component is left out and rebuilt from the other three
-    /// (the quaternion has length 1); q and -q are the same turn, so it is
-    /// made positive first. The others then lie within ±1/√2.
-    /// </summary>
-    private static void WriteOrientation(BitWriter w, Quaternion q)
+    /// <summary>The snapshot as it goes on the wire, in whole steps.</summary>
+    public Wire Encode()
     {
-        q = q.Normalized();
+        var s = new Wire { Tick = Tick, P0 = Fixed(Position.X), P1 = Fixed(Position.Y), P2 = Fixed(Position.Z) };
+        // Smallest three: the largest component is left out and rebuilt from
+        // the others (the quaternion has length 1); q and -q are the same
+        // turn, so it is made positive first. The others then lie within ±1/√2.
+        Quaternion q = Orientation.Normalized();
         Span<float> c = stackalloc float[] { q.X, q.Y, q.Z, q.W };
         int largest = 0;
         for (int i = 1; i < 4; i++)
             if (MathF.Abs(c[i]) > MathF.Abs(c[largest]))
                 largest = i;
         float sign = c[largest] < 0 ? -1 : 1;
-        w.Write((uint)largest, 2);
-        for (int i = 0; i < 4; i++)
+        s.Largest = (byte)largest;
+        Span<int> rest = stackalloc int[3];
+        for (int i = 0, k = 0; i < 4; i++)
             if (i != largest)
-                w.WriteScaled(c[i] * sign, QuaternionRange, QuaternionBits);
+                rest[k++] = Steps(c[i] * sign, QuaternionRange, QuaternionBits);
+        (s.Q0, s.Q1, s.Q2) = (rest[0], rest[1], rest[2]);
+        s.V0 = Steps(Velocity.X, VelocityRange, VelocityBits);
+        s.V1 = Steps(Velocity.Y, VelocityRange, VelocityBits);
+        s.V2 = Steps(Velocity.Z, VelocityRange, VelocityBits);
+        s.W0 = Steps(AngularVelocity.X, AngularRange, AngularBits);
+        s.W1 = Steps(AngularVelocity.Y, AngularRange, AngularBits);
+        s.W2 = Steps(AngularVelocity.Z, AngularRange, AngularBits);
+        s.Flags = (Destroyed ? 1u : 0) | (uint)Math.Clamp(MathF.Round(Thrust * 15), 0, 15) << 1 | ((uint)Radar & 3) << 5 |
+                  (uint)Math.Clamp(MathF.Round(Heat * 10), 0, 15) << 7;
+        if (Radar == RadarMode.Track)
+            s.Flags |= (uint)RadarTarget << 11 | (RadarGuiding ? 1u : 0) << 27;
+        return s;
+
+        static int Fixed(double x) => (int)Math.Round(Math.Clamp(x * PositionScale, int.MinValue, int.MaxValue));
     }
 
-    private static Quaternion ReadOrientation(BitReader r)
+    /// <summary>A value in -range..range, in steps of range / (2^(bits-1) - 1), clamped (as <see cref="BitWriter.WriteScaled"/>).</summary>
+    private static int Steps(double value, double range, int bits)
     {
-        int largest = (int)r.Read(2);
-        Span<float> c = stackalloc float[4];
-        float sum = 0;
-        for (int i = 0; i < 4; i++)
-            if (i != largest)
+        int steps = (1 << (bits - 1)) - 1;
+        return (int)Math.Round(Math.Clamp(value / range, -1, 1) * steps);
+    }
+
+    private static double Value(int steps, double range, int bits) => steps * range / ((1 << (bits - 1)) - 1);
+
+    /// <summary>
+    /// A snapshot in the whole steps it is sent in: what both ends keep of
+    /// it, so that a delta is taken and undone on exactly the same numbers.
+    /// </summary>
+    public struct Wire
+    {
+        /// <summary>The most ticks a delta reaches back.</summary>
+        public const int MaxAge = 255;
+
+        public uint Tick;
+        public int P0, P1, P2;              // 1/1024 m
+        public byte Largest;
+        public int Q0, Q1, Q2;
+        public int V0, V1, V2;
+        public int W0, W1, W2;
+        public uint Flags;                  // destroyed (bit 0), thrust (1-4), radar (5-6), heat (7-10), tracked (11-26), guiding (27)
+
+        private readonly RadarMode Radar => (RadarMode)(Flags >> 5 & 3);
+
+        public readonly ShipSnapshot Decode()
+        {
+            var s = new ShipSnapshot { Tick = Tick };
+            s.Position = new SectorPoint(P0 / PositionScale, P1 / PositionScale, P2 / PositionScale);
+            Span<float> c = stackalloc float[4];
+            Span<int> rest = stackalloc int[] { Q0, Q1, Q2 };
+            float sum = 0;
+            for (int i = 0, k = 0; i < 4; i++)
+                if (i != Largest)
+                {
+                    c[i] = (float)Value(rest[k++], QuaternionRange, QuaternionBits);
+                    sum += c[i] * c[i];
+                }
+            c[Largest] = MathF.Sqrt(MathF.Max(0, 1 - sum));
+            s.Orientation = new Quaternion(c[0], c[1], c[2], c[3]).Normalized();
+            s.Velocity = new Vector3((float)Value(V0, VelocityRange, VelocityBits), (float)Value(V1, VelocityRange, VelocityBits), (float)Value(V2, VelocityRange, VelocityBits));
+            s.AngularVelocity = new Vector3((float)Value(W0, AngularRange, AngularBits), (float)Value(W1, AngularRange, AngularBits), (float)Value(W2, AngularRange, AngularBits));
+            s.Destroyed = (Flags & 1) != 0;
+            s.Thrust = (Flags >> 1 & 15) / 15f;
+            s.Heat = (Flags >> 7 & 15) / 10f;
+            s.Radar = Radar;
+            s.RadarTarget = s.Radar == RadarMode.Track ? (ushort)(Flags >> 11) : NoTarget;
+            s.RadarGuiding = s.Radar == RadarMode.Track && (Flags >> 27 & 1) != 0;
+            return s;
+        }
+
+        public readonly void Write(BitWriter w)
+        {
+            w.Write(Tick, 32);
+            w.WriteSigned(P0, 32);
+            w.WriteSigned(P1, 32);
+            w.WriteSigned(P2, 32);
+            WriteOrientation(w);
+            WriteSteps(w, V0, V1, V2, VelocityBits);
+            WriteSteps(w, W0, W1, W2, AngularBits);
+            WriteFlags(w);
+        }
+
+        public static Wire Read(BitReader r)
+        {
+            var s = new Wire { Tick = r.Read(32), P0 = r.ReadSigned(32), P1 = r.ReadSigned(32), P2 = r.ReadSigned(32) };
+            s.ReadOrientation(r);
+            (s.V0, s.V1, s.V2) = (r.ReadSigned(VelocityBits), r.ReadSigned(VelocityBits), r.ReadSigned(VelocityBits));
+            (s.W0, s.W1, s.W2) = (r.ReadSigned(AngularBits), r.ReadSigned(AngularBits), r.ReadSigned(AngularBits));
+            s.ReadFlags(r);
+            return s;
+        }
+
+        /// <summary>
+        /// This snapshot as a change from <paramref name="b"/> (older, by 1 to
+        /// <see cref="MaxAge"/> ticks):
+        ///
+        ///   tick                 16 bits: its low half (the receiver's clock
+        ///                        is within 9 minutes of it: the rest)
+        ///   age                  8 bits: ticks since the base
+        ///   position             3 numbers: how far from where the base's
+        ///                        velocity takes it in that time
+        ///   orientation          1 bit: changed, then as in a full snapshot
+        ///   velocity             1 bit: changed, then 3 numbers: the change
+        ///   angular velocity     the same
+        ///   the rest             1 bit: changed, then as in a full snapshot
+        ///
+        /// A number is 5 bits (6 for positions) saying how many bits follow,
+        /// then those, zigzagged (0, -1, 1, -2...). A ship flying steady takes
+        /// 6 bytes; one turning and pushing, about 14.
+        /// </summary>
+        public readonly void WriteDelta(BitWriter w, in Wire b)
+        {
+            uint age = Tick - b.Tick;
+            w.Write(Tick & 0xFFFF, 16);
+            w.Write(age, 8);
+            WriteNumber(w, P0 - Predicted(b.P0, b.V0, age), 6);
+            WriteNumber(w, P1 - Predicted(b.P1, b.V1, age), 6);
+            WriteNumber(w, P2 - Predicted(b.P2, b.V2, age), 6);
+            bool turned = Largest != b.Largest || Q0 != b.Q0 || Q1 != b.Q1 || Q2 != b.Q2;
+            w.Write(turned ? 1u : 0, 1);
+            if (turned)
+                WriteOrientation(w);
+            WriteChange(w, V0 - b.V0, V1 - b.V1, V2 - b.V2);
+            WriteChange(w, W0 - b.W0, W1 - b.W1, W2 - b.W2);
+            w.Write(Flags != b.Flags ? 1u : 0, 1);
+            if (Flags != b.Flags)
+                WriteFlags(w);
+        }
+
+        /// <summary>A delta's tick and its base's, read first (to find the base); <paramref name="near"/>: the receiver's tick.</summary>
+        public static (uint Tick, uint BaseTick) ReadDeltaHeader(BitReader r, uint near)
+        {
+            uint tick = (uint)(near + (short)(r.Read(16) - (near & 0xFFFF)));
+            return (tick, tick - r.Read(8));
+        }
+
+        /// <summary>The rest of a delta (after <see cref="ReadDeltaHeader"/>), from its base.</summary>
+        public static Wire ReadDelta(BitReader r, uint tick, in Wire b)
+        {
+            uint age = tick - b.Tick;
+            var s = new Wire { Tick = tick };
+            s.P0 = (int)(Predicted(b.P0, b.V0, age) + ReadNumber(r, 6));
+            s.P1 = (int)(Predicted(b.P1, b.V1, age) + ReadNumber(r, 6));
+            s.P2 = (int)(Predicted(b.P2, b.V2, age) + ReadNumber(r, 6));
+            if (r.Read(1) != 0)
+                s.ReadOrientation(r);
+            else
+                (s.Largest, s.Q0, s.Q1, s.Q2) = (b.Largest, b.Q0, b.Q1, b.Q2);
+            (s.V0, s.V1, s.V2) = (b.V0, b.V1, b.V2);
+            if (r.Read(1) != 0)
+                (s.V0, s.V1, s.V2) = ((int)(b.V0 + ReadNumber(r, 5)), (int)(b.V1 + ReadNumber(r, 5)), (int)(b.V2 + ReadNumber(r, 5)));
+            (s.W0, s.W1, s.W2) = (b.W0, b.W1, b.W2);
+            if (r.Read(1) != 0)
+                (s.W0, s.W1, s.W2) = ((int)(b.W0 + ReadNumber(r, 5)), (int)(b.W1 + ReadNumber(r, 5)), (int)(b.W2 + ReadNumber(r, 5)));
+            if (r.Read(1) != 0)
+                s.ReadFlags(r);
+            else
+                s.Flags = b.Flags;
+            return s;
+        }
+
+        /// <summary>
+        /// Where a velocity takes a position in <paramref name="age"/> ticks
+        /// (of 1/60 s), in whole numbers: the same on every machine.
+        /// </summary>
+        private static long Predicted(int position, int velocity, uint age)
+        {
+            // velocity in steps of 4096/65535 m/s, position in steps of 1/1024 m
+            long moved = (long)velocity * 4096 * 1024 * age;
+            const long per = 65535L * 60;
+            return position + (moved >= 0 ? (moved + per / 2) / per : (moved - per / 2) / per);
+        }
+
+        private readonly void WriteOrientation(BitWriter w)
+        {
+            w.Write(Largest, 2);
+            WriteSteps(w, Q0, Q1, Q2, QuaternionBits);
+        }
+
+        private void ReadOrientation(BitReader r)
+        {
+            Largest = (byte)r.Read(2);
+            (Q0, Q1, Q2) = (r.ReadSigned(QuaternionBits), r.ReadSigned(QuaternionBits), r.ReadSigned(QuaternionBits));
+        }
+
+        private readonly void WriteFlags(BitWriter w)
+        {
+            w.Write(Flags & 0x7FF, 11);
+            if (Radar == RadarMode.Track)
+                w.Write(Flags >> 11 & 0x1FFFF, 17);
+        }
+
+        private void ReadFlags(BitReader r)
+        {
+            Flags = r.Read(11);
+            if (Radar == RadarMode.Track)
+                Flags |= r.Read(17) << 11;
+        }
+
+        private static void WriteSteps(BitWriter w, int a, int b, int c, int bits)
+        {
+            w.WriteSigned(a, bits);
+            w.WriteSigned(b, bits);
+            w.WriteSigned(c, bits);
+        }
+
+        private static void WriteChange(BitWriter w, int a, int b, int c)
+        {
+            bool changed = a != 0 || b != 0 || c != 0;
+            w.Write(changed ? 1u : 0, 1);
+            if (!changed)
+                return;
+            WriteNumber(w, a, 5);
+            WriteNumber(w, b, 5);
+            WriteNumber(w, c, 5);
+        }
+
+        /// <summary>How many bits, then the zigzagged value in that many (the differences here fit in 34 bits).</summary>
+        private static void WriteNumber(BitWriter w, long value, int lengthBits)
+        {
+            ulong z = (ulong)(value << 1 ^ value >> 63);
+            int n = 0;
+            while (n < 64 && z >> n != 0)
+                n++;
+            w.Write((uint)n, lengthBits);
+            if (n > 32)
             {
-                c[i] = (float)r.ReadScaled(QuaternionRange, QuaternionBits);
-                sum += c[i] * c[i];
+                w.Write((uint)z, 32);
+                w.Write((uint)(z >> 32), n - 32);
             }
-        c[largest] = MathF.Sqrt(MathF.Max(0, 1 - sum));
-        return new Quaternion(c[0], c[1], c[2], c[3]).Normalized();
-    }
+            else if (n > 0)
+                w.Write((uint)z, n);
+        }
 
-    private static void WriteVector(BitWriter w, Vector3 v, double range, int bits)
-    {
-        w.WriteScaled(v.X, range, bits);
-        w.WriteScaled(v.Y, range, bits);
-        w.WriteScaled(v.Z, range, bits);
+        private static long ReadNumber(BitReader r, int lengthBits)
+        {
+            int n = (int)r.Read(lengthBits);
+            ulong z = n > 32 ? r.Read(32) | (ulong)r.Read(n - 32) << 32 : n > 0 ? r.Read(n) : 0;
+            return (long)(z >> 1) ^ -(long)(z & 1);
+        }
     }
-
-    private static Vector3 ReadVector(BitReader r, double range, int bits) =>
-        new((float)r.ReadScaled(range, bits), (float)r.ReadScaled(range, bits), (float)r.ReadScaled(range, bits));
 }

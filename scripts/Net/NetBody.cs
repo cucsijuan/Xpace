@@ -24,6 +24,9 @@ public interface INetShip
     /// <summary>Owned here: what its motor pushes now, 0 to 1 of the most.</summary>
     float Thrust { get; }
 
+    /// <summary>Owned here: its hull's heat, 1 at 100% (none: cold, or only its motor counts).</summary>
+    float Heat => 0;
+
     /// <summary>Owned here, as it leaves: it blew up.</summary>
     bool Exploded { get; }
 
@@ -65,10 +68,11 @@ public interface INetRadar
 /// <see cref="IRadarTarget"/> (if it has one) is not alive the snapshots
 /// say it is destroyed: puppets hide and rounds pass through.
 ///
-/// A ship made while playing (<see cref="NetOwner.Maker"/>: a missile)
-/// joins the session by itself when it enters the scene, and leaves it
-/// when it goes; its puppets show its end when they reach the tick it
-/// ended at.
+/// A ship made while playing (<see cref="NetOwner.Maker"/>: a missile; or
+/// <see cref="Spawned"/>: a ship the game brings in, such as a
+/// <see cref="ShipSpawner"/>'s) joins the session by itself when it enters
+/// the scene, and leaves it when it goes; its puppets show its end when they
+/// reach the tick it ended at.
 /// </summary>
 public partial class NetBody : Node, INetEntity
 {
@@ -82,6 +86,17 @@ public partial class NetBody : Node, INetEntity
 
     /// <summary>Made by the session to show another machine's ship: it must not join as its own.</summary>
     public bool Puppet { get; set; }
+
+    /// <summary>
+    /// Brought in while playing by the game, not in the scene from the start
+    /// (set before it enters the tree): it is not one of the host's numbered
+    /// scene ships, and joins as the missiles do. Only the host keeps one
+    /// (<see cref="NetOwner.Host"/>): on a guest it goes, and the host's shows.
+    /// </summary>
+    public bool Spawned { get; set; }
+
+    /// <summary>Owned here, as it leaves: it blew up.</summary>
+    public bool Exploded => _script?.Exploded ?? false;
 
     /// <summary>The ship this makes networked.</summary>
     public Node3D Ship { get; private set; }
@@ -103,17 +118,14 @@ public partial class NetBody : Node, INetEntity
         Ship = GetParent<Node3D>();
         for (Node n = Ship; n != null && _origin == null; n = n.GetParent())
             _origin = n as FloatingOrigin;
-        if (OwnedBy == NetOwner.Maker && !Puppet)
+        if ((OwnedBy == NetOwner.Maker || Spawned) && !Puppet)
             CallDeferred(MethodName.Made);              // the ship's own _Ready (after this one) has run by then
     }
 
     private void Made()
     {
         if (SessionNode.Instance?.Active == true && IsInstanceValid(Ship) && Ship.IsInsideTree())
-        {
             SessionNode.Instance.Made(this);
-            Ship.TreeExiting += () => SessionNode.Instance?.Gone(this, _script?.Exploded ?? false);
-        }
     }
 
     /// <summary>The session decides: owned here, or a puppet of another machine's ship.</summary>
@@ -167,7 +179,7 @@ public partial class NetBody : Node, INetEntity
         return new ShipSnapshot
         {
             Tick = tick, Position = position, Orientation = orientation, Velocity = velocity, AngularVelocity = spin,
-            Destroyed = destroyed, Thrust = _script?.Thrust ?? 0,
+            Destroyed = destroyed, Thrust = _script?.Thrust ?? 0, Heat = _script?.Heat ?? 0,
             Radar = radar, RadarTarget = tracked, RadarGuiding = radar == RadarMode.Track && _radar.Guiding,
         };
     }

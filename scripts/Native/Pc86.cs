@@ -29,7 +29,8 @@ public static unsafe class Pc86
 
     /// <summary>
     /// Points the DllImports at the libraries native/CMakeLists.txt builds into
-    /// native/bin (the editor), or next to the executable (an exported game).
+    /// native/bin (the editor), or beside the game's assemblies or its executable
+    /// (an exported game: Xpace.csproj publishes them with the assemblies).
     /// Call before anything else.
     /// </summary>
     public static void EnsureLoaded()
@@ -45,8 +46,9 @@ public static unsafe class Pc86
         if (name != Lib && name != XbusLib)
             return IntPtr.Zero;
         string inProject = ProjectSettings.GlobalizePath("res://native/bin");
+        string withAssemblies = Path.GetDirectoryName(assembly.Location) ?? "";
         string nextToExe = Path.GetDirectoryName(OS.GetExecutablePath()) ?? "";
-        foreach (string folder in new[] { inProject, nextToExe })
+        foreach (string folder in new[] { inProject, withAssemblies, nextToExe })
             foreach (string file in FileNames(name))
                 if (File.Exists(Path.Combine(folder, file)) && NativeLibrary.TryLoad(Path.Combine(folder, file), out IntPtr handle))
                     return handle;

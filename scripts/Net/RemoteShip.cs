@@ -21,7 +21,7 @@ namespace Xpace.Net;
 public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource, IDamageable
 {
     [Export] public float RadarCrossSection { get; set; } = 4f;   // m²
-    [Export] public float HullHeat = 8f;            // as a ship's signature
+    [Export] public float HullHeatAtFull = 30f;     // as a ship's signature: its hull at 100%
     [Export] public float MotorHeat = 80f;
     [Export] public float FrontHeat = 0.3f;
     [Export] public string RadarSignature = "F";    // how its radar's pulses look to a warning receiver
@@ -42,6 +42,9 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
 
     /// <summary>Its motor's push as last shown, 0 to 1.</summary>
     public float Thrust { get; private set; }
+
+    /// <summary>Its hull's heat as last shown, 1 at 100%.</summary>
+    public float HullLevel { get; private set; }
 
     public ushort RadarId { get; private set; }
     public bool Alive => Visible;
@@ -80,7 +83,7 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
         if (!Visible)
             return 0;
         float behind = Mathf.Max(0, -direction.Dot(GlobalBasis.Z.Normalized()));
-        return heat * (HullHeat + MotorHeat * Thrust * (FrontHeat + (1 - FrontHeat) * behind));
+        return heat * (HullHeatAtFull * HullLevel + MotorHeat * Thrust * (FrontHeat + (1 - FrontHeat) * behind));
     }
 
     /// <summary>A packet from the owner's <see cref="ShipStateSender"/>.</summary>
@@ -102,6 +105,7 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
         GlobalTransform = new Transform3D(new Basis(p.Orientation), (_origin?.Origin ?? default).To(p.Position));
         Velocity = p.Velocity;
         Thrust = p.Destroyed ? 0 : p.Thrust;
+        HullLevel = p.Destroyed ? 0 : p.Heat;
         foreach (EnginePlume plume in _plumes)
             plume.Thrust = Thrust;
         if (p.Destroyed && Visible)

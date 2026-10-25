@@ -17,7 +17,8 @@ public interface IRearmable
 /// no thrusters, nothing on its sensors), drifting as it was going. With
 /// insurance a new ship is ready after <see cref="RespawnSeconds"/> where
 /// this one started (<see cref="Spawn"/>), full: hull, missiles, chaff and
-/// flares.
+/// flares. A <see cref="ShieldDevice"/> on the ship takes the hits and
+/// the crashes first; heat (<see cref="Burn"/>) gets past it.
 /// Put it under a <see cref="ShipBody"/>.
 /// </summary>
 public partial class ShipHull : Node, IDamageable
@@ -44,6 +45,7 @@ public partial class ShipHull : Node, IDamageable
     public Transform3D Spawn { get; set; }
 
     private ShipBody _ship;
+    private ShieldDevice _shield;
 
     public override void _Ready()
     {
@@ -51,6 +53,8 @@ public partial class ShipHull : Node, IDamageable
         _ship = GetParent<ShipBody>();
         Spawn = _ship.GlobalTransform;
         _ship.Impact += Crash;
+        foreach (Node n in _ship.GetChildren())
+            _shield ??= n as ShieldDevice;
     }
 
     public override void _ExitTree() => _ship.Impact -= Crash;
@@ -63,6 +67,14 @@ public partial class ShipHull : Node, IDamageable
     }
 
     public void Hit(float damage)
+    {
+        if (Wrecked || damage <= 0)
+            return;
+        Burn(_shield?.Absorb(damage) ?? damage);
+    }
+
+    /// <summary>Damage from inside (the ship's own heat): no shield stops it.</summary>
+    public void Burn(float damage)
     {
         if (Wrecked || damage <= 0)
             return;

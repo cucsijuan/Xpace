@@ -52,7 +52,9 @@ public static class NetIds
 ///
 /// - everything owned here sends a snapshot every
 ///   <see cref="SnapshotInterval"/> ticks, guests to the host, the host to
-///   every guest (relaying the guests' snapshots to the other guests);
+///   every guest (relaying the guests' snapshots to the other guests); each
+///   goes as a delta from the newest one the receiver said it has (acks,
+///   once a tick), or whole when there is none;
 /// - rounds fired here (<see cref="Fire"/>) go to the host as fire events,
 ///   with how late this machine shows every other ship; the host judges them
 ///   with its <see cref="LagCompensator"/> and relays them for drawing;
@@ -81,7 +83,8 @@ public sealed class Session
 {
     public const byte HostPeer = 0;
     private const byte KindSnapshot = 1, KindFire = 2, KindHit = 3, KindPing = 4, KindPong = 5,
-                       KindSpawn = 6, KindDespawn = 7, KindBlast = 8, KindDrop = 9;
+                       KindSpawn = 6, KindDespawn = 7, KindBlast = 8, KindDrop = 9, KindDelta = 10, KindAck = 11;
+    private const uint AckLost = uint.MaxValue;     // an ack saying: the base of that delta isn't here, send it whole
     private const int PingSamples = 5;
 
     public float TickSeconds = 1f / 60;
@@ -125,6 +128,14 @@ public sealed class Session
     /// <summary>Something made for another machine went silent and was removed: take away what shows it.</summary>
     public event Action<INetEntity> Forgotten;
 
+    /// <summary>Snapshots sent whole and as deltas, and the bytes of both (their packets' bodies).</summary>
+    public int WholeSent { get; private set; }
+    public int DeltasSent { get; private set; }
+    public long SnapshotBytes { get; private set; }
+
+    /// <summary>Deltas that came with a base no longer here (thrown away; the sender is told).</summary>
+    public int DeltasLost { get; private set; }
+
     private readonly INetTransport _transport;
     private readonly Dictionary<ushort, INetEntity> _entities = new();
     private readonly Dictionary<ushort, RemoteTrack> _histories = new();   // the host's past of its own entities
@@ -132,6 +143,10 @@ public sealed class Session
     private readonly Dictionary<ushort, byte> _spawned = new();            // the host: what flies that was spawned, and its scene
     private readonly HashSet<byte> _known = new();                         // the host: peers already told of it
     private readonly List<(uint Trip, int Offset)> _pings = new();
+    private readonly Dictionary<ushort, List<ShipSnapshot.Wire>> _sent = new();       // what goes out of each, newest last
+    private readonly Dictionary<ushort, List<ShipSnapshot.Wire>> _got = new();        // what came in of each, newest last
+    private readonly Dictionary<(byte Peer, ushort Id), uint> _acked = new();         // the newest each peer has of each
+    private readonly Dictionary<byte, Dictionary<ushort, uint>> _toAck = new();       // to tell each peer: what came of theirs
     private ushort _sequence;
     private ushort _nextDynamic = NetIds.FirstDynamic;
 
@@ -167,6 +182,11 @@ public sealed class Session
         _entities.Remove(id);
         _histories.Remove(id);
         _heard.Remove(id);
+        _sent.Remove(id);
+        _got.Remove(id);
+        foreach ((byte, ushort Id) key in new List<(byte, ushort)>(_acked.Keys))
+            if (key.Id == id)
+                _acked.Remove(key);
         Judge?.Unregister(id);
     }
 
@@ -294,13 +314,16 @@ public sealed class Session
                 _histories[e.NetId].Receive(s, now);
             if (Synced && now % (uint)SnapshotInterval == 0)
             {
-                byte[] bytes = Tagged(e.NetId, s.ToBytes());
+                ShipSnapshot.Wire wire = s.Encode();
+                Keep(_sent, e.NetId, wire);
                 if (IsHost)
-                    Broadcast(KindSnapshot, bytes, reliable: false, except: null);
+                    foreach (byte peer in _transport.Peers)
+                        SendSnapshot(peer, e.NetId, wire);
                 else
-                    Send(HostPeer, KindSnapshot, bytes, reliable: false);
+                    SendSnapshot(HostPeer, e.NetId, wire);
             }
         }
+        SendAcks();
         if (Judge != null)
         {
             Judge.TickSeconds = TickSeconds;
@@ -317,9 +340,14 @@ public sealed class Session
         _known.IntersectWith(_transport.Peers);
         foreach (byte peer in _transport.Peers)
             if (_known.Add(peer))
+            {
+                foreach ((byte Peer, ushort) key in new List<(byte, ushort)>(_acked.Keys))
+                    if (key.Peer == peer)
+                        _acked.Remove(key);         // a new guest with an old one's number has none of it
                 foreach ((ushort id, byte scene) in _spawned)
                     if (NetIds.Owner(id) != peer)
                         Send(peer, KindSpawn, SpawnBody(id, scene), reliable: true);
+            }
     }
 
     /// <summary>A guest: the clock moved to the host's, if it is off.</summary>
@@ -366,6 +394,7 @@ public sealed class Session
         switch (packet[0])
         {
             case KindSnapshot:
+            case KindDelta:
             {
                 if (body.Length < 2 || !Synced)
                     return;
@@ -373,9 +402,25 @@ public sealed class Session
                 if (!theirs(id) || NetIds.Owner(id) == LocalPeer)
                     return;
                 var reader = new BitReader(body[2..]);
-                ShipSnapshot s = ShipSnapshot.Read(reader);
+                ShipSnapshot.Wire wire;
+                if (packet[0] == KindSnapshot)
+                    wire = ShipSnapshot.Wire.Read(reader);
+                else
+                {
+                    (uint tick, uint baseTick) = ShipSnapshot.Wire.ReadDeltaHeader(reader, now);
+                    if (Find(_got, id, baseTick) is not ShipSnapshot.Wire b)
+                    {
+                        DeltasLost++;
+                        Ack(peer, id, AckLost);
+                        return;
+                    }
+                    wire = ShipSnapshot.Wire.ReadDelta(reader, tick, b);
+                }
                 if (reader.Overrun)
                     return;
+                if (Keep(_got, id, wire))
+                    Ack(peer, id, wire.Tick);
+                ShipSnapshot s = wire.Decode();
                 INetEntity e = _entities.GetValueOrDefault(id);
                 if (e == null && NetIds.IsPlayerShip(id) && SpawnRemote?.Invoke(id) is INetEntity spawned)
                 {
@@ -388,9 +433,26 @@ public sealed class Session
                 if (_heard.ContainsKey(id))
                     _heard[id] = now;
                 if (IsHost)
-                    Broadcast(KindSnapshot, body, reliable: false, except: peer);
+                {
+                    Keep(_sent, id, wire);
+                    foreach (byte other in _transport.Peers)
+                        if (other != peer)
+                            SendSnapshot(other, id, wire);
+                }
                 break;
             }
+
+            case KindAck:
+                for (int at = 0; at + 6 <= body.Length; at += 6)
+                {
+                    ushort id = BitConverter.ToUInt16(body, at);
+                    uint tick = BitConverter.ToUInt32(body, at + 2);
+                    if (tick == AckLost)
+                        _acked.Remove((peer, id));
+                    else if (!_acked.TryGetValue((peer, id), out uint had) || (int)(tick - had) > 0)
+                        _acked[(peer, id)] = tick;
+                }
+                break;
 
             case KindFire:
             {
@@ -515,12 +577,77 @@ public sealed class Session
         HitConfirmed?.Invoke(hit);
     }
 
-    private static byte[] Tagged(ushort id, byte[] bytes)
+    /// <summary>A snapshot of <paramref name="id"/> to <paramref name="peer"/>: a delta from the newest it has, or whole.</summary>
+    private void SendSnapshot(byte peer, ushort id, in ShipSnapshot.Wire wire)
     {
-        var tagged = new byte[bytes.Length + 2];
-        BitConverter.GetBytes(id).CopyTo(tagged, 0);
-        bytes.CopyTo(tagged, 2);
-        return tagged;
+        var w = new BitWriter();
+        w.Write(id, 16);
+        byte kind = KindSnapshot;
+        if (_acked.TryGetValue((peer, id), out uint acked) && (int)(wire.Tick - acked) is > 0 and <= ShipSnapshot.Wire.MaxAge &&
+            Find(_sent, id, acked) is ShipSnapshot.Wire b)
+        {
+            wire.WriteDelta(w, b);
+            kind = KindDelta;
+            DeltasSent++;
+        }
+        else
+        {
+            wire.Write(w);
+            WholeSent++;
+        }
+        byte[] body = w.ToArray();
+        SnapshotBytes += body.Length;
+        Send(peer, kind, body, reliable: false);
+    }
+
+    /// <summary>Keeps a snapshot of <paramref name="id"/> (not if it is older than the newest), dropping those too old to be a delta's base.</summary>
+    private static bool Keep(Dictionary<ushort, List<ShipSnapshot.Wire>> kept, ushort id, in ShipSnapshot.Wire wire)
+    {
+        if (!kept.TryGetValue(id, out List<ShipSnapshot.Wire> list))
+            kept[id] = list = new List<ShipSnapshot.Wire>();
+        if (list.Count > 0 && (int)(wire.Tick - list[^1].Tick) <= 0)
+            return false;                           // late or repeated: the newer ones are the bases
+        list.Add(wire);
+        uint newest = wire.Tick;
+        list.RemoveAll(k => (int)(newest - k.Tick) > ShipSnapshot.Wire.MaxAge);
+        return true;
+    }
+
+    private static ShipSnapshot.Wire? Find(Dictionary<ushort, List<ShipSnapshot.Wire>> kept, ushort id, uint tick)
+    {
+        if (kept.TryGetValue(id, out List<ShipSnapshot.Wire> list))
+            for (int i = list.Count - 1; i >= 0; i--)
+                if (list[i].Tick == tick)
+                    return list[i];
+        return null;
+    }
+
+    private void Ack(byte peer, ushort id, uint tick)
+    {
+        if (!_toAck.TryGetValue(peer, out Dictionary<ushort, uint> acks))
+            _toAck[peer] = acks = new Dictionary<ushort, uint>();
+        if (tick == AckLost || !acks.TryGetValue(id, out uint had) || had == AckLost || (int)(tick - had) > 0)
+            acks[id] = tick;
+    }
+
+    /// <summary>Once a tick: each peer hears the newest snapshot that came of each of its things (6 bytes each).</summary>
+    private void SendAcks()
+    {
+        foreach ((byte peer, Dictionary<ushort, uint> acks) in _toAck)
+        {
+            if (acks.Count == 0)
+                continue;
+            var body = new byte[acks.Count * 6];
+            int at = 0;
+            foreach ((ushort id, uint tick) in acks)
+            {
+                BitConverter.GetBytes(id).CopyTo(body, at);
+                BitConverter.GetBytes(tick).CopyTo(body, at + 2);
+                at += 6;
+            }
+            acks.Clear();
+            Send(peer, KindAck, body, reliable: false);
+        }
     }
 
     private static byte[] SpawnBody(ushort id, byte scene)

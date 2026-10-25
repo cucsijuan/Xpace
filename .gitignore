@@ -28,3 +28,6 @@ assets/synty/
 # The EOS product's keys, written by tools/eos_keys.py
 scripts/Net/EosProduct.g.cs
 scripts/Net/EosProduct.g.cs.uid
+
+# Exports (export_presets.cfg)
+/build/

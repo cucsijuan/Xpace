@@ -90,6 +90,7 @@ assemble(BASIC.COM   ${SW86_DIR}/dos/basic.asm)
 assemble(FLIGHT.COM  ${XPACE_ROOT}/software/flight/flight.asm)
 assemble(FIRECTL.COM ${XPACE_ROOT}/software/firectl/firectl.asm)
 assemble(RWR.COM     ${XPACE_ROOT}/software/rwr/rwr.asm)
+assemble(POWER.COM   ${XPACE_ROOT}/software/power/power.asm)
 
 set(XPACE_FIRMWARE)
 foreach(name missile irmissile)
@@ -151,7 +152,7 @@ endif()
 set(DISK_SOURCES
   ${SW86_DIR}/programs/hello/hello.asm ${SW86_DIR}/dos/apes.bas ${CC_HEADERS}
   ${XPACE_ROOT}/software/flight/flight.asm ${XPACE_ROOT}/software/firectl/firectl.asm
-  ${XPACE_ROOT}/software/rwr/rwr.asm
+  ${XPACE_ROOT}/software/rwr/rwr.asm ${XPACE_ROOT}/software/power/power.asm
   ${XPACE_ROOT}/software/missile/missile.asm ${XPACE_ROOT}/software/missile/irmissile.asm
   ${XPACE_ROOT}/software/autoexec.bat)
 add_custom_command(OUTPUT ${XPACE_DISK}
@@ -172,6 +173,8 @@ add_custom_command(OUTPUT ${XPACE_DISK}
   COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/firectl/firectl.asm FIRECTL.ASM
   COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/RWR.COM
   COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/rwr/rwr.asm RWR.ASM
+  COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/POWER.COM
+  COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/power/power.asm POWER.ASM
   COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/missile/missile.asm MISSILE.ASM
   COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/missile/irmissile.asm IRMISSIL.ASM
   COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/autoexec.bat AUTOEXEC.BAT

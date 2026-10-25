@@ -15,7 +15,11 @@ namespace Xpace.Ship;
 /// flying at <see cref="BoltSpeed"/> on top of the ship's own velocity: far
 /// out it takes long enough to arrive that a target has moved, so the
 /// pilot has to lead it. Every pulse heats the
-/// emitters; too hot, it stops until they cool.
+/// emitters; too hot, it stops until they cool. Each pulse takes
+/// <see cref="MegajoulesPerPulse"/> from the weapons capacitor
+/// (<see cref="PowerDevice"/>, if the ship has one: with it dry the laser
+/// waits for the power) and leaves <see cref="ShipHeatPerPulse"/> in the
+/// ship (<see cref="HeatDevice"/>).
 ///
 /// The gunsight is the program's: it writes where a pulse fired now
 /// would meet the target (the lead point, from the radar's track) and the
@@ -24,8 +28,8 @@ namespace Xpace.Ship;
 /// as good as the program's solution: the radar's noise, its filter's lag
 /// and a target that turns after the pulse left are all misses.
 ///
-/// Registers: +0 type 11  +1 version 1  +2 status: bit 0 ready, bit 2 too
-/// hot  +3 heat (0-255)  +4 write 1: fire this step  +5 pulses fired
+/// Registers: +0 type 11  +1 version 1  +2 status: bit 0 ready, bit 1 no
+/// power, bit 2 too hot  +3 heat (0-255)  +4 write 1: fire this step  +5 pulses fired
 /// (counts up)  +6 bolt speed (m/s)  +8 +10 +12 the lead point, right, up,
 /// forward (1/4 m, ship axes, from the radar's track origin; written by the
 /// program)  +14 write bit 0: show the lead circle this step
@@ -41,12 +45,16 @@ public partial class LaserDevice : Node3D, IShipDevice
     [Export] public float DispersionMrad = 0.2f;        // the optics' spread (sigma)
     [Export] public float HeatPerPulse = 9f, CoolingPerSecond = 30f;
     [Export] public float HotAbove = 250f, CoolBelow = 120f;
+    [Export] public float MegajoulesPerPulse = 1f;
+    [Export] public float ShipHeatPerPulse = 0.6f;     // MJ
     [Export] public byte RoundKind = 1;                 // how its bolts look (Projectiles' looks)
     [Export] public Color FlashColour = new(1f, 0.25f, 0.2f);
 
     public int PulsesFired { get; private set; }
     public float Heat { get; private set; }
     public bool TooHot { get; private set; }
+    /// <summary>The weapons capacitor hasn't a pulse's power.</summary>
+    public bool NoPower { get; private set; }
     /// <summary>The lead point the program wrote this step (world), or null: no circle.</summary>
     public Vector3? LeadPoint { get; private set; }
     /// <summary>Where the pulses go at the lead point's range (world): the pipper, while there is a circle.</summary>
@@ -85,7 +93,7 @@ public partial class LaserDevice : Node3D, IShipDevice
             bus[Slot, 1] = 1;
             bus.SetWord(Slot, 6, (int)BoltSpeed);
         }
-        bus[Slot, 2] = (byte)((TooHot ? 0 : 1) | (TooHot ? 4 : 0));
+        bus[Slot, 2] = (byte)((TooHot || NoPower ? 0 : 1) | (NoPower ? 2 : 0) | (TooHot ? 4 : 0));
         bus[Slot, 3] = (byte)Math.Clamp((int)Heat, 0, 255);
         bus[Slot, 5] = (byte)PulsesFired;
     }
@@ -103,9 +111,13 @@ public partial class LaserDevice : Node3D, IShipDevice
 
         Sight(ship, bus);
 
+        PowerDevice power = ship.Device<PowerDevice>();
+        NoPower = power != null && power.Charge[(int)PowerStore.Weapons] < MegajoulesPerPulse;
         bool fire = bus.TakeWritten(Slot, 4) && (bus[Slot, 4] & 1) != 0;
-        if (!fire || _cooldown > 0 || TooHot)
+        if (!fire || _cooldown > 0 || TooHot || NoPower)
             return;
+        power?.Draw(PowerStore.Weapons, MegajoulesPerPulse);
+        ship.Device<HeatDevice>()?.Add(ShipHeatPerPulse);
         _cooldown = FireInterval;
         Heat += HeatPerPulse;
         TooHot = Heat > HotAbove;

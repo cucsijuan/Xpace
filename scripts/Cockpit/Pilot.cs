@@ -429,6 +429,11 @@ public partial class Pilot : Node3D
             NextWeapon = keys && Input.IsActionPressed(FlightInput.NextWeapon),
             Chaff = keys && Input.IsActionPressed(FlightInput.Chaff),
             Flare = keys && Input.IsActionPressed(FlightInput.Flare),
+            PipSystems = keys && Input.IsActionPressed(FlightInput.PipSystems),
+            PipEngines = keys && Input.IsActionPressed(FlightInput.PipEngines),
+            PipWeapons = keys && Input.IsActionPressed(FlightInput.PipWeapons),
+            PipReset = keys && Input.IsActionPressed(FlightInput.PipReset),
+            HeatSink = keys && Input.IsActionPressed(FlightInput.HeatSink),
         };
     }
 

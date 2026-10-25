@@ -20,6 +20,8 @@ public static class FlightInput
     public const string FirePrimary = "fire_primary", TargetAhead = "target_ahead", NextTarget = "next_target";
     public const string NextWeapon = "next_weapon";
     public const string Chaff = "chaff", Flare = "flare";
+    public const string PipSystems = "pip_systems", PipEngines = "pip_engines", PipWeapons = "pip_weapons", PipReset = "pip_reset";
+    public const string HeatSink = "heat_sink";
     public const string Zoom = "zoom";
     public const string DisplayZoomIn = "display_zoom_in", DisplayZoomOut = "display_zoom_out", DisplaySound = "display_sound";
     public const string Look = "look", LookAhead = "look_ahead", Pointer = "pointer";
@@ -34,7 +36,9 @@ public static class FlightInput
         (FlightAssist, "Flight assist"), (Boost, "Boost"),
         (Look, "Look around (tap: stay, hold: peek)"), (LookAhead, "Look ahead"), (Pointer, "Pointer (tap: stay, hold: while held)"),
         (FirePrimary, "Fire"), (TargetAhead, "Target ahead"), (NextTarget, "Next target"), (NextWeapon, "Next weapon"),
-        (Chaff, "Chaff"), (Flare, "Flare"), (Zoom, "Zoom"),
+        (Chaff, "Chaff"), (Flare, "Flare"), (HeatSink, "Heat sink"),
+        (PipSystems, "Power to systems"), (PipEngines, "Power to engines"), (PipWeapons, "Power to weapons"), (PipReset, "Even the power out"),
+        (Zoom, "Zoom"),
         (DisplayZoomIn, "Screen range in"), (DisplayZoomOut, "Screen range out"), (DisplaySound, "Screen sound"),
     };
 
@@ -45,10 +49,10 @@ public static class FlightInput
         Add(ThrottleZero, Key(Godot.Key.X));
         Add(YawLeft, Key(Godot.Key.A), Joy(JoyAxis.RightX, -1));
         Add(YawRight, Key(Godot.Key.D), Joy(JoyAxis.RightX, 1));
-        Add(PitchUp, Key(Godot.Key.Down), Joy(JoyAxis.LeftY, 1));     // stick back, nose up
-        Add(PitchDown, Key(Godot.Key.Up), Joy(JoyAxis.LeftY, -1));
-        Add(RollLeft, Key(Godot.Key.Left), Joy(JoyAxis.LeftX, -1));
-        Add(RollRight, Key(Godot.Key.Right), Joy(JoyAxis.LeftX, 1));
+        Add(PitchUp, Key(Godot.Key.K), Joy(JoyAxis.LeftY, 1));        // stick back, nose up
+        Add(PitchDown, Key(Godot.Key.I), Joy(JoyAxis.LeftY, -1));
+        Add(RollLeft, Key(Godot.Key.J), Joy(JoyAxis.LeftX, -1));
+        Add(RollRight, Key(Godot.Key.L), Joy(JoyAxis.LeftX, 1));
         Add(StrafeLeft, Key(Godot.Key.Q), Button(JoyButton.LeftShoulder));
         Add(StrafeRight, Key(Godot.Key.E), Button(JoyButton.RightShoulder));
         Add(StrafeUp, Key(Godot.Key.R), Joy(JoyAxis.RightY, -1));
@@ -61,6 +65,11 @@ public static class FlightInput
         Add(NextWeapon, Key(Godot.Key.N), Button(JoyButton.DpadUp));
         Add(Chaff, Key(Godot.Key.C), Button(JoyButton.DpadLeft));
         Add(Flare, Key(Godot.Key.V), Button(JoyButton.DpadDown));
+        Add(HeatSink, Key(Godot.Key.H));
+        Add(PipSystems, Key(Godot.Key.Left));                       // the arrows, as in Elite
+        Add(PipEngines, Key(Godot.Key.Up));
+        Add(PipWeapons, Key(Godot.Key.Right));
+        Add(PipReset, Key(Godot.Key.Down));
         Add(Zoom, new InputEventMouseButton { ButtonIndex = MouseButton.Right }, Button(JoyButton.RightStick));
         Add(DisplayZoomIn, Key(Godot.Key.Bracketleft));          // the screen of interest's keys
         Add(DisplayZoomOut, Key(Godot.Key.Bracketright));

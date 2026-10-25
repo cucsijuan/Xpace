@@ -14,6 +14,10 @@ public partial class ShipSpec : Resource
     [Export] public float LateralThrust = 500_000f;             // right and left
     [Export] public float VerticalThrust = 500_000f;            // up and down
 
+    [ExportGroup("Power")]
+    /// <summary>What the main motor draws at full thrust from the engines capacitor, if the ship has a power plant (MW).</summary>
+    [Export] public float ThrustMegawatts = 4f;
+
     [ExportGroup("Turning (rad/s², at full torque)")]
     [Export] public float PitchAcceleration = 1.5f;
     [Export] public float RollAcceleration = 3.0f;

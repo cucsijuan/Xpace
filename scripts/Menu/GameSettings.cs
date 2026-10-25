@@ -35,6 +35,14 @@ public partial class GameSettings : Node
 {
     public const string Path = "user://settings.cfg";
 
+    /// <summary>
+    /// The bindings' version: settings saved by an older one keep their keys
+    /// except for the actions whose default moved since (version 2: the
+    /// arrows went from pitch and roll to the power distributor).
+    /// </summary>
+    private const int BindingsVersion = 2;
+    private static readonly string[] MovedInVersion2 = { FlightInput.PitchUp, FlightInput.PitchDown, FlightInput.RollLeft, FlightInput.RollRight };
+
     /// <summary>Resolutions offered (those that fit the screen, and the screen's own).</summary>
     public static readonly Vector2I[] Resolutions =
     {
@@ -153,6 +161,7 @@ public partial class GameSettings : Node
         file.SetValue("controls", "invert_mouse_y", InvertMouseY);
         file.SetValue("controls", "mouse_sensitivity", MouseSensitivity);
         file.SetValue("controls", "look_sensitivity", LookSensitivity);
+        file.SetValue("bindings", "version", BindingsVersion);
         foreach (var (action, _) in FlightInput.Bindable)
             file.SetValue("bindings", action, Binding(action) switch
             {
@@ -176,8 +185,11 @@ public partial class GameSettings : Node
         InvertMouseY = file.GetValue("controls", "invert_mouse_y", InvertMouseY).AsBool();
         MouseSensitivity = file.GetValue("controls", "mouse_sensitivity", MouseSensitivity).AsSingle();
         LookSensitivity = file.GetValue("controls", "look_sensitivity", LookSensitivity).AsSingle();
+        int version = file.GetValue("bindings", "version", 1).AsInt32();
         foreach (var (action, _) in FlightInput.Bindable)
         {
+            if (version < 2 && MovedInVersion2.Contains(action))
+                continue;
             string[] saved = file.GetValue("bindings", action, "").AsString().Split(':');
             if (saved.Length != 2 || !long.TryParse(saved[1], out long code))
                 continue;

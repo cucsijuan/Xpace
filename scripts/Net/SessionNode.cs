@@ -16,9 +16,10 @@ namespace Xpace.Net;
 /// - the ones the game flies (<see cref="NetOwner.Host"/>) are the host's,
 ///   numbered from 1 in the order of their paths in the scene, the same on
 ///   every machine; on a guest they are puppets;
-/// - the ones made while playing (<see cref="NetOwner.Maker"/>: missiles)
-///   join as they come, and the other machines make their
-///   <see cref="Spawnables"/> scene as a puppet.
+/// - the ones made while playing (<see cref="NetOwner.Maker"/>: missiles;
+///   <see cref="NetBody.Spawned"/>: ships the host brings in) join as they
+///   come, and the other machines make their <see cref="Spawnables"/> scene
+///   as a puppet; a guest's own spawned host ships go when it joins.
 /// Other players' ships appear as <see cref="RemoteShipScene"/>s (a plain
 /// box when not set), and go when they leave. A guest's own ship starts
 /// <see cref="PilotSpacing"/> times its peer from where the scene puts it,
@@ -101,8 +102,8 @@ public partial class SessionNode : Node
         };
 
         Node root = World;
-        var bodies = root.FindChildren("*", nameof(Node), true, false).OfType<NetBody>()
-            .Where(b => b.OwnedBy != NetOwner.Maker)
+        var all = root.FindChildren("*", nameof(Node), true, false).OfType<NetBody>().ToList();
+        var bodies = all.Where(b => b.OwnedBy != NetOwner.Maker && !b.Spawned)
             .OrderBy(b => root.GetPathTo(b).ToString(), System.StringComparer.Ordinal);
         ushort next = FirstHostId;
         foreach (NetBody body in bodies)
@@ -119,6 +120,8 @@ public partial class SessionNode : Node
                 body.Join(next++, Session.IsHost, Session.TickSeconds);
             Session.Add(body);
         }
+        foreach (NetBody body in all.Where(b => b.Spawned && !b.Puppet))
+            Made(body);                     // brought in before the session: the host's join now, a guest's go
     }
 
     public override void _PhysicsProcess(double delta)
@@ -161,6 +164,13 @@ public partial class SessionNode : Node
     /// <summary>A ship made here while playing (its NetBody calls this): it joins, and the others make its puppet.</summary>
     public void Made(NetBody body)
     {
+        if (body.Joined || !IsInstanceValid(body.Ship))
+            return;
+        if (body.OwnedBy == NetOwner.Host && !Session.IsHost)
+        {
+            body.Ship.QueueFree();          // the host's world has the game's ships
+            return;
+        }
         int index = Index(body.Ship.SceneFilePath);
         if (index < 0)
         {
@@ -169,6 +179,7 @@ public partial class SessionNode : Node
         }
         body.Join(Session.NewDynamicId(), true, Session.TickSeconds);
         Session.Spawn(body, (byte)index);
+        body.Ship.TreeExiting += () => Instance?.Gone(body, body.Exploded);
     }
 
     /// <summary>A ship made here leaves (its NetBody calls this).</summary>

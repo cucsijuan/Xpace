@@ -23,6 +23,7 @@ public partial class NetTest : Node
     public override async void _Ready()
     {
         Snapshots();
+        Deltas();
         Follow("LAN", 0.005, 0.002, 0, 0.05f, 0.05f);
         Follow("good line", 0.05, 0.01, 0, 0.05f, 0.05f);
         Follow("average line", 0.1, 0.03, 0.05, 0.10f, 1f);
@@ -64,6 +65,78 @@ public partial class NetTest : Node
         Check($"position within {position * 1000:0.00} mm, 2,000 km out", position <= 0.5 / ShipSnapshot.PositionScale + 1e-9);
         Check($"orientation within {angle:0.000} deg, q or -q", angle < 0.12);
         Check($"velocity within {velocity:0.000} m/s, angular velocity within {rate:0.0000} rad/s", velocity <= 4096.0 / 65535 / 2 + 1e-4 && rate <= 16.0 / 32767 / 2 + 1e-6);
+    }
+
+    /// <summary>
+    /// Deltas give back exactly what was sent, from bases 1 to 255 ticks old,
+    /// for ships of every speed, turning or not, their radar changing; and
+    /// how big they are for a ship flying steady and one manoeuvring.
+    /// </summary>
+    private void Deltas()
+    {
+        var random = new Random(11);
+        bool exact = true;
+        int worst = 0;
+        for (int i = 0; i < 20000; i++)
+        {
+            ShipSnapshot.Wire b = RandomShip(random, (uint)random.Next()).Encode();
+            var c = RandomShip(random, b.Tick + (uint)random.Next(1, 256));
+            if (i % 3 == 0)                         // nearly the same ship, a while later
+                c = b.Decode() with { Tick = c.Tick };
+            ShipSnapshot.Wire w = c.Encode();
+            var writer = new BitWriter();
+            w.WriteDelta(writer, b);
+            byte[] bytes = writer.ToArray();
+            worst = Math.Max(worst, bytes.Length);
+            var reader = new BitReader(bytes);
+            (uint tick, uint baseTick) = ShipSnapshot.Wire.ReadDeltaHeader(reader, w.Tick + (uint)random.Next(-30000, 30000));
+            exact &= baseTick == b.Tick && ShipSnapshot.Wire.ReadDelta(reader, tick, b).Equals(w) && !reader.Overrun;
+        }
+        Check($"deltas give back what was sent, from any base, with the receiver's clock 8 minutes off (random ships: up to {worst} bytes)", exact);
+
+        // 20 a second, each from the one before: steady at 300 m/s; then pulling 5 g and rolling
+        var ship = new ShipSnapshot { Position = new SectorPoint(150_000, -20_000, 1_000), Orientation = Quaternion.Identity, Velocity = new Vector3(0, 0, -300), Thrust = 0.4f };
+        double steady = Average(ship, Vector3.Zero, Vector3.Zero), turning = Average(ship, new Vector3(0, 49, 0), new Vector3(0.4f, 0, 1.5f));
+        Check($"a delta is {steady:0.0} bytes flying steady, {turning:0.0} manoeuvring (a whole one {ShipSnapshot.Bytes})", steady <= 6 && turning <= 16);
+    }
+
+    private static double Average(ShipSnapshot s, Vector3 acceleration, Vector3 spin)
+    {
+        const int Interval = 3;
+        int total = 0, count = 0;
+        ShipSnapshot.Wire previous = s.Encode();
+        for (int i = 1; i <= 100; i++)
+        {
+            float t = Interval * Dt;
+            s.Tick += Interval;
+            s.Position += s.Velocity * t + acceleration * (0.5f * t * t);
+            s.Velocity += acceleration * t;
+            s.AngularVelocity = spin;
+            if (spin != Vector3.Zero)
+                s.Orientation = (s.Orientation * new Quaternion(spin.Normalized(), spin.Length() * t)).Normalized();
+            ShipSnapshot.Wire w = s.Encode();
+            var writer = new BitWriter();
+            w.WriteDelta(writer, previous);
+            total += writer.ToArray().Length;
+            count++;
+            previous = w;
+        }
+        return (double)total / count;
+    }
+
+    private static ShipSnapshot RandomShip(Random random, uint tick)
+    {
+        var radar = (RadarMode)random.Next(3);
+        return new ShipSnapshot
+        {
+            Tick = tick,
+            Position = new SectorPoint(Signed(random) * 2e6, Signed(random) * 2e6, Signed(random) * 2e6),
+            Orientation = new Quaternion(Signed(random), Signed(random), Signed(random), Signed(random)).Normalized(),
+            Velocity = new Vector3(Signed(random), Signed(random), Signed(random)) * 4500,
+            AngularVelocity = new Vector3(Signed(random), Signed(random), Signed(random)) * 17,
+            Destroyed = random.Next(2) == 0, Thrust = (float)random.NextDouble(), Heat = (float)random.NextDouble() * 1.5f,
+            Radar = radar, RadarTarget = (ushort)random.Next(65536), RadarGuiding = random.Next(2) == 0,
+        };
     }
 
     /// <summary>

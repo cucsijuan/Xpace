@@ -1,4 +1,4 @@
-[gd_scene load_steps=27 format=3]
+[gd_scene load_steps=32 format=3]
 
 [ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="1_ship"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="2_spec"]
@@ -27,9 +27,19 @@
 [ext_resource type="Texture2D" path="res://assets/synty/Gradient_Boost.png" id="25_boost"]
 [ext_resource type="Script" path="res://scripts/Ship/FighterAi.cs" id="26_ai"]
 [ext_resource type="Script" path="res://scripts/Space/Datalink.cs" id="27_datalink"]
+[ext_resource type="Script" path="res://scripts/Ship/PowerDevice.cs" id="40_power"]
+[ext_resource type="Script" path="res://scripts/Ship/ShieldDevice.cs" id="41_shield"]
+[ext_resource type="Script" path="res://scripts/Ship/HeatDevice.cs" id="42_heat"]
+[ext_resource type="Material" path="res://assets/materials/shield_bubble.tres" id="43_bubble"]
 
 [sub_resource type="Resource" id="Spec_fighter"]
 script = ExtResource("2_spec")
+
+[sub_resource type="SphereMesh" id="ShieldSphere"]
+radius = 1.0
+height = 2.0
+radial_segments = 32
+rings = 16
 
 [node name="AiFighter" type="AnimatableBody3D"]
 script = ExtResource("1_ship")
@@ -92,6 +102,23 @@ script = ExtResource("20_dispenser")
 
 [node name="Rwr" type="Node3D" parent="."]
 script = ExtResource("21_rwr")
+
+[node name="Power" type="Node" parent="."]
+script = ExtResource("40_power")
+
+[node name="Shield" type="Node" parent="."]
+script = ExtResource("41_shield")
+Bubble = NodePath("../ShieldBubble")
+
+[node name="ShieldBubble" type="MeshInstance3D" parent="."]
+transform = Transform3D(12, 0, 0, 0, 4.5, 0, 0, 0, 9, 0, 0, 0)
+visible = false
+cast_shadow = 0
+mesh = SubResource("ShieldSphere")
+surface_material_override/0 = ExtResource("43_bubble")
+
+[node name="Heat" type="Node" parent="."]
+script = ExtResource("42_heat")
 
 [node name="Signature" type="Node3D" parent="."]
 script = ExtResource("22_signature")

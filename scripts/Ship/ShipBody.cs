@@ -69,6 +69,8 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
 
     private double _sinceCommand = double.MaxValue;
     private readonly List<IShipDevice> _devices = new();
+    private PowerDevice _power;
+    private ShipSignature _signature;
     private Quaternion _orientation = Quaternion.Identity;
     private Basis _written = Basis.Identity;
     private Hitbox[] _hitboxes;
@@ -91,6 +93,9 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         foreach (Node node in FindChildren("*", "", true, false))
             if (node is IShipDevice device)
                 _devices.Add(device);
+        _power = Device<PowerDevice>();
+        foreach (Node node in GetChildren())
+            _signature ??= node as ShipSignature;
 
         // What meets rocks: the hitboxes (a plain box if it has none)
         _hitboxes = Hitbox.FromShapes(this);
@@ -146,6 +151,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
             for (int i = 0; i < 6; i++)
                 Commands[i] = bus.Word(SlotThrusters, 2 + i * 2) / 32767f;
         }
+        Powered(delta);
         Push((float)delta);
     }
 
@@ -183,12 +189,15 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
 
     // In a session: the main motor's push is its heat and plume to the others
     float INetShip.Thrust => EngineThrust;
+    float INetShip.Heat => Wrecked ? 0 : _signature?.HullLevel ?? 0;
     bool INetShip.Exploded => false;
 
     /// <summary>A puppet (another machine flies it): its motor as its owner says, and its end shown when it blows up.</summary>
     void INetShip.Follow(RemoteTrack.Pose pose)
     {
         _shownThrust = pose.Destroyed ? 0 : pose.Thrust;
+        if (_signature != null)
+            _signature.ShownLevel = pose.Heat;
         if (pose.Destroyed && !_shownDestroyed)
             Space.Explosion.Spawn(GetParent(), GlobalPosition, 30f, 1.6, 16f);
         _shownDestroyed = pose.Destroyed;
@@ -207,6 +216,8 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         bus[SlotControls, 14] = (byte)((c.AssistButton ? 1 : 0) | (c.BoostButton ? 2 : 0) |
                                         (c.TargetAhead ? 4 : 0) | (c.NextTarget ? 8 : 0) | (c.Trigger ? 16 : 0) |
                                         (c.NextWeapon ? 32 : 0) | (c.Chaff ? 64 : 0) | (c.Flare ? 128 : 0));
+        bus[SlotControls, 15] = (byte)((c.PipSystems ? 1 : 0) | (c.PipEngines ? 2 : 0) | (c.PipWeapons ? 4 : 0) |
+                                        (c.PipReset ? 8 : 0) | (c.HeatSink ? 16 : 0));
     }
 
     /// <summary>
@@ -243,6 +254,29 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         State = after;
         if (crash > 0)
             Impact?.Invoke(crash);
+    }
+
+    /// <summary>
+    /// The thrusters push as hard as the engines capacitor lets them (if the
+    /// ship has a <see cref="PowerDevice"/>): <see cref="ShipSpec.ThrustMegawatts"/>
+    /// for the main motor at full, half that for each strafe, a quarter for
+    /// each turn; short of power, every one of them pushes less alike.
+    /// </summary>
+    private void Powered(double delta)
+    {
+        if (_power == null)
+            return;
+        float c = MathF.Abs(Commands[5]) + 0.5f * (MathF.Abs(Commands[3]) + MathF.Abs(Commands[4])) +
+                  0.25f * (MathF.Abs(Commands[0]) + MathF.Abs(Commands[1]) + MathF.Abs(Commands[2]));
+        double wanted = Spec.ThrustMegawatts * c * delta;
+        if (wanted <= 0)
+            return;
+        double got = _power.DrawUpTo(PowerStore.Engines, wanted);
+        if (got >= wanted)
+            return;
+        float share = (float)(got / wanted);
+        for (int i = 0; i < 6; i++)
+            Commands[i] *= share;
     }
 
     private static int Axis(float x) => (int)MathF.Round(Math.Clamp(x, -1f, 1f) * 32767);

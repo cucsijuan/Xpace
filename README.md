@@ -37,6 +37,17 @@ cmake -DGODOT=<path to the Godot .NET binary> -P tools/import_synty.cmake
 
 Without `-DGODOT` it only copies the files. Then open the project in Godot (.NET).
 
+### Exporting
+
+With Godot's export templates (4.7.2, .NET) installed, after the native build and the art import:
+
+```sh
+godot --headless --path . --export-release "Linux" build/linux/Xpace.x86_64
+godot --headless --path . --export-release "Windows Desktop" build/windows/Xpace.exe
+```
+
+The presets (`export_presets.cfg`) put the diskettes (`disks/*.img`, `disks/*.bin`) in the game's pack. The native libraries go into the data folder beside the executable (`data_Xpace_<platform>_x86_64/`) with the assemblies, and so does the EOS SDK's library when the build has online play. The native libraries are the ones in `native/bin`, built for the system the export runs on: export the Windows build on Windows, or it starts without its computers.
+
 ## Controls
 
 Elite Dangerous's keyboard and mouse controls, with three ways to use the mouse; the bar at the bottom of the screen says which one is on and the keys to change it:
@@ -59,6 +70,8 @@ The keys fly the ship in every mode, except while typing on the computer.
 | Fire | Left button, while flying |
 | Next weapon (gun, radar missiles, heat seekers, pulse laser) | N |
 | Chaff / flare | C / V |
+| Heat sink | H |
+| A pip to systems / engines / weapons, even them out | Left / Up / Right, Down |
 | Look around / look ahead | Middle button (tap, hold or twice, see above) |
 | Pointer | Alt (tap or hold) |
 | Work a screen, button, slider or knob | Click it, while looking (the dot) or with the pointer; drag sliders and knobs, or turn them with the wheel |
@@ -67,7 +80,7 @@ The keys fly the ship in every mode, except while typing on the computer.
 | Menu (resume, settings, main menu, quit) | Esc; alone it pauses the game, online the game goes on |
 | Save / load the computer | F5 / F9 |
 
-The arrow keys also pitch and roll, and a joystick or gamepad works with the same controls. Everything can be bound again in the settings (Keys).
+I / K pitch and J / L roll from the keyboard, and a joystick or gamepad works with the same controls. Everything can be bound again in the settings (Keys).
 
 ## The ship and its computer
 
@@ -85,13 +98,19 @@ Every physics step (60 a second), `ShipBody` writes the stick, the inertial unit
 | 7 | `170h` | Radar warning receiver: the radars lighting the ship, and the plumes of missiles coming |
 | 8 | `180h` | Countermeasures dispenser: chaff and flares, a limited load of each |
 | 9 | `190h` | Pulse laser fixed along the nose (2,000 m/s bolts, heat), with the gunsight's lead point the program writes for the head-up display |
+| 10 | `1A0h` | Power plant and distributor: three capacitors (systems, engines, weapons) filled by twelve half pips of the plant's output |
+| 11 | `1B0h` | Shield generator: takes hits before the hull, builds back from the systems capacitor, collapses when knocked down |
+| 12 | `1C0h` | The ship's heat: plant waste and laser pulses in, radiators out; over 100% the hull cooks; heat sinks |
 
-AUTOEXEC.BAT leaves three programs resident; they work inside the interrupt, so the console stays free:
+AUTOEXEC.BAT leaves four programs resident; they work inside the interrupt, so the console stays free:
 
 - **FLIGHT.COM** (5% of the CPU): flight assist; its page goes on a FLIGHT screen, if the cockpit has one.
 - **FIRECTL.COM** (34% of the CPU): locks targets with T/G, smooths the radar's noisy positions with an alpha-beta filter and gets the velocity from them (turning the filter with the gyros, so the ship's own rotation is not taken for target motion), computes the lead (CORDIC for angles and distances), aims the turret and fires while the trigger is held; draws a green B-scope on the RADAR screen (bearing across, range up, 2 km marks, the locked target in brackets) and a page on the WEAPON screen: target, range, lead, SNR, turret angles, barrel heat bar and status (GUN TOO HOT, OUT OF ARC when the target is where the turret cannot point). With the pulse laser selected it fires the laser while the trigger is held, and works out the same solution for the laser's bolts: the lead point goes to the laser's sight and the head-up display draws a circle there, with a pipper where the pulses go at that range; put the pipper on the circle.
 
 - **RWR.COM**: draws the warning receiver's picture on the RWR screen, and works the dispenser: one bundle of chaff or one flare on each press of C or V, with what is left in the bottom right corner (C chaff, F flares).
+- **POWER.COM**: works the power distributor from the arrow keys as in Elite (a pip to one takes half a pip from each of the others; at most four on one; Down evens them out) and throws a heat sink on H.
+
+**Power, shields and heat.** The thrusters, the shields and the laser draw from their capacitors: with too small a share the shields build back slowly, the thrusters push less, the laser waits. What the plant makes and the laser fires heats the ship; the hotter it is, the brighter its hull on a heat seeker, and past 100% the hull wears away (shields don't stop that). A heat sink takes the heat away for a few seconds, and the hull's glow with it. The head-up display shows the pips and capacitors, the shield and the heat bottom right.
 
 A target lost at the edge of the radar's ±60° cone is taken back by itself if it comes back within 3 s.
 
@@ -104,7 +123,7 @@ A target lost at the edge of the radar's ±60° cone is taken back by itself if 
 
 A better radar (more range, a narrower beam), a better turret or better software shows.
 
-`FLIGHT OFF`, `FIRECTL OFF` and `RWR OFF` take them out of memory (the last one installed first). The registers are documented at the top of [flight.asm](software/flight/flight.asm) and [firectl.asm](software/firectl/firectl.asm).
+`FLIGHT OFF`, `FIRECTL OFF`, `RWR OFF` and `POWER OFF` take them out of memory (the last one installed first). The registers are documented at the top of [flight.asm](software/flight/flight.asm) and [firectl.asm](software/firectl/firectl.asm).
 
 ## The menu and settings
 

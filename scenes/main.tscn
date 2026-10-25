@@ -59,6 +59,11 @@
 [ext_resource type="Script" path="res://scripts/Space/RoundLook.cs" id="48_look"]
 [ext_resource type="Script" path="res://scripts/Cockpit/LookDot.cs" id="49_dot"]
 [ext_resource type="PackedScene" path="res://scenes/menu/game_menu.tscn" id="50_game_menu"]
+[ext_resource type="Script" path="res://scripts/Ship/PowerDevice.cs" id="60_power"]
+[ext_resource type="Script" path="res://scripts/Ship/ShieldDevice.cs" id="61_shield"]
+[ext_resource type="Script" path="res://scripts/Ship/HeatDevice.cs" id="62_heat"]
+[ext_resource type="Material" path="res://assets/materials/shield_bubble.tres" id="63_bubble"]
+[ext_resource type="Script" path="res://scripts/Cockpit/PowerGauge.cs" id="64_gauge"]
 
 [sub_resource type="Sky" id="Sky_space"]
 sky_material = ExtResource("43_skybox")
@@ -90,6 +95,12 @@ Falloff = 1200.0
 
 [sub_resource type="Resource" id="Spec_fighter"]
 script = ExtResource("11_spec")
+
+[sub_resource type="SphereMesh" id="ShieldSphere"]
+radius = 1.0
+height = 2.0
+radial_segments = 32
+rings = 16
 
 [node name="Main" type="Node3D" unique_id=1548194627]
 script = ExtResource("18_origin")
@@ -223,6 +234,23 @@ script = ExtResource("28_rwr")
 [node name="RwrTone" type="AudioStreamPlayer" parent="Ship/Rwr" unique_id=727146807]
 script = ExtResource("31_rwr_tone")
 
+[node name="Power" type="Node" parent="Ship"]
+script = ExtResource("60_power")
+
+[node name="Shield" type="Node" parent="Ship"]
+script = ExtResource("61_shield")
+Bubble = NodePath("../ShieldBubble")
+
+[node name="ShieldBubble" type="MeshInstance3D" parent="Ship"]
+transform = Transform3D(12, 0, 0, 0, 4.5, 0, 0, 0, 9, 0, 0, 0)
+visible = false
+cast_shadow = 0
+mesh = SubResource("ShieldSphere")
+surface_material_override/0 = ExtResource("63_bubble")
+
+[node name="Heat" type="Node" parent="Ship"]
+script = ExtResource("62_heat")
+
 [node name="Signature" type="Node3D" parent="Ship" unique_id=1823601226]
 script = ExtResource("30_signature")
 
@@ -304,6 +332,22 @@ theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 15
 horizontal_alignment = 1
 
+[node name="PowerGauge" type="Control" parent="Ship/Pilot/Hud"]
+layout_mode = 3
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -210.0
+offset_top = -100.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("64_gauge")
+
 [node name="MouseWidget" type="Control" parent="Ship/Pilot/Hud" unique_id=567139452]
 layout_mode = 3
 anchors_preset = 8
@@ -326,7 +370,7 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 600, 150, -4000)
 [node name="SessionNode" type="Node" parent="."]
 script = ExtResource("33_session")
 RemoteShipScene = ExtResource("38_remote_fighter")
-Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_missile"), ExtResource("35_chaff"), ExtResource("36_flare")])
+Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_missile"), ExtResource("35_chaff"), ExtResource("36_flare"), ExtResource("41_ai_fighter")])
 
 [node name="NetLauncher" type="Node" parent="."]
 script = ExtResource("34_launcher")

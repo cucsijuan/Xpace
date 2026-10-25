@@ -153,6 +153,17 @@ public partial class SessionTest : Node
         Check($"guest 2 sees guest 1's ship through the host ({relayError / Math.Max(1, relaySamples) * 1000:0.0} mm off)",
               relaySamples > 600 && relayError / relaySamples < 0.01);
         Check("guest 2's ship, flying by, was never hit", ship2.Hits == 0);
+        int whole = 0, deltas = 0, lost = 0;
+        long bytes = 0;
+        foreach (Session m in machines.Values)
+        {
+            whole += m.WholeSent;
+            deltas += m.DeltasSent;
+            lost += m.DeltasLost;
+            bytes += m.SnapshotBytes;
+        }
+        Check($"snapshots go as deltas ({deltas} of {whole + deltas}, {lost} with no base), {(double)bytes / (whole + deltas):0.0} bytes each",
+              deltas > (whole + deltas) * 9 / 10 && (double)bytes / (whole + deltas) < 10 && lost < deltas / 50);
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
