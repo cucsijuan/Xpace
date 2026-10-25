@@ -16,6 +16,12 @@ namespace Xpace.Ship;
 /// of their distance, and count fully when they sit inside the beam).
 /// With SNR, the errors are those of a monopulse radar: angle error
 /// beamwidth / (1.6 sqrt(2 SNR)), range error resolution / sqrt(2 SNR).
+/// Rocks (<see cref="RockField"/>): one between the antenna and a target
+/// hides it; rocks in the target's resolution cell (beam, range, Doppler)
+/// echo with it, and that clutter counts like noise. Rocks stand still, so
+/// a target moving along the line of sight stands apart from them in
+/// Doppler; one sitting still beside a rock is lost in its echo. The rocks
+/// are never shown.
 /// Below the detection threshold a target is not seen; below the lock
 /// threshold a lock breaks. A better radar (more power: a longer detection
 /// range; a narrower beam) measures better, and burns through jamming from
@@ -132,6 +138,8 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
 
     public override void _Ready()
     {
+        for (Node n = GetParent(); n != null && _ship == null; n = n.GetParent())
+            _ship = n as ShipBody;
         _trackOrigin = TrackOriginPath == null || TrackOriginPath.IsEmpty ? this : GetNodeOrNull<Node3D>(TrackOriginPath) ?? this;
         _emitter = EmitterPath == null || EmitterPath.IsEmpty ? null : GetNodeOrNull<RadarEmitter>(EmitterPath);
         _emitter?.Follow(RadarMode.Off, null, false);
@@ -139,32 +147,44 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
 
     // ---------- the signal ----------
 
-    /// <summary>Signal-to-noise ratio of a target's echo (linear), jamming included.</summary>
+    /// <summary>Signal-to-noise ratio of a target's echo (linear), jamming and rock clutter included.</summary>
     public float Snr(IRadarTarget t)
     {
-        if (Hidden(t))
+        Rocks rocks = RocksAround(t);
+        if (rocks.Hidden)
             return 0;
         Vector3 toTarget = t.GlobalPosition - GlobalPosition;
         float range = MathF.Max(toTarget.Length(), 1f);
-        float echo = DetectSnr * MathF.Pow(DetectionRange / range, 4) * (t.RadarCrossSection / ReferenceRcs);
-        return echo / (1 + Jamming(toTarget));
+        float perSquareMetre = DetectSnr * MathF.Pow(DetectionRange / range, 4) / ReferenceRcs;
+        return perSquareMetre * t.RadarCrossSection / (1 + Jamming(toTarget) + perSquareMetre * rocks.Clutter);
     }
 
-    private readonly Dictionary<IRadarTarget, bool> _hidden = new();
-    private ulong _hiddenStep;
+    private struct Rocks
+    {
+        public bool Hidden;
+        public float Clutter;       // m², at the target's range
+    }
 
-    /// <summary>Rock between the antenna and a target: no echo comes back (worked out once a step for each).</summary>
-    private bool Hidden(IRadarTarget t)
+    private readonly Dictionary<IRadarTarget, Rocks> _rocks = new();
+    private ulong _rocksStep;
+    private ShipBody _ship;
+
+    /// <summary>What the rocks do to a target's echo: hide it, or echo with it (worked out once a step for each).</summary>
+    private Rocks RocksAround(IRadarTarget t)
     {
         ulong step = Engine.GetPhysicsFrames();
-        if (step != _hiddenStep)
+        if (step != _rocksStep)
         {
-            _hidden.Clear();
-            _hiddenStep = step;
+            _rocks.Clear();
+            _rocksStep = step;
         }
-        if (!_hidden.TryGetValue(t, out bool hidden))
-            _hidden[t] = hidden = RockField.Blocked(GlobalPosition, t.GlobalPosition);
-        return hidden;
+        if (_rocks.TryGetValue(t, out Rocks rocks))
+            return rocks;
+        rocks.Hidden = RockField.Blocked(GlobalPosition, t.GlobalPosition);
+        if (!rocks.Hidden)
+            rocks.Clutter = RockField.ClutterAll(GlobalPosition, _ship?.LinearVelocity ?? Vector3.Zero, t.GlobalPosition, t.Velocity,
+                                                 Mathf.DegToRad(BeamwidthDegrees), RangeResolution, VelocityResolution);
+        return _rocks[t] = rocks;
     }
 
     /// <summary>Jamming-to-noise ratio while looking along a direction.</summary>

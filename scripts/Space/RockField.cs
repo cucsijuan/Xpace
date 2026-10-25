@@ -35,6 +35,12 @@ public struct RockSphere
 /// one along a segment (rounds, missiles, and the line of sight of radars
 /// and heat seekers).
 ///
+/// Radar clutter: rocks echo, but nobody shows them. <see cref="Clutter"/>
+/// gives what the rocks sharing a target's resolution cell (beam, range,
+/// Doppler) send back with it; a radar counts that with the noise. Rocks
+/// stand still, so a ship moving along the line of sight is apart from
+/// them in Doppler; one sitting still beside a rock is lost in its echo.
+///
 /// The field's frame is where the node is when the scene starts, kept in
 /// double precision: <see cref="FloatingOrigin"/> shifts do not move it.
 /// A rock taken away (<see cref="Remove"/>, mining) stays gone.
@@ -107,6 +113,7 @@ public partial class RockField : Node3D, IOriginShift
     private float _totalWeight;
     private Vector4[][] _spheres = Array.Empty<Vector4[]>();
     private float[] _reach = Array.Empty<float>();
+    private float[] _echo = Array.Empty<float>();        // radar cross-section of the spheres as they are (a rock's is this times its scale²)
     private float _maxReach;
 
     private readonly Dictionary<(int, int, int), Cell> _cells = new();
@@ -156,6 +163,7 @@ public partial class RockField : Node3D, IOriginShift
         _weights = new float[_kinds.Length];
         _spheres = new Vector4[_kinds.Length][];
         _reach = new float[_kinds.Length];
+        _echo = new float[_kinds.Length];
         _totalWeight = 0;
         _maxReach = 0;
         for (int i = 0; i < _kinds.Length; i++)
@@ -166,6 +174,11 @@ public partial class RockField : Node3D, IOriginShift
             foreach (Vector4 s in _spheres[i])
                 reach = MathF.Max(reach, MathF.Sqrt(s.X * s.X + s.Y * s.Y + s.Z * s.Z) + s.W);
             _reach[i] = reach * k.Scale;
+            double volume = 0;
+            foreach (Vector4 sp in _spheres[i])
+                volume += (double)sp.W * sp.W * sp.W;
+            float size = MathF.Min((float)Math.Cbrt(volume), reach);
+            _echo[i] = k.Reflectivity * MathF.PI * size * size;
             _maxReach = MathF.Max(_maxReach, _reach[i] * MaxScale);
             _totalWeight += k.Weight;
             _weights[i] = _totalWeight;
@@ -451,6 +464,66 @@ public partial class RockField : Node3D, IOriginShift
         return true;
     }
 
+    /// <summary>
+    /// The rocks' echo in a radar's resolution cell around a target, as a
+    /// cross-section at the target's range (m²): each rock's echo, falling
+    /// with range to the fourth, times how much of it is in the cell
+    /// (half power half a cell out across the beam, in range and in
+    /// Doppler, as the radar weighs echoes). A rock is as wide and as deep
+    /// as its reach. The radar and the target move; the rocks do not.
+    /// </summary>
+    /// <param name="beam">The beam's width (radians).</param>
+    /// <param name="rangeCell">The range resolution (m).</param>
+    /// <param name="speedCell">The Doppler resolution (m/s).</param>
+    public float Clutter(Vector3 radar, Vector3 radarVelocity, Vector3 target, Vector3 targetVelocity,
+                         float beam, float rangeCell, float speedCell)
+    {
+        if (!_placed)
+            Place();
+        Vector3D p = FieldPoint(target);
+        Vector3 q = (FieldPoint(radar) - p).ToVector3();             // the radar, from the target (field axes)
+        float rt = q.Length();
+        if (rt < 1)
+            return 0;
+        Vector3 ut = -q / rt;
+        Vector3 vr = Rotate(_inverse, (Vector3D)radarVelocity).ToVector3();
+        float targetDoppler = (Rotate(_inverse, (Vector3D)targetVelocity).ToVector3() - vr).Dot(ut);
+        double reach = rt * beam * 1.5 + rangeCell * 1.5 + _maxReach;
+        if (!NearBounds(p, reach))
+            return 0;
+        float sum = 0;
+        int x0 = CellOf(p.X - reach), x1 = CellOf(p.X + reach);
+        int y0 = CellOf(p.Y - reach), y1 = CellOf(p.Y + reach);
+        int z0 = CellOf(p.Z - reach), z1 = CellOf(p.Z + reach);
+        for (int x = x0; x <= x1; x++)
+            for (int y = y0; y <= y1; y++)
+                for (int z = z0; z <= z1; z++)
+                {
+                    Vector3D cc = CellCentre(x, y, z);
+                    foreach (Rock r in RocksIn(x, y, z))
+                    {
+                        Vector3 rel = (cc + (Vector3D)r.Offset - p).ToVector3();
+                        if (rel.LengthSquared() > reach * reach)
+                            continue;
+                        Vector3 toRock = rel - q;
+                        float ri = toRock.Length();
+                        if (ri < 1)
+                            continue;
+                        Vector3 ui = toRock / ri;
+                        float across = MathF.Max(0, MathF.Acos(Math.Clamp(ui.Dot(ut), -1f, 1f)) - r.Reach / ri) / beam;
+                        float deep = MathF.Max(0, MathF.Abs(ri - rt) - r.Reach) / rangeCell;
+                        float doppler = (targetDoppler + vr.Dot(ui)) / speedCell;
+                        float w = MathF.Exp(-2.77f * (across * across + deep * deep + doppler * doppler));
+                        if (w < 1e-4f)
+                            continue;
+                        float fall = rt / ri;
+                        fall *= fall;
+                        sum += _echo[r.Kind] * r.Scale * r.Scale * w * fall * fall;
+                    }
+                }
+        return sum;
+    }
+
     // ---------- every field ----------
 
     /// <summary>The solid spheres of every field near a scene point.</summary>
@@ -474,6 +547,16 @@ public partial class RockField : Node3D, IOriginShift
                 hit = true;
             }
         return hit;
+    }
+
+    /// <summary>Every field's rock echo in a radar's resolution cell around a target (see <see cref="Clutter"/>).</summary>
+    public static float ClutterAll(Vector3 radar, Vector3 radarVelocity, Vector3 target, Vector3 targetVelocity,
+                                   float beam, float rangeCell, float speedCell)
+    {
+        float sum = 0;
+        foreach (RockField f in All)
+            sum += f.Clutter(radar, radarVelocity, target, targetVelocity, beam, rangeCell, speedCell);
+        return sum;
     }
 
     /// <summary>Whether a rock stands between two scene points (a radar's or a seeker's line of sight).</summary>

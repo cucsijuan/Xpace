@@ -30,6 +30,13 @@ public partial class RockKind : Resource
     /// <summary>The solid shape: spheres (x, y, z centre, w radius), in the model's frame.</summary>
     [Export] public Vector4[] Spheres = System.Array.Empty<Vector4>();
 
+    /// <summary>
+    /// How much of the radar energy falling on the rock comes back (rough
+    /// rock about 0.1): its echo is this times the area of a disc as big as
+    /// its spheres' volume. What a radar's clutter is made of.
+    /// </summary>
+    [Export(PropertyHint.Range, "0,1")] public float Reflectivity = 0.1f;
+
     /// <summary>Spheres the tool may use at most.</summary>
     [Export] public int MaxSpheres = 10;
 

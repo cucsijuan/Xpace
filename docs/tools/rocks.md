@@ -54,6 +54,27 @@ The models are Synty's `SM_Env_Astroid_*` (copied by
 `tools/import_synty.cmake`, not in the repository). Without them a kind
 draws a plain ball the size of its spheres; the collisions do not change.
 
+## Ships, radars and seekers
+
+- **Ships** collide with their hitboxes against the spheres after each
+  step (`ShipContact`): pushed out, they bounce through their centre with
+  the spec's `Restitution` and slide with its `Friction`; a crash never
+  sets a ship turning. The kinetic energy lost wears the hull
+  (`ShipHull.CrashJoulesPerPoint`).
+- **Line of sight**: a rock between a radar, a radar warner or a heat
+  seeker and what it looks at hides it, the sun included. The shadow is
+  the spheres', so the bits of a rock that stand out of them hide nothing.
+- **Clutter**: rocks echo. `RockField.Clutter` adds up the echoes of the
+  rocks in a target's resolution cell (one beamwidth across, one range
+  resolution deep, one velocity resolution wide in Doppler, half power
+  half a cell out), each `Reflectivity` (in the kind) times the area of a
+  disc as big as its spheres' volume, falling with range to the fourth.
+  Radars count it with the noise (`RadarDevice.Snr`, `RadarEmitter`).
+  Rocks stand still: a ship moving along the line of sight is apart from
+  them in Doppler, one sitting still beside a rock (or crossing the line
+  of sight) is lost in its echo. Rocks never show on a scope. It costs
+  about 30 us a target, worked out once a step.
+
 ## Mining
 
 Every rock has a name, `RockId` (its cell and its index in the cell).
