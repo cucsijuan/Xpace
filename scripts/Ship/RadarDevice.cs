@@ -37,7 +37,9 @@ namespace Xpace.Ship;
 /// axes: +0 id, +2 right, +4 up, +6 forward (1/4 m), +8 SNR (dB), +14 range
 /// (m). Only the position: the velocity is for the program to work out.
 /// A target lost at the edge of the cone (or to a weak echo) is taken back
-/// by itself if it is seen again within <see cref="ReacquireSeconds"/>.
+/// by itself if it is seen again within <see cref="ReacquireSeconds"/>,
+/// where the tracker last had it (within <see cref="ReacquireWindow"/> of
+/// the gate, carried on at its velocity).
 ///
 /// The tracker does not know which echo is the target: it looks in a gate
 /// (one beamwidth across, one range resolution deep, one velocity
@@ -48,6 +50,17 @@ namespace Xpace.Ship;
 /// the gate with it and pulls the middle toward itself, and may take the
 /// lock; chaff thrown out at a different radial speed is filtered out by
 /// the Doppler. A finer velocity resolution resists chaff better.
+///
+/// Jammers (<see cref="IJammer"/>): noise raises the noise floor, so an
+/// echo is seen later and measured worse; the noise itself comes from the
+/// jammer's direction, and the search writes it into the table as a
+/// strobe: +2 range 0, +10 flags bit 1, numbered as the echo the jammer
+/// rides on, after the echoes (it cannot be locked). A repeater
+/// (<see cref="IDeceiver"/>) puts a copy of the tracked echo in the gate,
+/// stronger than the echo, and walks it away; the tracker follows the
+/// strongest, so the lock goes with the copy and is lost when it stops.
+/// A finer range resolution or more power (the echo against the copy)
+/// resists it.
 ///
 /// Registers: +0 type 4  +2 mode (write: 0 off, 1 on)  +3 contacts in the
 /// table  +4 sweeps so far  +5 locked (1/0)  +6 write: lock this id (0 lets
@@ -62,6 +75,8 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     [Export] public float ConeDegrees = 60f;
     [Export] public double SweepSeconds = 0.5;
     [Export] public double ReacquireSeconds = 3;
+    /// <summary>How far from where the gate would be now a lost target may be to be taken back (m).</summary>
+    [Export] public float ReacquireWindow = 300f;
     /// <summary>The power switch (a cockpit switch can work it): off, it sends nothing, whatever the program asks.</summary>
     [Export] public bool Powered { get; set; } = true;
 
@@ -74,6 +89,8 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     [Export] public float DetectSnr = 20f;               // 13 dB
     [Export] public float LockSnr = 10f;                 // 10 dB
     [Export] public float SidelobeLevel = 0.01f;         // jamming from outside the beam
+    /// <summary>Jamming this far over the noise in the search shows as a strobe (5 dB).</summary>
+    [Export] public float StrobeJnr = 3f;
 
     /// <summary>Where the track is measured from: the turret's pivot.</summary>
     [Export] public NodePath TrackOriginPath;
@@ -98,7 +115,10 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
 
     // What the others can tell of it: in a session, and to warning receivers through its emitter
     public RadarMode Mode => !On ? RadarMode.Off : Locked != null ? RadarMode.Track : RadarMode.Search;
-    public Node Tracked => Locked as Node is Node n && IsInstanceValid(n) ? n : null;
+    public Node Tracked => RealLocked as Node is Node n && IsInstanceValid(n) ? n : null;
+
+    /// <summary>What the lock is really on: the echo a repeater's copy in the gate copies.</summary>
+    public IRadarTarget RealLocked => Locked is FalseEcho f ? f.Source : Locked;
 
     /// <summary>The launcher's datalink is guiding a missile on this radar's track (the launcher says so every step).</summary>
     public bool Guiding { get; set; }
@@ -124,13 +144,17 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
 
     private readonly List<Echo> _echoes = new();
     private readonly List<IRadarTarget> _contacts = new();
+    private readonly List<IJammer> _strobes = new();
+    private readonly Dictionary<IDeceiver, FalseEcho> _copies = new();
+    private IRadarTarget _own;
     private IRadarTarget _lost;
     private double _lostFor;
     private Node3D _trackOrigin;
 
     /// <summary>What the track's positions are measured from (ship axes).</summary>
     public Node3D TrackOrigin => _trackOrigin ?? this;
-    private Vector3 _gate, _gateVelocity, _centroid;   // the tracker's gate and its velocity, the echoes' middle (world)
+    private Vector3 _gate, _gateVelocity, _centroid;
+    private Vector3 _lostGate;                          // where the gate would be now, for a lost target   // the tracker's gate and its velocity, the echoes' middle (world)
     private double _sinceSweep = double.MaxValue;
     private byte _sweeps;
     private bool _registersSet;
@@ -140,6 +164,8 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     {
         for (Node n = GetParent(); n != null && _ship == null; n = n.GetParent())
             _ship = n as ShipBody;
+        foreach (Node n in _ship?.GetChildren() ?? new Godot.Collections.Array<Node>())
+            _own ??= n as IRadarTarget;
         _trackOrigin = TrackOriginPath == null || TrackOriginPath.IsEmpty ? this : GetNodeOrNull<Node3D>(TrackOriginPath) ?? this;
         _emitter = EmitterPath == null || EmitterPath.IsEmpty ? null : GetNodeOrNull<RadarEmitter>(EmitterPath);
         _emitter?.Follow(RadarMode.Off, null, false);
@@ -150,6 +176,8 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     /// <summary>Signal-to-noise ratio of a target's echo (linear), jamming and rock clutter included.</summary>
     public float Snr(IRadarTarget t)
     {
+        if (t is FalseEcho copy)
+            return copy.Snr;
         Rocks rocks = RocksAround(t);
         if (rocks.Hidden)
             return 0;
@@ -188,21 +216,8 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     }
 
     /// <summary>Jamming-to-noise ratio while looking along a direction.</summary>
-    public float Jamming(Vector3 lookingAt)
-    {
-        float jn = 0;
-        float beam = Mathf.DegToRad(BeamwidthDegrees);
-        foreach (Node node in GetTree().GetNodesInGroup("jammers"))
-        {
-            if (node is not IJammer j)
-                continue;
-            Vector3 toJammer = j.GlobalPosition - GlobalPosition;
-            float km = MathF.Max(toJammer.Length(), 1f) / 1000f;
-            float gain = lookingAt.AngleTo(toJammer) <= beam ? 1f : SidelobeLevel;
-            jn += j.JammingAt1Km / (km * km) * gain;
-        }
-        return jn;
-    }
+    public float Jamming(Vector3 lookingAt) =>
+        Space.Jamming.Noise(GetTree(), GlobalPosition, lookingAt, Mathf.DegToRad(BeamwidthDegrees), SidelobeLevel, _own);
 
     private float AngleError(float snr) => Mathf.DegToRad(BeamwidthDegrees) / (1.6f * MathF.Sqrt(2 * snr));
     private float RangeError(float snr) => RangeResolution / MathF.Sqrt(2 * snr);
@@ -211,7 +226,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
 
     public unsafe void BeforeStep(ShipBody ship, double delta)
     {
-        _emitter?.Follow(Mode, Locked as Node3D, Locked != null && Guiding);
+        _emitter?.Follow(Mode, RealLocked as Node3D, Locked != null && Guiding);
         ShipBus bus = ship.Computer.Bus;
         if (!_registersSet)
         {
@@ -230,6 +245,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
             Locked = null;
             _lost = null;
             _contacts.Clear();
+            _strobes.Clear();
             bus[Slot, 3] = 0;
         }
         else
@@ -239,7 +255,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
             {
                 _sinceSweep = 0;
                 Sweep(ship, memory + ShipMemory.Contacts);
-                bus[Slot, 3] = (byte)_contacts.Count;
+                bus[Slot, 3] = (byte)(_contacts.Count + _strobes.Count);
                 bus[Slot, 4] = ++_sweeps;
             }
             if (Gone(Locked))
@@ -248,16 +264,18 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
                 _lost = null;
             if (Locked != null && !Follow(delta))
             {
-                _lost = Locked;                     // remember it for a while
+                _lost = RealLocked;                 // remember it for a while (the echo, not a copy of it)
                 _lostFor = 0;
+                _lostGate = _gate;
                 Locked = null;
             }
             else if (_lost != null)
             {
                 _lostFor += delta;
+                _lostGate += _gateVelocity * (float)delta;
                 if (_lostFor > ReacquireSeconds || !_lost.Alive)
                     _lost = null;
-                else if (InCone(_lost) && Snr(_lost) >= LockSnr)
+                else if (InCone(_lost) && _lost.GlobalPosition.DistanceTo(_lostGate) <= ReacquireWindow && Snr(_lost) >= LockSnr)
                 {
                     Locked = _lost;
                     _gate = Locked.GlobalPosition;
@@ -293,7 +311,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
                 Locked = t;
         if (Locked == null)
             return;
-        if (Locked != before)
+        if (Locked != (before is FalseEcho copy ? copy.Source : before))
             TrackNumber++;
         _gate = Locked.GlobalPosition;
         _gateVelocity = Locked.Velocity;
@@ -334,6 +352,41 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
             {
                 strongest = w;
                 Locked = t;
+            }
+        }
+        foreach (Node node in GetTree().GetNodesInGroup("jammers"))
+        {
+            if (node is not IDeceiver d || d.Carrier == null || d.Carrier == _own)
+                continue;
+            if (!_copies.TryGetValue(d, out FalseEcho copy))
+                _copies[d] = copy = new FalseEcho(d);
+            copy.Live = false;
+            // a repeater answers only a radar tracking its carrier (or the copy it made)
+            if (RealLocked != d.Carrier ||
+                !d.FalseEcho(this, GlobalPosition, delta, out Vector3 at, out Vector3 moving, out float snrAt1Km))
+                continue;
+            Vector3 to = at - GlobalPosition;
+            float range = MathF.Max(to.Length(), 1);
+            float across = toGate.AngleTo(to) / beam;
+            float deep = (range - gateRange) / RangeResolution;
+            float doppler = (moving - _gateVelocity).Dot(to / range) / VelocityResolution;
+            float km = range / 1000;
+            copy.GlobalPosition = at;
+            copy.Velocity = moving;
+            copy.Snr = snrAt1Km / (km * km) / (1 + Jamming(to));
+            copy.Live = true;
+            if (!InCone(copy))
+                continue;
+            float w = copy.Snr * MathF.Exp(-2.77f * (across * across + deep * deep + doppler * doppler));
+            if (w < 1e-3f)
+                continue;
+            total += w;
+            sum += at * w;
+            sumVelocity += moving * w;
+            if (w > strongest)
+            {
+                strongest = w;
+                Locked = copy;
             }
         }
         if (total < LockSnr)
@@ -377,11 +430,43 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
             Put(e, 4, Angle(az));
             Put(e, 6, Angle(el));
             Put(e, 8, Clamp16(closing * 8));
-            Put(e, 10, t == Locked ? 1 : 0);
+            Put(e, 10, t == RealLocked ? 1 : 0);
         }
-        for (int i = _contacts.Count; i < MaxContacts; i++)
+        Strobes(ship, table);
+        for (int i = _contacts.Count + _strobes.Count; i < MaxContacts; i++)
             for (int j = 0; j < 16; j++)
                 table[i * 16 + j] = 0;
+    }
+
+    /// <summary>
+    /// The jammers whose noise the search heard above the detection
+    /// threshold, inside the cone: their bearing (as well as the beam tells
+    /// it), no range, after the echoes in the table.
+    /// </summary>
+    private unsafe void Strobes(ShipBody ship, byte* table)
+    {
+        _strobes.Clear();
+        foreach (Node node in GetTree().GetNodesInGroup("jammers"))
+        {
+            if (node is not IJammer j || j.Carrier == _own || _contacts.Count + _strobes.Count >= MaxContacts)
+                continue;
+            Vector3 to = j.GlobalPosition - GlobalPosition;
+            float km = MathF.Max(to.Length(), 1f) / 1000f;
+            float jn = j.NoiseToward(GlobalPosition) / (km * km);
+            Vector3 local = GlobalBasis.Inverse() * to;
+            if (jn < StrobeJnr || local.Length() < 1 || Vector3.Forward.AngleTo(local) > Mathf.DegToRad(ConeDegrees) ||
+                node is Node3D { Visible: false } || RockField.Blocked(GlobalPosition, j.GlobalPosition))
+                continue;
+            local = Measure(j.GlobalPosition, jn, GlobalPosition, GlobalBasis);
+            byte* e = table + (_contacts.Count + _strobes.Count) * 16;
+            _strobes.Add(j);
+            Put(e, 0, j.Carrier?.RadarId ?? 0);
+            Put(e, 2, 0);
+            Put(e, 4, Angle(Mathf.Atan2(local.X, -local.Z)));
+            Put(e, 6, Angle(Mathf.Atan2(local.Y, new Vector2(local.X, local.Z).Length())));
+            Put(e, 8, 0);
+            Put(e, 10, 2);
+        }
     }
 
     /// <summary>

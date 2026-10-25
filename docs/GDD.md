@@ -149,6 +149,11 @@ Jump computation is a good example of the CPU as a mechanic: a better navigation
 
 Shields, armour, point defence systems and countermeasures: flares, chaff, jamming and decoys.
 
+**Jammers** (built: `JammerDevice`, bus slot 14; models are `JammerSpec` resources, so tiers are data):
+- *Noise* raises a radar's noise floor. It falls with the square of the distance, the echo with the fourth power, so close in the radar burns through. The antenna sends all round, or puts several times more into a beam aimed at one radar (RWR.COM aims it at whatever locks the ship), and then it does nothing to radars outside that beam.
+- *Deception* (better models): a repeater copies the pulses of a radar tracking the ship and sends them back stronger than the skin echo, first on top of it, then later and later, its Doppler with it (range and velocity gate pull-off); the tracker follows the strongest echo in its gate, so the lock and any missile on that radar's datalink walk off with the copy, and when it stops the gate is left on nothing. It only works while the copy is stronger than the skin echo, and only as fast as the victim's tracker can follow: a radar with a finer velocity resolution or a faster gate resists it, and so does more radar power.
+- The cost is physical: power from the systems capacitor (against the shields), all of it heat, and a beacon: warning receivers hear a jammer far beyond the range at which it hides the ship, and its noise shows on a radar's scope as a strobe at its bearing. A drone's simple radar has no tracker to deceive; noise still blinds it.
+
 ### 6.4 Energy and heat
 
 - The reactor generates energy, which is shared between weapons, shields, engines and systems, managed live in the style of Elite's "pips".

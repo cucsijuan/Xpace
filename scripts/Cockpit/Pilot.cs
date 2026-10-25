@@ -435,6 +435,7 @@ public partial class Pilot : Node3D
             PipWeapons = keys && Input.IsActionPressed(FlightInput.PipWeapons),
             PipReset = keys && Input.IsActionPressed(FlightInput.PipReset),
             HeatSink = keys && Input.IsActionPressed(FlightInput.HeatSink),
+            Jammer = keys && Input.IsActionPressed(FlightInput.Jammer),
         };
     }
 

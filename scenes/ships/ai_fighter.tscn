@@ -1,4 +1,4 @@
-[gd_scene load_steps=33 format=3]
+[gd_scene load_steps=35 format=3]
 
 [ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="1_ship"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="2_spec"]
@@ -32,6 +32,8 @@
 [ext_resource type="Script" path="res://scripts/Ship/ShieldDevice.cs" id="41_shield"]
 [ext_resource type="Script" path="res://scripts/Ship/HeatDevice.cs" id="42_heat"]
 [ext_resource type="Material" path="res://assets/materials/shield_bubble.tres" id="43_bubble"]
+[ext_resource type="Script" path="res://scripts/Ship/JammerDevice.cs" id="44_jammer"]
+[ext_resource type="Resource" path="res://assets/ship/jammers/jammer_nj2.tres" id="45_nj2"]
 
 [sub_resource type="Resource" id="Spec_fighter"]
 script = ExtResource("2_spec")
@@ -100,6 +102,11 @@ HeatSeekers = 2
 [node name="Dispenser" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 4)
 script = ExtResource("20_dispenser")
+
+[node name="Jammer" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -1)
+script = ExtResource("44_jammer")
+Spec = ExtResource("45_nj2")
 
 [node name="Rwr" type="Node3D" parent="."]
 script = ExtResource("21_rwr")

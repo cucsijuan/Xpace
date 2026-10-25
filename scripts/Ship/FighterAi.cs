@@ -75,6 +75,7 @@ public partial class FighterAi : Node
     [Export] public double BreakSeconds = 4;
     [Export] public double CountermeasureInterval = 0.5;
     [Export] public float JinkAmount = 0.5f;            // of the stick, while locked by a radar
+    [Export] public double JamSeconds = 6;              // the jammer stays on this long after the last lock on the ship
     [Export] public float PlumeThreatRange = 4000f;
     [Export] public float BearingRateThreat = 3f;       // degrees a second: a plume turning slower than this is coming at the ship
     [Export] public float SightRange = 2000f;           // near enough to see where a missile points
@@ -105,6 +106,8 @@ public partial class FighterAi : Node
     private ShipBody _ship;
     private RadarDevice _radar;
     private RwrDevice _rwr;
+    private JammerDevice _jammer;
+    private double _jamFor;
     private LauncherDevice _launcher;
     private LaserDevice _laser;
     private Datalink _link;
@@ -133,6 +136,7 @@ public partial class FighterAi : Node
         {
             _radar ??= n as RadarDevice;
             _rwr ??= n as RwrDevice;
+            _jammer ??= n as JammerDevice;
             _launcher ??= n as LauncherDevice;
             _laser ??= n as LaserDevice;
             _link ??= n as Datalink;
@@ -163,6 +167,7 @@ public partial class FighterAi : Node
         _sinceSafePress += delta;
 
         Threats();
+        Jam(delta);
         if (_breakLeft > 0)
         {
             Break(ref c, delta);
@@ -340,6 +345,27 @@ public partial class FighterAi : Node
             _plumes.Remove(gone);
     }
 
+    /// <summary>
+    /// The jammer, by its button (the warning receiver's program works it):
+    /// on while a radar has the ship locked, and for a while after;
+    /// deceiving if it can, else noise. Off the rest of the time: it would
+    /// tell everyone where the ship is.
+    /// </summary>
+    private void Jam(double delta)
+    {
+        if (_jammer == null || _rwr == null)
+            return;
+        JamMode want = JamMode.Off;
+        if (_rwr.LockWarning || _rwr.LaunchWarning)
+            _jamFor = JamSeconds;
+        else
+            _jamFor -= delta;
+        if (_jamFor > 0)
+            want = _jammer.Spec?.Deception == true ? JamMode.Deception : JamMode.Noise;
+        if (_jammer.Mode != want)
+            Press("jam");
+    }
+
     private void Threatened(bool flares, RwrDevice.Contact from)
     {
         if (_breakLeft <= 0)
@@ -473,6 +499,7 @@ public partial class FighterAi : Node
         c.Chaff = _held.ContainsKey("chaff");
         c.Flare = _held.ContainsKey("flare");
         c.SafeButton = _held.ContainsKey("safe");
+        c.Jammer = _held.ContainsKey("jam");
         c.Trigger |= _held.ContainsKey("fire");
         return c;
     }

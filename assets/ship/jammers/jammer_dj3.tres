@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="JammerSpec" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/JammerSpec.cs" id="1_spec"]
+
+[resource]
+script = ExtResource("1_spec")
+Model = "DJ-3"
+NoiseAt1Km = 150.0
+BeamGain = 6.0
+BeamDegrees = 60.0
+Deception = true
+RepeaterAt1Km = 3000.0
+CaptureSeconds = 0.6
+PullAcceleration = 50.0
+MaxPull = 1200.0
+DropSeconds = 1.5
+Megawatts = 1.5

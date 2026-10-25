@@ -40,27 +40,3 @@ public interface IDamageable
 {
     void Hit(float damage);
 }
-
-/// <summary>
-/// A noise jammer: it raises the noise a radar hears, the more the closer it
-/// is and the nearer it sits to where the radar looks. Anything in the
-/// "jammers" group with this interface counts.
-/// </summary>
-public interface IJammer
-{
-    Vector3 GlobalPosition { get; }
-    /// <summary>
-    /// Jamming-to-noise ratio it causes in a reference radar at 1 km, looking
-    /// straight at it; it falls with the square of the distance.
-    /// </summary>
-    float JammingAt1Km { get; }
-}
-
-/// <summary>A jammer pod: put it on (under) a ship to make that ship hard to track.</summary>
-public partial class JammerPod : Node3D, IJammer
-{
-    [Export] public float JammingAt1Km = 400f;
-    float IJammer.JammingAt1Km => JammingAt1Km;
-
-    public override void _Ready() => AddToGroup("jammers");
-}

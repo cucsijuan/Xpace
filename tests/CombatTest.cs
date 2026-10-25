@@ -65,6 +65,13 @@ public partial class CombatTest : Node3D
         _crossing.GlobalPosition = new Vector3(-300, 60, -1000);   // closer in, where the gun can kill
         _crossing.Fly(Vector3.Right * 120);
         await Seconds(1.5);
+        if (_radar.Locked != _crossing)             // a jump the tracker cannot follow: lock it again, as a pilot would
+        {
+            if (_radar.Locked != null)
+                await Press(() => _controls.TargetAhead = true, () => _controls.TargetAhead = false);
+            await Press(() => _controls.TargetAhead = true, () => _controls.TargetAhead = false);
+            await Seconds(1);
+        }
         _controls.Trigger = true;
         bool killed = await Until(() => !_crossing.Alive, 15);
         Check($"firing on, the drone blows up ({_crossing.Hits} hits of {_turret.RoundsFired} rounds, heat {_turret.Heat:0})", killed);

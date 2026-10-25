@@ -53,6 +53,11 @@ public interface IRadarEmitter
 /// Doppler) echo with it, so something sitting still beside a rock is lost
 /// in their clutter (<see cref="RockField.Clutter"/>).
 ///
+/// Jammers' noise (<see cref="Jamming.Noise"/>) adds to its own: an echo
+/// has to be that much stronger to be seen or held, so a jammed ship is
+/// seen only nearer (burn-through). It has no tracker for a repeater to
+/// pull: deception does nothing to it.
+///
 /// Only the main lobe counts: sidelobes are too weak to matter here.
 /// Put it under a ship (it looks along the ship's -Z); it goes quiet while
 /// the ship is dead. On a puppet
@@ -75,6 +80,8 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
     [Export] public float VelocityResolution = 10f;    // m/s, Doppler
     /// <summary>Signal-to-noise at the detection threshold (13 dB): how hard clutter weighs against it.</summary>
     [Export] public float DetectSnr = 20f;
+    /// <summary>What it hears of a jammer outside its beam, against inside.</summary>
+    [Export] public float SidelobeLevel = 0.01f;
 
     public ushort EmitterId { get; private set; }
     /// <summary>What it hunts (its ship chose it): it locks this one when it can.</summary>
@@ -168,20 +175,23 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
     /// Whether an echo at a range is strong enough for a reference range
     /// (detection or lock), by <paramref name="margin"/> (below 1: holding
     /// on to it): its signal against the threshold's, with no rock in the
-    /// way and the rocks' clutter in its cell added to the noise.
+    /// way and the rocks' clutter in its cell and the jammers' noise added
+    /// to the noise.
     /// </summary>
     private bool Seen(Node3D target, float range, float referenceRange, float margin)
     {
         float signal = MathF.Pow(Reach(target, referenceRange) / range, 4);     // 1 at the threshold
         if (signal < margin || RockField.Blocked(GlobalPosition, target.GlobalPosition))
             return false;
+        float jamming = Jamming.Noise(GetTree(), GlobalPosition, target.GlobalPosition - GlobalPosition,
+                                      Mathf.DegToRad(BeamwidthDegrees), SidelobeLevel, _owner);
         if (RockField.All.Count == 0)
-            return true;
+            return signal >= margin * (1 + jamming);
         Vector3 velocity = target is IRadarTarget t ? t.Velocity : Vector3.Zero;
         float clutter = RockField.ClutterAll(GlobalPosition, _owner?.Velocity ?? Vector3.Zero, target.GlobalPosition, velocity,
                                              Mathf.DegToRad(BeamwidthDegrees), RangeResolution, VelocityResolution);
         float clutterSignal = MathF.Pow(referenceRange / range, 4) * clutter / ReferenceRcs;
-        return signal >= margin * (1 + DetectSnr * clutterSignal);
+        return signal >= margin * (1 + jamming + DetectSnr * clutterSignal);
     }
 
     public bool Illuminates(Vector3 point)

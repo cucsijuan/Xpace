@@ -37,6 +37,10 @@ public sealed class RemoteTrack
         public RadarMode Radar;
         public ushort RadarTarget;
         public bool RadarGuiding;
+        public JamMode Jam;
+        public byte JamModel;
+        public bool JamAimed;
+        public Vector3 JamAim;
         public bool Extrapolated;
     }
 
@@ -141,6 +145,10 @@ public sealed class RemoteTrack
             Radar = u < 0.5f ? a.Radar : b.Radar,
             RadarTarget = u < 0.5f ? a.RadarTarget : b.RadarTarget,
             RadarGuiding = u < 0.5f ? a.RadarGuiding : b.RadarGuiding,
+            Jam = u < 0.5f ? a.Jam : b.Jam,
+            JamModel = u < 0.5f ? a.JamModel : b.JamModel,
+            JamAimed = u < 0.5f ? a.JamAimed : b.JamAimed,
+            JamAim = u < 0.5f ? a.JamAim : b.JamAim,
         };
     }
 
@@ -168,5 +176,9 @@ public sealed class RemoteTrack
         Radar = s.Radar,
         RadarTarget = s.RadarTarget,
         RadarGuiding = s.RadarGuiding,
+        Jam = s.Jam,
+        JamModel = s.JamModel,
+        JamAimed = s.JamAimed,
+        JamAim = s.JamAim,
     };
 }

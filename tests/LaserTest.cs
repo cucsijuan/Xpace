@@ -153,7 +153,9 @@ public partial class LaserTest : Node3D
 
     private async Task Lock()
     {
-        // (the radar may take the drone back by itself after it jumps: a press then would let it go)
+        // (a jump loses the lock a step later: the tracker finds nothing where it had it, and does not
+        // look for it a long way off; a press while it is still locked would let it go)
+        await Seconds(0.1);
         for (int i = 0; i < 3 && _radar.Locked != _drone; i++)
         {
             if (_radar.Locked != null)

@@ -65,6 +65,11 @@
 [ext_resource type="Script" path="res://scripts/Ship/HeatDevice.cs" id="62_heat"]
 [ext_resource type="Material" path="res://assets/materials/shield_bubble.tres" id="63_bubble"]
 [ext_resource type="Script" path="res://scripts/Cockpit/PowerGauge.cs" id="64_gauge"]
+[ext_resource type="Script" path="res://scripts/Ship/JammerDevice.cs" id="65_jammer"]
+[ext_resource type="Resource" path="res://assets/ship/jammers/jammer_nj1.tres" id="66_nj1"]
+[ext_resource type="Resource" path="res://assets/ship/jammers/jammer_nj2.tres" id="67_nj2"]
+[ext_resource type="Resource" path="res://assets/ship/jammers/jammer_dj3.tres" id="68_dj3"]
+[ext_resource type="Script" path="res://scripts/Ship/JammerSpec.cs" id="69_jammer_spec"]
 
 [sub_resource type="Sky" id="Sky_space"]
 sky_material = ExtResource("43_skybox")
@@ -235,6 +240,11 @@ FlareScene = ExtResource("36_flare")
 [node name="SeekerTone" type="AudioStreamPlayer" parent="Ship/Launcher" unique_id=1115448228]
 script = ExtResource("26_growl")
 
+[node name="Jammer" type="Node3D" parent="Ship"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -1)
+script = ExtResource("65_jammer")
+Spec = ExtResource("68_dj3")
+
 [node name="Rwr" type="Node3D" parent="Ship" unique_id=1738774826]
 script = ExtResource("28_rwr")
 
@@ -378,6 +388,7 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 600, 150, -4000)
 script = ExtResource("33_session")
 RemoteShipScene = ExtResource("38_remote_fighter")
 Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_missile"), ExtResource("35_chaff"), ExtResource("36_flare"), ExtResource("41_ai_fighter")])
+Jammers = Array[ExtResource("69_jammer_spec")]([ExtResource("66_nj1"), ExtResource("67_nj2"), ExtResource("68_dj3")])
 
 [node name="NetLauncher" type="Node" parent="."]
 script = ExtResource("34_launcher")

@@ -1,7 +1,7 @@
-; rwr.asm - CucsiCorp Threat Warning 1.3 (RWR.COM)
+; rwr.asm - CucsiCorp Threat Warning 1.4 (RWR.COM)
 ;
 ;   RWR         stays resident and shows the radar warning receiver;
-;               works the countermeasures dispenser
+;               works the countermeasures dispenser and the jammer
 ;   RWR OFF     takes it out of memory
 ;
 ; The warning receiver hears the radars whose beams light the ship. On the
@@ -20,6 +20,13 @@
 ; buttons throw one of each on every press, and the bottom right corner
 ; shows how many are left: C chaff, F flares.
 ;
+; If the ship has a jammer, the pilot's jammer button steps it on each
+; press: off, noise, deception (if the model can deceive), off; the top
+; right corner shows JAM N or JAM D while it sends. Eight times a second
+; it aims the jammer's beam at the radar that has the ship locked (one
+; guiding a missile first), at its bearing on the receiver; with none, the
+; jammer sends all round.
+;
 ; The symbol is the emitter's type letter (D drone, F fighter, U unknown)
 ; in a circle while it is only searching, in a diamond while it has the
 ; ship locked, a diamond that blinks while it guides a missile at the ship
@@ -36,6 +43,7 @@
 ; The devices (16 ports each, words little-endian):
 ;
 ;   100h  pilot's controls   +14 buttons: bit 6 chaff, 7 flare
+;                            +15 buttons: bit 6 jammer
 ;   150h  display card       +2 segment  +4 screen table  +6 screens
 ;                            +8 keys pressed so far  +9 the last key (1 zoom
 ;                            in, 2 zoom out, 3 sound)  +10 its screen
@@ -50,6 +58,10 @@
 ;                            bit 4 guiding a missile at us)
 ;   180h  dispenser          +0 type 10  +2 chaff left  +3 flares left
 ;                            +4 write: bit 0 throw chaff, bit 1 a flare
+;   1E0h  jammer             +0 type 16  +2 mode (0 off, 1 noise,
+;                            2 deception)  +3 can do (bit 1 deception)
+;                            +4 azimuth  +6 elevation  +8 write: 0 all
+;                            round, 1 aimed at +4/+6
 
 org 100h
 
@@ -57,9 +69,13 @@ CTRL        equ 100h
 DISPLAYS    equ 150h
 RWR         equ 170h
 CMDS        equ 180h
+JAMMER      equ 1E0h
 TYPE_DISPLAYS equ 6
 TYPE_RWR    equ 8
 TYPE_CMDS   equ 10
+TYPE_JAMMER equ 16
+BUTTON_JAM  equ 64                  ; on CTRL + 15
+JAM_WIDTH   equ 5 * 6 + 2           ; 'JAM N' and a margin, top right
 BUTTON_CHAFF equ 64
 BUTTON_FLARE equ 128
 CM_WIDTH    equ 7 * 6 + 2           ; 'C24 F24' and a margin, bottom right
@@ -87,7 +103,7 @@ DIM         equ 1
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPRW13'             ; 103h
+signature   db 'XPRW14'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -127,6 +143,10 @@ step:
     je .keys
     call dispense
 .keys:
+    cmp byte [jam_present], 0
+    je .screen_keys
+    call jam
+.screen_keys:
     mov dx, DISPLAYS + 8            ; a screen key since the last look?
     in al, dx
     cmp al, [keys_seen]
@@ -248,6 +268,117 @@ dispense:
     mov [cm_shown], ax
     call put_counts                 ; the new ones on
 .done:
+    ret
+
+; The pilot's jammer button: the next mode on each press; every 8th step
+; the beam aimed at the worst radar on the receiver (all round with none),
+; and the mode drawn again if it changed
+jam:
+    mov dx, CTRL + 15
+    in al, dx
+    mov ah, [jam_buttons]
+    mov [jam_buttons], al
+    not ah
+    and al, ah                      ; pressed since the last look
+    test al, BUTTON_JAM
+    jz .aim
+    mov dx, JAMMER + 2              ; off, noise, deception (if it can), off
+    in al, dx
+    inc al
+    cmp al, 2
+    jb .set
+    ja .off
+    test byte [jam_abilities], 2
+    jnz .set
+.off:
+    xor al, al
+.set:
+    out dx, al
+.aim:
+    test byte [ticks], 7
+    jnz .done
+    call threat
+    jc .all_round
+    mov dx, JAMMER + 4
+    out dx, ax
+    xor ax, ax
+    mov dx, JAMMER + 6
+    out dx, ax
+    mov al, 1
+    jmp .point
+.all_round:
+    xor al, al
+.point:
+    mov dx, JAMMER + 8
+    out dx, al
+    mov dx, JAMMER + 2
+    in al, dx
+    cmp al, [jam_shown]
+    je .done
+    push ax
+    call put_jam                    ; the old mode off
+    pop ax
+    mov [jam_shown], al
+    call put_jam                    ; the new one on
+.done:
+    ret
+
+; The bearing (AX) of the radar guiding a missile at the ship, or else of
+; one that has it locked; CF set if there is none
+threat:
+    mov dx, RWR + 2
+    in al, dx
+    xor ah, ah
+    mov cx, ax
+    jcxz .none
+    push ds
+    mov ds, [cs:table_seg]
+    mov si, [cs:table_off]
+    xor bl, bl                      ; the worst so far: 0 none, 1 locked, 2 guiding
+.entry:
+    mov al, [si + 7]
+    test al, 8
+    jnz .next                       ; a missile's plume: nothing to aim at
+    mov ah, 2
+    test al, 16
+    jnz .rank
+    mov ah, 1
+    test al, 1
+    jz .next
+.rank:
+    cmp ah, bl
+    jbe .next
+    mov bl, ah
+    mov di, [si + 2]
+.next:
+    add si, 8
+    loop .entry
+    pop ds
+    test bl, bl
+    jz .none
+    mov ax, di
+    clc
+    ret
+.none:
+    stc
+    ret
+
+; The jammer's mode in jam_shown, top right (nothing while it is off)
+put_jam:
+    mov al, [jam_shown]
+    test al, al
+    jz .none
+    mov si, s_jam_noise
+    cmp al, 1
+    je .text
+    mov si, s_jam_deceive
+.text:
+    mov es, [screen_seg]
+    mov cx, [scr_w]
+    sub cx, JAM_WIDTH
+    mov dx, LABEL_Y
+    jmp xor_text
+.none:
     ret
 
 ; The counts in cm_shown, 'C' chaff and 'F' flares, XORed bottom right
@@ -594,6 +725,8 @@ labels      db '8K', 0, 0, 0, 0     ; 6 bytes a scale
             db '1K', 0, 0, 0, 0
 s_mute      db 'MUTE', 0
 cm_text     db 'C99 F99', 0
+s_jam_noise db 'JAM N', 0
+s_jam_deceive db 'JAM D', 0
 
 slot        db 0
 ticks       db 0
@@ -602,6 +735,10 @@ muted       db 0
 cm_present  db 0                    ; the ship has a dispenser
 cm_buttons  db 0                    ; the pilot's buttons, last look
 cm_shown    dw 0FFFFh               ; the counts drawn: chaff, flares
+jam_present db 0                    ; the ship has a jammer
+jam_abilities db 0                  ; what it can do (bit 1 deception)
+jam_buttons db 0                    ; the pilot's buttons (+15), last look
+jam_shown   db 0                    ; the mode drawn (0 off: nothing)
 keys_seen   db 0                    ; the display card's key count, last look
 my_screen   db 0FFh                 ; the RWR screen's place in the screen table
 edge_range  dw 8000
@@ -722,6 +859,18 @@ install:
     in al, dx
     mov [cm_buttons], al
 .no_dispenser:
+    mov dx, JAMMER                  ; a jammer to work?
+    in al, dx
+    cmp al, TYPE_JAMMER
+    jne .no_jammer
+    mov byte [jam_present], 1
+    mov dx, JAMMER + 3
+    in al, dx
+    mov [jam_abilities], al
+    mov dx, CTRL + 15
+    in al, dx
+    mov [jam_buttons], al
+.no_jammer:
 
     mov ax, 3500h + IRQ_VECTOR
     int 21h
@@ -758,6 +907,11 @@ remove:
     xor al, al                      ; the tones back on
     mov dx, RWR + 5
     out dx, al
+    cmp byte [es:jam_present], 0    ; the jammer off
+    je .silent
+    mov dx, JAMMER + 2
+    out dx, al
+.silent:
     mov ax, [es:screen_seg]         ; the resident copy's screen goes dark
     mov cx, [es:screen_words]
     push es

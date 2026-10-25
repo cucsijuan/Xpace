@@ -45,6 +45,25 @@ public partial class SessionNode : Node
     /// <summary>What a session can make on every machine: missiles, chaff, flares (the same list everywhere).</summary>
     [Export] public Godot.Collections.Array<PackedScene> Spawnables = new();
 
+    /// <summary>
+    /// The jammer models a ship may carry, the same list on every machine: a
+    /// snapshot says which one a ship's jammer is by its place here, so a
+    /// remote player's ship jams as hard as the model it has.
+    /// </summary>
+    [Export] public Godot.Collections.Array<Xpace.Ship.JammerSpec> Jammers = new();
+
+    /// <summary>A jammer model's place in <see cref="Jammers"/> (by resource path; <see cref="ShipSnapshot.NoModel"/> if not there).</summary>
+    public byte JammerIndex(Xpace.Ship.JammerSpec spec)
+    {
+        for (int i = 0; spec != null && i < Jammers.Count && i < ShipSnapshot.NoModel; i++)
+            if (Jammers[i] == spec || (!string.IsNullOrEmpty(spec.ResourcePath) && Jammers[i]?.ResourcePath == spec.ResourcePath))
+                return (byte)i;
+        return ShipSnapshot.NoModel;
+    }
+
+    /// <summary>The model at a place in <see cref="Jammers"/>, if there is one.</summary>
+    public Xpace.Ship.JammerSpec JammerModel(byte index) => index < Jammers.Count ? Jammers[index] : null;
+
     public static SessionNode Instance { get; private set; }
 
     public Session Session { get; private set; }

@@ -14,7 +14,10 @@ namespace Xpace.Net;
 /// pushes), warning receivers hear its radar (a <see cref="RadarEmitter"/>
 /// it makes below itself, doing what the owner's radar does). Its
 /// engines' plumes (<see cref="EnginePlume"/> nodes below it) glow as hard as
-/// the snapshots say it pushes. A warhead's
+/// the snapshots say it pushes. Its jammer (a <see cref="Xpace.Ship.JammerDevice"/>
+/// it makes below itself) sends what the owner's sends, as hard as the
+/// model the snapshots name (<see cref="SessionNode.Jammers"/>; not
+/// there: <see cref="Jammer"/>). A warhead's
 /// fuse goes off on it; the damage is the host's to judge and its owner's
 /// to take.
 /// </summary>
@@ -26,6 +29,8 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
     [Export] public float FrontHeat = 0.3f;
     [Export] public string RadarSignature = "F";    // how its radar's pulses look to a warning receiver
     [Export] public float RadarPowerAt1Km = 4e4f;
+    /// <summary>Its jammer's model when the snapshots name none this machine knows.</summary>
+    [Export] public Xpace.Ship.JammerSpec Jammer;
 
     public RemoteTrack Track { get; } = new();
 
@@ -51,6 +56,7 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
 
     private FloatingOrigin _origin;
     private RadarEmitter _radar;
+    private Xpace.Ship.JammerDevice _jammer;
     private EnginePlume[] _plumes;
 
     public override void _Ready()
@@ -66,6 +72,9 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
         _radar = new RadarEmitter { Name = "Radar", Signature = RadarSignature, PowerAt1Km = RadarPowerAt1Km };
         AddChild(_radar);
         _radar.Follow(RadarMode.Off, null, false);
+        _jammer = new Xpace.Ship.JammerDevice { Name = "Jammer", Spec = Jammer };
+        AddChild(_jammer);
+        _jammer.Follow(JamMode.Off, false, Vector3.Forward);
         _plumes = FindChildren("*", "", true, false).OfType<EnginePlume>().ToArray();
     }
 
@@ -112,5 +121,8 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
             Explosion.Spawn(GetParent(), GlobalPosition, 30f, 1.6, 16f);     // blown up on its owner's machine
         Visible = !p.Destroyed;
         _radar.Follow(p.Radar, p.Radar == RadarMode.Track ? SessionNode.Instance?.NodeOf(p.RadarTarget) : null, p.RadarGuiding);
+        if (p.Jam != JamMode.Off)
+            _jammer.Spec = SessionNode.Instance?.JammerModel(p.JamModel) ?? Jammer ?? _jammer.Spec;
+        _jammer.Follow(p.Destroyed ? JamMode.Off : p.Jam, p.JamAimed, p.JamAim);
     }
 }

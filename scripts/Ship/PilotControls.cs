@@ -23,4 +23,5 @@ public struct PilotControls
     public bool PipWeapons;
     public bool PipReset;
     public bool HeatSink;
+    public bool Jammer;             // the jammer: off, noise, deception, off
 }

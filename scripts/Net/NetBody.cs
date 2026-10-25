@@ -37,6 +37,22 @@ public interface INetShip
     void End(bool exploded);
 }
 
+/// <summary>A jammer others can tell is sending, and where it aims.</summary>
+public interface INetJammer
+{
+    JamMode Mode { get; }
+    bool Aimed { get; }
+
+    /// <summary>Where the aimed beam points, ship axes.</summary>
+    Vector3 Aim { get; }
+
+    /// <summary>Its model (a puppet that has no model of its own takes the owner's).</summary>
+    Xpace.Ship.JammerSpec Spec { get; set; }
+
+    /// <summary>A puppet's jammer: do what the owner's does.</summary>
+    void Follow(JamMode mode, bool aimed, Vector3 aim);
+}
+
 /// <summary>A radar others can tell is on, and what it tracks.</summary>
 public interface INetRadar
 {
@@ -105,6 +121,7 @@ public partial class NetBody : Node, INetEntity
     private IRadarTarget _signature;
     private INetShip _script;
     private INetRadar _radar;
+    private INetJammer _jammer;
     private FloatingOrigin _origin;
     private SectorPoint _lastPosition;
     private Quaternion _lastOrientation;
@@ -137,13 +154,17 @@ public partial class NetBody : Node, INetEntity
         _signature = parts.OfType<IRadarTarget>().FirstOrDefault();
         _script = parts.OfType<INetShip>().FirstOrDefault();
         _radar = parts.OfType<INetRadar>().FirstOrDefault();
+        _jammer = parts.OfType<INetJammer>().FirstOrDefault();
         Hitboxes = Hitbox.FromShapes(Ship);
         NetId = id;
         IsLocal = local;
         Track = local ? null : new RemoteTrack { TickSeconds = tickSeconds };
         Ship.SetPhysicsProcess(local);
         if (!local)
+        {
             _radar?.Follow(RadarMode.Off, null, false);   // quiet until the owner's first word
+            _jammer?.Follow(JamMode.Off, false, Vector3.Forward);
+        }
         _moved = false;
         Joined = true;
     }
@@ -173,6 +194,7 @@ public partial class NetBody : Node, INetEntity
         _moved = true;
         bool destroyed = !(_signature?.Alive ?? true);
         RadarMode radar = destroyed ? RadarMode.Off : _radar?.Mode ?? RadarMode.Off;
+        JamMode jam = destroyed ? JamMode.Off : _jammer?.Mode ?? JamMode.Off;
         ushort tracked = ShipSnapshot.NoTarget;
         if (radar == RadarMode.Track && SessionNode.Instance?.IdOf(_radar.Tracked) is ushort id)
             tracked = id;
@@ -181,6 +203,8 @@ public partial class NetBody : Node, INetEntity
             Tick = tick, Position = position, Orientation = orientation, Velocity = velocity, AngularVelocity = spin,
             Destroyed = destroyed, Thrust = _script?.Thrust ?? 0, Heat = _script?.Heat ?? 0,
             Radar = radar, RadarTarget = tracked, RadarGuiding = radar == RadarMode.Track && _radar.Guiding,
+            Jam = jam, JamModel = SessionNode.Instance?.JammerIndex(_jammer?.Spec) ?? ShipSnapshot.NoModel,
+            JamAimed = jam != JamMode.Off && _jammer.Aimed, JamAim = _jammer?.Aim ?? Vector3.Forward,
         };
     }
 
@@ -206,6 +230,7 @@ public partial class NetBody : Node, INetEntity
         Ship.Visible = !p.Destroyed;
         _script?.Follow(p);
         _radar?.Follow(p.Radar, p.Radar == RadarMode.Track ? SessionNode.Instance?.NodeOf(p.RadarTarget) : null, p.RadarGuiding);
+        _jammer?.Follow(p.Jam, p.JamAimed, p.JamAim);
         if (_endTick is uint end && (shown >= end || ++_endWait > 60))
             End();
     }

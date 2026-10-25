@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.10 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.11 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -44,8 +44,9 @@
 ; It draws on the ship's screens it finds by name: a radar scope on RADAR
 ; (graphics: bearing across, range up to 8, 6, 4, 2 or 1 km, written in
 ; the top left corner, a dotted line every quarter; the locked target in
-; brackets; with RADAR the screen of interest, its zoom keys step the
-; range) and
+; brackets; a jammer's noise as a dim line up the scope at its bearing,
+; a strobe, which cannot be locked; with RADAR the screen of interest, its
+; zoom keys step the range) and
 ; a page on WEAPON (text, 14 x 10 or more: the target, the turret and its
 ; heat). Without them it works the same, unseen.
 ;
@@ -58,7 +59,8 @@
 ;                            +5 locked  +6 lock id (write)  +8 locked id
 ;                            +10 segment  +12 contact table  +14 track (offsets)
 ;           a contact (16 bytes): +0 id  +2 range m  +4 azimuth  +6 elevation
-;                            +8 closing speed (1/8 m/s)
+;                            +8 closing speed (1/8 m/s)  +10 flags (bit 0
+;                            locked, bit 1 a jammer's strobe: no range)
 ;           the track: +0 id  +2 right  +4 up  +6 forward (1/4 m, from the
 ;                            turret)  +8 SNR (dB)  +14 range (m)
 ;   140h  turret             +0 type 5  +2 azimuth  +4 elevation wanted
@@ -137,7 +139,7 @@ HEAT_CELLS  equ 11
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPFC10'             ; 103h
+signature   db 'XPFC11'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -350,6 +352,8 @@ lock_ahead:
     mov bx, 0FFFFh                  ; the best so far
     xor di, di                      ; its id
 .contact:
+    test byte [si + 10], 2          ; a jammer's strobe: nothing to lock
+    jnz .worse
     mov ax, [si + 4]
     call absolute
     mov dx, ax
@@ -395,6 +399,8 @@ lock_next:
 .found:
     dec dx                          ; the one after it, if there is one
     jz .take
+    test byte [si + 16 + 10], 2     ; strobes come after the echoes: back to the first
+    jnz .take
     mov di, [si + 16]
 .take:
     pop ds
@@ -902,7 +908,9 @@ draw_scope:
     mov ax, [si + 4]                ; bearing
     mov bx, [si + 2]                ; range, m
     mov bp, [si]                    ; id
+    mov dl, [si + 10]               ; flags
     pop ds
+    mov [mark_flags], dl
     add si, 16
     call place_mark
     pop cx
@@ -938,6 +946,10 @@ place_mark:
     jne .kind
     inc al
 .kind:
+    test byte [mark_flags], 2       ; a strobe: a line, not a blob
+    jz .store
+    mov al, 2
+.store:
     mov [di + 4], al
     add di, 6
     inc byte [mark_count]
@@ -967,6 +979,10 @@ put_marks:
 
 ; A mark at (CX, DX): a bright 5 x 4 blob; BL 1 adds the lock's brackets
 xor_mark:
+    cmp bl, 2
+    jne .blob
+    jmp xor_strobe
+.blob:
     cmp cx, 7                       ; kept inside the frame
     jge .x_low
     mov cx, 7
@@ -1013,6 +1029,14 @@ xor_mark:
     call xor_rows
 .done:
     ret
+
+; A jammer's strobe at x = CX: a dim line up the scope
+xor_strobe:
+    mov dx, 5
+    mov bp, [r_h]
+    sub bp, 10
+    mov ax, 4000h                   ; one dim pixel a row
+    jmp xor_rows
 
 ; XOR the pixels AX (the leftmost in the top bits) onto BP rows from
 ; (CX, DX) down
@@ -1639,6 +1663,7 @@ last_result     db 0
 launch_wait     dw 0
 result_wait     dw 0
 mark_count      db 0
+mark_flags      db 0                ; the contact's flags, while placing its mark
 r_scale         db 0                ; which of scope_scales
 r_screen        db 0FFh             ; the RADAR screen's place in the screen table
 keys_seen       db 0                ; the display card's key count, last look

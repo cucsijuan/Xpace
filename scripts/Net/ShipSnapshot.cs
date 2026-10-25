@@ -8,8 +8,8 @@ namespace Xpace.Net;
 public enum RadarMode : byte { Off, Search, Track }
 
 /// <summary>
-/// A ship's state at one sector tick, as its owner sends it: 35 bytes, 37
-/// while its radar tracks something.
+/// A ship's state at one sector tick, as its owner sends it: 35 bytes, up
+/// to 40 while its radar tracks something and its jammer sends, aimed.
 ///
 ///   tick                 32 bits
 ///   position             3 x 32 bits, 1/1024 m, to ±2,097 km from the sector's centre
@@ -23,6 +23,11 @@ public enum RadarMode : byte { Off, Search, Track }
 ///   radar                2 bits: off, searching, tracking; tracking, then
 ///                        16 bits for the ship tracked (0FFFFh: none in the
 ///                        session) and 1 bit: guiding a missile at it
+///   jammer               2 bits: off, noise, deception; sending, then
+///                        4 bits for its model (its place in
+///                        <see cref="SessionNode.Jammers"/>; 15: not
+///                        there) and 1 bit: aimed; aimed, then 8 bits of
+///                        azimuth and 7 of elevation (ship axes)
 ///
 /// Anything that flies is sent this way: ships, missiles. Or as a delta
 /// (<see cref="Wire.WriteDelta"/>) from an older snapshot the other end
@@ -30,7 +35,8 @@ public enum RadarMode : byte { Off, Search, Track }
 /// </summary>
 public struct ShipSnapshot
 {
-    public const int Bytes = 35, MaxBytes = 37;
+    public const int Bytes = 35, MaxBytes = 40;
+    public const byte NoModel = 15;
     public const ushort NoTarget = 0xFFFF;
     public const double PositionScale = 1024, VelocityRange = 4096, AngularRange = 16;
     private const int QuaternionBits = 11, VelocityBits = 17, AngularBits = 16;
@@ -47,6 +53,10 @@ public struct ShipSnapshot
     public RadarMode Radar;
     public ushort RadarTarget;              // tracking: whom
     public bool RadarGuiding;               // tracking: and guiding a missile at it
+    public JamMode Jam;
+    public byte JamModel;                   // sending: its place in the session's list of models
+    public bool JamAimed;
+    public Vector3 JamAim;                  // aimed: where, ship axes (-Z ahead)
 
     public void Write(BitWriter w) => Encode().Write(w);
 
@@ -89,6 +99,17 @@ public struct ShipSnapshot
                   (uint)Math.Clamp(MathF.Round(Heat * 10), 0, 15) << 7;
         if (Radar == RadarMode.Track)
             s.Flags |= (uint)RadarTarget << 11 | (RadarGuiding ? 1u : 0) << 27;
+        if (Jam != JamMode.Off)
+        {
+            s.Jam = (uint)Jam & 3 | (uint)Math.Min((int)JamModel, NoModel) << 2 | (JamAimed ? 1u : 0) << 6;
+            if (JamAimed)
+            {
+                Vector3 a = JamAim.LengthSquared() > 1e-6f ? JamAim.Normalized() : Vector3.Forward;
+                int azimuth = (int)MathF.Round(MathF.Atan2(a.X, -a.Z) / MathF.Tau * 256) & 255;
+                int elevation = Math.Clamp((int)MathF.Round(MathF.Asin(Math.Clamp(a.Y, -1, 1)) / (MathF.PI / 2) * 63), -63, 63) + 64;
+                s.Jam |= (uint)azimuth << 7 | (uint)elevation << 15;
+            }
+        }
         return s;
 
         static int Fixed(double x) => (int)Math.Round(Math.Clamp(x * PositionScale, int.MinValue, int.MaxValue));
@@ -119,6 +140,7 @@ public struct ShipSnapshot
         public int V0, V1, V2;
         public int W0, W1, W2;
         public uint Flags;                  // destroyed (bit 0), thrust (1-4), radar (5-6), heat (7-10), tracked (11-26), guiding (27)
+        public uint Jam;                    // mode (bits 0-1), model (2-5), aimed (6), azimuth (7-14), elevation + 64 (15-21)
 
         private readonly RadarMode Radar => (RadarMode)(Flags >> 5 & 3);
 
@@ -145,6 +167,19 @@ public struct ShipSnapshot
             s.Radar = Radar;
             s.RadarTarget = s.Radar == RadarMode.Track ? (ushort)(Flags >> 11) : NoTarget;
             s.RadarGuiding = s.Radar == RadarMode.Track && (Flags >> 27 & 1) != 0;
+            s.Jam = (JamMode)(Jam & 3);
+            if (s.Jam != JamMode.Off)
+            {
+                s.JamModel = (byte)(Jam >> 2 & 15);
+                s.JamAimed = (Jam >> 6 & 1) != 0;
+                if (s.JamAimed)
+                {
+                    float azimuth = (Jam >> 7 & 255) / 256f * MathF.Tau;
+                    float elevation = ((int)(Jam >> 15 & 127) - 64) / 63f * (MathF.PI / 2);
+                    float flat = MathF.Cos(elevation);
+                    s.JamAim = new Vector3(MathF.Sin(azimuth) * flat, MathF.Sin(elevation), -MathF.Cos(azimuth) * flat);
+                }
+            }
             return s;
         }
 
@@ -202,8 +237,8 @@ public struct ShipSnapshot
                 WriteOrientation(w);
             WriteChange(w, V0 - b.V0, V1 - b.V1, V2 - b.V2);
             WriteChange(w, W0 - b.W0, W1 - b.W1, W2 - b.W2);
-            w.Write(Flags != b.Flags ? 1u : 0, 1);
-            if (Flags != b.Flags)
+            w.Write(Flags != b.Flags || Jam != b.Jam ? 1u : 0, 1);
+            if (Flags != b.Flags || Jam != b.Jam)
                 WriteFlags(w);
         }
 
@@ -235,7 +270,7 @@ public struct ShipSnapshot
             if (r.Read(1) != 0)
                 s.ReadFlags(r);
             else
-                s.Flags = b.Flags;
+                (s.Flags, s.Jam) = (b.Flags, b.Jam);
             return s;
         }
 
@@ -268,6 +303,12 @@ public struct ShipSnapshot
             w.Write(Flags & 0x7FF, 11);
             if (Radar == RadarMode.Track)
                 w.Write(Flags >> 11 & 0x1FFFF, 17);
+            w.Write(Jam & 3, 2);
+            if ((Jam & 3) == 0)
+                return;
+            w.Write(Jam >> 2 & 31, 5);
+            if ((Jam >> 6 & 1) != 0)
+                w.Write(Jam >> 7 & 0x7FFF, 15);
         }
 
         private void ReadFlags(BitReader r)
@@ -275,6 +316,12 @@ public struct ShipSnapshot
             Flags = r.Read(11);
             if (Radar == RadarMode.Track)
                 Flags |= r.Read(17) << 11;
+            Jam = r.Read(2);
+            if (Jam == 0)
+                return;
+            Jam |= r.Read(5) << 2;
+            if ((Jam >> 6 & 1) != 0)
+                Jam |= r.Read(15) << 7;
         }
 
         private static void WriteSteps(BitWriter w, int a, int b, int c, int bits)

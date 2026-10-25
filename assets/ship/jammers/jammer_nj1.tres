@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="JammerSpec" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/JammerSpec.cs" id="1_spec"]
+
+[resource]
+script = ExtResource("1_spec")
+Model = "NJ-1"
+NoiseAt1Km = 100.0
+BeamGain = 1.0
+Megawatts = 0.6
+HeardAt1Km = 50000.0

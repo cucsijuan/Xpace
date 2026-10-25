@@ -79,7 +79,7 @@ public partial class RwrDevice : Node3D, IShipDevice
     [Export] public float SmoothSeconds = 1f;
 
     /// <summary>The signatures it knows, with the power (at 1 km) it expects of each.</summary>
-    [Export] public Godot.Collections.Dictionary<string, float> Library = new() { { "D", 1e4f }, { "F", 4e4f } };
+    [Export] public Godot.Collections.Dictionary<string, float> Library = new() { { "D", 1e4f }, { "F", 4e4f }, { "J", 1e5f } };
     /// <summary>The power it takes an unknown emitter to have, for the range.</summary>
     [Export] public float UnknownPower = 1e4f;
 

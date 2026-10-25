@@ -81,6 +81,7 @@ The keys fly the ship in every mode, except while typing on the computer.
 | Next weapon (gun, radar missiles, heat seekers, pulse laser) | N |
 | Chaff / flare | C / V |
 | Heat sink | H |
+| Jammer (off, noise, deception) | U |
 | A pip to systems / engines / weapons, even them out | Left / Up / Right, Down |
 | Look around / look ahead | Middle button (tap, hold or twice, see above) |
 | Pointer | Alt (tap or hold) |
@@ -112,13 +113,14 @@ Every physics step (60 a second), `ShipBody` writes the stick, the inertial unit
 | 11 | `1B0h` | Power plant and distributor: three capacitors (systems, engines, weapons) filled by twelve half pips of the plant's output |
 | 12 | `1C0h` | Shield generator: takes hits before the hull, builds back from the systems capacitor, collapses when knocked down |
 | 13 | `1D0h` | The ship's heat: plant waste and laser pulses in, radiators out; over 100% the hull cooks; heat sinks |
+| 14 | `1E0h` | Radar jammer: noise (all round or aimed), and on the better models deception (range gate pull-off); draws from the systems capacitor, heats the ship, is heard by warning receivers |
 
 AUTOEXEC.BAT leaves four programs resident; they work inside the interrupt, so the console stays free:
 
 - **FLIGHT.COM** (5% of the CPU): flight assist; its page goes on a FLIGHT screen, if the cockpit has one. Safe turns (B) hold full stick's pitch and yaw to what the thrusters can bend the ship's path to at its speed (from the rating plate), so the ship goes where it points: gentle turns fast, sharp ones slow, sharper with better thrusters.
 - **FIRECTL.COM** (34% of the CPU): locks targets with T/G, smooths the radar's noisy positions with an alpha-beta filter and gets the velocity from them (turning the filter with the gyros, so the ship's own rotation is not taken for target motion), computes the lead (CORDIC for angles and distances), aims the turret and fires while the trigger is held; draws a green B-scope on the RADAR screen (bearing across, range up, 2 km marks, the locked target in brackets) and a page on the WEAPON screen: target, range, lead, SNR, turret angles, barrel heat bar and status (GUN TOO HOT, OUT OF ARC when the target is where the turret cannot point). With the pulse laser selected it fires the laser while the trigger is held, and works out the same solution for the laser's bolts: the lead point goes to the laser's sight and the head-up display draws a circle there, with a pipper where the pulses go at that range; put the pipper on the circle.
 
-- **RWR.COM**: draws the warning receiver's picture on the RWR screen, and works the dispenser: one bundle of chaff or one flare on each press of C or V, with what is left in the bottom right corner (C chaff, F flares).
+- **RWR.COM**: draws the warning receiver's picture on the RWR screen, and works the dispenser: one bundle of chaff or one flare on each press of C or V, with what is left in the bottom right corner (C chaff, F flares). It also works the jammer: U steps it off, noise, deception (if the model has it), off (JAM N / JAM D top right), and it aims the jammer's beam at the radar that has the ship locked.
 - **POWER.COM**: works the power distributor from the arrow keys as in Elite (a pip to one takes half a pip from each of the others; at most four on one; Down evens them out) and throws a heat sink on H.
 
 **Power, shields and heat.** The thrusters, the shields and the laser draw from their capacitors: with too small a share the shields build back slowly, the thrusters push less, the laser waits. What the plant makes and the laser fires heats the ship; the hotter it is, the brighter its hull on a heat seeker, and past 100% the hull wears away (shields don't stop that). A heat sink takes the heat away for a few seconds, and the hull's glow with it. The head-up display shows the pips and capacitors, the shield and the heat bottom right.
@@ -127,6 +129,7 @@ A target lost at the edge of the radar's ±60° cone is taken back by itself if 
 
 **Why it misses.** Nothing is decided by dice: errors come from physical causes.
 - **The radar:** its noise comes from its SNR, which falls with the fourth power of the range, grows with the target's signature and falls with jamming.
+- **Jammers:** noise falls only with the square of the range, so a jammed ship is seen only nearer (*burn-through*), and aiming the jammer's beam at one radar hides it from that radar further out; but the jammer is heard from far beyond that, and its noise shows on the radar as a strobe at its bearing. A deception jammer copies a tracking radar's echo, stronger, and walks the copy away: the track and any missile on its datalink go with it, until the copy stops and the lock is lost; close in the real echo wins. Models are `JammerSpec` resources (`assets/ship/jammers`: NJ-1 noise all round, NJ-2 aimed noise, DJ-3 noise and deception).
 - **The filter:** its gains (`ALPHA`, `BETA_DT` in firectl.asm) trade smoothing the noise against following a turn in time.
 - **The drones:** they jink at up to 2 g once locked or hit, and they are only as big as their shape: rounds through the space between fuselage and wings miss.
 - **The servos:** they have inertia.
@@ -190,6 +193,7 @@ godot --headless --fixed-fps 60 --path . res://tests/maneuver_test.tscn
 
 - `rock_test`, `avoid_test`: rock fields (the same rocks on every machine, ships bouncing off them, rounds stopped, radars blind behind them and lost in their clutter), and drones and the raider crossing a thick field with no rock sensor, a poor one and a good one.
 - `missile_test`, `rwr_test`: radar and heat-seeking missiles against drones that break and drop chaff and flares; the warning receiver, its screen, and the dispenser worked by RWR.COM.
+- `jammer_test`: RWR.COM's jammer button and aiming; noise hiding a ship far out, its strobe, burn-through close in, the aimed beam, a dry capacitor, the heat; a drone's radar; deception pulling a track 1.2 km away and breaking the lock, and failing close in; the jammer in snapshots.
 - Networking (no `--fixed-fps` needed): `net_test` (snapshots and interpolation), `lag_test` (lag compensation), `session_test`, `session_scene_test`, `udp_test` (real sockets on the loopback), `star_test` (the transport online play uses: only admitted players get in, another version is turned away, leaving the lobby leaves the session, a player silent for 10 s is dropped), `net_missile_test` (missiles, blasts, chaff, flares and radar locks across a session).
 
 `tests/combat_demo.tscn` opens the game with a script at the controls (it locks and fires by itself), to watch or record.

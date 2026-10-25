@@ -221,7 +221,8 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
                                         (c.TargetAhead ? 4 : 0) | (c.NextTarget ? 8 : 0) | (c.Trigger ? 16 : 0) |
                                         (c.NextWeapon ? 32 : 0) | (c.Chaff ? 64 : 0) | (c.Flare ? 128 : 0));
         bus[SlotControls, 15] = (byte)((c.SafeButton ? 1 : 0) | (c.PipSystems ? 2 : 0) | (c.PipEngines ? 4 : 0) |
-                                        (c.PipWeapons ? 8 : 0) | (c.PipReset ? 16 : 0) | (c.HeatSink ? 32 : 0));
+                                        (c.PipWeapons ? 8 : 0) | (c.PipReset ? 16 : 0) | (c.HeatSink ? 32 : 0) |
+                                        (c.Jammer ? 64 : 0));
     }
 
     /// <summary>
