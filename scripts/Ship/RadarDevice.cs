@@ -142,10 +142,29 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     /// <summary>Signal-to-noise ratio of a target's echo (linear), jamming included.</summary>
     public float Snr(IRadarTarget t)
     {
+        if (Hidden(t))
+            return 0;
         Vector3 toTarget = t.GlobalPosition - GlobalPosition;
         float range = MathF.Max(toTarget.Length(), 1f);
         float echo = DetectSnr * MathF.Pow(DetectionRange / range, 4) * (t.RadarCrossSection / ReferenceRcs);
         return echo / (1 + Jamming(toTarget));
+    }
+
+    private readonly Dictionary<IRadarTarget, bool> _hidden = new();
+    private ulong _hiddenStep;
+
+    /// <summary>Rock between the antenna and a target: no echo comes back (worked out once a step for each).</summary>
+    private bool Hidden(IRadarTarget t)
+    {
+        ulong step = Engine.GetPhysicsFrames();
+        if (step != _hiddenStep)
+        {
+            _hidden.Clear();
+            _hiddenStep = step;
+        }
+        if (!_hidden.TryGetValue(t, out bool hidden))
+            _hidden[t] = hidden = RockField.Blocked(GlobalPosition, t.GlobalPosition);
+        return hidden;
     }
 
     /// <summary>Jamming-to-noise ratio while looking along a direction.</summary>

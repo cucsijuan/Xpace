@@ -11,7 +11,8 @@ public interface IRearmable
 
 /// <summary>
 /// The ship's structure: what the hits it takes wear away (its signature
-/// passes on every round and blast). With <see cref="Integrity"/> gone the
+/// passes on every round and blast), and crashes into rocks
+/// (<see cref="CrashJoulesPerPoint"/>). With <see cref="Integrity"/> gone the
 /// ship blows up: what is left is a wreck, its systems dead (no computer,
 /// no thrusters, nothing on its sensors), drifting as it was going. With
 /// insurance a new ship is ready after <see cref="RespawnSeconds"/> where
@@ -24,6 +25,8 @@ public partial class ShipHull : Node, IDamageable
     [Export] public float Integrity = 300f;
     [Export] public bool Insured = true;
     [Export] public double RespawnSeconds = 6;
+    /// <summary>Kinetic energy a crash must take to wear one point of integrity (joules).</summary>
+    [Export] public float CrashJoulesPerPoint = 80_000f;
 
     [Signal] public delegate void DestroyedEventHandler();
     [Signal] public delegate void RestoredEventHandler();
@@ -33,6 +36,8 @@ public partial class ShipHull : Node, IDamageable
     /// <summary>Seconds until the insurer's new ship (while wrecked and insured).</summary>
     public double RespawnIn { get; private set; }
     public int Losses { get; private set; }
+    /// <summary>All the integrity crashes have taken.</summary>
+    public float CrashDamage { get; private set; }
     public float Fraction => Left / Integrity;
 
     /// <summary>Where a new ship appears: where this one was when the game put it there.</summary>
@@ -45,6 +50,16 @@ public partial class ShipHull : Node, IDamageable
         Left = Integrity;
         _ship = GetParent<ShipBody>();
         Spawn = _ship.GlobalTransform;
+        _ship.Impact += Crash;
+    }
+
+    public override void _ExitTree() => _ship.Impact -= Crash;
+
+    /// <summary>A crash into a rock: what the ship's motion lost is what crushed it.</summary>
+    private void Crash(float joules)
+    {
+        CrashDamage += joules / CrashJoulesPerPoint;
+        Hit(joules / CrashJoulesPerPoint);
     }
 
     public void Hit(float damage)

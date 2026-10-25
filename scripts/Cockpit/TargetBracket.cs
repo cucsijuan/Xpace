@@ -26,7 +26,9 @@ public partial class TargetBracket : Control
     public override void _Draw()
     {
         Camera3D camera = GetViewport().GetCamera3D();
-        if (_radar?.Locked == null || camera == null || camera.IsPositionBehind(_radar.Locked.GlobalPosition))
+        // A target freed since the radar's last step (chaff gone) is not drawn
+        if (_radar?.Locked == null || (_radar.Locked is GodotObject o && !IsInstanceValid(o))
+            || camera == null || camera.IsPositionBehind(_radar.Locked.GlobalPosition))
             return;
         Vector2 c = camera.UnprojectPosition(_radar.Locked.GlobalPosition);
         float s = Size2, k = 8f;

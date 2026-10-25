@@ -230,6 +230,13 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
             }
             Velocity = heading * Speed;
         }
+        // No eyes for rocks: it flies into them, and that is the end of it
+        if (RockField.SegmentAll(GlobalPosition, GlobalPosition + Velocity * dt, out float rock, out _))
+        {
+            GlobalPosition += Velocity * (rock * dt);
+            Explode();
+            return;
+        }
         GlobalPosition += Velocity * dt;
         if (Velocity.LengthSquared() > 1)
             LookAt(GlobalPosition + Velocity, Vector3.Up);

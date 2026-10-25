@@ -27,6 +27,15 @@ set(MODELS
   SM_Veh_POV_Cockpit_Frame_03
   SM_Ship_Fighter_03
   FX_Meshes/SM_Flame_Mesh_New
+  SM_Env_Astroid_01
+  SM_Env_Astroid_02
+  SM_Env_Astroid_03
+  SM_Env_Astroid_04
+  SM_Env_Astroid_05
+  SM_Env_Astroid_Large_01
+  SM_Env_Astroid_Large_02
+  SM_Env_Astroid_Holes_03
+  SM_Env_Astroid_Large_Holes_02
 )
 set(TEXTURES
   PolygonSciFiSpace_Texture_01_A

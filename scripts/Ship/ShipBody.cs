@@ -20,6 +20,9 @@ namespace Xpace.Ship;
 /// the physics engine: the body only carries the collision shapes. Setting
 /// the node's transform still moves the ship (the floating origin, tests).
 ///
+/// After each step the ship meets the rocks it touches (<see cref="ShipContact"/>):
+/// it bounces off them, and <see cref="Impact"/> tells its hull how hard.
+///
 /// Other devices (radar, turrets, displays) are nodes below the ship that
 /// implement <see cref="IShipDevice"/>; they get the same two calls.
 ///
@@ -58,6 +61,9 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     /// <summary>Blown up (its <see cref="ShipHull"/> says so): no computer, no devices, no thrust; it only drifts.</summary>
     public bool Wrecked { get; set; }
 
+    /// <summary>The ship hit a rock this step: the kinetic energy the crash took (joules).</summary>
+    public event Action<float> Impact;
+
     /// <summary>The last commands, -1..1: pitch, roll, yaw torque; right, up, forward force.</summary>
     public readonly float[] Commands = new float[6];
 
@@ -65,6 +71,9 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     private readonly List<IShipDevice> _devices = new();
     private Quaternion _orientation = Quaternion.Identity;
     private Basis _written = Basis.Identity;
+    private Hitbox[] _hitboxes;
+    private float _bound;
+    private readonly List<Space.RockSphere> _near = new();
 
     public override void _Ready()
     {
@@ -82,6 +91,12 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         foreach (Node node in FindChildren("*", "", true, false))
             if (node is IShipDevice device)
                 _devices.Add(device);
+
+        // What meets rocks: the hitboxes (a plain box if it has none)
+        _hitboxes = Hitbox.FromShapes(this);
+        if (_hitboxes.Length == 0)
+            _hitboxes = new[] { new Hitbox(Vector3.Zero, new Vector3(5, 3, 10)) };
+        _bound = ShipContact.Bound(_hitboxes);
     }
 
     public T Device<T>() where T : class, IShipDevice
@@ -222,7 +237,12 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
             -Commands[1] * s.RollAcceleration * s.Inertia.Z);
         float forward = Commands[5] >= 0 ? Commands[5] * s.MainThrust : Commands[5] * s.ReverseThrust;
         var force = new Vector3(Commands[3] * s.LateralThrust, Commands[4] * s.VerticalThrust, -forward);
-        State = ShipMotion.Step(State, force, torque, s.Mass, s.Inertia, dt);
+        ShipState before = State;
+        ShipState after = ShipMotion.Step(before, force, torque, s.Mass, s.Inertia, dt);
+        float crash = ShipContact.Collide(ref after, before.Position, _hitboxes, _bound, s, _near);
+        State = after;
+        if (crash > 0)
+            Impact?.Invoke(crash);
     }
 
     private static int Axis(float x) => (int)MathF.Round(Math.Clamp(x, -1f, 1f) * 32767);

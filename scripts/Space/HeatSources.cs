@@ -48,7 +48,7 @@ public static class Heat
             if (node is not IHeatSource source || node is Node3D n && !n.IsVisibleInTree())
                 continue;
             float heat = source.HeatAt(from, out Vector3 direction);
-            if (heat <= 0 || direction.Dot(look) < cos)
+            if (heat <= 0 || direction.Dot(look) < cos || Behind(from, node))
                 continue;
             total += heat;
             sum += direction * heat;
@@ -60,5 +60,16 @@ public static class Heat
         }
         centre = total > 0 ? sum.Normalized() : look;
         return total;
+    }
+
+    /// <summary>A rock between the seeker and a source (the sun, far off, is tested a long way along its direction).</summary>
+    private static bool Behind(Vector3 from, Node source)
+    {
+        if (RockField.All.Count == 0 || source is not Node3D n)
+            return false;
+        Vector3 to = n.GlobalPosition - from;
+        if (to.LengthSquared() > 1e10f)
+            to = to.Normalized() * 100_000f;
+        return RockField.Blocked(from, from + to);
     }
 }

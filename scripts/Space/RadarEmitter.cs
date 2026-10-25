@@ -130,7 +130,7 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
         }
         Vector3 local = GlobalBasis.Inverse() * (Target.GlobalPosition - GlobalPosition);
         float range = local.Length();
-        bool inCone = range > 1 && Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees);
+        bool inCone = range > 1 && Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees) && !RockField.Blocked(GlobalPosition, Target.GlobalPosition);
         float reach = Reach(Target, LockRange);
         if (Locked)
             Locked = inCone && range <= reach * 1.15f;
@@ -147,7 +147,8 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
                 continue;
             Vector3 local = GlobalBasis.Inverse() * (n.GlobalPosition - GlobalPosition);
             float range = local.Length();
-            if (range > 1 && range <= Reach(n, DetectRange) && Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees) && Crossed(local))
+            if (range > 1 && range <= Reach(n, DetectRange) && Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees) && Crossed(local)
+                && !RockField.Blocked(GlobalPosition, n.GlobalPosition))
                 _swept.Add(n);
         }
     }
@@ -161,8 +162,8 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
         if (!Transmitting)
             return false;
         Vector3 local = GlobalBasis.Inverse() * (point - GlobalPosition);
-        if (local.LengthSquared() < 1)
-            return false;
+        if (local.LengthSquared() < 1 || RockField.Blocked(GlobalPosition, point))
+            return false;                       // too close to tell, or rock in the way
         float half = Mathf.DegToRad(BeamwidthDegrees) / 2;
         if (Locked)
         {
