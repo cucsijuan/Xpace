@@ -44,7 +44,7 @@ public partial class MainMenu : Node3D
         var quit = GetNode<Button>("%Quit");
         _buttons = new[] { single, multi, settings, quit };
         single.Pressed += Play;
-        multi.Pressed += Multiplayer;
+        multi.Pressed += PlayOnline;
         settings.Pressed += () =>
         {
             _menu.Hide();
@@ -73,7 +73,7 @@ public partial class MainMenu : Node3D
 
     private void Play() => GetTree().ChangeSceneToFile(GameScene);
 
-    private async void Multiplayer()
+    private async void PlayOnline()
     {
         foreach (Button b in _buttons)
             b.Disabled = true;

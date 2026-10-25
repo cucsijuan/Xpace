@@ -34,7 +34,7 @@ jobs:
           cmake -S native -B native/build
           cmake --build native/build --config Release --target libraries
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-native
           path: native/bin/*.dll
@@ -70,7 +70,7 @@ jobs:
           cmake -S native -B native/build
           cmake --build native/build --config Release
 
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v8
         with:
           name: windows-native
           path: native/bin
@@ -157,7 +157,7 @@ jobs:
           (cd build/linux && zip -qr "../../$NAME-linux.zip" .)
           (cd build/windows && zip -qr "../../$NAME-windows.zip" .)
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v7
         if: github.ref_type != 'tag'
         with:
           name: ${{ env.NAME }}
