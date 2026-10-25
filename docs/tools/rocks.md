@@ -75,6 +75,32 @@ draws a plain ball the size of its spheres; the collisions do not change.
   of sight) is lost in its echo. Rocks never show on a scope. It costs
   about 30 us a target, worked out once a step.
 
+## AI ships and rocks
+
+An AI ship sees rocks only with a `RockSensor` under it
+(`scripts/Space/RockSensor.cs`): a lidar along the way it flies. Every
+`ScanSeconds` it casts a ray along the heading and `Rings` rings of
+`RaysPerRing` rays round it out to `ConeDegrees`, each out to `Range` and
+as wide as the ship (`Clearance`: a ray is clear only if something that
+wide gets through). Its brain steers for the way it wants while that is
+clear far enough, else for the clear ray nearest it, else for the ray
+with the most room.
+
+- **Drones** (`Drone`) keep room for twice their turning radius.
+- **The raider's pilot** (`FighterAi`) watches the way the ship is going
+  for `AvoidSeconds` of flight and steers round a rock whatever it was
+  doing; it never flies faster than lets it stop on `BrakeShare` of its
+  reverse thrust short of the nearest rock it sees (or a creep, to edge
+  out when boxed in). With rocks in sight it turns FLIGHT's safe turns on,
+  so the ship goes where it points instead of sliding into a rock.
+
+What a sensor does not see, its ship hits: a rock beyond its range, one
+slipping between rays, one come up since the last scan. `avoid_test`
+measures it down the same lanes of a field five times thicker than
+main's: drones with no sensor, a poor one (300 m, 4 rays, 2 scans a
+second) and the default one (1.5 km, 17 rays, 5 a second); the raider
+with none and with one.
+
 ## Mining
 
 Every rock has a name, `RockId` (its cell and its index in the cell).

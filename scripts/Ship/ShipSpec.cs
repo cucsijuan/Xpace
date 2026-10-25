@@ -10,18 +10,18 @@ public partial class ShipSpec : Resource
 
     [ExportGroup("Thrust (newtons)")]
     [Export] public float MainThrust = 1_000_000f;              // forward
-    [Export] public float ReverseThrust = 500_000f;
-    [Export] public float LateralThrust = 500_000f;             // right and left
-    [Export] public float VerticalThrust = 500_000f;            // up and down
+    [Export] public float ReverseThrust = 700_000f;
+    [Export] public float LateralThrust = 700_000f;             // right and left
+    [Export] public float VerticalThrust = 700_000f;            // up and down
 
     [ExportGroup("Power")]
     /// <summary>What the main motor draws at full thrust from the engines capacitor, if the ship has a power plant (MW).</summary>
     [Export] public float ThrustMegawatts = 4f;
 
     [ExportGroup("Turning (rad/s², at full torque)")]
-    [Export] public float PitchAcceleration = 1.5f;
-    [Export] public float RollAcceleration = 3.0f;
-    [Export] public float YawAcceleration = 0.8f;
+    [Export] public float PitchAcceleration = 2.1f;
+    [Export] public float RollAcceleration = 4.2f;
+    [Export] public float YawAcceleration = 1.12f;
 
     /// <summary>Moments of inertia about the ship's own X, Y, Z (kg m²); with the accelerations they give the torques.</summary>
     [Export] public Vector3 Inertia = new(80_000f, 100_000f, 40_000f);

@@ -17,6 +17,7 @@ public struct PilotControls
     public bool NextWeapon;         // cycles the weapons (Elite's next fire group)
     public bool Chaff;              // the countermeasures dispenser
     public bool Flare;
+    public bool SafeButton;         // FLIGHT's safe turns, on and off
     public bool PipSystems;         // the power distributor: a pip to systems, engines, weapons, or even them out
     public bool PipEngines;
     public bool PipWeapons;

@@ -5,7 +5,7 @@ using Xpace.Computer;
 namespace Xpace.Ship;
 
 /// <summary>
-/// The shield generator, bus slot 11 (1B0h): a field round the ship that
+/// The shield generator, bus slot 12 (1C0h): a field round the ship that
 /// takes the hits before the hull does, up to <see cref="Strength"/>
 /// points; what gets past it goes on to the <see cref="ShipHull"/>. It
 /// builds back <see cref="RechargePerSecond"/> points a second, paying
@@ -21,7 +21,7 @@ namespace Xpace.Ship;
 /// </summary>
 public partial class ShieldDevice : Node, IShipDevice, IRearmable
 {
-    public const int Slot = 11;
+    public const int Slot = 12;
     public const byte Type = 13;
 
     [Export] public float Strength = 150f;

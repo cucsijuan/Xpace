@@ -32,8 +32,8 @@ namespace Xpace.Ship;
 /// </summary>
 public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
 {
-    public const int SlotControls = 0, SlotInertial = 1, SlotThrusters = 2;
-    public const byte TypeControls = 1, TypeInertial = 2, TypeThrusters = 3;
+    public const int SlotControls = 0, SlotInertial = 1, SlotThrusters = 2, SlotRatings = 10;
+    public const byte TypeControls = 1, TypeInertial = 2, TypeThrusters = 3, TypeRatings = 12;
 
     [Export] public ShipSpec Spec;
     [Export] public NodePath ComputerPath = "ShipComputer";
@@ -88,8 +88,11 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         bus[SlotControls, 0] = TypeControls;
         bus[SlotInertial, 0] = TypeInertial;
         bus[SlotThrusters, 0] = TypeThrusters;
+        bus[SlotRatings, 0] = TypeRatings;
         for (int slot = 0; slot < 3; slot++)
             bus[slot, 1] = 1;                       // version
+        bus[SlotControls, 1] = 2;                   // +15: more buttons
+        bus[SlotRatings, 1] = 1;
         foreach (Node node in FindChildren("*", "", true, false))
             if (node is IShipDevice device)
                 _devices.Add(device);
@@ -124,6 +127,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         }
         WriteControls(bus, Controls);
         WriteInertial(bus);
+        WriteRatings(bus);
         foreach (IShipDevice d in _devices)
             d.BeforeStep(this, delta);
         bus.RaiseIrq();
@@ -216,9 +220,30 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         bus[SlotControls, 14] = (byte)((c.AssistButton ? 1 : 0) | (c.BoostButton ? 2 : 0) |
                                         (c.TargetAhead ? 4 : 0) | (c.NextTarget ? 8 : 0) | (c.Trigger ? 16 : 0) |
                                         (c.NextWeapon ? 32 : 0) | (c.Chaff ? 64 : 0) | (c.Flare ? 128 : 0));
-        bus[SlotControls, 15] = (byte)((c.PipSystems ? 1 : 0) | (c.PipEngines ? 2 : 0) | (c.PipWeapons ? 4 : 0) |
-                                        (c.PipReset ? 8 : 0) | (c.HeatSink ? 16 : 0));
+        bus[SlotControls, 15] = (byte)((c.SafeButton ? 1 : 0) | (c.PipSystems ? 2 : 0) | (c.PipEngines ? 4 : 0) |
+                                        (c.PipWeapons ? 8 : 0) | (c.PipReset ? 16 : 0) | (c.HeatSink ? 32 : 0));
     }
+
+    /// <summary>
+    /// The thrusters' rating plate (slot 10): what they can do to this ship as
+    /// it is, so a program can fly within it. Accelerations in 1/8 m/s²:
+    /// +2 forward, +4 reverse, +6 sideways, +8 up and down; turning ones in
+    /// 1/1024 rad/s²: +10 pitch, +12 yaw, +14 roll. Better thrusters (or a
+    /// lighter ship) read higher.
+    /// </summary>
+    private void WriteRatings(ShipBus bus)
+    {
+        ShipSpec s = Spec;
+        bus.SetWord(SlotRatings, 2, Rating(s.MainThrust / s.Mass * 8));
+        bus.SetWord(SlotRatings, 4, Rating(s.ReverseThrust / s.Mass * 8));
+        bus.SetWord(SlotRatings, 6, Rating(s.LateralThrust / s.Mass * 8));
+        bus.SetWord(SlotRatings, 8, Rating(s.VerticalThrust / s.Mass * 8));
+        bus.SetWord(SlotRatings, 10, Rating(s.PitchAcceleration * 1024));
+        bus.SetWord(SlotRatings, 12, Rating(s.YawAcceleration * 1024));
+        bus.SetWord(SlotRatings, 14, Rating(s.RollAcceleration * 1024));
+    }
+
+    private static int Rating(float x) => (int)Math.Clamp(MathF.Round(x), 0, 32767);
 
     /// <summary>
     /// Turn rates in 1/1024 rad/s and speeds in 1/8 m/s, about and along the

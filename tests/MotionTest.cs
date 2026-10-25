@@ -18,7 +18,12 @@ public partial class MotionTest : Node
     /// <summary>The final state's hash on the reference machine (Linux x64); other machines must give the same.</summary>
     private const ulong ReferenceHash = 0x99f1a2177f552c65;
 
-    private static readonly ShipSpec Spec = new();
+    // Fixed numbers, not the hull's current tuning: the reference hash is of these
+    private static readonly ShipSpec Spec = new()
+    {
+        MainThrust = 1_000_000f, ReverseThrust = 500_000f, LateralThrust = 500_000f, VerticalThrust = 500_000f,
+        PitchAcceleration = 1.5f, RollAcceleration = 3.0f, YawAcceleration = 0.8f,
+    };
     private int _failures;
 
     private RigidBody3D _body;

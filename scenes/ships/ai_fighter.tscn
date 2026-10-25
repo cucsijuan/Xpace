@@ -1,4 +1,4 @@
-[gd_scene load_steps=32 format=3]
+[gd_scene load_steps=33 format=3]
 
 [ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="1_ship"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="2_spec"]
@@ -27,6 +27,7 @@
 [ext_resource type="Texture2D" path="res://assets/synty/Gradient_Boost.png" id="25_boost"]
 [ext_resource type="Script" path="res://scripts/Ship/FighterAi.cs" id="26_ai"]
 [ext_resource type="Script" path="res://scripts/Space/Datalink.cs" id="27_datalink"]
+[ext_resource type="Script" path="res://scripts/Space/RockSensor.cs" id="28_rock_sensor"]
 [ext_resource type="Script" path="res://scripts/Ship/PowerDevice.cs" id="40_power"]
 [ext_resource type="Script" path="res://scripts/Ship/ShieldDevice.cs" id="41_shield"]
 [ext_resource type="Script" path="res://scripts/Ship/HeatDevice.cs" id="42_heat"]
@@ -138,6 +139,9 @@ FlameTexture = ExtResource("25_boost")
 [node name="Datalink" type="Node" parent="."]
 script = ExtResource("27_datalink")
 Channel = "raiders"
+
+[node name="RockSensor" type="Node3D" parent="."]
+script = ExtResource("28_rock_sensor")
 
 [node name="Pilot" type="Node" parent="."]
 script = ExtResource("26_ai")

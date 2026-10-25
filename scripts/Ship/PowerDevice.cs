@@ -8,7 +8,7 @@ namespace Xpace.Ship;
 public enum PowerStore { Systems, Engines, Weapons }
 
 /// <summary>
-/// The power plant and its distributor, bus slot 10 (1A0h). The plant gives
+/// The power plant and its distributor, bus slot 11 (1B0h). The plant gives
 /// up to <see cref="PlantMegawatts"/>; the distributor shares that among
 /// three capacitors, systems (the shields), engines (the thrusters) and
 /// weapons (the laser), by the program's setting: twelve half pips, up to
@@ -19,14 +19,14 @@ public enum PowerStore { Systems, Engines, Weapons }
 /// lets them, the laser waits. The plant makes only what is drawn; of that,
 /// <see cref="WasteHeat"/> goes to heat (<see cref="HeatDevice"/>).
 ///
-/// Registers: +0 type 12  +2 systems  +3 engines  +4 weapons (half pips,
+/// Registers: +0 type 15  +2 systems  +3 engines  +4 weapons (half pips,
 /// 0 to 8; writing all three, ending with +4, sets them, if they add up to
 /// 12)  +6 +7 +8 the capacitors, 0 to 255 full
 /// </summary>
 public partial class PowerDevice : Node, IShipDevice, IRearmable
 {
-    public const int Slot = 10;
-    public const byte Type = 12;
+    public const int Slot = 11;
+    public const byte Type = 15;
     public const int HalfPips = 12, MostHalfPips = 8;
 
     [Export] public float PlantMegawatts = 20f;

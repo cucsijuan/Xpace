@@ -66,6 +66,7 @@ The keys fly the ship in every mode, except while typing on the computer.
 | Yaw | A / D |
 | Strafe sideways / up and down | Q / E, R / F |
 | Flight assist | Z |
+| Safe turns (full stick only asks what the thrusters can follow at this speed) | B |
 | Lock the target ahead (again: let it go) / the next one | T / G |
 | Fire | Left button, while flying |
 | Next weapon (gun, radar missiles, heat seekers, pulse laser) | N |
@@ -98,13 +99,14 @@ Every physics step (60 a second), `ShipBody` writes the stick, the inertial unit
 | 7 | `170h` | Radar warning receiver: the radars lighting the ship, and the plumes of missiles coming |
 | 8 | `180h` | Countermeasures dispenser: chaff and flares, a limited load of each |
 | 9 | `190h` | Pulse laser fixed along the nose (2,000 m/s bolts, heat), with the gunsight's lead point the program writes for the head-up display |
-| 10 | `1A0h` | Power plant and distributor: three capacitors (systems, engines, weapons) filled by twelve half pips of the plant's output |
-| 11 | `1B0h` | Shield generator: takes hits before the hull, builds back from the systems capacitor, collapses when knocked down |
-| 12 | `1C0h` | The ship's heat: plant waste and laser pulses in, radiators out; over 100% the hull cooks; heat sinks |
+| 10 | `1A0h` | Thruster ratings: the accelerations the thrusters give this ship, read by FLIGHT's safe turns |
+| 11 | `1B0h` | Power plant and distributor: three capacitors (systems, engines, weapons) filled by twelve half pips of the plant's output |
+| 12 | `1C0h` | Shield generator: takes hits before the hull, builds back from the systems capacitor, collapses when knocked down |
+| 13 | `1D0h` | The ship's heat: plant waste and laser pulses in, radiators out; over 100% the hull cooks; heat sinks |
 
 AUTOEXEC.BAT leaves four programs resident; they work inside the interrupt, so the console stays free:
 
-- **FLIGHT.COM** (5% of the CPU): flight assist; its page goes on a FLIGHT screen, if the cockpit has one.
+- **FLIGHT.COM** (5% of the CPU): flight assist; its page goes on a FLIGHT screen, if the cockpit has one. Safe turns (B) hold full stick's pitch and yaw to what the thrusters can bend the ship's path to at its speed (from the rating plate), so the ship goes where it points: gentle turns fast, sharp ones slow, sharper with better thrusters.
 - **FIRECTL.COM** (34% of the CPU): locks targets with T/G, smooths the radar's noisy positions with an alpha-beta filter and gets the velocity from them (turning the filter with the gyros, so the ship's own rotation is not taken for target motion), computes the lead (CORDIC for angles and distances), aims the turret and fires while the trigger is held; draws a green B-scope on the RADAR screen (bearing across, range up, 2 km marks, the locked target in brackets) and a page on the WEAPON screen: target, range, lead, SNR, turret angles, barrel heat bar and status (GUN TOO HOT, OUT OF ARC when the target is where the turret cannot point). With the pulse laser selected it fires the laser while the trigger is held, and works out the same solution for the laser's bolts: the lead point goes to the laser's sight and the head-up display draws a circle there, with a pipper where the pulses go at that range; put the pipper on the circle.
 
 - **RWR.COM**: draws the warning receiver's picture on the RWR screen, and works the dispenser: one bundle of chaff or one flare on each press of C or V, with what is left in the bottom right corner (C chaff, F flares).
@@ -164,7 +166,7 @@ godot --headless --fixed-fps 60 --path . res://tests/maneuver_test.tscn
 ```
 
 - `computer_test`: boots COS, types `DIR`, saves and loads the computer, and measures how many 4.77 MHz machines one core runs.
-- `flight_test`: the ship flown by FLIGHT.COM: turn rates and speed hold with flight assist, drift without it, the FA button, the console free while flying, and direct mode after `FLIGHT OFF`.
+- `flight_test`: the ship flown by FLIGHT.COM: turn rates and speed hold with flight assist, drift without it, the FA button, safe turns (at 150 m/s full stick slides the nose 80 degrees off the path without them, a few with them, and twice the thrust turns twice as hard), the console free while flying, and direct mode after `FLIGHT OFF`.
 - `combat_test`: FIRECTL.COM against drones: locks with T, measures the aiming error against the exact intercept, counts the hits of a burst at 2 km, destroys the drone, switches target with G and turns the radar off with `FIRECTL OFF`.
 - `accuracy_test`: hit probability by range against a drone jinking at 2 g (four runs per range), and a jammer on the drone: no lock at 4 km, burn-through at 1.5 km. It currently gives about 33% at 500 m, 10% at 1 km, 2% at 2 km and 0% from 4 km (46% against a straight target at 2 km): an evading drone dies inside 1 km, one flying straight even at 2 km.
 
@@ -177,6 +179,7 @@ godot --headless --fixed-fps 60 --path . res://tests/maneuver_test.tscn
 - `laser_test`: next weapon selects the pulse laser; locked, the lead point FIRECTL writes is within a few mrad of where a pulse meets the drone; fired on the lead circle the pulses hit a crossing drone, fired on the drone itself they pass behind it; held down it overheats.
 - `maneuver_test`: firing while the ship turns (it keeps firing and hitting), the lock coming back after the target leaves the cone, and the floating origin moving the world back 40 km in the middle of a fight.
 
+- `rock_test`, `avoid_test`: rock fields (the same rocks on every machine, ships bouncing off them, rounds stopped, radars blind behind them and lost in their clutter), and drones and the raider crossing a thick field with no rock sensor, a poor one and a good one.
 - `missile_test`, `rwr_test`: radar and heat-seeking missiles against drones that break and drop chaff and flares; the warning receiver, its screen, and the dispenser worked by RWR.COM.
 - Networking (no `--fixed-fps` needed): `net_test` (snapshots and interpolation), `lag_test` (lag compensation), `session_test`, `session_scene_test`, `udp_test` (real sockets on the loopback), `star_test` (the transport online play uses: only admitted players get in, another version is turned away, leaving the lobby leaves the session, a player silent for 10 s is dropped), `net_missile_test` (missiles, blasts, chaff, flares and radar locks across a session).
 

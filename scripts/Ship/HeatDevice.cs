@@ -5,7 +5,7 @@ using Xpace.Computer;
 namespace Xpace.Ship;
 
 /// <summary>
-/// The ship's heat, bus slot 12 (1C0h): what its systems always give
+/// The ship's heat, bus slot 13 (1D0h): what its systems always give
 /// (<see cref="BaseMegawatts"/>), what the power plant wastes
 /// (<see cref="PowerDevice.WasteHeat"/>), what the weapons leave in the
 /// ship, warms its mass; the radiators give it off, the more the hotter
@@ -24,7 +24,7 @@ namespace Xpace.Ship;
 /// </summary>
 public partial class HeatDevice : Node, IShipDevice, IRearmable
 {
-    public const int Slot = 12;
+    public const int Slot = 13;
     public const byte Type = 14;
 
     [Export] public float Megajoules = 60f;

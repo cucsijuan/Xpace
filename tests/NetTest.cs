@@ -17,7 +17,12 @@ namespace Xpace.Tests;
 public partial class NetTest : Node
 {
     private const float Dt = 1f / 60;
-    private static readonly ShipSpec Spec = new();
+    // Fixed numbers, not the hull's current tuning: the reference hash is of these
+    private static readonly ShipSpec Spec = new()
+    {
+        MainThrust = 1_000_000f, ReverseThrust = 500_000f, LateralThrust = 500_000f, VerticalThrust = 500_000f,
+        PitchAcceleration = 1.5f, RollAcceleration = 3.0f, YawAcceleration = 0.8f,
+    };
     private int _failures;
 
     public override async void _Ready()

@@ -59,6 +59,7 @@
 [ext_resource type="Script" path="res://scripts/Space/RoundLook.cs" id="48_look"]
 [ext_resource type="Script" path="res://scripts/Cockpit/LookDot.cs" id="49_dot"]
 [ext_resource type="PackedScene" path="res://scenes/menu/game_menu.tscn" id="50_game_menu"]
+[ext_resource type="Script" path="res://scripts/Space/RockSensor.cs" id="51_rock_sensor"]
 [ext_resource type="Script" path="res://scripts/Ship/PowerDevice.cs" id="60_power"]
 [ext_resource type="Script" path="res://scripts/Ship/ShieldDevice.cs" id="61_shield"]
 [ext_resource type="Script" path="res://scripts/Ship/HeatDevice.cs" id="62_heat"]
@@ -150,6 +151,9 @@ Channel = "raiders"
 [node name="Radar" type="Node3D" parent="Drone1" unique_id=440645909]
 script = ExtResource("29_emitter")
 
+[node name="RockSensor" type="Node3D" parent="Drone1"]
+script = ExtResource("51_rock_sensor")
+
 [node name="Drone2" type="Node3D" parent="." unique_id=933921391]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 900, -60, -3000)
 script = ExtResource("16_drone")
@@ -166,6 +170,9 @@ Channel = "raiders"
 
 [node name="Radar" type="Node3D" parent="Drone2" unique_id=1396506718]
 script = ExtResource("29_emitter")
+
+[node name="RockSensor" type="Node3D" parent="Drone2"]
+script = ExtResource("51_rock_sensor")
 
 [node name="Ship" type="AnimatableBody3D" parent="." unique_id=2058915107]
 script = ExtResource("6_ship")

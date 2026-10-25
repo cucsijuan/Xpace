@@ -73,10 +73,35 @@ public partial class FlightTest : Node
         await Seconds(1);
         float coasting = Rate().X;
         Check($"assist off: half stick for 0.5 s, then the ship keeps turning ({released:0.000} -> {coasting:0.000} rad/s)",
-              Near(released, 0.375f, 0.03f) && Near(coasting, released, 0.01f));
+              Near(released, 0.5f * 0.5f * _ship.Spec.PitchAcceleration, 0.03f) && Near(coasting, released, 0.01f));
         await Press();
         await Seconds(2);
         Check($"assist on again: the turn stops ({Rate().X:0.000})", _ship.AssistOn && MathF.Abs(Rate().X) < 0.02f);
+
+        // Safe turns: full stick asks only for what the thrusters can bend the path to
+        // (the nose stays a few degrees off: the speed hold needs an error to push with)
+        _controls.Throttle = 0.6f;
+        await Seconds(8);
+        var (freeRate, freeSlip) = await PullUp(2);
+        Check($"at 150 m/s, full stick pitches at 1.2 rad/s and the ship slides on ({freeRate:0.00} rad/s, nose {freeSlip:0} deg off its path)",
+              Near(freeRate, 1.2f, 0.1f) && freeSlip > 30);
+        await Seconds(6);
+        await PressSafe();
+        Check("the SAFE button turns safe turns on", Line(_display.Text("FLIGHT"), "SAFE TURNS").Contains("ON"));
+        float expected = 0.75f * _ship.Spec.VerticalThrust / _ship.Spec.Mass / 150;
+        var (safeRate, safeSlip) = await PullUp(3);
+        Check($"safe: full stick pitches at what the push across allows, {expected:0.000} rad/s ({safeRate:0.000}), the nose on the path ({safeSlip:0.0} deg)",
+              Near(safeRate, expected, 0.015f) && safeSlip < 8);
+        await Seconds(3);
+        _ship.Spec.VerticalThrust *= 2;
+        var (strongRate, strongSlip) = await PullUp(3);
+        Check($"twice the thrust up and down: twice the safe rate ({strongRate:0.000} rad/s, nose {strongSlip:0.0} deg off)",
+              Near(strongRate, 2 * expected, 0.03f) && strongSlip < 8);
+        _ship.Spec.VerticalThrust /= 2;
+        await PressSafe();
+        Check("SAFE again turns them off", Line(_display.Text("FLIGHT"), "SAFE TURNS").Contains("OFF"));
+        _controls.Throttle = 0;
+        await Seconds(8);
 
         string load = Line(_display.Text("FLIGHT"), "CPU LOAD");
         GD.Print($"     {load.Trim()}");
@@ -92,7 +117,8 @@ public partial class FlightTest : Node
         _controls.Yaw = 1;
         await Seconds(1);
         _controls.Yaw = 0;
-        Check($"direct: full yaw turns at 0.8 rad/s² ({Rate().Z:0.00} rad/s after 1 s)", Near(Rate().Z, 0.8f, 0.05f));
+        float yaw = _ship.Spec.YawAcceleration;
+        Check($"direct: full yaw turns at {yaw:0.00} rad/s² ({Rate().Z:0.00} rad/s after 1 s)", Near(Rate().Z, yaw, 0.05f));
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
@@ -129,6 +155,29 @@ public partial class FlightTest : Node
             _ship.Computer.Key(code, false);
             await Seconds(0.05);
         }
+    }
+
+    /// <summary>Full stick back for a while: the pitch rate at the end and the most the nose got off the ship's path (degrees).</summary>
+    private async Task<(float Rate, float Slip)> PullUp(double seconds)
+    {
+        _controls.Pitch = 1;
+        float slip = 0;
+        for (int i = 0; i < (int)Math.Round(seconds * Engine.PhysicsTicksPerSecond); i++)
+        {
+            await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
+            slip = MathF.Max(slip, Mathf.RadToDeg(_ship.LinearVelocity.AngleTo(-_ship.GlobalBasis.Z)));
+        }
+        float rate = Rate().X;
+        _controls.Pitch = 0;
+        return (rate, slip);
+    }
+
+    private async Task PressSafe()
+    {
+        _controls.SafeButton = true;
+        await Seconds(0.1);
+        _controls.SafeButton = false;
+        await Seconds(0.2);
     }
 
     private async Task Press()

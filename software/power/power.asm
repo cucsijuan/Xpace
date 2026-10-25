@@ -19,24 +19,24 @@
 ;
 ; The devices (16 ports each):
 ;
-;   100h  pilot's controls   +15 buttons: bit 0 systems, 1 engines,
-;                            2 weapons, 3 even out, 4 heat sink
-;   1A0h  power distributor  +0 type 12  +2 systems  +3 engines  +4 weapons
+;   100h  pilot's controls   +15 buttons: bit 1 systems, 2 engines,
+;                            3 weapons, 4 even out, 5 heat sink
+;   1B0h  power distributor  +0 type 15  +2 systems  +3 engines  +4 weapons
 ;                            (half pips; writing +4 sets the three)
-;   1C0h  heat               +0 type 14  +4 write: bit 0 a heat sink
+;   1D0h  heat               +0 type 14  +4 write: bit 0 a heat sink
 
 org 100h
 
 CTRL        equ 100h
-POWER       equ 1A0h
-HEAT        equ 1C0h
-TYPE_POWER  equ 12
+POWER       equ 1B0h
+HEAT        equ 1D0h
+TYPE_POWER  equ 15
 TYPE_HEAT   equ 14
-BUTTON_SYS  equ 1
-BUTTON_ENG  equ 2
-BUTTON_WEP  equ 4
-BUTTON_EVEN equ 8
-BUTTON_SINK equ 16
+BUTTON_SYS  equ 2                   ; (bit 0 is FLIGHT's safe turns)
+BUTTON_ENG  equ 4
+BUTTON_WEP  equ 8
+BUTTON_EVEN equ 16
+BUTTON_SINK equ 32
 MOST        equ 8                   ; half pips on one
 IRQ_VECTOR  equ 0Dh
 IRQ_BIT     equ 20h
