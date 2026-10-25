@@ -36,6 +36,9 @@ public sealed class LagCompensator
 
     public event Action<HitEvent> Hit;
 
+    /// <summary>Whether something solid that never moves (rock) lies between two points: a round stops there. Null: nothing.</summary>
+    public Func<SectorPoint, SectorPoint, bool> Solid;
+
     private sealed class Target
     {
         public ushort Id;
@@ -130,6 +133,8 @@ public sealed class LagCompensator
                         return true;
                     }
             }
+            if (Solid != null && Solid(from, to))
+                return true;                // into rock
             round.Step++;
         }
         return true;

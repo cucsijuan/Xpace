@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="RockKind" format=4]
+
+[ext_resource type="Script" path="res://scripts/Space/RockKind.cs" id="1_kind"]
+[ext_resource type="Material" path="res://assets/materials/synty_rock.tres" id="2_rock"]
+
+[resource]
+script = ExtResource("1_kind")
+Model = "res://assets/synty/SM_Env_Astroid_04.fbx"
+Material = ExtResource("2_rock")
+Spheres = PackedVector4Array(-0.26153052, 2.3926976, -0.26258624, 2.5386891, -0.26153052, -1.0875878, 0.17244941, 2.2286525, 0.6085408, 1.0875905, 0.17244941, 2.4212291, -0.69656616, 3.6978047, 0.17244941, 2.0531404, 0.17350513, -1.9576592, -0.26258624, 2.051486, 0.6085408, -3.697802, 0.60748506, 1.4122348, -1.5666375, 2.3926976, 1.0425208, 1.6533872, -0.26153052, 0.65255475, 0.17244941, 2.4306555)
+MaxSpheres = 8

@@ -6,7 +6,7 @@ namespace Xpace.Space;
 
 /// <summary>
 /// Every round in flight: moved each physics step, checked for hits with a
-/// ray along the step, drawn as streaks, a MultiMesh for each kind of round
+/// ray along the step (rocks stop them, <see cref="RockField"/>), drawn as streaks, a MultiMesh for each kind of round
 /// (<see cref="Looks"/>: 0 the cannon's tracers, 1 laser pulses).
 ///
 /// In a network session the host judges the rounds: they are fired through
@@ -126,10 +126,18 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
             Round r = _rounds[i];
             Vector3 next = r.Position + r.Velocity * dt;
             r.Age += dt;
+            // Rocks stop every round, judged or for show
+            float clear = 1;
+            if (RockField.SegmentAll(r.Position, next, out float rock, out _))
+                clear = rock;
             if (r.Harmless)
             {
-                if (r.Age > Life)
+                if (r.Age > Life || clear < 1)
+                {
+                    if (clear < 1)
+                        Spark(r.Position + (next - r.Position) * clear);
                     _rounds.RemoveAt(i);
+                }
                 else
                 {
                     r.Position = next;
@@ -141,6 +149,14 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
             query.CollideWithAreas = true;
             query.CollideWithBodies = false;
             var hit = space.IntersectRay(query);
+            if (hit.Count > 0 && clear < 1 && hit["position"].AsVector3().DistanceSquaredTo(r.Position) > (next - r.Position).LengthSquared() * clear * clear)
+                hit.Clear();                    // the rock was nearer
+            if (hit.Count == 0 && clear < 1)
+            {
+                Spark(r.Position + (next - r.Position) * clear);
+                _rounds.RemoveAt(i);
+                continue;
+            }
             if (hit.Count > 0 && Damageable(hit["collider"].As<Node>()) is IDamageable victim)
             {
                 victim.Hit(r.Damage);
@@ -156,6 +172,9 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
             _rounds[i] = r;
         }
     }
+
+    /// <summary>A round striking rock: a small flash where it hit.</summary>
+    private void Spark(Vector3 where) => Explosion.Spawn(GetParent(), where, 1.2f, 0.15, 2f);
 
     private static Godot.Collections.Array<Rid> Areas(Node shooter)
     {

@@ -21,4 +21,10 @@ public partial class ShipSpec : Resource
 
     /// <summary>Moments of inertia about the ship's own X, Y, Z (kg m²); with the accelerations they give the torques.</summary>
     [Export] public Vector3 Inertia = new(80_000f, 100_000f, 40_000f);
+
+    [ExportGroup("Hitting things")]
+    /// <summary>How much of the speed into a rock comes back out of it: 0 none (all of it crushes the hull), 1 all.</summary>
+    [Export(PropertyHint.Range, "0,1")] public float Restitution = 0.2f;
+    /// <summary>Sliding along a rock: how hard it holds back, against how hard the ship is pressed into it.</summary>
+    [Export] public float Friction = 0.4f;
 }

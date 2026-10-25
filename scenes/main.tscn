@@ -5,7 +5,18 @@
 [ext_resource type="Script" uid="uid://cgkl0vftvxi6k" path="res://scripts/Cockpit/Pilot.cs" id="4_pilot"]
 [ext_resource type="Script" uid="uid://bhbpgfgybh0nt" path="res://scripts/Ship/ShipBody.cs" id="6_ship"]
 [ext_resource type="Script" uid="uid://c2sx2rsqw81y1" path="res://scripts/Cockpit/MouseWidget.cs" id="7_widget"]
-[ext_resource type="Script" uid="uid://c74qxnce11yka" path="res://scripts/Space/AsteroidField.cs" id="8_rocks"]
+[ext_resource type="Script" path="res://scripts/Space/RockField.cs" id="8_rocks"]
+[ext_resource type="Script" path="res://scripts/Space/RockBox.cs" id="8_region"]
+[ext_resource type="Script" path="res://scripts/Space/RockKind.cs" id="8_kind"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_01.tres" id="8_rock_01"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_02.tres" id="8_rock_02"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_03.tres" id="8_rock_03"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_04.tres" id="8_rock_04"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_05.tres" id="8_rock_05"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_holes_03.tres" id="8_rock_holes_03"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_large_01.tres" id="8_rock_large_01"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_large_02.tres" id="8_rock_large_02"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_large_holes_02.tres" id="8_rock_large_holes_02"]
 [ext_resource type="Script" uid="uid://dmloccduosk8w" path="res://scripts/Space/SpaceDust.cs" id="9_dust"]
 [ext_resource type="Script" uid="uid://c7chsve02emo" path="res://scripts/Space/PlaceholderStation.cs" id="10_station"]
 [ext_resource type="Script" uid="uid://crtawnlsvvjj0" path="res://scripts/Ship/ShipSpec.cs" id="11_spec"]
@@ -72,6 +83,11 @@ height = 40000.0
 radial_segments = 128
 rings = 64
 
+[sub_resource type="Resource" id="Region_rocks"]
+script = ExtResource("8_region")
+Size = Vector3(7000, 2000, 7000)
+Falloff = 1200.0
+
 [sub_resource type="Resource" id="Spec_fighter"]
 script = ExtResource("11_spec")
 
@@ -91,9 +107,13 @@ script = ExtResource("25_heat")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26000, -9000, -60000)
 mesh = SubResource("Mesh_planet")
 
-[node name="Asteroids" type="MultiMeshInstance3D" parent="." unique_id=51359718]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -3400)
+[node name="Asteroids" type="Node3D" parent="." unique_id=51359718]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7500, 0, -3000)
 script = ExtResource("8_rocks")
+Region = SubResource("Region_rocks")
+Kinds = Array[ExtResource("8_kind")]([ExtResource("8_rock_01"), ExtResource("8_rock_02"), ExtResource("8_rock_03"), ExtResource("8_rock_04"), ExtResource("8_rock_05"), ExtResource("8_rock_holes_03"), ExtResource("8_rock_large_01"), ExtResource("8_rock_large_02"), ExtResource("8_rock_large_holes_02")])
+CellSize = 400.0
+RocksPerCell = 10
 
 [node name="Station" type="Node3D" parent="." unique_id=1661568946]
 transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 450, 60, -1200)

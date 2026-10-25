@@ -48,6 +48,11 @@ public interface IRadarEmitter
 /// that one when the beam crosses it inside <see cref="LockRange"/> (scaled
 /// the same way).
 ///
+/// Rocks: one in the way hides an echo; rocks in its resolution cell
+/// (<see cref="RangeResolution"/>, <see cref="VelocityResolution"/> in
+/// Doppler) echo with it, so something sitting still beside a rock is lost
+/// in their clutter (<see cref="RockField.Clutter"/>).
+///
 /// Only the main lobe counts: sidelobes are too weak to matter here.
 /// Put it under a ship (it looks along the ship's -Z); it goes quiet while
 /// the ship is dead. On a puppet
@@ -66,6 +71,10 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
     [Export] public float LockRange = 2500f;
     [Export] public float DetectRange = 4000f;
     [Export] public float ReferenceRcs = 3f;           // m²: the echo the ranges are for
+    [Export] public float RangeResolution = 30f;       // m
+    [Export] public float VelocityResolution = 10f;    // m/s, Doppler
+    /// <summary>Signal-to-noise at the detection threshold (13 dB): how hard clutter weighs against it.</summary>
+    [Export] public float DetectSnr = 20f;
 
     public ushort EmitterId { get; private set; }
     /// <summary>What it hunts (its ship chose it): it locks this one when it can.</summary>
@@ -131,10 +140,9 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
         Vector3 local = GlobalBasis.Inverse() * (Target.GlobalPosition - GlobalPosition);
         float range = local.Length();
         bool inCone = range > 1 && Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees);
-        float reach = Reach(Target, LockRange);
         if (Locked)
-            Locked = inCone && range <= reach * 1.15f;
-        else if (inCone && range <= reach && Crossed(local))
+            Locked = inCone && Seen(Target, range, LockRange, 1 / (1.15f * 1.15f * 1.15f * 1.15f));
+        else if (inCone && Crossed(local) && Seen(Target, range, LockRange, 1))
             Locked = true;
     }
 
@@ -147,7 +155,7 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
                 continue;
             Vector3 local = GlobalBasis.Inverse() * (n.GlobalPosition - GlobalPosition);
             float range = local.Length();
-            if (range > 1 && range <= Reach(n, DetectRange) && Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees) && Crossed(local))
+            if (range > 1 && Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees) && Crossed(local) && Seen(n, range, DetectRange, 1))
                 _swept.Add(n);
         }
     }
@@ -156,13 +164,33 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
     private float Reach(Node3D target, float range) =>
         target is IRadarTarget t ? range * MathF.Pow(MathF.Max(t.RadarCrossSection, 0) / ReferenceRcs, 0.25f) : range;
 
+    /// <summary>
+    /// Whether an echo at a range is strong enough for a reference range
+    /// (detection or lock), by <paramref name="margin"/> (below 1: holding
+    /// on to it): its signal against the threshold's, with no rock in the
+    /// way and the rocks' clutter in its cell added to the noise.
+    /// </summary>
+    private bool Seen(Node3D target, float range, float referenceRange, float margin)
+    {
+        float signal = MathF.Pow(Reach(target, referenceRange) / range, 4);     // 1 at the threshold
+        if (signal < margin || RockField.Blocked(GlobalPosition, target.GlobalPosition))
+            return false;
+        if (RockField.All.Count == 0)
+            return true;
+        Vector3 velocity = target is IRadarTarget t ? t.Velocity : Vector3.Zero;
+        float clutter = RockField.ClutterAll(GlobalPosition, _owner?.Velocity ?? Vector3.Zero, target.GlobalPosition, velocity,
+                                             Mathf.DegToRad(BeamwidthDegrees), RangeResolution, VelocityResolution);
+        float clutterSignal = MathF.Pow(referenceRange / range, 4) * clutter / ReferenceRcs;
+        return signal >= margin * (1 + DetectSnr * clutterSignal);
+    }
+
     public bool Illuminates(Vector3 point)
     {
         if (!Transmitting)
             return false;
         Vector3 local = GlobalBasis.Inverse() * (point - GlobalPosition);
-        if (local.LengthSquared() < 1)
-            return false;
+        if (local.LengthSquared() < 1 || RockField.Blocked(GlobalPosition, point))
+            return false;                       // too close to tell, or rock in the way
         float half = Mathf.DegToRad(BeamwidthDegrees) / 2;
         if (Locked)
         {

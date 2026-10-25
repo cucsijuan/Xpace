@@ -79,6 +79,8 @@ public partial class SessionNode : Node
     public void Start(byte peer, INetTransport transport)
     {
         Session = new Session(peer, transport) { TickSeconds = 1f / Engine.PhysicsTicksPerSecond };
+        if (Session.Judge != null)
+            Session.Judge.Solid = (a, b) => RockField.Blocked(Scene(a), Scene(b));
         Session.SpawnRemote = Spawn;
         Session.SpawnDynamic = SpawnPuppet;
         Session.RoundFired += Show;

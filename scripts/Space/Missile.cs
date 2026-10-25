@@ -204,7 +204,7 @@ public partial class Missile : Node3D, INetShip
     /// The proximity fuse, over this step: for everything a radar can see,
     /// the closest it comes while both fly straight. Goes off if that falls
     /// inside the step and within the fuse's reach. Only solid things set it
-    /// off: chaff is foil, it does not.
+    /// off: chaff is foil, it does not. Flying into rock sets it off too.
     /// </summary>
     private bool Fuse(float dt)
     {
@@ -222,16 +222,28 @@ public partial class Missile : Node3D, INetShip
                 bestT = at;
             }
         }
+        // Rock in the way: it goes off against it, before anything farther on
+        if (RockField.SegmentAll(GlobalPosition, GlobalPosition + Velocity * dt, out float rock, out _) && rock * dt < (best <= FuseRadius ? bestT : dt))
+        {
+            Burst(GlobalPosition + Velocity * (rock * dt), rock, Outcome.Missed);
+            return true;
+        }
         if (best > FuseRadius)
             return false;
+        Burst(GlobalPosition + Velocity * bestT, bestT / dt, Outcome.Hit);
+        return true;
+    }
 
-        Vector3 burst = GlobalPosition + Velocity * bestT;
+    /// <summary>The warhead goes off at <paramref name="burst"/>, a share <paramref name="fraction"/> into the step (a hit if the fuse set it off, a miss against rock).</summary>
+    private void Burst(Vector3 burst, float fraction, Outcome result)
+    {
+        float bestT = fraction * (float)GetPhysicsProcessDeltaTime();
         // In a session the host works out what the fragments reached; a missile
         // outside it (no NetBody) hurts only what this machine owns
         bool session = SessionNode.Instance?.Active == true;
         bool judged = session && NetBody.Of(this) is NetBody { Joined: true };
         if (judged)
-            SessionNode.Instance.Blast(this, burst, bestT / dt, Damage, LethalRadius, BlastRadius);
+            SessionNode.Instance.Blast(this, burst, fraction, Damage, LethalRadius, BlastRadius);
         foreach (Node node in GetTree().GetNodesInGroup("radar_targets"))
         {
             if (node is not IRadarTarget t || !t.Alive || node is not IDamageable victim)
@@ -246,10 +258,9 @@ public partial class Missile : Node3D, INetShip
             if (!judged && !(session && NetBody.IsPuppet(node)))
                 victim.Hit(damage);
         }
-        Result = Outcome.Hit;
+        Result = result;
         Explosion.Spawn(GetParent(), burst, 14f, 0.8, 10f);
         QueueFree();
-        return true;
     }
 
     /// <summary>Gives a head this missile's seeker (the launcher builds the one on its rail with it).</summary>
