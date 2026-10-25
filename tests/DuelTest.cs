@@ -152,6 +152,10 @@ public partial class DuelTest : Node
         Check("the insurer's new ship flies again", !hull.Wrecked && pilot.Doing != "wrecked");
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
+        // Wrappers of engine objects finalized after the engine has shut down crash it on the way out
+        // (the .NET finalizer thread): collect them while it still runs
+        System.GC.Collect();
+        System.GC.WaitForPendingFinalizers();
         GetTree().Quit(_failures == 0 ? 0 : 1);
     }
 

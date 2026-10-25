@@ -57,6 +57,13 @@ public sealed unsafe class ShipBus : IDisposable
     /// <summary>True if the program wrote the port since the last call (and forgets it).</summary>
     public bool TakeWritten(int slot, int offset) => Take(_written, slot * SlotSize + offset);
 
+    /// <summary>Writes a port as the program's OUT would (the register and its written flag): for tests and tools.</summary>
+    public void Out(int slot, int offset, byte value)
+    {
+        this[slot, offset] = value;
+        _written[slot * SlotSize + offset] = 1;
+    }
+
     public void RaiseIrq() => Pc86.xbus_raise_irq(_bus);
 
     private static bool Take(byte* flags, int i)

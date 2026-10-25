@@ -9,8 +9,11 @@ namespace Xpace.Cockpit;
 /// as in Elite): for systems, engines and weapons, four pips (a half pip
 /// half lit) over how full its capacitor is; then the shield's strength
 /// (dim while it is down and building back, blinking while collapsed) and
-/// the heat, marked at 100% (red past it), with the heat sinks left. It
-/// reads the devices themselves, as a gauge on the dashboard would.
+/// the heat, marked at 100% (red past it), with the heat sinks left; then
+/// the main engine's core as its controller reckons it, marked at its
+/// cut-out (red and blinking CUT while cut out, B while the cooling boost
+/// works). It reads the devices themselves, as a gauge on the dashboard
+/// would: what the engine's controller believes, not the truth.
 /// </summary>
 public partial class PowerGauge : Control
 {
@@ -23,6 +26,7 @@ public partial class PowerGauge : Control
     private PowerDevice _power;
     private ShieldDevice _shield;
     private HeatDevice _heat;
+    private EngineDevice _engine;
     private double _time;
 
     private static readonly string[] Names = { "SYS", "ENG", "WEP" };
@@ -35,8 +39,9 @@ public partial class PowerGauge : Control
             _power ??= n as PowerDevice;
             _shield ??= n as ShieldDevice;
             _heat ??= n as HeatDevice;
+            _engine ??= n as EngineDevice;
         }
-        Visible = _power != null || _shield != null || _heat != null;
+        Visible = _power != null || _shield != null || _heat != null || _engine != null;
     }
 
     public override void _Process(double delta)
@@ -83,6 +88,17 @@ public partial class PowerGauge : Control
             DrawString(font, new Vector2(x, FontSize), "HEAT", HorizontalAlignment.Left, -1, FontSize, c);
             Upright(new Rect2(x + 6, top, 10, height - top), _heat.Level / 1.5f, c, 1 / 1.5f);
             DrawString(font, new Vector2(x + 20, height), $"{_heat.SinksLeft}", HorizontalAlignment.Left, -1, FontSize, new Color(Colour, _heat.Sinking ? 1 : 0.6f));
+            x += column;
+        }
+        if (_engine != null)
+        {
+            bool cut = (_engine.ControllerStatus & EngineDevice.StatusCut) != 0;
+            Color c = cut || _engine.Failed ? HotColour : Colour;
+            float scale = MathF.Max(_engine.CutOut, 1) * 1.25f;
+            DrawString(font, new Vector2(x, FontSize), "DRV", HorizontalAlignment.Left, -1, FontSize, c);
+            Upright(new Rect2(x + 6, top, 10, height - top), _engine.ReportedCore / scale, c, _engine.CutOut / scale);
+            string note = _engine.Failed ? "X" : cut ? ((int)(_time * 3) % 2 == 0 ? "CUT" : "") : _engine.Boosting ? "B" : "";
+            DrawString(font, new Vector2(x + 20, height), note, HorizontalAlignment.Left, -1, FontSize, c);
         }
     }
 

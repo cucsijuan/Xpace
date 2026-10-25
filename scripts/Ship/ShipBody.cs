@@ -70,6 +70,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     private double _sinceCommand = double.MaxValue;
     private readonly List<IShipDevice> _devices = new();
     private PowerDevice _power;
+    private EngineDevice _engine;
     private ShipSignature _signature;
     private Quaternion _orientation = Quaternion.Identity;
     private Basis _written = Basis.Identity;
@@ -92,11 +93,12 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         for (int slot = 0; slot < 3; slot++)
             bus[slot, 1] = 1;                       // version
         bus[SlotControls, 1] = 2;                   // +15: more buttons
-        bus[SlotRatings, 1] = 1;
+        bus[SlotRatings, 1] = 2;                    // the whole plate in memory too
         foreach (Node node in FindChildren("*", "", true, false))
             if (node is IShipDevice device)
                 _devices.Add(device);
         _power = Device<PowerDevice>();
+        _engine = Device<EngineDevice>();
         foreach (Node node in GetChildren())
             _signature ??= node as ShipSignature;
 
@@ -154,6 +156,13 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         {
             for (int i = 0; i < 6; i++)
                 Commands[i] = bus.Word(SlotThrusters, 2 + i * 2) / 32767f;
+        }
+        if (_engine != null)
+        {
+            // The main engine's controller decides what it gives of what was asked
+            float pushed = _engine.Drive(Spec, this, MathF.Max(0, Commands[5]), delta);
+            if (Commands[5] >= 0)
+                Commands[5] = pushed / Spec.MainThrust;
         }
         Powered(delta);
         Push((float)delta);
@@ -228,23 +237,39 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     /// <summary>
     /// The thrusters' rating plate (slot 10): what they can do to this ship as
     /// it is, so a program can fly within it. Accelerations in 1/8 m/s²:
-    /// +2 forward, +4 reverse, +6 sideways, +8 up and down; turning ones in
-    /// 1/1024 rad/s²: +10 pitch, +12 yaw, +14 roll. Better thrusters (or a
-    /// lighter ship) read higher.
+    /// +2 forward (the main engine's rating), +4 reverse, +6 sideways, +8 up
+    /// and down; turning ones in 1/1024 rad/s²: +10 pitch, +12 yaw, +14 roll.
+    ///
+    /// Version 2: the whole plate at D000:1400 (<see cref="ShipMemory.Ratings"/>),
+    /// 14 words: the same seven accelerations, then where each meets the
+    /// veil's drag: +14 forward, +16 reverse, +18 sideways, +20 up and down
+    /// top speeds (1/8 m/s), +22 pitch, +24 yaw, +26 roll top turn rates
+    /// (1/1024 rad/s); 32767 where there is no top. Better thrusters, a
+    /// stronger engine or a lighter ship read higher.
     /// </summary>
-    private void WriteRatings(ShipBus bus)
+    private unsafe void WriteRatings(ShipBus bus)
     {
         ShipSpec s = Spec;
-        bus.SetWord(SlotRatings, 2, Rating(s.MainThrust / s.Mass * 8));
-        bus.SetWord(SlotRatings, 4, Rating(s.ReverseThrust / s.Mass * 8));
-        bus.SetWord(SlotRatings, 6, Rating(s.LateralThrust / s.Mass * 8));
-        bus.SetWord(SlotRatings, 8, Rating(s.VerticalThrust / s.Mass * 8));
-        bus.SetWord(SlotRatings, 10, Rating(s.PitchAcceleration * 1024));
-        bus.SetWord(SlotRatings, 12, Rating(s.YawAcceleration * 1024));
-        bus.SetWord(SlotRatings, 14, Rating(s.RollAcceleration * 1024));
+        float forward = _engine?.Spec?.RatedThrust ?? s.MainThrust;
+        Vector3 turn = s.TurnAcceleration, top = s.TopTurnRate();
+        Span<int> plate = stackalloc int[]
+        {
+            Rating(forward / s.Mass * 8), Rating(s.Reverse / s.Mass * 8), Rating(s.Lateral / s.Mass * 8), Rating(s.Vertical / s.Mass * 8),
+            Rating(turn.X * 1024), Rating(turn.Y * 1024), Rating(turn.Z * 1024),
+            Rating(s.TopSpeed(forward) * 8), Rating(s.TopSpeed(s.Reverse) * 8), Rating(s.TopSpeed(s.Lateral) * 8), Rating(s.TopSpeed(s.Vertical) * 8),
+            Rating(top.X * 1024), Rating(top.Y * 1024), Rating(top.Z * 1024),
+        };
+        byte* table = Computer.Memory + ShipMemory.Base + ShipMemory.Ratings;
+        for (int i = 0; i < plate.Length; i++)
+        {
+            if (i < 7)
+                bus.SetWord(SlotRatings, 2 + i * 2, plate[i]);
+            table[i * 2] = (byte)plate[i];
+            table[i * 2 + 1] = (byte)(plate[i] >> 8);
+        }
     }
 
-    private static int Rating(float x) => (int)Math.Clamp(MathF.Round(x), 0, 32767);
+    private static int Rating(float x) => float.IsFinite(x) ? (int)Math.Clamp(MathF.Round(x), 0, 32767) : 32767;
 
     /// <summary>
     /// Turn rates in 1/1024 rad/s and speeds in 1/8 m/s, about and along the
@@ -268,14 +293,12 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     private void Push(float dt)
     {
         ShipSpec s = Spec;
-        var torque = new Vector3(
-            Commands[0] * s.PitchAcceleration * s.Inertia.X,
-            -Commands[2] * s.YawAcceleration * s.Inertia.Y,
-            -Commands[1] * s.RollAcceleration * s.Inertia.Z);
-        float forward = Commands[5] >= 0 ? Commands[5] * s.MainThrust : Commands[5] * s.ReverseThrust;
-        var force = new Vector3(Commands[3] * s.LateralThrust, Commands[4] * s.VerticalThrust, -forward);
+        Vector3 t = s.TurnTorque;
+        var torque = new Vector3(Commands[0] * t.X, -Commands[2] * t.Y, -Commands[1] * t.Z);
+        float forward = Commands[5] >= 0 ? Commands[5] * s.MainThrust : Commands[5] * s.Reverse;
+        var force = new Vector3(Commands[3] * s.Lateral, Commands[4] * s.Vertical, -forward);
         ShipState before = State;
-        ShipState after = ShipMotion.Step(before, force, torque, s.Mass, s.Inertia, dt);
+        ShipState after = ShipMotion.Step(before, force, torque, s.Mass, s.Inertia, dt, s.VeilDrag, s.VeilSpin);
         float crash = ShipContact.Collide(ref after, before.Position, _hitboxes, _bound, s, _near);
         State = after;
         if (crash > 0)

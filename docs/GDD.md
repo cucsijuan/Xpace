@@ -162,6 +162,8 @@ Shields, armour, point defence systems and countermeasures: flares, chaff, jammi
 
 ### 6.5 The drive: generator, veil and engines
 
+*Built (main engine only for now; the manoeuvring thrusters feel the veil but have no controller yet): the veil in `ShipMotion` (`ShipSpec.VeilDrag`), `EngineDevice` on bus slot 15 with `EngineSpec` models and the controller's firmware in `software/engine/engine.asm`. The boost is the cooling's: the pumps and radiators driven harder, so the engine keeps up more thrust before the cut-out, for more power and a brighter glow. The controller knows nothing of the hull: an engine fitted to a ship gives, at its rating, what that hull takes; the trim (set on the bench) raises it up to what the engine physically gives, which nobody publishes, and past the hull's rating the structure breaks: that is how whoever hacked it finds out they went too far.*
+
 Ships and missiles fly by different technologies.
 
 - **Missiles are rockets.** They carry propellant, which in this world is cheap: a missile has a delta-v budget, and nothing else slows it. That is why a missile can catch a ship whose engines are stronger than its motor.

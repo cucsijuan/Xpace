@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ShipSpec" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="1_spec"]
+[ext_resource type="Resource" path="res://assets/ship/thrusters/thrusters_t35.tres" id="2_thrusters"]
+
+[resource]
+script = ExtResource("1_spec")
+Mass = 20000.0
+Thrusters = ExtResource("2_thrusters")
+VeilDrag = 0.00031
+VeilSpin = Vector3(0.93, 1.75, 0.47)
+RatedAcceleration = 75.0
+Inertia = Vector3(80000, 100000, 40000)

@@ -1,4 +1,4 @@
-[gd_scene load_steps=35 format=3]
+[gd_scene load_steps=37 format=3]
 
 [ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="1_ship"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="2_spec"]
@@ -34,9 +34,9 @@
 [ext_resource type="Material" path="res://assets/materials/shield_bubble.tres" id="43_bubble"]
 [ext_resource type="Script" path="res://scripts/Ship/JammerDevice.cs" id="44_jammer"]
 [ext_resource type="Resource" path="res://assets/ship/jammers/jammer_nj2.tres" id="45_nj2"]
-
-[sub_resource type="Resource" id="Spec_fighter"]
-script = ExtResource("2_spec")
+[ext_resource type="Script" path="res://scripts/Ship/EngineDevice.cs" id="46_engine"]
+[ext_resource type="Resource" path="res://assets/ship/engines/engine_d50.tres" id="47_d50"]
+[ext_resource type="Resource" path="res://assets/ship/hulls/hull_fighter.tres" id="48_hull"]
 
 [sub_resource type="SphereMesh" id="ShieldSphere"]
 radius = 1.0
@@ -46,7 +46,7 @@ rings = 16
 
 [node name="AiFighter" type="AnimatableBody3D"]
 script = ExtResource("1_ship")
-Spec = SubResource("Spec_fighter")
+Spec = ExtResource("48_hull")
 
 [node name="NetBody" type="Node" parent="."]
 script = ExtResource("3_netbody")
@@ -102,6 +102,10 @@ HeatSeekers = 2
 [node name="Dispenser" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 4)
 script = ExtResource("20_dispenser")
+
+[node name="Engine" type="Node" parent="."]
+script = ExtResource("46_engine")
+Spec = ExtResource("47_d50")
 
 [node name="Jammer" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -1)

@@ -7,7 +7,9 @@ using Xpace.Ship;
 namespace Xpace.Tests;
 
 /// <summary>
-/// The ship flown by FLIGHT.COM on its computer, step by step.
+/// The ship flown by FLIGHT.COM on its computer, step by step. What full
+/// stick and full throttle ask for is the ship's own top (its rating plate:
+/// its thrusters against the veil), never a number in the program.
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/flight_test.tscn
 /// Exits with 0 if every check passed.
 /// </summary>
@@ -33,17 +35,22 @@ public partial class FlightTest : Node
         Check("its page is on the FLIGHT screen", _display.Text("FLIGHT").Contains("FLIGHT CONTROL"));
         Check("it stays resident: the console is back", await Until(() => _ship.Computer.ScreenText().Contains("A:\\>"), 5));
 
-        // Flight assist: the stick asks for a turn rate
+        // Flight assist: the stick asks for a turn rate, of the top the plate gives
+        Vector3 top = _ship.Spec.TopTurnRate();
+        float topSpeed = _ship.Spec.TopSpeed(_ship.Spec.MainThrust);
+        Check($"the rating plate gives the tops: {Plate(14) / 8f:0} m/s ahead, {Plate(22) / 1024f:0.00} {Plate(24) / 1024f:0.00} {Plate(26) / 1024f:0.00} rad/s",
+              MathF.Abs(Plate(14) / 8f - topSpeed) < 0.2f && MathF.Abs(Plate(22) / 1024f - top.X) < 0.002f &&
+              MathF.Abs(Plate(24) / 1024f - top.Y) < 0.002f && MathF.Abs(Plate(26) / 1024f - top.Z) < 0.002f);
         _controls.Pitch = 0.5f;
         await Seconds(2);
-        Check($"half stick: pitch rate 0.6 rad/s ({Rate().X:0.00})", Near(Rate().X, 0.6f, 0.06f));
+        Check($"half stick: half the top pitch rate, {top.X / 2:0.00} rad/s ({Rate().X:0.00})", Near(Rate().X, top.X / 2, top.X * 0.05f));
         _controls.Pitch = 0;
         await Seconds(1.5);
         Check($"let go: the turn stops ({Rate().X:0.000})", MathF.Abs(Rate().X) < 0.02f);
 
         _controls.Roll = -1;
         await Seconds(1.5);
-        Check($"full left roll: -2.5 rad/s ({Rate().Y:0.00})", Near(Rate().Y, -2.5f, 0.2f));
+        Check($"full left roll: the top roll rate, {-top.Z:0.00} rad/s ({Rate().Y:0.00})", Near(Rate().Y, -top.Z, top.Z * 0.07f));
         _controls.Roll = 0;
         await Seconds(1.5);
         Check($"let go: the roll stops ({Rate().Y:0.000})", MathF.Abs(Rate().Y) < 0.02f);
@@ -51,7 +58,7 @@ public partial class FlightTest : Node
         // The throttle asks for a forward speed
         _controls.Throttle = 0.4f;
         await Seconds(6);
-        Check($"40% throttle: 100 m/s forward ({Velocity().Z:0.0})", Near(Velocity().Z, 100, 4));
+        Check($"40% throttle: 40% of the top speed, {0.4f * topSpeed:0} m/s ({Velocity().Z:0.0})", Near(Velocity().Z, 0.4f * topSpeed, 4));
         _controls.Throttle = 0;
         await Seconds(6);
         Check($"throttle at zero: the ship stops ({Velocity().Length():0.00} m/s)", Velocity().Length() < 1);
@@ -72,23 +79,26 @@ public partial class FlightTest : Node
         float released = Rate().X;
         await Seconds(1);
         float coasting = Rate().X;
-        Check($"assist off: half stick for 0.5 s, then the ship keeps turning ({released:0.000} -> {coasting:0.000} rad/s)",
-              Near(released, 0.5f * 0.5f * _ship.Spec.PitchAcceleration, 0.03f) && Near(coasting, released, 0.01f));
+        float half = 0.5f * _ship.Spec.TurnAcceleration.X, kx = _ship.Spec.VeilSpin.X;
+        float pushed = MathF.Sqrt(half / kx) * MathF.Tanh(0.5f * MathF.Sqrt(half * kx));     // half torque against the veil for 0.5 s
+        float veil = released / (1 + kx * released * 1);
+        Check($"assist off: half stick for 0.5 s, then the ship turns on, slowed only by the veil ({released:0.000} -> {coasting:0.000} rad/s, {veil:0.000} expected)",
+              Near(released, pushed, 0.02f) && Near(coasting, veil, 0.01f));
         await Press();
         await Seconds(2);
         Check($"assist on again: the turn stops ({Rate().X:0.000})", _ship.AssistOn && MathF.Abs(Rate().X) < 0.02f);
 
         // Safe turns: full stick asks only for what the thrusters can bend the path to
         // (the nose stays a few degrees off: the speed hold needs an error to push with)
-        _controls.Throttle = 0.6f;
+        _controls.Throttle = 150 / topSpeed;
         await Seconds(8);
         var (freeRate, freeSlip) = await PullUp(2);
-        Check($"at 150 m/s, full stick pitches at 1.2 rad/s and the ship slides on ({freeRate:0.00} rad/s, nose {freeSlip:0} deg off its path)",
-              Near(freeRate, 1.2f, 0.1f) && freeSlip > 30);
+        Check($"at 150 m/s, full stick pitches at the top rate, {top.X:0.00} rad/s, and the ship slides on ({freeRate:0.00} rad/s, nose {freeSlip:0} deg off its path)",
+              Near(freeRate, top.X, 0.1f) && freeSlip > 30);
         await Seconds(6);
         await PressSafe();
         Check("the SAFE button turns safe turns on", Line(_display.Text("FLIGHT"), "SAFE TURNS").Contains("ON"));
-        float expected = 0.75f * _ship.Spec.VerticalThrust / _ship.Spec.Mass / 150;
+        float expected = 0.75f * _ship.Spec.Vertical / _ship.Spec.Mass / 150;
         var (safeRate, safeSlip) = await PullUp(3);
         Check($"safe: full stick pitches at what the push across allows, {expected:0.000} rad/s ({safeRate:0.000}), the nose on the path ({safeSlip:0.0} deg)",
               Near(safeRate, expected, 0.015f) && safeSlip < 8);
@@ -117,8 +127,11 @@ public partial class FlightTest : Node
         _controls.Yaw = 1;
         await Seconds(1);
         _controls.Yaw = 0;
-        float yaw = _ship.Spec.YawAcceleration;
-        Check($"direct: full yaw turns at {yaw:0.00} rad/s² ({Rate().Z:0.00} rad/s after 1 s)", Near(Rate().Z, yaw, 0.05f));
+        // Full torque against the veil: w = top tanh(t sqrt(a k))
+        float yaw = _ship.Spec.TurnAcceleration.Y, k = _ship.Spec.VeilSpin.Y;
+        float yawAfter = top.Y * MathF.Tanh(MathF.Sqrt(yaw * k));
+        Check($"direct: full yaw turns at {yaw:0.00} rad/s², held back by the veil ({Rate().Z:0.00} rad/s after 1 s, {yawAfter:0.00} expected)",
+              Near(Rate().Z, yawAfter, 0.05f));
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
@@ -129,6 +142,13 @@ public partial class FlightTest : Node
     {
         Vector3 w = _ship.GlobalBasis.Inverse() * _ship.AngularVelocity;
         return new Vector3(w.X, -w.Z, -w.Y);
+    }
+
+    /// <summary>A word of the whole rating plate in memory (D000:1400).</summary>
+    private unsafe int Plate(int offset)
+    {
+        byte* p = _ship.Computer.Memory + ShipMemory.Base + ShipMemory.Ratings + offset;
+        return p[0] | p[1] << 8;
     }
 
     /// <summary>Right, up and forward speeds (m/s) along the ship's own axes.</summary>

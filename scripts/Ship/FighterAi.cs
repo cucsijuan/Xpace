@@ -58,7 +58,9 @@ namespace Xpace.Ship;
 public partial class FighterAi : Node
 {
     [Export] public float PatrolRadius = 3000f;
-    [Export] public float PatrolThrottle = 0.6f;
+    [Export] public float PatrolSpeed = 150f;           // m/s, asked of the flight assist
+    [Export] public float AttackSpeed = 175f;           // m/s, closing in under 2 km
+    [Export] public float CloseSpeed = 60f;             // m/s, nearer than CloseRange
     [Export] public double SearchSeconds = 20;
     [Export] public float FriendGate = 250f;            // m: an echo this near where a friend says it is, is that friend
     [Export] public float TurnGain = 2.2f;              // stick per radian off the nose
@@ -82,7 +84,6 @@ public partial class FighterAi : Node
     [Export] public float FlareRange = 2500f;           // flares go only once a heat seeker is this near (they burn 2 s)
     [Export] public float SightCone = 15f;              // pointing within this of the ship: at it
     [Export] public float AvoidSeconds = 5f;            // the way ahead must be clear for this much flight
-    [Export] public float FullThrottleSpeed = 250f;     // m/s: what full throttle asks of the flight assist (FLIGHT's MAX_SPEED)
     [Export] public float BrakeShare = 0.7f;            // of the reverse thrust it counts on to stop
     [Export] public float CreepSpeed = 8f;              // m/s: never slower than this among rocks (a bump at it barely scratches)
     [Export] public bool SafeTurnsNearRocks = true;
@@ -223,6 +224,16 @@ public partial class FighterAi : Node
         _controls = Buttons(c);
     }
 
+    /// <summary>The throttle that asks the flight assist for a speed (m/s): a share of the ship's top.</summary>
+    private float Speed(float metresPerSecond) => Math.Clamp(metresPerSecond / FullThrottleSpeed(), 0, 1);
+
+    /// <summary>What full throttle asks of the flight assist: the top speed the ship's rating plate gives (its engine against the veil).</summary>
+    private float FullThrottleSpeed()
+    {
+        float top = _ship.Spec.TopSpeed(_ship.Device<EngineDevice>()?.Spec?.RatedThrust ?? _ship.Spec.MainThrust);
+        return float.IsFinite(top) ? top : 1000f;
+    }
+
     private bool Friendly(Vector3 point) => _link?.Friendly(point, FriendGate) ?? false;
 
     /// <summary>The nearest echo of the last sweep that is none of its friends.</summary>
@@ -268,7 +279,7 @@ public partial class FighterAi : Node
         }
         float off = Mathf.RadToDeg(Vector3.Forward.AngleTo(local));
         Steer(ref c, local);
-        c.Throttle = range > 2000 ? 1 : range < CloseRange ? 0.25f : 0.7f;
+        c.Throttle = range > 2000 ? 1 : Speed(range < CloseRange ? CloseSpeed : AttackSpeed);
         c.Trigger = range < GunRange && off < cone && _plan.Count == 0;
         if (!UsesMissiles || _plan.Count > 0 || _sinceMissile < MissileInterval || off > 10 || _launcher == null)
             return;
@@ -308,7 +319,7 @@ public partial class FighterAi : Node
         c.Pitch *= 0.5f;                                // easy turns: it is looking, not fighting
         c.Yaw *= 0.5f;
         c.Roll *= 0.5f;
-        c.Throttle = PatrolThrottle;
+        c.Throttle = Speed(PatrolSpeed);
     }
 
     // ---------- threats ----------
@@ -437,10 +448,10 @@ public partial class FighterAi : Node
         }
         if (_eyes.Clear.Length > 0)
         {
-            float brake = BrakeShare * _ship.Spec.ReverseThrust / _ship.Spec.Mass;
+            float brake = BrakeShare * _ship.Spec.Reverse / _ship.Spec.Mass;
             float room = MathF.Max(0, _eyes.Clear.Min() - _eyes.Clearance);      // turning, it may sweep into any of them
             float safe = MathF.Max(CreepSpeed, MathF.Sqrt(2 * brake * room));
-            c.Throttle = MathF.Min(c.Throttle, safe / FullThrottleSpeed);
+            c.Throttle = MathF.Min(c.Throttle, safe / FullThrottleSpeed());
         }
     }
 

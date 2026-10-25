@@ -70,6 +70,9 @@
 [ext_resource type="Resource" path="res://assets/ship/jammers/jammer_nj2.tres" id="67_nj2"]
 [ext_resource type="Resource" path="res://assets/ship/jammers/jammer_dj3.tres" id="68_dj3"]
 [ext_resource type="Script" path="res://scripts/Ship/JammerSpec.cs" id="69_jammer_spec"]
+[ext_resource type="Script" path="res://scripts/Ship/EngineDevice.cs" id="70_engine"]
+[ext_resource type="Resource" path="res://assets/ship/engines/engine_d50.tres" id="71_d50"]
+[ext_resource type="Resource" path="res://assets/ship/hulls/hull_fighter.tres" id="72_hull"]
 
 [sub_resource type="Sky" id="Sky_space"]
 sky_material = ExtResource("43_skybox")
@@ -98,9 +101,6 @@ rings = 64
 script = ExtResource("8_region")
 Size = Vector3(7000, 2000, 7000)
 Falloff = 1200.0
-
-[sub_resource type="Resource" id="Spec_fighter"]
-script = ExtResource("11_spec")
 
 [sub_resource type="SphereMesh" id="ShieldSphere"]
 radius = 1.0
@@ -181,7 +181,7 @@ script = ExtResource("51_rock_sensor")
 
 [node name="Ship" type="AnimatableBody3D" parent="." unique_id=2058915107]
 script = ExtResource("6_ship")
-Spec = SubResource("Spec_fighter")
+Spec = ExtResource("72_hull")
 
 [node name="NetBody" type="Node" parent="Ship"]
 script = ExtResource("32_netbody")
@@ -239,6 +239,10 @@ FlareScene = ExtResource("36_flare")
 
 [node name="SeekerTone" type="AudioStreamPlayer" parent="Ship/Launcher" unique_id=1115448228]
 script = ExtResource("26_growl")
+
+[node name="Engine" type="Node" parent="Ship"]
+script = ExtResource("70_engine")
+Spec = ExtResource("71_d50")
 
 [node name="Jammer" type="Node3D" parent="Ship"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -1)
@@ -356,7 +360,7 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -210.0
+offset_left = -250.0
 offset_top = -100.0
 offset_right = -20.0
 offset_bottom = -20.0

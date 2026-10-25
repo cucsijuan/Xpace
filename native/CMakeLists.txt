@@ -7,6 +7,7 @@
 #                               Small-C, the C compiler (with CLIB.LIB and the headers)
 #   ../disks/missile.bin        the radar guided missile's firmware
 #   ../disks/irmissile.bin      the heat seeker's firmware
+#   ../disks/engine.bin         the main engine's controller firmware
 #
 # Any generator works (Visual Studio, Make, Ninja...):
 #
@@ -93,12 +94,13 @@ assemble(RWR.COM     ${XPACE_ROOT}/software/rwr/rwr.asm)
 assemble(POWER.COM   ${XPACE_ROOT}/software/power/power.asm)
 
 set(XPACE_FIRMWARE)
-foreach(name missile irmissile)
+foreach(source missile/missile missile/irmissile engine/engine)
+  get_filename_component(name ${source} NAME)
   set(out ${XPACE_ROOT}/disks/${name}.bin)
   add_custom_command(OUTPUT ${out}
     COMMAND ${CMAKE_COMMAND} -E make_directory ${XPACE_ROOT}/disks
-    COMMAND $<TARGET_FILE:asm86> ${XPACE_ROOT}/software/missile/${name}.asm -o ${out}
-    DEPENDS asm86 ${XPACE_ROOT}/software/missile/${name}.asm
+    COMMAND $<TARGET_FILE:asm86> ${XPACE_ROOT}/software/${source}.asm -o ${out}
+    DEPENDS asm86 ${XPACE_ROOT}/software/${source}.asm
     VERBATIM)
   list(APPEND XPACE_FIRMWARE ${out})
 endforeach()

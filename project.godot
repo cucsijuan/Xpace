@@ -11,8 +11,8 @@ config_version=5
 [application]
 
 config/name="Xpace"
-config/version="0.1.0"
 config/description="Space game where the ships' systems run on 8086 computers."
+config/version="0.1.0"
 run/main_scene="res://scenes/menu/main_menu.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 

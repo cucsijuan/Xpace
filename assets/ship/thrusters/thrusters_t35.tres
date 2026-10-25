@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ThrusterSpec" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/ThrusterSpec.cs" id="1_spec"]
+
+[resource]
+script = ExtResource("1_spec")
+Model = "T-35"
+ReverseThrust = 700000.0
+LateralThrust = 800000.0
+VerticalThrust = 1400000.0
+Torque = Vector3(168000, 112000, 168000)

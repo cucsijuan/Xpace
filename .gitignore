@@ -17,6 +17,7 @@ native/bin/
 disks/cos.img
 disks/missile.bin
 disks/irmissile.bin
+disks/engine.bin
 screen_final.pgm
 
 # Third-party art packs (raw); pick assets from here into assets/

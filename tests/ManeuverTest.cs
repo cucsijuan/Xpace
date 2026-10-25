@@ -53,8 +53,9 @@ public partial class ManeuverTest : FloatingOrigin
         Check("locked", await Until(() => _radar.Locked == _drone, 1));
         await Seconds(1);
 
-        // Yaw left across the target while firing: it sweeps from left to right
-        _controls.Yaw = -0.4f;
+        // Yaw left across the target while firing at 0.24 rad/s (of the top the rating plate gives): it sweeps from left to right
+        const float yawRate = 0.24f;
+        _controls.Yaw = -yawRate / _ship.Spec.TopTurnRate().Y;
         await Seconds(0.5);
         int rounds0 = _turret.RoundsFired, hits0 = _drone.Hits;
         _controls.Trigger = true;
@@ -64,7 +65,7 @@ public partial class ManeuverTest : FloatingOrigin
         await Seconds(1.8);
         int hits = _drone.Hits - hits0;
         _controls.Yaw = 0;
-        Check($"turning at {Mathf.RadToDeg(0.4f * 0.6f):0} deg/s, it keeps firing ({rounds} of 40 rounds)", rounds >= 32);
+        Check($"turning at {Mathf.RadToDeg(yawRate):0} deg/s, it keeps firing ({rounds} of 40 rounds)", rounds >= 32);
         Check($"and hitting ({hits} hits, {(rounds == 0 ? 0 : (float)hits / rounds):P0})", hits >= rounds * 0.2f);
         await Seconds(2);
 

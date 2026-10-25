@@ -33,6 +33,7 @@ public partial class ShipSignature : Node3D, IRadarTarget, IDamageable, IHeatSou
     private ShipBody _ship;
     private ShipHull _hull;
     private HeatDevice _heat;
+    private EngineDevice _engine;
 
     /// <summary>The hull's heat, 1 at 100% (the heat device's; a puppet: what its owner says).</summary>
     public float HullLevel => ShownLevel ?? _heat?.Level ?? HullHeat / HullHeatAtFull;
@@ -51,6 +52,7 @@ public partial class ShipSignature : Node3D, IRadarTarget, IDamageable, IHeatSou
         {
             _hull ??= n as ShipHull;
             _heat ??= n as HeatDevice;
+            _engine ??= n as EngineDevice;
         }
     }
 
@@ -77,6 +79,7 @@ public partial class ShipSignature : Node3D, IRadarTarget, IDamageable, IHeatSou
         float heat = Heat.Point(GlobalPosition, 1, from, out direction);
         float behind = Mathf.Max(0, -direction.Dot(GlobalBasis.Z.Normalized()));
         float hull = _heat != null || ShownLevel.HasValue ? HullHeatAtFull * HullLevel : HullHeat;
-        return heat * (hull + MotorHeat * thrust * (FrontHeat + (1 - FrontHeat) * behind));
+        float engine = _engine?.Glow ?? 0;          // its radiators, and a core run too hot
+        return heat * (hull + engine + MotorHeat * thrust * (FrontHeat + (1 - FrontHeat) * behind));
     }
 }

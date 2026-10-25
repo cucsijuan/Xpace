@@ -1,4 +1,4 @@
-; flight.asm - CucsiCorp Flight Control 1.2 (FLIGHT.COM)
+; flight.asm - CucsiCorp Flight Control 1.4 (FLIGHT.COM)
 ;
 ;   FLIGHT          stays resident and flies the ship
 ;   FLIGHT OFF      takes it out of memory: the thrusters answer the
@@ -12,7 +12,10 @@
 ;
 ; Flight assist on: the stick asks for a turn rate and the throttle for a
 ; forward speed; the strafe controls ask for a sideways speed. Let go and
-; the ship stops turning and drifting. Flight assist off: the stick and the
+; the ship stops turning and drifting. Full stick and full throttle ask for
+; the most the ship can do, as its rating plate says (its thrusters and
+; engine against the veil's drag); the push each axis needs to hold what is
+; asked against the drag goes out at once, and the error drives the rest. Flight assist off: the stick and the
 ; throttle drive the thrusters directly, and the ship keeps whatever motion
 ; it has. The pilot's FA button switches between the two.
 ;
@@ -23,6 +26,10 @@
 ; thrusters' rating plate, less a share kept for holding the speed. The
 ; faster the ship, the gentler its turns; better thrusters turn it harder.
 ; Without a rating plate on the bus there are no safe turns.
+;
+; The pilot's boost button, held, drives the main engine's cooling harder
+; (the cooling unit's boost): the engine keeps up more thrust before its
+; controller cuts it out, and its radiators glow brighter.
 ;
 ; If nothing writes commands for 100 ms, the thruster controller falls back
 ; to direct control, as if flight assist were off for good.
@@ -51,7 +58,15 @@
 ;   1A0h  thruster ratings   +0 type 12  what the thrusters can do to the
 ;                            ship: +2 forward  +4 reverse  +6 sideways
 ;                            +8 up and down (1/8 m/s2)  +10 pitch  +12 yaw
-;                            +14 roll (1/1024 rad/s2)
+;                            +14 roll (1/1024 rad/s2); +1 version: 2 and
+;                            the whole plate is at D000:1400 too, with
+;                            the top speeds (+14 forward, +16 reverse, +18
+;                            sideways, +20 up and down, 1/8 m/s) and top
+;                            turn rates (+22 pitch, +24 yaw, +26 roll,
+;                            1/1024 rad/s)
+;   1F0h  main engine        +0 type 17  +6 status (bit 4 the cooling
+;                            unit's calibration mode); write: the cooling
+;                            unit, bit 0 boost, bit 7 calibration mode
 
 org 100h
 
@@ -60,20 +75,18 @@ IMU         equ 110h
 THRUST      equ 120h
 DISPLAYS    equ 150h
 RATINGS     equ 1A0h
+ENGINE      equ 1F0h
 TYPE_CTRL   equ 1
 TYPE_IMU    equ 2
 TYPE_THRUST equ 3
 TYPE_DISPLAYS equ 6
 TYPE_RATINGS equ 12
+TYPE_ENGINE equ 17
 IRQ_VECTOR  equ 0Dh                 ; IRQ 5
 IRQ_BIT     equ 20h
 
-; What full stick and full throttle ask for, with flight assist on
-MAX_PITCH   equ 1229                ; 1.2 rad/s, in 1/1024 rad/s
-MAX_ROLL    equ 2560                ; 2.5 rad/s
-MAX_YAW     equ 614                 ; 0.6 rad/s
-MAX_SPEED   equ 2000                ; 250 m/s forward, in 1/8 m/s
-MAX_STRAFE  equ 800                 ; 100 m/s sideways
+PLATE_SEG   equ 0D000h              ; the whole rating plate (version 2)
+PLATE       equ 1400h
 GAIN_RATE   equ 96                  ; command for each unit of turn-rate error
 GAIN_SPEED  equ 204                 ; command for each unit of speed error
 SAFE_SHARE  equ 768                 ; safe turns use 3/4 of the push across (x 1024)
@@ -160,16 +173,37 @@ step:
     and al, 1
     xor [safe], al                  ; (no rating plate: nothing to go by)
 .no_safe:
+    cmp byte [has_engine], 0
+    je .no_engine
+    mov al, [buttons]               ; the boost button held: the cooling boost
+    and al, 2
+    shr al, 1
+    cmp al, [boost]
+    je .no_engine
+    mov [boost], al
+    mov dx, ENGINE + 6              ; the calibration mode left as it is
+    in al, dx
+    and al, 10h
+    mov cl, 3
+    shl al, cl
+    or al, [boost]
+    out dx, al
+.no_engine:
     mov dx, IMU + 2
     mov di, motion
     mov cx, 6
     call read_words
+    cmp byte [plate2], 0
+    je .limits
+    call read_plate
+.limits:
     call turn_limits
 
     cmp byte [assist], 0
     je .direct
 
-    ; flight assist: each axis drives its error to zero
+    ; flight assist: each axis holds its setpoint against the veil and
+    ; drives its error to zero
     mov si, axes
     mov di, commands
 .axis:
@@ -177,15 +211,37 @@ step:
     test ax, ax
     jz .assisted
     mov bx, ax
-    lodsw                           ; ... how much full input asks for
-    mov cx, ax
+    lodsw                           ; ... how much full input asks for (where it is kept)
+    xchg ax, bx
+    mov cx, [bx]
+    mov bx, ax
     mov ax, [bx]
     call scale                      ; AX = the setpoint
-    mov bx, [si]                    ; ... what the ship is doing
+    mov [setpoint], ax
+    lodsw                           ; ... what the ship is doing
+    mov bx, ax
+    mov ax, [setpoint]
     sub ax, [bx]
-    mov cx, [si + 2]                ; ... the gain
-    add si, 4
+    mov cx, [si]                    ; ... the gain
     call times_clamped
+    mov [p_term], ax
+    mov bx, [si + 2]                ; ... the top, for the push that holds the setpoint
+    add si, 4
+    mov cx, [bx]
+    mov ax, [setpoint]
+    call feedforward
+    mov bx, [p_term]
+    add ax, bx
+    jno .summed
+    mov ax, 32767                   ; it went over: the most, either way
+    test bx, bx
+    jns .summed
+    mov ax, -32767
+.summed:
+    cmp ax, 8000h
+    jne .stored
+    inc ax
+.stored:
     stosw
     jmp .axis
 
@@ -232,24 +288,78 @@ step:
 ; Full stick's pitch and yaw rates: the most, or with safe turns what the
 ; push across allows at this speed (written into the axes below)
 turn_limits:
-    mov ax, MAX_PITCH
-    mov bx, MAX_YAW
+    mov ax, [max_pitch]
+    mov bx, [max_yaw]
     cmp byte [safe], 0
     je .set
     mov dx, RATINGS + 8             ; up and down: pitch bends the path
     in ax, dx
-    mov cx, MAX_PITCH
+    mov cx, [max_pitch]
     call safe_rate
     push ax
     mov dx, RATINGS + 6             ; sideways: yaw bends it
     in ax, dx
-    mov cx, MAX_YAW
+    mov cx, [max_yaw]
     call safe_rate
     mov bx, ax
     pop ax
 .set:
-    mov [axes + 2], ax
-    mov [axes + 18], bx
+    mov [lim_pitch], ax
+    mov [lim_yaw], bx
+    ret
+
+; The tops from the whole rating plate, every step (a worn engine, a new
+; fit: it says what the ship can do now)
+read_plate:
+    push ds
+    mov ax, PLATE_SEG
+    mov ds, ax
+    mov si, PLATE + 14
+    mov ax, [si]                    ; forward
+    mov bx, [si + 4]                ; sideways
+    mov cx, [si + 6]                ; up and down
+    mov dx, [si + 8]                ; pitch
+    mov di, [si + 10]               ; yaw
+    mov bp, [si + 12]               ; roll
+    pop ds
+    mov [max_speed], ax
+    mov [max_side], bx
+    mov [max_vert], cx
+    mov [max_pitch], dx
+    mov [max_yaw], di
+    mov [max_roll], bp
+    ret
+
+; AX = a setpoint, CX = the top that way: AX = the push that holds it
+; against the veil, (setpoint / top)^2 of the most, with its sign (none
+; without the whole plate: nothing to go by)
+feedforward:
+    cmp byte [plate2], 0
+    je .none
+    jcxz .none
+    mov bx, ax
+    test ax, ax
+    jns .positive
+    neg ax
+.positive:
+    cmp ax, cx
+    jbe .within
+    mov ax, cx
+.within:
+    push bx
+    mov bx, 32767
+    mul bx
+    div cx                          ; AX = setpoint / top, of 32767
+    mul ax
+    div bx                          ; AX = its square, of 32767
+    pop bx
+    test bx, bx
+    jns .done
+    neg ax
+.done:
+    ret
+.none:
+    xor ax, ax
     ret
 
 ; AX = an acceleration across (1/8 m/s2), CX = the most: AX = the turn rate
@@ -276,14 +386,15 @@ safe_rate:
 .done:
     ret
 
-; Per axis: input, full-scale setpoint, measurement, gain (0 ends)
+; Per axis: input, where its full-scale setpoint is kept, measurement,
+; gain, where its top is kept (0 ends)
 axes:
-    dw controls + 0, MAX_PITCH,  motion + 0,  GAIN_RATE
-    dw controls + 2, MAX_ROLL,   motion + 2,  GAIN_RATE
-    dw controls + 4, MAX_YAW,    motion + 4,  GAIN_RATE
-    dw controls + 6, MAX_STRAFE, motion + 6,  GAIN_SPEED
-    dw controls + 8, MAX_STRAFE, motion + 8,  GAIN_SPEED
-    dw controls + 10, MAX_SPEED, motion + 10, GAIN_SPEED
+    dw controls + 0, lim_pitch,  motion + 0,  GAIN_RATE,  max_pitch
+    dw controls + 2, max_roll,   motion + 2,  GAIN_RATE,  max_roll
+    dw controls + 4, lim_yaw,    motion + 4,  GAIN_RATE,  max_yaw
+    dw controls + 6, max_side,   motion + 6,  GAIN_SPEED, max_side
+    dw controls + 8, max_vert,   motion + 8,  GAIN_SPEED, max_vert
+    dw controls + 10, max_speed, motion + 10, GAIN_SPEED, max_speed
     dw 0
 
 ; CX words from the ports at DX, DX+2, ... to DI
@@ -464,6 +575,21 @@ s_none          db '---', 0
 assist          db 1
 safe            db 0
 rated           db 0                ; the ship has a thruster rating plate
+has_engine      db 0                ; the ship has a main engine with a cooling unit
+plate2          db 0                ; the rating plate gives the tops (version 2)
+; What full stick and full throttle ask for: the rating plate's tops
+; (these only on a ship whose plate does not give them)
+max_pitch       dw 1229             ; 1/1024 rad/s
+max_roll        dw 2560
+max_yaw         dw 614
+max_side        dw 800              ; 1/8 m/s
+max_vert        dw 800
+max_speed       dw 2000
+lim_pitch       dw 1229             ; full stick's pitch and yaw now (safe turns)
+lim_yaw         dw 614
+setpoint        dw 0
+p_term          dw 0
+boost           db 0                ; the boost asked for, last step
 buttons         db 0
 buttons2        db 0
 screen_wait     db 1
@@ -514,7 +640,19 @@ install:
     cmp al, TYPE_RATINGS
     jne .unrated
     mov byte [rated], 1
+    mov dx, RATINGS + 1             ; the whole plate, with the tops?
+    in al, dx
+    cmp al, 2
+    jb .unrated
+    mov byte [plate2], 1
+    call read_plate
 .unrated:
+    mov dx, ENGINE                  ; a main engine to cool harder on boost
+    in al, dx
+    cmp al, TYPE_ENGINE
+    jne .no_engine
+    mov byte [has_engine], 1
+.no_engine:
 
     mov si, n_flight                ; its page, if the ship has the screen
     call find_screen
