@@ -41,9 +41,10 @@ All of them have:
   when the game starts (the reset button still does it). Prefer a scene
   made with the [mesh part tool](tools/mesh-parts.md).
 
-The player works them in view mode (middle button: the middle of the view
-points) or with the mouse free (Esc: the cursor points): click, drag a
-slider up and down or an encoder sideways, or turn the wheel over them.
+The player works them while looking around (middle button: the dot in the
+middle of the view points) or with the pointer (Alt: the cursor points, the
+head stays still): click, drag a slider up and down or an encoder sideways,
+or turn the wheel over them.
 
 ## What the ship exposes
 

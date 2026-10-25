@@ -7,7 +7,7 @@ namespace Xpace.Net;
 /// <summary>
 /// The session over UDP, through ENet (Godot's <see cref="ENetConnection"/>,
 /// without its high-level multiplayer): for playing on a LAN or over the
-/// internet with an open port, until the EOS transport. Snapshots go
+/// internet with an open port (<see cref="EosNet"/> needs none). Snapshots go
 /// unsequenced (the session orders them itself), events reliable. ENet's
 /// throttle, which drops unreliable packets when the round trip wobbles,
 /// is off: the session copes with loss itself.

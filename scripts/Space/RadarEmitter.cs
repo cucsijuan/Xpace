@@ -95,7 +95,7 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
     private bool Transmitting => _puppet ? _told != RadarMode.Off : On && (_owner == null || _owner.Alive);
 
     public RadarMode Mode => !Transmitting ? RadarMode.Off : Locked ? RadarMode.Track : RadarMode.Search;
-    public Node Tracked => Locked ? Target : null;
+    public Node Tracked => Locked && IsInstanceValid(Target) ? Target : null;
     public bool Guiding { get; private set; }
 
     public void Follow(RadarMode mode, Node3D tracked, bool guiding)

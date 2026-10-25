@@ -22,6 +22,21 @@ public static class FlightInput
     public const string Chaff = "chaff", Flare = "flare";
     public const string Zoom = "zoom";
     public const string DisplayZoomIn = "display_zoom_in", DisplayZoomOut = "display_zoom_out", DisplaySound = "display_sound";
+    public const string Look = "look", LookAhead = "look_ahead", Pointer = "pointer";
+
+    /// <summary>The actions a player can bind again in the settings, with the names the menu shows, in order.</summary>
+    public static readonly (string Action, string Name)[] Bindable =
+    {
+        (ThrottleUp, "Throttle up"), (ThrottleDown, "Throttle down"), (ThrottleZero, "Throttle to zero"),
+        (YawLeft, "Yaw left"), (YawRight, "Yaw right"),
+        (PitchUp, "Pitch up"), (PitchDown, "Pitch down"), (RollLeft, "Roll left"), (RollRight, "Roll right"),
+        (StrafeLeft, "Strafe left"), (StrafeRight, "Strafe right"), (StrafeUp, "Strafe up"), (StrafeDown, "Strafe down"),
+        (FlightAssist, "Flight assist"), (Boost, "Boost"),
+        (Look, "Look around (tap: stay, hold: peek)"), (LookAhead, "Look ahead"), (Pointer, "Pointer (tap: stay, hold: while held)"),
+        (FirePrimary, "Fire"), (TargetAhead, "Target ahead"), (NextTarget, "Next target"), (NextWeapon, "Next weapon"),
+        (Chaff, "Chaff"), (Flare, "Flare"), (Zoom, "Zoom"),
+        (DisplayZoomIn, "Screen range in"), (DisplayZoomOut, "Screen range out"), (DisplaySound, "Screen sound"),
+    };
 
     public static void Register()
     {
@@ -50,6 +65,9 @@ public static class FlightInput
         Add(DisplayZoomIn, Key(Godot.Key.Bracketleft));          // the screen of interest's keys
         Add(DisplayZoomOut, Key(Godot.Key.Bracketright));
         Add(DisplaySound, Key(Godot.Key.M));
+        Add(Look, new InputEventMouseButton { ButtonIndex = MouseButton.Middle });
+        Add(LookAhead, Button(JoyButton.LeftStick));                // on the keyboard: twice Look, or bind one
+        Add(Pointer, Key(Godot.Key.Alt));
     }
 
     private static void Add(string action, params InputEvent[] events)

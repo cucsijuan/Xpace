@@ -46,6 +46,8 @@
 [ext_resource type="Resource" path="res://assets/weapons/round_cannon.tres" id="46_cannon_look"]
 [ext_resource type="Resource" path="res://assets/weapons/round_laser.tres" id="47_laser_look"]
 [ext_resource type="Script" path="res://scripts/Space/RoundLook.cs" id="48_look"]
+[ext_resource type="Script" path="res://scripts/Cockpit/LookDot.cs" id="49_dot"]
+[ext_resource type="PackedScene" path="res://scenes/menu/game_menu.tscn" id="50_game_menu"]
 
 [sub_resource type="Sky" id="Sky_space"]
 sky_material = ExtResource("43_skybox")
@@ -251,6 +253,37 @@ mouse_filter = 2
 script = ExtResource("45_sight")
 LaserPath = NodePath("../../../Laser")
 
+[node name="LookDot" type="Control" parent="Ship/Pilot/Hud"]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("49_dot")
+
+[node name="ModeBar" type="Label" parent="Ship/Pilot/Hud"]
+layout_mode = 3
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -500.0
+offset_top = -40.0
+offset_right = 500.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 2
+theme_override_colors/font_color = Color(0.85, 0.95, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 15
+horizontal_alignment = 1
+
 [node name="MouseWidget" type="Control" parent="Ship/Pilot/Hud" unique_id=567139452]
 layout_mode = 3
 anchors_preset = 8
@@ -277,3 +310,5 @@ Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_m
 
 [node name="NetLauncher" type="Node" parent="."]
 script = ExtResource("34_launcher")
+
+[node name="GameMenu" parent="." instance=ExtResource("50_game_menu")]

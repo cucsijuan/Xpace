@@ -1,0 +1,111 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/Menu/MainMenu.cs" id="1_menu"]
+[ext_resource type="Material" path="res://assets/materials/synty_skybox_04.tres" id="2_skybox"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Ship_Fighter_03.fbx" id="3_ship"]
+[ext_resource type="Material" path="res://assets/materials/paint_raider.tres" id="4_paint"]
+[ext_resource type="Theme" path="res://assets/ui/menu_theme.tres" id="5_theme"]
+[ext_resource type="PackedScene" path="res://scenes/menu/settings_menu.tscn" id="6_settings"]
+
+[sub_resource type="Sky" id="Sky_space"]
+sky_material = ExtResource("2_skybox")
+
+[sub_resource type="Environment" id="Environment_space"]
+background_mode = 2
+background_color = Color(0, 0, 0.01, 1)
+sky = SubResource("Sky_space")
+ambient_light_source = 2
+ambient_light_color = Color(0.25, 0.27, 0.32, 1)
+ambient_light_energy = 0.6
+tonemap_mode = 2
+glow_enabled = true
+
+[node name="MainMenu" type="Node3D"]
+script = ExtResource("1_menu")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_space")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 0, 0)
+light_energy = 1.4
+
+[node name="Ship" parent="." instance=ExtResource("3_ship")]
+transform = Transform3D(-0.866025, 0, -0.5, 0, 1, 0, 0.5, 0, -0.866025, 0, 0, 0)
+
+[node name="SM_Ship_Fighter_03" parent="Ship" index="0"]
+material_override = ExtResource("4_paint")
+
+[node name="Pivot" type="Node3D" parent="."]
+
+[node name="Camera3D" type="Camera3D" parent="Pivot"]
+transform = Transform3D(1, 0, 0, 0, 0.990268, 0.139173, 0, -0.139173, 0.990268, -6, 3, 20)
+fov = 50.0
+
+[node name="Ui" type="CanvasLayer" parent="."]
+
+[node name="Root" type="Control" parent="Ui"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("5_theme")
+
+[node name="Menu" type="VBoxContainer" parent="Ui/Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 4
+anchor_top = 0.5
+anchor_bottom = 0.5
+offset_left = 120.0
+offset_top = -200.0
+offset_right = 520.0
+offset_bottom = 200.0
+grow_vertical = 2
+theme_override_constants/separation = 14
+
+[node name="Title" type="Label" parent="Ui/Root/Menu"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.65, 0.2, 1)
+theme_override_font_sizes/font_size = 64
+text = "XPACE"
+
+[node name="Gap" type="Control" parent="Ui/Root/Menu"]
+custom_minimum_size = Vector2(0, 24)
+layout_mode = 2
+
+[node name="SinglePlayer" type="Button" parent="Ui/Root/Menu"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Single Player"
+alignment = 0
+
+[node name="Multiplayer" type="Button" parent="Ui/Root/Menu"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Multiplayer"
+alignment = 0
+
+[node name="SettingsButton" type="Button" parent="Ui/Root/Menu"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Settings"
+alignment = 0
+
+[node name="Quit" type="Button" parent="Ui/Root/Menu"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Quit"
+alignment = 0
+
+[node name="Status" type="Label" parent="Ui/Root/Menu"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="Settings" parent="Ui/Root" instance=ExtResource("6_settings")]
+unique_name_in_owner = true
+layout_mode = 1

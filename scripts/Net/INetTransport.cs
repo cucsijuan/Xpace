@@ -3,8 +3,8 @@ using System.Collections.Generic;
 namespace Xpace.Net;
 
 /// <summary>
-/// What carries packets between the machines in a session: EOS P2P in the
-/// game, <see cref="EnetTransport"/> on a LAN, <see cref="SimulatedNetwork"/>
+/// What carries packets between the machines in a session: EOS P2P through
+/// <see cref="StarTransport"/>, <see cref="EnetTransport"/> on a LAN, <see cref="SimulatedNetwork"/>
 /// in tests. Peers are named by a
 /// byte; the host is peer 0.
 /// </summary>

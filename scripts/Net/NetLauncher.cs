@@ -1,16 +1,22 @@
 using System;
+using System.Linq;
 using Godot;
 
 namespace Xpace.Net;
 
 /// <summary>
-/// Starts a session from the command line, over <see cref="EnetTransport"/>.
-/// Place it beside a <see cref="SessionNode"/>; with no arguments the game
-/// plays alone.
+/// Starts the scene's session: on the online game the main menu found or
+/// made (<see cref="OnlinePlay"/>), or from the command line, over
+/// <see cref="EnetTransport"/> (a LAN, or an open port) or online (Epic
+/// Online Services: the first game with room, or a new one). Place it beside
+/// a <see cref="SessionNode"/>; with neither the game plays alone.
 ///
 ///   godot --path . -- --host [port]
 ///   godot --path . -- --join address[:port]
+///   godot --path . -- --online
 ///
+/// <c>--eos-new-device</c> signs in with a new device account: for testing
+/// several players on one computer.
 /// The window's title says which machine it is.
 /// </summary>
 public partial class NetLauncher : Node
@@ -25,7 +31,13 @@ public partial class NetLauncher : Node
     {
         _session = GetNodeOrNull<SessionNode>(SessionPath);
         _title = GetWindow().Title;
+        if (OnlinePlay.Current?.Peer is byte peer)
+        {
+            Online(peer);
+            return;
+        }
         string[] args = OS.GetCmdlineUserArgs();
+        bool newDevice = args.Contains("--eos-new-device");
         for (int i = 0; i < args.Length; i++)
         {
             string[] kv = args[i].Split('=', 2);
@@ -36,6 +48,8 @@ public partial class NetLauncher : Node
                     Host(value == null ? EnetTransport.DefaultPort : int.Parse(value));
                 else if (kv[0] == "--join")
                     Join(value ?? "127.0.0.1");
+                else if (kv[0] == "--online")
+                    GoOnline(newDevice);
             }
             catch (Exception e) when (e is InvalidOperationException or FormatException)
             {
@@ -74,11 +88,41 @@ public partial class NetLauncher : Node
         Title($"joining {where}:{port}");
     }
 
+    /// <summary>From the command line: find or host an online game, as the menu does.</summary>
+    private async void GoOnline(bool newDevice)
+    {
+        if (OnlinePlay.Current is not OnlinePlay online)
+            return;
+        try
+        {
+            await online.FindOrHostAsync(MainMenuName(), newDevice, what => Title(what.ToLowerInvariant()));
+        }
+        catch (Exception e)
+        {
+            Title("offline");
+            GD.PushError($"network: {e.Message}");
+            return;
+        }
+        Online(online.Peer.Value);
+    }
+
+    private void Online(byte peer)
+    {
+        StarTransport t = OnlinePlay.Current.Transport;
+        t.PeerJoined += p => Say($"player {p} joined");
+        t.PeerLeft += p => Say(p == Session.HostPeer ? t.Refusal ?? "the host is gone" : $"player {p} left");
+        _session?.Start(peer, t);
+        Title(peer == Session.HostPeer ? "host, online" : $"player {peer}, online");
+        Say(peer == Session.HostPeer ? "hosting online" : $"joined online as player {peer}");
+    }
+
+    private static string MainMenuName() => Menu.MainMenu.PlayerName;
+
     public override void _PhysicsProcess(double delta)
     {
         // Until the session runs, someone has to hear the host's welcome
-        if (_transport != null && _session?.Active != true)
-            _transport.Service();
+        if (_session?.Active != true)
+            _transport?.Service();
     }
 
     public override void _ExitTree() => _transport?.Dispose();

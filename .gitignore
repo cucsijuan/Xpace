@@ -24,3 +24,7 @@ screen_final.pgm
 
 # Synty files, copied by tools/import_synty.cmake (licence: no redistribution)
 assets/synty/
+
+# The EOS product's keys, written by tools/eos_keys.py
+scripts/Net/EosProduct.g.cs
+scripts/Net/EosProduct.g.cs.uid

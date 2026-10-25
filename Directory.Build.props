@@ -1,0 +1,6 @@
+<Project>
+  <!-- The EOS SDK (not in the repository): next to it by default; external/godot-eos builds it from here too. -->
+  <PropertyGroup>
+    <EosSdkDir Condition="'$(EosSdkDir)' == ''">$(MSBuildThisFileDirectory)../eos-sdk/SDK</EosSdkDir>
+  </PropertyGroup>
+</Project>

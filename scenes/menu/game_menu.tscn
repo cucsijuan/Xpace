@@ -1,0 +1,84 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/Menu/GameMenu.cs" id="1_menu"]
+[ext_resource type="Theme" path="res://assets/ui/menu_theme.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://scenes/menu/settings_menu.tscn" id="3_settings"]
+
+[node name="GameMenu" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_menu")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+
+[node name="Shade" type="ColorRect" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0.01, 0.02, 0.6)
+
+[node name="Center" type="CenterContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Menu" type="PanelContainer" parent="Root/Center"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+
+[node name="Box" type="VBoxContainer" parent="Root/Center/Menu"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="Root/Center/Menu/Box"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.65, 0.2, 1)
+theme_override_font_sizes/font_size = 32
+text = "XPACE"
+
+[node name="Note" type="Label" parent="Root/Center/Menu/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = "Paused"
+
+[node name="Resume" type="Button" parent="Root/Center/Menu/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Resume"
+alignment = 0
+
+[node name="SettingsButton" type="Button" parent="Root/Center/Menu/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Settings"
+alignment = 0
+
+[node name="MainMenu" type="Button" parent="Root/Center/Menu/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Main Menu"
+alignment = 0
+
+[node name="Quit" type="Button" parent="Root/Center/Menu/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Quit"
+alignment = 0
+
+[node name="Settings" parent="Root" instance=ExtResource("3_settings")]
+unique_name_in_owner = true
+layout_mode = 1

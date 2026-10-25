@@ -12,8 +12,13 @@ config_version=5
 
 config/name="Xpace"
 config/description="Space game where the ships' systems run on 8086 computers."
-run/main_scene="res://scenes/main.tscn"
+run/main_scene="res://scenes/menu/main_menu.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+
+[autoload]
+
+GameSettings="*res://scripts/Menu/GameSettings.cs"
+OnlinePlay="*res://scripts/Net/OnlinePlay.cs"
 
 [display]
 

@@ -4,3 +4,6 @@
 [submodule "external/sw86"]
 	path = external/sw86
 	url = https://github.com/cucsijuan/sw86.git
+[submodule "external/godot-eos"]
+	path = external/godot-eos
+	url = https://github.com/cucsijuan/godot-eos.git

@@ -6,4 +6,15 @@
     <Nullable>disable</Nullable>
     <RootNamespace>Xpace</RootNamespace>
   </PropertyGroup>
+  <ItemGroup>
+    <!-- The submodules build on their own -->
+    <Compile Remove="external/**" />
+  </ItemGroup>
+  <!-- Internet play through Epic Online Services: only when the EOS SDK is there (EosSdkDir, see Directory.Build.props). -->
+  <PropertyGroup Condition="Exists('$(EosSdkDir)/Source/Core/Common.cs') And Exists('external/godot-eos/src/GodotEos/GodotEos.csproj')">
+    <DefineConstants>$(DefineConstants);XPACE_EOS</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition="Exists('$(EosSdkDir)/Source/Core/Common.cs') And Exists('external/godot-eos/src/GodotEos/GodotEos.csproj')">
+    <ProjectReference Include="external/godot-eos/src/GodotEos/GodotEos.csproj" />
+  </ItemGroup>
 </Project>

@@ -92,7 +92,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
 
     // What the others can tell of it: in a session, and to warning receivers through its emitter
     public RadarMode Mode => !On ? RadarMode.Off : Locked != null ? RadarMode.Track : RadarMode.Search;
-    public Node Tracked => Locked as Node;
+    public Node Tracked => Locked as Node is Node n && IsInstanceValid(n) ? n : null;
 
     /// <summary>The launcher's datalink is guiding a missile on this radar's track (the launcher says so every step).</summary>
     public bool Guiding { get; set; }

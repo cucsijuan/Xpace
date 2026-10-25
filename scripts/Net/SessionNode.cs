@@ -183,8 +183,8 @@ public partial class SessionNode : Node
     /// <summary>The session id of the ship a node is on (its NetBody's, or a remote player's), if any.</summary>
     public ushort? IdOf(Node node)
     {
-        if (node == null)
-            return null;
+        if (node == null || !IsInstanceValid(node))
+            return null;                // a radar may still hold a ship freed this frame
         if (NetBody.Of(node) is NetBody { Joined: true } body)
             return body.NetId;
         for (Node n = node; n != null; n = n.GetParent())
