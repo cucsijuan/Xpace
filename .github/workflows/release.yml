@@ -1,0 +1,172 @@
+name: Release
+
+# Pushing a tag like v0.1.0 exports the game for Linux and Windows and publishes a release with both zips.
+# Running it by hand (Actions > Release > Run workflow) only exports, keeping the zips as workflow artifacts.
+#
+# Secrets (Settings > Secrets and variables > Actions):
+#   PRIVATE_REPOS_TOKEN    read access to cucsijuan/eos-sdk (the online services SDK) and cucsijuan/xpace-art
+#                          (the Synty files in assets/synty), which can't be in this repository
+#   EOS_PRODUCT_ID, EOS_SANDBOX_ID, EOS_DEPLOYMENT_ID, EOS_CLIENT_ID, EOS_CLIENT_SECRET
+#                          the game's product keys, from the developer portal
+# A tagged release needs all of them; a run by hand without them makes a build with no online play or no art.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: 4.7.2
+
+jobs:
+  windows-native:
+    # The machine and the bus card for Windows, built there with its own compiler.
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Native libraries
+        run: |
+          cmake -S native -B native/build
+          cmake --build native/build --config Release --target libraries
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-native
+          path: native/bin/*.dll
+
+  release:
+    needs: windows-native
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Check the version
+        if: github.ref_type == 'tag'
+        run: |
+          version=$(sed -n 's/^config\/version="\(.*\)"/\1/p' project.godot)
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "project.godot says $version but the tag is $GITHUB_REF_NAME" >&2
+            exit 1
+          fi
+
+      - name: Name the build
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then echo "NAME=Xpace-$GITHUB_REF_NAME" >> "$GITHUB_ENV"
+          else echo "NAME=Xpace-${GITHUB_SHA::7}" >> "$GITHUB_ENV"; fi
+
+      - name: Native libraries and the diskettes
+        run: |
+          cmake -S native -B native/build
+          cmake --build native/build --config Release
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: windows-native
+          path: native/bin
+
+      - name: Install Godot (.NET) and its export templates
+        run: |
+          base="https://github.com/godotengine/godot-builds/releases/download/$GODOT_VERSION-stable"
+          curl -fsSL -o godot.zip "$base/Godot_v$GODOT_VERSION-stable_mono_linux_x86_64.zip"
+          curl -fsSL -o templates.tpz "$base/Godot_v$GODOT_VERSION-stable_mono_export_templates.tpz"
+          unzip -q godot.zip -d "$HOME/godot"
+          echo "GODOT=$HOME/godot/Godot_v$GODOT_VERSION-stable_mono_linux_x86_64/Godot_v$GODOT_VERSION-stable_mono_linux.x86_64" >> "$GITHUB_ENV"
+          templates="$HOME/.local/share/godot/export_templates/$GODOT_VERSION.stable.mono"
+          mkdir -p "$templates"
+          unzip -q templates.tpz -d "$HOME/tpz"
+          mv "$HOME"/tpz/templates/* "$templates/"
+
+      - name: Online services SDK and keys
+        env:
+          PRIVATE_REPOS_TOKEN: ${{ secrets.PRIVATE_REPOS_TOKEN }}
+          EOS_PRODUCT_ID: ${{ secrets.EOS_PRODUCT_ID }}
+          EOS_SANDBOX_ID: ${{ secrets.EOS_SANDBOX_ID }}
+          EOS_DEPLOYMENT_ID: ${{ secrets.EOS_DEPLOYMENT_ID }}
+          EOS_CLIENT_ID: ${{ secrets.EOS_CLIENT_ID }}
+          EOS_CLIENT_SECRET: ${{ secrets.EOS_CLIENT_SECRET }}
+        run: |
+          if [ -n "$PRIVATE_REPOS_TOKEN" ] && [ -n "$EOS_PRODUCT_ID" ]; then
+            git clone -q --depth 1 "https://x-access-token:$PRIVATE_REPOS_TOKEN@github.com/cucsijuan/eos-sdk.git" "$HOME/eos-sdk"
+            echo "EosSdkDir=$HOME/eos-sdk/SDK" >> "$GITHUB_ENV"
+            python3 tools/eos_keys.py
+          elif [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "A release needs the online services SDK and keys (PRIVATE_REPOS_TOKEN, EOS_*)" >&2
+            exit 1
+          else
+            echo "::warning::No online services SDK or keys: this build has only direct (UDP) multiplayer."
+          fi
+
+      - name: Synty art
+        env:
+          PRIVATE_REPOS_TOKEN: ${{ secrets.PRIVATE_REPOS_TOKEN }}
+        run: |
+          # The pack's licence allows it inside the game, not in a public repository.
+          if [ -n "$PRIVATE_REPOS_TOKEN" ] && git clone -q --depth 1 "https://x-access-token:$PRIVATE_REPOS_TOKEN@github.com/cucsijuan/xpace-art.git" assets/synty; then
+            rm -rf assets/synty/.git
+            echo "ART=1" >> "$GITHUB_ENV"
+          elif [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "A release needs the Synty art (PRIVATE_REPOS_TOKEN, cucsijuan/xpace-art)" >&2
+            exit 1
+          else
+            echo "::warning::Synty art not available: this build is missing its models and textures."
+          fi
+
+      - name: Build and import
+        run: |
+          dotnet build Xpace.csproj --configuration Release
+          "$GODOT" --headless --path . --import
+
+      - name: Tests
+        run: |
+          # The ones with no art; with it, also the ones that fly the ship in the main scene.
+          tests="computer motion net session lag star"
+          if [ -n "$ART" ]; then tests="$tests flight combat session_scene power"; fi
+          for t in $tests; do
+            echo "::group::$t"
+            timeout 600 "$GODOT" --headless --fixed-fps 60 --path . "res://tests/${t}_test.tscn"
+            echo "::endgroup::"
+          done
+
+      - name: Export
+        run: |
+          mkdir -p build/linux build/windows
+          "$GODOT" --headless --path . --export-release "Linux" build/linux/Xpace.x86_64
+          "$GODOT" --headless --path . --export-release "Windows Desktop" build/windows/Xpace.exe
+          linux=build/linux/data_Xpace_linuxbsd_x86_64
+          windows=build/windows/data_Xpace_windows_x86_64
+          test -x build/linux/Xpace.x86_64
+          test -f build/windows/Xpace.exe
+          test -f $linux/libpc86.so && test -f $linux/libxpace_native.so
+          test -f $windows/pc86.dll && test -f $windows/xpace_native.dll
+          if [ -n "$EosSdkDir" ]; then
+            test -f $linux/libEOSSDK-Linux-Shipping.so
+            test -f $windows/EOSSDK-Win64-Shipping.dll
+          fi
+          (cd build/linux && zip -qr "../../$NAME-linux.zip" .)
+          (cd build/windows && zip -qr "../../$NAME-windows.zip" .)
+
+      - uses: actions/upload-artifact@v4
+        if: github.ref_type != 'tag'
+        with:
+          name: ${{ env.NAME }}
+          path: ${{ env.NAME }}-*.zip
+
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="docs/releases/$GITHUB_REF_NAME.md"
+          if [ -f "$notes" ]; then set -- --notes-file "$notes"; else set -- --generate-notes; fi
+          gh release create "$GITHUB_REF_NAME" "$NAME-linux.zip" "$NAME-windows.zip" --title "Xpace $GITHUB_REF_NAME" "$@"

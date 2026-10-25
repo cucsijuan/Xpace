@@ -46,7 +46,16 @@ godot --headless --path . --export-release "Linux" build/linux/Xpace.x86_64
 godot --headless --path . --export-release "Windows Desktop" build/windows/Xpace.exe
 ```
 
-The presets (`export_presets.cfg`) put the diskettes (`disks/*.img`, `disks/*.bin`) in the game's pack. The native libraries go into the data folder beside the executable (`data_Xpace_<platform>_x86_64/`) with the assemblies, and so does the EOS SDK's library when the build has online play. The native libraries are the ones in `native/bin`, built for the system the export runs on: export the Windows build on Windows, or it starts without its computers.
+The presets (`export_presets.cfg`) put the diskettes (`disks/*.img`, `disks/*.bin`) in the game's pack. The native libraries go into the data folder beside the executable (`data_Xpace_<platform>_x86_64/`) with the assemblies, and so does the EOS SDK's library when the build has online play. An export takes the native libraries in `native/bin` for its platform. They are built for the system the export runs on, so export the Windows build on Windows (or copy the Windows `.dll`s into `native/bin`), or it starts without its computers.
+
+Releases are built by `.github/workflows/release.yml`. Pushing a tag such as `v0.1.0`, which must match `config/version` in `project.godot`, exports both builds and publishes them as a GitHub release. Running the workflow by hand only keeps the zips as artifacts. The Windows libraries are built on a Windows runner, everything else on Linux.
+
+The EOS SDK and the Synty files can't be in this repository, so the workflow clones them from private repositories (`cucsijuan/eos-sdk`, `cucsijuan/xpace-art`, the latter holding what `tools/import_synty.cmake` puts in `assets/synty`). It needs these secrets:
+
+- `PRIVATE_REPOS_TOKEN`: read access to both of those repositories.
+- `EOS_PRODUCT_ID`, `EOS_SANDBOX_ID`, `EOS_DEPLOYMENT_ID`, `EOS_CLIENT_ID`, `EOS_CLIENT_SECRET`: the game's product keys.
+
+A tag fails without them. A run by hand still builds, with a warning, but has no online play or no art.
 
 ## Controls
 
