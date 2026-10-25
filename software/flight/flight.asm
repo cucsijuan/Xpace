@@ -1,4 +1,4 @@
-; flight.asm - CucsiCorp Flight Control 1.1 (FLIGHT.COM)
+; flight.asm - CucsiCorp Flight Control 1.2 (FLIGHT.COM)
 ;
 ;   FLIGHT          stays resident and flies the ship
 ;   FLIGHT OFF      takes it out of memory: the thrusters answer the
@@ -16,6 +16,14 @@
 ; throttle drive the thrusters directly, and the ship keeps whatever motion
 ; it has. The pilot's FA button switches between the two.
 ;
+; Safe turns (the pilot's SAFE button, with flight assist on): full stick
+; asks only for the pitch and yaw rates the thrusters can bend the ship's
+; path to at its speed, so the ship goes where it points instead of
+; sliding on: a rate of (acceleration across) / (forward speed), from the
+; thrusters' rating plate, less a share kept for holding the speed. The
+; faster the ship, the gentler its turns; better thrusters turn it harder.
+; Without a rating plate on the bus there are no safe turns.
+;
 ; If nothing writes commands for 100 ms, the thruster controller falls back
 ; to direct control, as if flight assist were off for good.
 ;
@@ -25,6 +33,7 @@
 ;                            +8 strafe right  +10 strafe up  +12 throttle
 ;                            (all -32767..32767)  +14 buttons: bit 0 FA,
 ;                            1 boost, 2 target ahead, 3 next target, 4 fire
+;                            +15 more buttons: bit 0 SAFE
 ;   110h  inertial unit      +0 type 2   +2 pitch rate  +4 roll rate
 ;                            +6 yaw rate (1/1024 rad/s)  +8 right  +10 up
 ;                            +12 forward speed (1/8 m/s)  +14 status:
@@ -33,11 +42,16 @@
 ;                            +8 right  +10 up  +12 forward force
 ;                            (-32767..32767 of the most they give)
 ;                            +14 write: take the commands  +15 mode shown
+;                            (bit 0 assist, bit 1 safe turns)
 ;   150h  display card       +0 type 6   +2 segment  +4 screen table
 ;                            +6 screens; a screen (16 bytes): +0 name
 ;                            +6 mode (0 text: character and attribute
 ;                            cells, as on a CGA)  +7 columns  +8 rows
 ;                            +14 memory (offset)
+;   1A0h  thruster ratings   +0 type 12  what the thrusters can do to the
+;                            ship: +2 forward  +4 reverse  +6 sideways
+;                            +8 up and down (1/8 m/s2)  +10 pitch  +12 yaw
+;                            +14 roll (1/1024 rad/s2)
 
 org 100h
 
@@ -45,10 +59,12 @@ CTRL        equ 100h
 IMU         equ 110h
 THRUST      equ 120h
 DISPLAYS    equ 150h
+RATINGS     equ 1A0h
 TYPE_CTRL   equ 1
 TYPE_IMU    equ 2
 TYPE_THRUST equ 3
 TYPE_DISPLAYS equ 6
+TYPE_RATINGS equ 12
 IRQ_VECTOR  equ 0Dh                 ; IRQ 5
 IRQ_BIT     equ 20h
 
@@ -60,6 +76,8 @@ MAX_SPEED   equ 2000                ; 250 m/s forward, in 1/8 m/s
 MAX_STRAFE  equ 800                 ; 100 m/s sideways
 GAIN_RATE   equ 96                  ; command for each unit of turn-rate error
 GAIN_SPEED  equ 204                 ; command for each unit of speed error
+SAFE_SHARE  equ 768                 ; safe turns use 3/4 of the push across (x 1024)
+SAFE_SLOW   equ 16                  ; below 2 m/s forward a turn bends nothing: no limit
 
 SCREEN_EVERY equ 6                  ; steps between screen updates (10 a second)
 ATTR_LABEL  equ 03h
@@ -130,10 +148,23 @@ step:
     jz .no_toggle
     xor byte [assist], 1
 .no_toggle:
+    mov dx, CTRL + 15               ; SAFE on the press of its button
+    in al, dx
+    mov ah, [buttons2]
+    mov [buttons2], al
+    not ah
+    and al, ah
+    test al, 1
+    jz .no_safe
+    mov al, [rated]
+    and al, 1
+    xor [safe], al                  ; (no rating plate: nothing to go by)
+.no_safe:
     mov dx, IMU + 2
     mov di, motion
     mov cx, 6
     call read_words
+    call turn_limits
 
     cmp byte [assist], 0
     je .direct
@@ -173,7 +204,9 @@ step:
     out dx, ax
     add dx, 2
     loop .write
-    mov al, [assist]
+    mov al, [safe]
+    shl al, 1
+    or al, [assist]
     mov dx, THRUST + 15
     out dx, al
     mov dx, THRUST + 14             ; take them
@@ -194,6 +227,53 @@ step:
     sub bx, ax
     add [busy], bx
     adc word [busy + 2], 0
+    ret
+
+; Full stick's pitch and yaw rates: the most, or with safe turns what the
+; push across allows at this speed (written into the axes below)
+turn_limits:
+    mov ax, MAX_PITCH
+    mov bx, MAX_YAW
+    cmp byte [safe], 0
+    je .set
+    mov dx, RATINGS + 8             ; up and down: pitch bends the path
+    in ax, dx
+    mov cx, MAX_PITCH
+    call safe_rate
+    push ax
+    mov dx, RATINGS + 6             ; sideways: yaw bends it
+    in ax, dx
+    mov cx, MAX_YAW
+    call safe_rate
+    mov bx, ax
+    pop ax
+.set:
+    mov [axes + 2], ax
+    mov [axes + 18], bx
+    ret
+
+; AX = an acceleration across (1/8 m/s2), CX = the most: AX = the turn rate
+; (1/1024 rad/s) that bends the path as fast at the forward speed
+safe_rate:
+    mov bx, [motion + 10]
+    test bx, bx
+    jns .forward
+    neg bx
+.forward:
+    cmp bx, SAFE_SLOW
+    jb .most
+    push cx
+    mov cx, SAFE_SHARE
+    mul cx                          ; DX:AX = share x acceleration
+    pop cx
+    cmp dx, bx
+    jae .most                       ; it would not fit: more than the most
+    div bx
+    cmp ax, cx
+    jbe .done
+.most:
+    mov ax, cx
+.done:
     ret
 
 ; Per axis: input, full-scale setpoint, measurement, gain (0 ends)
@@ -269,6 +349,19 @@ draw_values:
     mov di, (2 * COLS + 14) * 2
     call put_text
 
+    mov si, s_on                    ; safe turns
+    mov ah, ATTR_ON
+    cmp byte [safe], 0
+    jne .safe_shown
+    mov si, s_off
+    mov ah, ATTR_OFF
+    cmp byte [rated], 0
+    jne .safe_shown
+    mov si, s_none
+.safe_shown:
+    mov di, (3 * COLS + 14) * 2
+    call put_text
+
     mov ax, [controls + 10]         ; throttle, percent
     mov cx, 100
     call scale
@@ -292,6 +385,10 @@ draw_values:
     call put_rate
     mov ax, [motion + 4]
     mov di, (11 * COLS + 12) * 2
+    call put_rate
+
+    mov ax, [axes + 2]              ; what full stick asks for in pitch
+    mov di, (12 * COLS + 12) * 2
     call put_rate
 
     mov ax, [busy]                  ; CPU load over the last steps:
@@ -362,9 +459,13 @@ put_text:
 
 s_on            db 'ON ', 0
 s_off           db 'OFF', 0
+s_none          db '---', 0
 
 assist          db 1
+safe            db 0
+rated           db 0                ; the ship has a thruster rating plate
 buttons         db 0
+buttons2        db 0
 screen_wait     db 1
 screen_seg      dw 0                ; the FLIGHT screen's segment (0: none)
 t_start         dw 0
@@ -408,6 +509,12 @@ install:
     mov dx, DISPLAYS
     mov bl, TYPE_DISPLAYS
     call check_device
+    mov dx, RATINGS                 ; safe turns need the rating plate
+    in al, dx
+    cmp al, TYPE_RATINGS
+    jne .unrated
+    mov byte [rated], 1
+.unrated:
 
     mov si, n_flight                ; its page, if the ship has the screen
     call find_screen
@@ -575,9 +682,11 @@ draw_labels:
 ; Screen offset, attribute, text (0); 0FFFFh ends
 labels:
     dw (0 * COLS + 0) * 2
-    db ATTR_TITLE, ' FLIGHT CONTROL 1.1            CUCSICORP', 0
+    db ATTR_TITLE, ' FLIGHT CONTROL 1.2            CUCSICORP', 0
     dw (2 * COLS + 1) * 2
     db ATTR_LABEL, 'ASSIST', 0
+    dw (3 * COLS + 1) * 2
+    db ATTR_LABEL, 'SAFE TURNS', 0
     dw (4 * COLS + 1) * 2
     db ATTR_LABEL, 'THROTTLE', 0
     dw (4 * COLS + 18) * 2
@@ -605,6 +714,10 @@ labels:
     dw (11 * COLS + 1) * 2
     db ATTR_LABEL, 'YAW', 0
     dw (11 * COLS + 18) * 2
+    db ATTR_LABEL, 'deg/s', 0
+    dw (12 * COLS + 1) * 2
+    db ATTR_LABEL, 'PITCH MAX', 0
+    dw (12 * COLS + 18) * 2
     db ATTR_LABEL, 'deg/s', 0
     dw (13 * COLS + 1) * 2
     db ATTR_LABEL, 'CPU LOAD', 0

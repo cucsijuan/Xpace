@@ -16,7 +16,7 @@ public static class FlightInput
     public const string RollLeft = "roll_left", RollRight = "roll_right";
     public const string StrafeLeft = "strafe_left", StrafeRight = "strafe_right";
     public const string StrafeUp = "strafe_up", StrafeDown = "strafe_down";
-    public const string FlightAssist = "flight_assist", Boost = "boost";
+    public const string FlightAssist = "flight_assist", SafeTurns = "safe_turns", Boost = "boost";
     public const string FirePrimary = "fire_primary", TargetAhead = "target_ahead", NextTarget = "next_target";
     public const string NextWeapon = "next_weapon";
     public const string Chaff = "chaff", Flare = "flare";
@@ -31,7 +31,7 @@ public static class FlightInput
         (YawLeft, "Yaw left"), (YawRight, "Yaw right"),
         (PitchUp, "Pitch up"), (PitchDown, "Pitch down"), (RollLeft, "Roll left"), (RollRight, "Roll right"),
         (StrafeLeft, "Strafe left"), (StrafeRight, "Strafe right"), (StrafeUp, "Strafe up"), (StrafeDown, "Strafe down"),
-        (FlightAssist, "Flight assist"), (Boost, "Boost"),
+        (FlightAssist, "Flight assist"), (SafeTurns, "Safe turns"), (Boost, "Boost"),
         (Look, "Look around (tap: stay, hold: peek)"), (LookAhead, "Look ahead"), (Pointer, "Pointer (tap: stay, hold: while held)"),
         (FirePrimary, "Fire"), (TargetAhead, "Target ahead"), (NextTarget, "Next target"), (NextWeapon, "Next weapon"),
         (Chaff, "Chaff"), (Flare, "Flare"), (Zoom, "Zoom"),
@@ -54,6 +54,7 @@ public static class FlightInput
         Add(StrafeUp, Key(Godot.Key.R), Joy(JoyAxis.RightY, -1));
         Add(StrafeDown, Key(Godot.Key.F), Joy(JoyAxis.RightY, 1));
         Add(FlightAssist, Key(Godot.Key.Z), Button(JoyButton.Y));
+        Add(SafeTurns, Key(Godot.Key.B), Button(JoyButton.Back));
         Add(Boost, Key(Godot.Key.Tab), Button(JoyButton.A));
         Add(FirePrimary, new InputEventMouseButton { ButtonIndex = MouseButton.Left }, Button(JoyButton.X));
         Add(TargetAhead, Key(Godot.Key.T), Button(JoyButton.B));

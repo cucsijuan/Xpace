@@ -34,6 +34,11 @@ namespace Xpace.Space;
 /// holds the heat for <see cref="ToneSeconds"/>, in range, it fires. A
 /// target flying cold, nose on, shows it little heat.
 ///
+/// With a <see cref="RockSensor"/> below it, it sees rocks ahead and turns
+/// round them, keeping room to turn away (twice its turning radius). With
+/// none it has no eyes for rocks: it flies into them, and that is the end
+/// of it.
+///
 /// In a network session on a machine that does not own it, it is a
 /// puppet: its mind is off, and it only shows what its owner's snapshots
 /// say (its velocity for the radars, blowing up and coming back).
@@ -110,6 +115,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     private Vector3 _breakSide;
     private RadarEmitter _radar;
     private Datalink _link;
+    private RockSensor _eyes;
     private Vector3 _home, _seenAt, _seenVelocity;
     private double _seenAge;
     private readonly SeekerHead _head = new();
@@ -133,6 +139,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
         {
             _radar ??= child as RadarEmitter;
             _link ??= child as Datalink;
+            _eyes ??= child as RockSensor;
         }
         _home = GlobalPosition;
         if (MissileScene != null)
@@ -220,6 +227,11 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
                 _waypoint = NewWaypoint();
             Vector3 heading = Velocity.Normalized();
             Vector3 wanted = ((Attacking ? estimate : _waypoint) - GlobalPosition).Normalized();
+            if (_eyes != null)
+            {
+                _eyes.Look(heading, delta);
+                wanted = _eyes.Steer(wanted, 2 * Speed / TurnRate);
+            }
             float angle = heading.AngleTo(wanted);
             if (angle > 0.001f)
             {
@@ -230,7 +242,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
             }
             Velocity = heading * Speed;
         }
-        // No eyes for rocks: it flies into them, and that is the end of it
+        // What it did not dodge it flies into, and that is the end of it
         if (RockField.SegmentAll(GlobalPosition, GlobalPosition + Velocity * dt, out float rock, out _))
         {
             GlobalPosition += Velocity * (rock * dt);

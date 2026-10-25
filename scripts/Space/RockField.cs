@@ -353,9 +353,11 @@ public partial class RockField : Node3D, IOriginShift
     /// <summary>
     /// The first solid sphere a segment between two scene points runs
     /// into: how far along it (0 at <paramref name="from"/>, 1 at
-    /// <paramref name="to"/>) and the surface's normal there.
+    /// <paramref name="to"/>) and the surface's normal there. With a
+    /// <paramref name="thickness"/>, a ball that radius swept along it
+    /// (whether something that wide gets through).
     /// </summary>
-    public bool Segment(Vector3 from, Vector3 to, out float along, out Vector3 normal, out RockId rock)
+    public bool Segment(Vector3 from, Vector3 to, out float along, out Vector3 normal, out RockId rock, float thickness = 0)
     {
         along = 1;
         normal = Vector3.Zero;
@@ -364,13 +366,13 @@ public partial class RockField : Node3D, IOriginShift
             Place();
         Vector3D a = FieldPoint(from);
         Vector3 d = Rotate(_inverse, (Vector3D)(to - from)).ToVector3();       // the segment, field axes
-        if (!Clip(a, d, _maxReach, out float t0, out float t1))
+        if (!Clip(a, d, _maxReach + thickness, out float t0, out float t1))
             return false;
 
         // The cells the segment's tube passes, a cell at a time along it
         _visit.Clear();
         float length = d.Length();
-        double margin = _maxReach + CellSize * 0.5;
+        double margin = _maxReach + thickness + CellSize * 0.5;
         int steps = Math.Max(1, (int)Math.Ceiling(length * (t1 - t0) / CellSize));
         for (int i = 0; i <= steps; i++)
         {
@@ -388,12 +390,12 @@ public partial class RockField : Node3D, IOriginShift
             foreach (Rock r in RocksIn(x, y, z))
             {
                 Vector3 rel = (cc + (Vector3D)r.Offset - a).ToVector3();      // from the segment's start to the rock
-                if (Sphere(rel, r.Reach, d) is not float near || near >= along)
+                if (Sphere(rel, r.Reach + thickness, d) is not float near || near >= along)
                     continue;
                 foreach (Vector4 s in _spheres[r.Kind])
                 {
                     Vector3 c = rel + r.Turn * (new Vector3(s.X, s.Y, s.Z) * r.Scale);
-                    if (Sphere(c, s.W * r.Scale, d) is float t && t < along)
+                    if (Sphere(c, s.W * r.Scale + thickness, d) is float t && t < along)
                     {
                         along = t;
                         normal = _basis * (d * t - c).Normalized();
@@ -534,13 +536,13 @@ public partial class RockField : Node3D, IOriginShift
     }
 
     /// <summary>The first rock of any field a segment runs into.</summary>
-    public static bool SegmentAll(Vector3 from, Vector3 to, out float along, out Vector3 normal)
+    public static bool SegmentAll(Vector3 from, Vector3 to, out float along, out Vector3 normal, float thickness = 0)
     {
         along = 1;
         normal = Vector3.Zero;
         bool hit = false;
         foreach (RockField f in All)
-            if (f.Segment(from, to, out float t, out Vector3 n, out _) && t < along)
+            if (f.Segment(from, to, out float t, out Vector3 n, out _, thickness) && t < along)
             {
                 along = t;
                 normal = n;

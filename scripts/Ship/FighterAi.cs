@@ -43,8 +43,17 @@ namespace Xpace.Ship;
 /// see where it points: then it breaks and throws flares. Under a radar's
 /// lock it jinks.
 ///
+/// Rocks: with a <see cref="RockSensor"/> on its ship it watches the way
+/// the ship is going; blocked within <see cref="AvoidSeconds"/> of flight,
+/// whatever it was doing (a break too) gives way to steering round the
+/// rock. It never flies faster than lets it stop, on its reverse thrust,
+/// short of the nearest rock its sensor sees (but for a creep, to edge out
+/// when boxed in): slow among thick rocks, fast in the open. With rocks in
+/// sight it flies with FLIGHT's safe turns on (<see cref="SafeTurnsNearRocks"/>),
+/// so the ship goes where it points; in the open it turns them off again. With none, it hits them.
+///
 /// Put it under the <see cref="ShipBody"/> it flies, beside the ship's
-/// radar, launcher, warning receiver and datalink.
+/// radar, launcher, warning receiver, datalink and rock sensor.
 /// </summary>
 public partial class FighterAi : Node
 {
@@ -71,12 +80,27 @@ public partial class FighterAi : Node
     [Export] public float SightRange = 2000f;           // near enough to see where a missile points
     [Export] public float FlareRange = 2500f;           // flares go only once a heat seeker is this near (they burn 2 s)
     [Export] public float SightCone = 15f;              // pointing within this of the ship: at it
+    [Export] public float AvoidSeconds = 5f;            // the way ahead must be clear for this much flight
+    [Export] public float FullThrottleSpeed = 250f;     // m/s: what full throttle asks of the flight assist (FLIGHT's MAX_SPEED)
+    [Export] public float BrakeShare = 0.7f;            // of the reverse thrust it counts on to stop
+    [Export] public float CreepSpeed = 8f;              // m/s: never slower than this among rocks (a bump at it barely scratches)
+    [Export] public bool SafeTurnsNearRocks = true;
 
     /// <summary>What it is doing, for the tests and the curious.</summary>
     public string Doing { get; private set; } = "";
 
     /// <summary>What its ship's radar is locked on, if it is no friend.</summary>
     public IRadarTarget Target { get; private set; }
+    /// <summary>What it patrols round (where its ship was at the start, unless told otherwise).</summary>
+    public Vector3 Anchor
+    {
+        get => _anchor;
+        set
+        {
+            _anchor = value;
+            _hasWaypoint = false;
+        }
+    }
 
     private ShipBody _ship;
     private RadarDevice _radar;
@@ -84,6 +108,7 @@ public partial class FighterAi : Node
     private LauncherDevice _launcher;
     private LaserDevice _laser;
     private Datalink _link;
+    private RockSensor _eyes;
     private PilotControls _controls;
     private readonly Dictionary<string, int> _held = new(), _rest = new();
     private readonly Queue<(string Button, int Wait)> _plan = new();
@@ -96,7 +121,7 @@ public partial class FighterAi : Node
     private Vector3 _lastTrack, _trackVelocity, _lastSeen, _anchor, _waypoint;
     private bool _hadTrack, _hasWaypoint;
     private readonly Dictionary<RwrDevice.Contact, Queue<(double At, Vector3 Way, float Range)>> _plumes = new();
-    private double _clock;
+    private double _clock, _sinceSafePress = double.MaxValue;
     private readonly RandomNumberGenerator _rng = new() { Seed = 9001 };
 
     public override void _Ready()
@@ -111,6 +136,7 @@ public partial class FighterAi : Node
             _launcher ??= n as LauncherDevice;
             _laser ??= n as LaserDevice;
             _link ??= n as Datalink;
+            _eyes ??= n as RockSensor;
         }
         _anchor = _ship.GlobalPosition;
     }
@@ -134,11 +160,13 @@ public partial class FighterAi : Node
         _sinceCountermeasure += delta;
         _sinceLockPress += delta;
         _sinceSeen += delta;
+        _sinceSafePress += delta;
 
         Threats();
         if (_breakLeft > 0)
         {
             Break(ref c, delta);
+            Avoid(ref c, delta);
             _controls = Buttons(c);
             return;
         }
@@ -186,6 +214,7 @@ public partial class FighterAi : Node
             Patrol(ref c);
         if (_rwr?.LockWarning == true)
             Jink(ref c, delta);
+        Avoid(ref c, delta);
         _controls = Buttons(c);
     }
 
@@ -349,6 +378,46 @@ public partial class FighterAi : Node
         c.Yaw = Mathf.Clamp(yaw * TurnGain, -1, 1);
     }
 
+    /// <summary>
+    /// A rock in the way the ship is going: steer for the clear way nearest
+    /// it. And never faster than stopping short of the nearest rock it sees
+    /// allows, but for a creep: boxed in, it edges out.
+    /// </summary>
+    private void Avoid(ref PilotControls c, double delta)
+    {
+        if (_eyes == null)
+            return;
+        Vector3 going = _ship.LinearVelocity;
+        float speed = going.Length();
+        if (speed < 5)
+            going = -_ship.GlobalBasis.Z;
+        _eyes.Look(going, delta);
+        Vector3 way = _eyes.Steer(going, MathF.Max(speed, 50) * AvoidSeconds);
+        if (_eyes.Avoiding)
+        {
+            Doing = "avoiding a rock";
+            Steer(ref c, _ship.GlobalBasis.Inverse() * way);
+        }
+        if (SafeTurnsNearRocks && _eyes.Clear.Length > 0)
+        {
+            // What FLIGHT shows on the thrusters' mode: bit 1, safe turns
+            bool rocks = _eyes.Clear.Min() < _eyes.Range * 0.99f;
+            bool safe = (_ship.Computer.Bus[ShipBody.SlotThrusters, 15] & 2) != 0;
+            if (rocks != safe && _sinceSafePress > 1)
+            {
+                _sinceSafePress = 0;
+                Press("safe");
+            }
+        }
+        if (_eyes.Clear.Length > 0)
+        {
+            float brake = BrakeShare * _ship.Spec.ReverseThrust / _ship.Spec.Mass;
+            float room = MathF.Max(0, _eyes.Clear.Min() - _eyes.Clearance);      // turning, it may sweep into any of them
+            float safe = MathF.Max(CreepSpeed, MathF.Sqrt(2 * brake * room));
+            c.Throttle = MathF.Min(c.Throttle, safe / FullThrottleSpeed);
+        }
+    }
+
     private void Jink(ref PilotControls c, double delta)
     {
         _jinkLeft -= delta;
@@ -403,6 +472,7 @@ public partial class FighterAi : Node
         c.NextWeapon = _held.ContainsKey("weapon");
         c.Chaff = _held.ContainsKey("chaff");
         c.Flare = _held.ContainsKey("flare");
+        c.SafeButton = _held.ContainsKey("safe");
         c.Trigger |= _held.ContainsKey("fire");
         return c;
     }

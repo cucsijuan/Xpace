@@ -422,6 +422,7 @@ public partial class Pilot : Node3D
             Up = keys ? Input.GetAxis(FlightInput.StrafeDown, FlightInput.StrafeUp) : 0,
             Throttle = _throttle,
             AssistButton = keys && Input.IsActionPressed(FlightInput.FlightAssist),
+            SafeButton = keys && Input.IsActionPressed(FlightInput.SafeTurns),
             BoostButton = keys && Input.IsActionPressed(FlightInput.Boost),
             Trigger = flying && Input.IsActionPressed(FlightInput.FirePrimary),
             TargetAhead = keys && Input.IsActionPressed(FlightInput.TargetAhead),
