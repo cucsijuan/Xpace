@@ -141,7 +141,7 @@ script = ExtResource("15_rounds")
 Looks = Array[ExtResource("48_look")]([ExtResource("46_cannon_look"), ExtResource("47_laser_look")])
 
 [node name="Drone1" type="Node3D" parent="." unique_id=1201583421]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -400, 80, -2200)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 400, 80, 2200)
 script = ExtResource("16_drone")
 Attacks = true
 MissileScene = ExtResource("24_ir_missile")
@@ -160,7 +160,7 @@ script = ExtResource("29_emitter")
 script = ExtResource("51_rock_sensor")
 
 [node name="Drone2" type="Node3D" parent="." unique_id=933921391]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 900, -60, -3000)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -900, -60, 3000)
 script = ExtResource("16_drone")
 Speed = 100.0
 Attacks = true
@@ -386,11 +386,12 @@ mouse_filter = 2
 script = ExtResource("7_widget")
 
 [node name="Raider" parent="." instance=ExtResource("41_ai_fighter")]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 600, 150, -4000)
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -600, 150, 4000)
 
 [node name="SessionNode" type="Node" parent="."]
 script = ExtResource("33_session")
 RemoteShipScene = ExtResource("38_remote_fighter")
+KeepSceneShips = false
 Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_missile"), ExtResource("35_chaff"), ExtResource("36_flare"), ExtResource("41_ai_fighter")])
 Jammers = Array[ExtResource("69_jammer_spec")]([ExtResource("66_nj1"), ExtResource("67_nj2"), ExtResource("68_dj3")])
 

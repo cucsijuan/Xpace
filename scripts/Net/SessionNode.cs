@@ -42,6 +42,13 @@ public partial class SessionNode : Node
     [Export] public PackedScene RemoteShipScene;
     [Export] public Vector3 PilotSpacing = new(40, 0, 0);
 
+    /// <summary>
+    /// Whether the scene's own ships (<see cref="NetOwner.Host"/>: drones,
+    /// AI fighters) stay in a session. Off, they go on every machine when
+    /// the session starts, leaving only the players.
+    /// </summary>
+    [Export] public bool KeepSceneShips = true;
+
     /// <summary>What a session can make on every machine: missiles, chaff, flares (the same list everywhere).</summary>
     [Export] public Godot.Collections.Array<PackedScene> Spawnables = new();
 
@@ -122,6 +129,12 @@ public partial class SessionNode : Node
 
         Node root = World;
         var all = root.FindChildren("*", nameof(Node), true, false).OfType<NetBody>().ToList();
+        if (!KeepSceneShips)
+        {
+            foreach (NetBody body in all.Where(b => b.OwnedBy == NetOwner.Host && !b.Spawned))
+                body.Ship.QueueFree();
+            all.RemoveAll(b => b.OwnedBy == NetOwner.Host && !b.Spawned);
+        }
         var bodies = all.Where(b => b.OwnedBy != NetOwner.Maker && !b.Spawned)
             .OrderBy(b => root.GetPathTo(b).ToString(), System.StringComparer.Ordinal);
         ushort next = FirstHostId;
