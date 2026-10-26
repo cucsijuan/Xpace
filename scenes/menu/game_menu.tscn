@@ -67,6 +67,12 @@ layout_mode = 2
 text = "Settings"
 alignment = 0
 
+[node name="Backup" type="Button" parent="Root/Center/Menu/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Send Backup to Insurer"
+alignment = 0
+
 [node name="MainMenu" type="Button" parent="Root/Center/Menu/Box"]
 unique_name_in_owner = true
 layout_mode = 2

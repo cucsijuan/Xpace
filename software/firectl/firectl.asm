@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.11 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.12 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -139,7 +139,7 @@ HEAT_CELLS  equ 11
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPFC11'             ; 103h
+signature   db 'XPFC12'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -1884,11 +1884,7 @@ remove:
     mov dx, msg_not_running
     jmp quit_message
 .found:
-    push ds
-    lds dx, [es:old_irq]
-    mov ax, 2500h + IRQ_VECTOR
-    int 21h
-    pop ds
+    call unlink                     ; out of the IRQ 5 chain, wherever it is
     xor al, al                      ; radar off
     mov dx, RADAR + 2
     out dx, al
@@ -1926,19 +1922,57 @@ remove:
     mov dx, msg_removed
     jmp quit_message
 
+; Looks for the resident copy along the IRQ 5 chain, through the ship's
+; other programs (each keeps its signature, 'XP' and four more, at 103h
+; and the handler it calls at 109h, as this one does): ZF set and ES its
+; segment if found, [prev_seg] the program before it (0: it is first).
+; A program in the way that is not a ship's ends the search.
 find_resident:
+    mov word [prev_seg], 0
     mov ax, 3500h + IRQ_VECTOR
     int 21h
-    cmp bx, on_irq
-    jne .no
+.next:
     mov si, signature
     mov di, si
     mov cx, 6
     repe cmpsb
-    ret
+    je .done
+    cmp word [es:103h], 'XP'        ; another of the ship's programs
+    jne .no
+    mov [prev_seg], es
+    les bx, [es:109h]               ; the one it calls
+    mov ax, es
+    or ax, bx
+    jnz .next
 .no:
-    or al, 1
+    or al, 1                        ; ZF = 0
+.done:
     ret
+
+; Takes the resident copy (ES) out of the IRQ 5 chain, wherever it is in
+; it: the program before it calls what it called, or the vector does
+unlink:
+    push ds
+    cli
+    mov ax, [es:old_irq]
+    mov dx, [es:old_irq + 2]
+    cmp word [prev_seg], 0
+    je .first
+    mov ds, [prev_seg]
+    mov [109h], ax
+    mov [10Bh], dx
+    jmp .done
+.first:
+    mov ds, dx
+    mov dx, ax
+    mov ax, 2500h + IRQ_VECTOR
+    int 21h
+.done:
+    sti
+    pop ds
+    ret
+
+prev_seg    dw 0
 
 check_device:
     in al, dx
@@ -2124,8 +2158,8 @@ s_removed       db 'REMOVED    ', 0
 msg_installed   db 'Fire control resident: scope on RADAR, page on WEAPON.', 13, 10
                 db 'FIRECTL OFF removes it.', 13, 10, '$'
 msg_already     db 'Fire control is already resident.', 13, 10, '$'
-msg_not_running db 'Fire control is not resident, or another program took', 13, 10
-                db 'IRQ 5 after it: remove that one first.', 13, 10, '$'
+msg_not_running db 'Fire control is not resident, or a program that is not', 13, 10
+                db "one of the ship's took IRQ 5 after it.", 13, 10, '$'
 msg_removed     db 'Fire control removed: radar off.', 13, 10, '$'
 msg_no_device   db 'FIRECTL: the radar, the turret or the side screens', 13, 10
                 db 'are not on the bus.', 13, 10, '$'

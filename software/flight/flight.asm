@@ -1,4 +1,4 @@
-; flight.asm - CucsiCorp Flight Control 1.4 (FLIGHT.COM)
+; flight.asm - CucsiCorp Flight Control 1.5 (FLIGHT.COM)
 ;
 ;   FLIGHT          stays resident and flies the ship
 ;   FLIGHT OFF      takes it out of memory: the thrusters answer the
@@ -111,7 +111,7 @@ COLS        equ 40
 ; ======================================================================
 
 ; FLIGHT OFF finds the resident copy by these, at fixed places
-signature   db 'XPFLT1'             ; 103h
+signature   db 'XPFL15'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -763,11 +763,7 @@ remove:
     mov dx, msg_not_running
     jmp quit_message
 .found:
-    push ds                         ; give IRQ 5 back to whoever had it
-    lds dx, [es:old_irq]
-    mov ax, 2500h + IRQ_VECTOR
-    int 21h
-    pop ds
+    call unlink                     ; out of the IRQ 5 chain, wherever it is
     cmp word [es:screen_seg], 0
     je .no_page
     push es                         ; the page says so
@@ -783,20 +779,57 @@ remove:
     mov dx, msg_removed
     jmp quit_message
 
-; ZF and ES = its segment if the IRQ 5 handler is the resident FLIGHT
+; Looks for the resident copy along the IRQ 5 chain, through the ship's
+; other programs (each keeps its signature, 'XP' and four more, at 103h
+; and the handler it calls at 109h, as this one does): ZF set and ES its
+; segment if found, [prev_seg] the program before it (0: it is first).
+; A program in the way that is not a ship's ends the search.
 find_resident:
+    mov word [prev_seg], 0
     mov ax, 3500h + IRQ_VECTOR
     int 21h
-    cmp bx, on_irq
-    jne .no
+.next:
     mov si, signature
     mov di, si
     mov cx, 6
     repe cmpsb
-    ret
+    je .done
+    cmp word [es:103h], 'XP'        ; another of the ship's programs
+    jne .no
+    mov [prev_seg], es
+    les bx, [es:109h]               ; the one it calls
+    mov ax, es
+    or ax, bx
+    jnz .next
 .no:
     or al, 1                        ; ZF = 0
+.done:
     ret
+
+; Takes the resident copy (ES) out of the IRQ 5 chain, wherever it is in
+; it: the program before it calls what it called, or the vector does
+unlink:
+    push ds
+    cli
+    mov ax, [es:old_irq]
+    mov dx, [es:old_irq + 2]
+    cmp word [prev_seg], 0
+    je .first
+    mov ds, [prev_seg]
+    mov [109h], ax
+    mov [10Bh], dx
+    jmp .done
+.first:
+    mov ds, dx
+    mov dx, ax
+    mov ax, 2500h + IRQ_VECTOR
+    int 21h
+.done:
+    sti
+    pop ds
+    ret
+
+prev_seg    dw 0
 
 ; DS:SI a screen's name (6 characters): CF clear and ES:BX its entry in
 ; the display card's screen table, or CF set if the ship has no such screen
@@ -924,8 +957,8 @@ s_removed       db 'REMOVED', 0
 msg_installed   db 'Flight control resident: page on the FLIGHT screen.', 13, 10
                 db 'FLIGHT OFF removes it.', 13, 10, '$'
 msg_already     db 'Flight control is already resident.', 13, 10, '$'
-msg_not_running db 'Flight control is not resident, or another program took', 13, 10
-                db 'IRQ 5 after it (FIRECTL): remove that one first.', 13, 10, '$'
+msg_not_running db 'Flight control is not resident, or a program that is not', 13, 10
+                db "one of the ship's took IRQ 5 after it.", 13, 10, '$'
 msg_removed     db 'Flight control removed: the thrusters answer', 13, 10
                 db 'the controls directly.', 13, 10, '$'
 msg_no_device   db 'FLIGHT: the controls, the inertial unit, the', 13, 10

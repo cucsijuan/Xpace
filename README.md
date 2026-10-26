@@ -88,7 +88,7 @@ The keys fly the ship in every mode, except while typing on the computer.
 | Pointer | Alt (tap or hold) |
 | Work a screen, button, slider or knob | Click it, while looking (the dot) or with the pointer; drag sliders and knobs, or turn them with the wheel |
 | Zoom in (to read the cockpit's screens) | Hold the right button; the wheel zooms in steps |
-| Type on the computer | Click its screen; right-click lets go (meanwhile every key is the computer's, Esc too) |
+| Type on the computer | Click its screen (the head leans in and frames it); right-click lets go (meanwhile every key is the computer's, Esc too) |
 | Menu (resume, settings, main menu, quit) | Esc; alone it pauses the game, online the game goes on |
 | Save / load the computer | F5 / F9 |
 
@@ -141,7 +141,9 @@ A target lost at the edge of the radar's ±60° cone is taken back by itself if 
 
 A better radar (more range, a narrower beam), a better turret or better software shows.
 
-`FLIGHT OFF`, `FIRECTL OFF`, `RWR OFF` and `POWER OFF` take them out of memory (the last one installed first). The registers are documented at the top of [flight.asm](software/flight/flight.asm) and [firectl.asm](software/firectl/firectl.asm).
+`FLIGHT OFF`, `FIRECTL OFF`, `RWR OFF` and `POWER OFF` take them out of memory, in any order: each finds itself along the IRQ 5 chain through the others (every one keeps a signature starting with `XP` at 103h and the handler it calls at 109h) and the one before it calls what it called. So a program can be edited, assembled with `ASM` and loaded again in flight while the rest keep running.
+
+The diskette is the pilot's: what the programs write on it is kept between games (`user://disks/ship.img`, saved when the drive stops and on quitting). The game menu's "Send Backup to Insurer" leaves a copy with the insurer; the insurer's new ship boots the last copy sent, or the factory diskette if none was. Every device's registers are in the ship's hardware manual, [docs/manual/hardware.html](docs/manual/hardware.html) (open it in a browser, or print it to PDF with `python3 docs/manual/build.py`), and at the top of each program's source.
 
 ## The menu and settings
 
@@ -186,10 +188,13 @@ godot --headless --fixed-fps 60 --path . res://tests/maneuver_test.tscn
 - `combat_test`: FIRECTL.COM against drones: locks with T, measures the aiming error against the exact intercept, counts the hits of a burst at 2 km, destroys the drone, switches target with G and turns the radar off with `FIRECTL OFF`.
 - `accuracy_test`: hit probability by range against a drone jinking at 2 g (four runs per range), and a jammer on the drone: no lock at 4 km, burn-through at 1.5 km. It currently gives about 33% at 500 m, 10% at 1 km, 2% at 2 km and 0% from 4 km (46% against a straight target at 2 km): an evading drone dies inside 1 km, one flying straight even at 2 km.
 
+- `disk_test` (no `--fixed-fps` needed): the pilot's diskette kept between games, and the insurer's copy (the factory diskette with no backup, the last backup sent with one).
+- `chain_test`: the ship's resident programs on IRQ 5: `FIRECTL OFF` from the middle of the chain with the others still running, `FIRECTL` back on top, `FLIGHT OFF` from the bottom, and `ASM` in COS assembling `FIRECTL.ASM` in flight to the same bytes as the diskette's `FIRECTL.COM`.
+- `reprogram_test`: the pilot's change to FIRECTL.ASM (`tests/fixtures/firectl_abg.edit`: an alpha-beta-gamma filter close in) assembled by ASM in COS in flight and loaded in place of the stock program; the turret's hit rate against a drone jinking at 2 g, before and after, at 500 m, 1 km and 2 km.
 - `hull_test`: rounds and a blast wear the hull away (its own rounds do not), the wreck drifts with nothing on the sensors, and the insurer's new ship comes back full.
 - `duel_test`: the game's fighter, with its own computer, locks a drone, hits it with its laser (pointing the nose at its computer's lead point) and fires its radar missile and a heat seeker; breaks and throws flares against a heat seeker; and comes back after it is blown up.
 - `raider_hunt_test`: in a session, the host's fighter and a drone find a guest's ship with their radars (never each other), the fighter's rounds hit it, judged by the host, and its missile is made on the guest's machine.
-- `pilot_modes_test` (no `--fixed-fps` needed): the mouse's modes in the game's scene, from input events: looking with a tap, a hold and two taps, the pointer, and Esc's menu pausing the game alone and letting the keys go.
+- `pilot_modes_test` (no `--fixed-fps` needed): the mouse's modes in the game's scene, from input events: looking with a tap, a hold and two taps, the pointer, typing on the computer's screen (the view framing it and going back), and Esc's menu pausing the game alone and letting the keys go.
 - `eos_again_test` (needs the product's keys and the internet; without keys it passes saying so): online play twice in one run, as going back to the main menu and choosing Multiplayer again.
 - `menu_test` (no `--fixed-fps` needed): the main menu and its settings: every option filled, rebinding a key (taken from the action that had it, Esc to cancel, controllers untouched), changes applied at once and saved by Back, Defaults.
 - `laser_test`: next weapon selects the pulse laser; locked, the lead point FIRECTL writes is within a few mrad of where a pulse meets the drone; fired on the lead circle the pulses hit a crossing drone, fired on the drone itself they pass behind it; held down it overheats.

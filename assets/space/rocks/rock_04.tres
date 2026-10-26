@@ -1,6 +1,6 @@
-[gd_resource type="Resource" script_class="RockKind" format=4]
+[gd_resource type="Resource" script_class="RockKind" format=4 uid="uid://dcgyine8s4uye"]
 
-[ext_resource type="Script" path="res://scripts/Space/RockKind.cs" id="1_kind"]
+[ext_resource type="Script" uid="uid://ckiwalmif04k4" path="res://scripts/Space/RockKind.cs" id="1_kind"]
 [ext_resource type="Material" path="res://assets/materials/synty_rock.tres" id="2_rock"]
 
 [resource]

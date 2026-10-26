@@ -194,6 +194,8 @@ script = ExtResource("40_hull")
 
 [node name="ShipComputer" type="Node" parent="Ship" unique_id=327885703]
 script = ExtResource("1_computer")
+KeptDiskPath = "user://disks/ship.img"
+BackupDiskPath = "user://disks/insurer.img"
 
 [node name="Display" type="Node" parent="Ship" unique_id=1227318872]
 script = ExtResource("12_display")

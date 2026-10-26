@@ -1,9 +1,6 @@
-[gd_resource type="Resource" script_class="EngineSpec" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="EngineSpec" format=3 uid="uid://bwtxobljaprw5"]
 
-[ext_resource type="Script" path="res://scripts/Ship/EngineSpec.cs" id="1_spec"]
+[ext_resource type="Script" uid="uid://bwgee6b6ob7q3" path="res://scripts/Ship/EngineSpec.cs" id="1_spec"]
 
 [resource]
 script = ExtResource("1_spec")
-Model = "D-50"
-RatedThrust = 1000000.0
-MaxThrust = 1600000.0

@@ -1,0 +1,197 @@
+A pilot's change to FIRECTL.ASM, as reprogram_test makes it with the
+editor: an alpha-beta-gamma filter (the target's acceleration too, so the
+aim point is p + v t + a t^2 / 2) with livelier gains close in, where the
+radar's noise is small; far out, the stock filter. Each "replace" block
+must be found once in the stock source.
+
+@@@ replace
+signature   db 'XPFC12'             ; 103h
+@@@ with
+signature   db 'XPFCG1'             ; 103h
+@@@ end
+
+@@@ replace
+ALPHA       equ 31                  ; 0.12, in 1/256
+BETA_DT     equ 118                 ; 0.0077 * 60, in 1/256
+@@@ with
+ALPHA       equ 31                  ; far: 0.12, in 1/256
+BETA_DT     equ 118                 ; 0.0077 * 60, in 1/256
+CLOSE_IN    equ 1200                ; m: nearer, the noise is small enough to follow turns
+CLOSE_ALPHA equ 77                  ; 0.3
+CLOSE_BETA_DT equ 1229               ; 0.08 * 60
+CLOSE_GAMMA equ 5530                ; a += 2 gamma / dt^2 r: 2 * 0.003 * 3600, in 1/256
+@@@ end
+
+@@@ replace
+    mov word [vel + si], 0
+    mov word [vel + si + 2], 0
+@@@ with
+    mov word [vel + si], 0
+    mov word [vel + si + 2], 0
+    mov word [acc + si], 0
+    mov word [acc + si + 2], 0
+@@@ end
+
+@@@ replace
+filter_step:
+    mov si, p                       ; the ship's rotation: positions (1/4 m to
+@@@ with
+filter_step:
+    cmp word [range], CLOSE_IN      ; the gains for the range
+    jb .close
+    mov word [g_alpha], ALPHA
+    mov word [g_beta], BETA_DT
+    mov word [g_gamma], 0
+    xor bx, bx                      ; far out: no acceleration
+.clear:
+    mov word [acc + bx], 0
+    add bx, 2
+    cmp bx, 12
+    jb .clear
+    jmp .gains
+.close:
+    mov word [g_alpha], CLOSE_ALPHA
+    mov word [g_beta], CLOSE_BETA_DT
+    mov word [g_gamma], CLOSE_GAMMA
+.gains:
+    mov si, p                       ; the ship's rotation: positions (1/4 m to
+@@@ end
+
+@@@ replace
+    mov ax, [vel + si]              ; predict: x += v / 60
+    mov dx, [vel + si + 2]
+    mov cx, 60
+    idiv cx
+    cwd
+    add [pos + si], ax
+    adc [pos + si + 2], dx
+@@@ with
+    mov ax, [acc + si]              ; predict: x += v / 60 + a / 7200
+    mov dx, [acc + si + 2]
+    mov cx, 7200
+    idiv cx
+    cwd
+    add [pos + si], ax
+    adc [pos + si + 2], dx
+    mov ax, [vel + si]
+    mov dx, [vel + si + 2]
+    mov cx, 60
+    idiv cx
+    cwd
+    add [pos + si], ax
+    adc [pos + si + 2], dx
+    mov ax, [acc + si]              ; v += a / 60
+    mov dx, [acc + si + 2]
+    mov cx, 60
+    idiv cx
+    cwd
+    add [vel + si], ax
+    adc [vel + si + 2], dx
+@@@ end
+
+@@@ replace
+    mov cx, ALPHA                   ; x += ALPHA r
+@@@ with
+    mov cx, [g_alpha]               ; x += alpha r
+@@@ end
+
+@@@ replace
+    mov ax, [residual]              ; v += BETA/dt r
+    mov cx, BETA_DT
+    imul cx
+    call shift8
+    add [vel + si], ax
+    adc [vel + si + 2], dx
+    add si, 4
+    add bx, 2
+    cmp bx, 6
+    jb .axis
+    ret
+@@@ with
+    mov ax, [residual]              ; v += beta/dt r
+    mov cx, [g_beta]
+    imul cx
+    call shift8
+    add [vel + si], ax
+    adc [vel + si + 2], dx
+    mov ax, [residual]              ; a += 2 gamma/dt^2 r
+    mov cx, [g_gamma]
+    imul cx
+    call shift8
+    add [acc + si], ax
+    adc [acc + si + 2], dx
+    cmp word [acc + si + 2], 15     ; held within 16 km/s2, so a / 60 fits a word
+    jle .not_high
+    mov word [acc + si], 0FFFFh
+    mov word [acc + si + 2], 15
+.not_high:
+    cmp word [acc + si + 2], -16
+    jge .held
+    mov word [acc + si], 0
+    mov word [acc + si + 2], -16
+.held:
+    add si, 4
+    add bx, 2
+    cmp bx, 6
+    jb near .axis
+    ret
+@@@ end
+
+@@@ replace
+    mov [v + bx], ax
+    add si, 4
+@@@ with
+    mov [v + bx], ax
+    mov ax, [acc + si]              ; and a in 1/8 m/s2
+    mov dx, [acc + si + 2]
+    mov cx, 3
+.eighth_a:
+    sar dx, 1
+    rcr ax, 1
+    loop .eighth_a
+    call clamp16
+    mov [acw + bx], ax
+    add si, 4
+@@@ end
+
+@@@ replace
+    add dx, [p + bx]
+    mov [aim + bx], dx
+    add bx, 2
+    cmp bx, 6
+    jb .axis
+@@@ with
+    add dx, [p + bx]
+    mov [aim + bx], dx
+    mov ax, [lead]                  ; + a t^2 / 2: a (1/8 m/s2) t^2 (1/1024 s)^2 / 2^22 = 1/4 m
+    mul ax                          ; t^2 / 65536 in DX
+    mov ax, dx
+    imul word [acw + bx]
+    mov cx, 6
+.sixty_fourth:
+    sar dx, 1
+    rcr ax, 1
+    loop .sixty_fourth
+    call clamp16
+    add [aim + bx], ax
+    add bx, 2
+    cmp bx, 6
+    jb near .axis
+@@@ end
+
+@@@ replace
+vel             times 6 dw 0        ;             v per axis (1/64 m/s, 32 bits)
+@@@ with
+vel             times 6 dw 0        ;             v per axis (1/64 m/s, 32 bits)
+acc             times 6 dw 0        ;             a per axis (1/64 m/s2, 32 bits)
+g_alpha         dw ALPHA            ; the gains in use
+g_beta          dw BETA_DT
+g_gamma         dw 0
+@@@ end
+
+@@@ replace
+v               times 3 dw 0        ; and in 1/8 m/s
+@@@ with
+v               times 3 dw 0        ; and in 1/8 m/s
+acw             times 3 dw 0        ; and a in 1/8 m/s2
+@@@ end

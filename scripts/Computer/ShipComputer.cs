@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Godot;
 using Xpace.Native;
+using Xpace.Ship;
 
 namespace Xpace.Computer;
 
@@ -9,11 +10,27 @@ namespace Xpace.Computer;
 /// The ship's main computer: a pc86 machine with a VGA card, a monitor, a
 /// keyboard and a 3.5" drive with the system diskette. It runs in step with
 /// the game and shows its monitor in <see cref="Screen"/>.
+///
+/// The pilot's own ship keeps its diskette between games
+/// (<see cref="KeptDiskPath"/>): written whenever the drive stops after
+/// working, and when the game ends. The diskette goes down with the ship:
+/// the insurer's new ship (<see cref="Rearm"/>) is a new computer, booting
+/// the last backup the pilot sent the insurer (<see cref="SendBackup"/>),
+/// or the factory diskette if there is none.
 /// </summary>
-public partial class ShipComputer : Node
+public partial class ShipComputer : Node, IRearmable
 {
-    /// <summary>The diskette in drive A: when the game starts.</summary>
+    /// <summary>The factory diskette: in drive A: when there is no kept one.</summary>
     [Export(PropertyHint.File, "*.img")] public string DiskPath = "res://disks/cos.img";
+
+    /// <summary>Where the ship's diskette is kept between games (the pilot's ship: user://disks/ship.img); empty, never kept.</summary>
+    [Export] public string KeptDiskPath = "";
+
+    /// <summary>The backup copy the insurer holds (user://disks/insurer.img); empty, no insurer's copy.</summary>
+    [Export] public string BackupDiskPath = "";
+
+    /// <summary>The computer keeping the pilot's diskette, if any (the in-game menu sends its backup).</summary>
+    public static ShipComputer Kept { get; private set; }
 
     /// <summary>pc86 built-in monitor (0 mono VGA, 1 color VGA, 2 CGA, 3 multisync).</summary>
     [Export] public int MonitorModel = Pc86.MonitorVgaColor;
@@ -44,6 +61,8 @@ public partial class ShipComputer : Node
     public double EmulatedSeconds => _pc == IntPtr.Zero ? 0 : Pc86.pc_time_us(_pc) / 1e6;
 
     private IntPtr _pc, _vga, _fdc, _monitor, _keyboard, _drive, _disk;
+    private byte[] _kept = Array.Empty<byte>();
+    private bool _driveWas;
     private byte[] _pixels;
     private Image _image;
     private Image.Format _format;
@@ -67,11 +86,20 @@ public partial class ShipComputer : Node
         Pc86.pc_connect_keyboard(_pc, _keyboard);
         Pc86.pc_set_speed(_pc, InstructionsPerSecond);
 
-        byte[] image = Godot.FileAccess.GetFileAsBytes(DiskPath);
-        if (image.Length == 0)
-            GD.PushError($"ShipComputer: cannot read {DiskPath} (build it: see native/CMakeLists.txt)");
-        else
-            InsertDisk(image);
+        // Tests run the game's scenes with the factory software, and never touch the pilot's diskettes
+        if (!IsInsideTree() || (GetTree().CurrentScene?.SceneFilePath ?? "").StartsWith("res://tests/"))
+        {
+            if (!KeptDiskPath.StartsWith("user://test"))
+                KeptDiskPath = "";
+            if (!BackupDiskPath.StartsWith("user://test"))
+                BackupDiskPath = "";
+        }
+        if (KeptDiskPath != "")
+            Kept = this;
+        byte[] image = Read(KeptDiskPath);
+        if (image.Length == 0 || !InsertDisk(image))
+            InsertDisk(Factory());
+        _kept = DiskImage();
 
         int channels = Pc86.monitor_channels(_monitor);
         _format = channels == 3 ? Image.Format.Rgb8 : Image.Format.L8;
@@ -98,12 +126,21 @@ public partial class ShipComputer : Node
             Pc86.pc_vga_card_display(_vga, (float)delta, p);
         _image.SetData(Pc86.ScreenWidth, Pc86.ScreenHeight, false, _format, _pixels);
         Screen.Update(_image);
+
+        // The drive stopped: whatever it wrote is kept
+        bool light = DriveLight;
+        if (_driveWas && !light)
+            KeepDisk();
+        _driveWas = light;
     }
 
     public override void _ExitTree()
     {
         if (_pc == IntPtr.Zero)
             return;
+        KeepDisk();
+        if (Kept == this)
+            Kept = null;
         Pc86.pc_power_off(_pc);
         Pc86.pc_destroy(_pc);
         Bus.Dispose();
@@ -175,6 +212,73 @@ public partial class ShipComputer : Node
             Pc86.disk_destroy(_disk);
         _disk = disk;
         Pc86.fdd_insert(_drive, _disk);
+        return true;
+    }
+
+    // ---------- the diskette ----------
+
+    /// <summary>A copy of the diskette in drive A: (empty if there is none).</summary>
+    public unsafe byte[] DiskImage()
+    {
+        if (_disk == IntPtr.Zero)
+            return Array.Empty<byte>();
+        return new ReadOnlySpan<byte>(Pc86.disk_data(_disk), (int)Pc86.disk_size(_disk)).ToArray();
+    }
+
+    /// <summary>Writes the diskette to <see cref="KeptDiskPath"/> if it changed since it was last kept.</summary>
+    public void KeepDisk()
+    {
+        if (KeptDiskPath == "")
+            return;
+        byte[] image = DiskImage();
+        if (image.Length == 0 || image.AsSpan().SequenceEqual(_kept))
+            return;
+        if (Write(KeptDiskPath, image))
+            _kept = image;
+    }
+
+    /// <summary>Sends the insurer a copy of the diskette as it is now. False if this computer has no insurer's copy or it could not be written.</summary>
+    public bool SendBackup() => BackupDiskPath != "" && Write(BackupDiskPath, DiskImage());
+
+    /// <summary>Whether the insurer holds a copy.</summary>
+    public bool HasBackup => BackupDiskPath != "" && Godot.FileAccess.FileExists(BackupDiskPath);
+
+    /// <summary>
+    /// The insurer's new ship: a new computer, booting the last backup (the
+    /// factory diskette without one). The old diskette went down with the
+    /// old ship.
+    /// </summary>
+    public void Rearm()
+    {
+        byte[] image = Read(BackupDiskPath);
+        if (image.Length == 0 || !InsertDisk(image))
+            InsertDisk(Factory());
+        Pc86.pc_power_off(_pc);
+        Pc86.pc_power_on(_pc);
+        KeepDisk();
+    }
+
+    private byte[] Factory()
+    {
+        byte[] image = Read(DiskPath);
+        if (image.Length == 0)
+            GD.PushError($"ShipComputer: cannot read {DiskPath} (build it: see native/CMakeLists.txt)");
+        return image;
+    }
+
+    private static byte[] Read(string path) =>
+        path != "" && Godot.FileAccess.FileExists(path) ? Godot.FileAccess.GetFileAsBytes(path) : Array.Empty<byte>();
+
+    private static bool Write(string path, byte[] image)
+    {
+        DirAccess.MakeDirRecursiveAbsolute(path.GetBaseDir());
+        using var file = Godot.FileAccess.Open(path, Godot.FileAccess.ModeFlags.Write);
+        if (file == null)
+        {
+            GD.PushError($"ShipComputer: cannot write {path}");
+            return false;
+        }
+        file.StoreBuffer(image);
         return true;
     }
 

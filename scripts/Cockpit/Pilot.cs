@@ -24,7 +24,8 @@ namespace Xpace.Cockpit;
 /// Look and Pointer work the same way: a tap stays in the mode until the next tap; held, the mode lasts while it is
 /// held. Leaving Looking with a tap leaves the head where it is (fly while watching a screen); a peek (held) puts it
 /// back ahead, and so does tapping Look twice, or Look ahead. Clicking the computer's screen gives it the keyboard
-/// (the flight keys type, Esc too) until a right-click. Esc opens the game's menu (<see cref="GameMenu"/>).
+/// (the flight keys type, Esc too) until a right-click, and the head leans in to it: the camera moves in front of the
+/// screen and frames it, and goes back to where the head was when the typing ends. Esc opens the game's menu (<see cref="GameMenu"/>).
 ///
 /// Holding the right button zooms the view in, to read the cockpit's screens or look at something far; the wheel
 /// zooms in steps and stays there until the wheel brings it back (over a control, the wheel turns it). Clicking a
@@ -73,6 +74,10 @@ public partial class Pilot : Node3D
     /// <summary>Two taps of Look within this put the head back ahead.</summary>
     [Export] public float DoubleTapSeconds = 0.35f;
 
+    /// <summary>Typing on a screen: how much room round it the framed view leaves (1 = edge to edge), and how long the head takes to lean in.</summary>
+    [Export] public float FocusMargin = 1.08f;
+    [Export] public float FocusSeconds = 0.6f;
+
     public enum MouseUse
     {
         Flying,
@@ -110,6 +115,8 @@ public partial class Pilot : Node3D
     private double _lookPressed = -1, _pointerPressed = -1, _lastLookTap = -10, _modeShown;
     private MouseUse _lookFrom;
     private bool _zoomHeld;
+    private float _lean;
+    private Transform3D _headPose, _framed;
 
     public override void _Ready()
     {
@@ -188,7 +195,7 @@ public partial class Pilot : Node3D
                 _dragging.Drag(motion.Relative);
                 break;
             case InputEventMouseMotion motion when captured && _settleFrames == 0:
-                if (Mode == MouseUse.Looking)
+                if (Mode == MouseUse.Looking && !Typing && _lean == 0)
                     Look(motion.Relative);
                 else if (Mode == MouseUse.Flying)
                     MoveStick(motion.Relative);
@@ -314,8 +321,7 @@ public partial class Pilot : Node3D
         switch (PointedAt())
         {
             case CockpitScreen screen:
-                Pick(screen);
-                Focus(screen.Source == ScreenSource.Computer ? screen : null);
+                Click(screen);
                 return true;
             case IInteractive control:
                 control.Press();
@@ -324,6 +330,13 @@ public partial class Pilot : Node3D
             default:
                 return false;
         }
+    }
+
+    /// <summary>Picks a screen as a click on it does: a computer's screen takes the keyboard, and the head leans in to it.</summary>
+    public void Click(CockpitScreen screen)
+    {
+        Pick(screen);
+        Focus(screen.Source == ScreenSource.Computer ? screen : null);
     }
 
     private void Pick(CockpitScreen screen)
@@ -487,8 +500,9 @@ public partial class Pilot : Node3D
         if (!Input.IsActionPressed(FlightInput.Zoom))
             _zoomHeld = false;
         bool zoom = !Typing && !_zoomHeld && !GameMenu.IsOpen && Input.IsActionPressed(FlightInput.Zoom);
-        float fov = zoom ? Mathf.Min(ZoomFov, _wheelFov) : _wheelFov;
+        float fov = Typing ? _fov : zoom ? Mathf.Min(ZoomFov, _wheelFov) : _wheelFov;
         _camera.Fov = Mathf.Lerp(_camera.Fov, fov, 1 -Mathf.Exp(-ZoomSpeed * (float)delta));
+        Lean(delta);
         if (_widget != null)
         {
             _widget.Visible = Mode == MouseUse.Flying;
@@ -544,6 +558,38 @@ public partial class Pilot : Node3D
         double age = Now - _modeShown;
         float alpha = Typing || lost ? 1 : age < 2 ? 1 : Mathf.Max(0.35f, 1 - (float)(age - 2));
         _modeBar.Modulate = new Color(1, 1, 1, alpha);
+    }
+
+    /// <summary>
+    /// The head leans in to the screen being typed on, and back: the camera
+    /// goes between where the head is and a view framing the screen.
+    /// </summary>
+    private void Lean(double delta)
+    {
+        float lean = Mathf.MoveToward(_lean, Typing ? 1 : 0, (float)delta / FocusSeconds);
+        if (lean == 0 && _lean == 0)
+            return;                             // the head is the pilot's (Look moves it)
+        if (_lean == 0)
+            _headPose = _camera.Transform;      // where it goes back to (the head doesn't turn while typing)
+        _lean = lean;
+        if (Typing)
+            _framed = Framing(_focused);
+        _camera.Transform = _headPose.InterpolateWith(_framed, Mathf.SmoothStep(0, 1, lean));
+    }
+
+    // In front of the screen (a quad facing its +Z), far enough for it to fill
+    // the normal field of view, in the camera's parent's frame
+    private Transform3D Framing(CockpitScreen screen)
+    {
+        Transform3D at = screen.GlobalTransform;
+        Vector3 scale = at.Basis.Scale;
+        Vector2 size = screen.Size * new Vector2(scale.X, scale.Y) * FocusMargin;
+        Vector2 view = GetViewport().GetVisibleRect().Size;
+        float tanUp = Mathf.Tan(Mathf.DegToRad(_fov) / 2), aspect = view.Y > 0 ? view.X / view.Y : 1;
+        float distance = Mathf.Max(size.Y / 2 / tanUp, size.X / 2 / (tanUp * aspect));
+        Basis basis = at.Basis.Orthonormalized();
+        var global = new Transform3D(basis, at.Origin + basis.Z * distance);
+        return _camera.GetParentNode3D().GlobalTransform.AffineInverse() * global;
     }
 
     private static string KeyOf(string action) => GameSettings.Describe(GameSettings.Binding(action));

@@ -1,11 +1,13 @@
 using System;
 using Godot;
+using Xpace.Computer;
 using Xpace.Net;
 
 namespace Xpace.Menu;
 
 /// <summary>
-/// The menu Esc opens while playing (scenes/menu/game_menu.tscn): resume, settings, back to the main menu, quit.
+/// The menu Esc opens while playing (scenes/menu/game_menu.tscn): resume, settings, a backup of the ship's diskette
+/// for the insurer (the new ship after a loss boots it), back to the main menu, quit.
 /// Playing alone it pauses the game; in a session it can't (the others play on), and the ship flies on with nobody
 /// at the controls but the keys let go. Esc again closes it (or the settings, if open).
 /// </summary>
@@ -44,6 +46,7 @@ public partial class GameMenu : CanvasLayer
             _menu.Show();
             GetNode<Button>("%SettingsButton").GrabFocus();
         };
+        GetNode<Button>("%Backup").Pressed += SendBackup;
         GetNode<Button>("%MainMenu").Pressed += ToMainMenu;
         GetNode<Button>("%Quit").Pressed += () => GetTree().Quit();
         Hide();
@@ -67,6 +70,7 @@ public partial class GameMenu : CanvasLayer
             bool alone = SessionNode.Instance?.Active != true;
             GetTree().Paused = alone;
             _note.Text = alone ? "Paused" : "Online: the game goes on";
+            GetNode<Button>("%Backup").Visible = ShipComputer.Kept?.BackupDiskPath is { Length: > 0 };
             _menu.Show();
             _settings.Hide();
             Visible = true;
@@ -93,6 +97,12 @@ public partial class GameMenu : CanvasLayer
             _settings.Back();
         else
             Close();
+    }
+
+    private void SendBackup()
+    {
+        bool sent = ShipComputer.Kept?.SendBackup() == true;
+        _note.Text = sent ? "Backup sent: the insurer's next ship boots it" : "The backup could not be sent";
     }
 
     private void ToMainMenu()

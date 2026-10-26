@@ -1,0 +1,1145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ship Systems Technical Reference</title>
+<!--
+  The ship's hardware manual, for the player. Open it in a browser to read
+  it, or print it to PDF with build.py. It is laid out like the COS manuals:
+  the content in #source flows into fixed-size pages with running heads,
+  chapter-page numbers (4-12) and tabs, and the contents get their page
+  numbers, all by the script at the end.
+-->
+<style>@page { size: 7in 9in; margin: 0; }
+:root {
+  --paper: #fffefb;
+  --ink: #161616;
+  --muted: #555;
+  --hair: #9a9a96;
+  --light: #f4f4f1;
+  --sans: "Helvetica Neue", Helvetica, Arial, "Liberation Sans", "Nimbus Sans", sans-serif;
+  --mono: "Courier New", "Liberation Mono", "Nimbus Mono PS", Courier, monospace;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #8d8d89; }
+body { -webkit-print-color-adjust: exact; print-color-adjust: exact; color: var(--ink);
+       font-family: var(--sans); font-size: 9.2pt; line-height: 1.4; }
+#source { display: none; }
+#book { display: flex; flex-direction: column; align-items: center; gap: 24px; padding: 24px 0; }
+@media print {
+  html, body { background: var(--paper); }
+  #book { display: block; padding: 0; gap: 0; }
+}
+
+/* ---------- the page ---------- */
+.page { width: 7in; height: 9in; position: relative; overflow: hidden; background: var(--paper); contain: strict;
+        break-after: page; page-break-after: always; box-shadow: 0 2px 10px rgba(0,0,0,.35); }
+.page:last-child { break-after: auto; page-break-after: auto; }
+@media print { .page { box-shadow: none; } }
+.page .body { position: absolute; top: 0.85in; bottom: 0.85in; overflow: hidden; }
+.page.odd .body  { left: 0.9in; right: 0.7in; }
+.page.even .body { left: 0.7in; right: 0.9in; }
+.page .head { position: absolute; top: 0.45in; height: 0.22in; font-family: var(--sans); font-weight: 400; font-size: 7.6pt;
+              letter-spacing: .03em; color: var(--muted);
+              border-bottom: 0.4pt solid var(--ink); display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 3px; }
+.page.odd .head  { left: 0.9in; right: 0.7in; }
+.page.even .head { left: 0.7in; right: 0.9in; flex-direction: row-reverse; }
+.page .foot { position: absolute; bottom: 0.4in; height: 0.25in; display: flex; justify-content: space-between;
+              align-items: flex-start; font-size: 7.6pt; color: var(--muted); border-top: 0.4pt solid var(--ink); padding-top: 4px; }
+.page.odd .foot  { left: 0.9in; right: 0.7in; }
+.page.even .foot { left: 0.7in; right: 0.9in; flex-direction: row-reverse; }
+.page .foot .label { font-family: var(--sans); font-weight: 700; font-size: 8.6pt; color: var(--ink); }
+.page .tab { position: absolute; width: 0.3in; height: 0.42in; background: var(--paper); color: var(--ink);
+             border: 0.5pt solid var(--ink); font-family: var(--sans); font-weight: 700; font-size: 10pt; display: none;
+             align-items: center; justify-content: center; }
+.page.odd .tab  { right: 0; border-right: none; }
+.page.even .tab { left: 0;  border-left: none; }
+.page.has-tab .tab { display: flex; }
+.page.blank .body { display: flex; align-items: center; justify-content: center; font-style: italic; color: var(--muted); }
+.page.plain .head, .page.plain .foot { display: none; }
+
+/* ---------- type ---------- */
+h1, h2, h3, h4, .display { font-family: var(--sans); font-weight: 700; margin: 0; }
+h2 { font-size: 13.5pt; margin: 15px 0 7px; padding-bottom: 3px; border-bottom: 0.5pt solid var(--ink); }
+h3 { font-size: 10.5pt; margin: 12px 0 4px; }
+h4 { font-size: 9.2pt; margin: 9px 0 2px; }
+.body > :first-child { margin-top: 0 !important; }
+p { margin: 0 0 7px; }
+ul, ol { margin: 0 0 7px; padding-left: 1.6em; }
+li { margin-bottom: 2px; }
+b, strong { font-weight: 700; }
+i, em { font-style: italic; }
+code { font-family: var(--mono); font-size: 0.93em; }
+kbd { font-family: var(--mono); }
+.key { display: inline-block; border: 0.5pt solid var(--ink); border-radius: 2px; padding: 0 3px; line-height: 1.15;
+       font-size: 7.8pt; font-weight: 700; margin: 0 1px; white-space: nowrap; }
+var { font-style: italic; }
+.small { font-size: 8pt; }
+
+pre { font-family: var(--mono); margin: 4px 0 9px; white-space: pre; }
+pre.screen { font-size: 7.9pt; line-height: 1.22; padding: 6px 9px; border: 0.5pt solid var(--ink);
+             background: var(--light); margin: 8px 2px 12px; }
+pre.screen b { font-weight: 700; text-decoration: underline; text-decoration-thickness: 0.5pt; text-underline-offset: 2px; }
+pre.screen.wide { font-size: 6.9pt; line-height: 1.18; }
+pre.screen .inv { background: var(--ink); color: var(--paper); }
+pre.listing { font-size: 8pt; line-height: 1.22; padding: 3px 0 3px 10px; border-left: 0.5pt solid var(--ink); }
+.caption { font-size: 8pt; font-style: italic; margin: -6px 0 10px 4px; }
+
+table { border-collapse: collapse; margin: 4px 0 10px; width: 100%; font-size: 8.4pt; }
+th, td { text-align: left; vertical-align: top; padding: 3px 6px 3px 0; }
+table.ref th { font-family: var(--sans); font-weight: 700; font-size: 8.4pt;
+               border-bottom: 0.5pt solid var(--ink); border-top: 0.5pt solid var(--ink); }
+table.ref td { border-bottom: 0.25pt solid #bdbdb8; }
+table.ref td:first-child { white-space: nowrap; font-family: var(--mono); font-size: 8pt; }
+table.ref.wrap td:first-child { white-space: normal; }
+
+.note { border: 0.5pt solid var(--ink); padding: 5px 8px; margin: 6px 0 10px; }
+.note::before { content: "Note: "; font-weight: 700; }
+.warn { border: 0.5pt solid var(--ink); padding: 5px 8px; margin: 6px 0 10px; background: var(--light); }
+.warn::before { content: "Warning: "; font-weight: 700; }
+
+dl { margin: 0 0 6px; }
+dt { font-family: var(--sans); font-weight: 700; font-size: 8.6pt; margin-top: 5px; }
+dd, .in-dd { margin: 0 0 4px 0.3in; }
+dd > :last-child { margin-bottom: 2px; }
+dd > pre.screen, pre.screen.in-dd { margin-left: 2px; }
+dd pre:not(.screen) { margin: 0; }
+h2.cmd { display: flex; justify-content: space-between; align-items: baseline; }
+
+/* ---------- cover and openers ---------- */
+.cover .body { inset: 0 !important; }
+.cover .titles { position: absolute; left: 0.9in; right: 0.7in; top: 3.3in; }
+.cover .titles .t1 { font-family: var(--sans); font-weight: 700; font-size: 54pt; line-height: 1; letter-spacing: -0.5pt; }
+.cover .maker { position: absolute; left: 0.9in; top: 1.2in; font-family: var(--sans); font-weight: 700; font-size: 14pt; letter-spacing: .25em; }
+.cover .titles .t2 { font-family: "Times New Roman", Times, Georgia, serif; font-weight: 400; font-size: 19pt; line-height: 1; margin-top: 2px; color: var(--ink); }
+
+.opener .num { font-family: var(--sans); font-weight: 400; font-size: 84pt; line-height: .85;
+               color: var(--ink); margin: 0.25in 0 8px; }
+.opener h1 { font-size: 24pt; line-height: 1.05; border-bottom: 0.5pt solid var(--ink); padding-bottom: 8px; margin-bottom: 0.35in; }
+.opener .mini h4 { margin-bottom: 6px; }
+.toc { width: 100%; }
+.toc .row { display: flex; align-items: baseline; gap: 4px; margin: 1px 0; }
+.toc .row .t { white-space: nowrap; overflow: hidden; }
+.toc .row .dots { flex: 1; border-bottom: 0.5pt dotted var(--ink); transform: translateY(-3px); min-width: 12px; }
+.toc .row .p { white-space: nowrap; }
+.toc .row.ch { margin-top: 8px; font-family: var(--sans); font-weight: 700; font-size: 9.6pt; }
+.toc .row.sec { padding-left: 1.6em; }
+.toc .row.part { margin-top: 16px; font-weight: 700; font-size: 8.4pt; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+#toc > .row.part:first-child { margin-top: 0; }
+.notice p { font-size: 8.4pt; }
+.keywords { columns: 4; font-family: var(--mono); font-size: 8.2pt; margin: 4px 0 10px; }
+.keywords div { break-inside: avoid; }
+pre.listing.full { font-size: 7.3pt; line-height: 1.16; }
+</style>
+</head>
+<body>
+<div id="book"></div>
+<div id="source">
+
+<!-- ================================================================== -->
+<!-- FRONT MATTER                                                         -->
+<!-- ================================================================== -->
+
+<section class="front" data-kind="notice">
+<div class="notice">
+<p style="margin-top:3.6in"><b>First Edition</b></p>
+<p>Changes are made periodically to the information herein; any such changes will be reported in subsequent revisions.</p>
+<p>This manual describes the devices on the ship systems bus of the pc86 ship computer: the pilot's controls, the flight sensors, the thrusters and the main engine, the radar and the weapons, the defensive systems, the power plant, the heat and the cockpit displays, as fitted to the ship it came with. Fittings vary between ships: a program must look on the bus for what it needs before it uses it (Chapter 1).</p>
+<p>The ship computer runs the COS disk operating system. How to use COS, its editor (EDIT) and its assembler (ASM) is described in the COS User's Guide.</p>
+</div>
+</section>
+
+<section class="front" data-kind="preface" data-title="Preface">
+<h2>Preface</h2>
+<p>Everything your ship does, it does because a program told it to. The flight assist that holds your heading, the fire control that puts the turret on the target, the warning receiver's picture and the power distributor's pips are programs running on the ship computer, a pc86 personal computer with COS, and their sources are on the ship's diskette. This manual tells you what the hardware they talk to is, register by register, so that you can read those programs, change them, and write programs of your own.</p>
+<p>The ship's programs are good programs, but they were written for every ship and every pilot. A program written for your ship and the way you fly it can do better: a fire control that knows how a target turns hits it more often; a flight program that knows your engine runs it harder. None of this is magic. Every device does what its physics lets it do, and no more: a program can only make better use of it.</p>
+<p>This manual assumes that you can write programs in the assembly language of the 8086 processor with the COS assembler, ASM, and that you know how a COS program uses the operating system's services. Both are described in the COS User's Guide.</p>
+<ul>
+<li>Read Chapter 1 first: how the bus works, how a program finds a device, and the units the devices use.</li>
+<li>Chapter 2 tells you how the ship's programs share the computer, and how to change one in flight. It ends with a complete resident program.</li>
+<li>Chapters 3 to 7 describe the devices, one section each. Appendix A describes the programs that come with the ship.</li>
+</ul>
+<h3>Organization of This Manual</h3>
+<table class="ref">
+<tr><td>Chapter 1</td><td>The Ship Systems Bus: slots and ports, finding a device, the sample interrupt, memory windows, units.</td></tr>
+<tr><td>Chapter 2</td><td>Resident Programs: the interrupt chain, changing a program in flight, the ship's diskette, a sample program.</td></tr>
+<tr><td>Chapter 3</td><td>Flight: the pilot's controls, the inertial unit, the thrusters, the rating plate and the main engine.</td></tr>
+<tr><td>Chapter 4</td><td>Sensors and Weapons: the radar, the turret, the missile launcher and the pulse laser.</td></tr>
+<tr><td>Chapter 5</td><td>Defence: the warning receiver, the countermeasures dispenser, the shield and the jammer.</td></tr>
+<tr><td>Chapter 6</td><td>Power and Heat: the power distributor and the heat sink launcher.</td></tr>
+<tr><td>Chapter 7</td><td>The Display Card: the cockpit's screens and their keys.</td></tr>
+<tr><td>Appendix A</td><td>The Ship's Programs: FLIGHT, FIRECTL, RWR and POWER.</td></tr>
+<tr><td>Appendix B</td><td>The Sample Program <code>COOL.ASM</code>.</td></tr>
+</table>
+<h3>Notation</h3>
+<table class="ref">
+<tr><td>130h</td><td>A hexadecimal number. Port addresses are always given in hexadecimal.</td></tr>
+<tr><td>+6</td><td>A register of a device: its offset from the device's first port, in decimal. Register +6 of the radar, at 130h, is port 136h.</td></tr>
+<tr><td>+6 word</td><td>A register of two bytes, +6 and +7, the low byte first. Words are signed unless the text says otherwise.</td></tr>
+<tr><td>bit 0</td><td>The bit worth 1; bit 7 is worth 128.</td></tr>
+<tr><td>(write)</td><td>A register the program writes; the others are read.</td></tr>
+<tr><td><b><u>firectl off</u></b></td><td>In the screen examples, what you type is printed in bold and underlined. Press <span class="key">Enter</span> at the end of each line.</td></tr>
+</table>
+</section>
+
+<section class="front" data-kind="contents" data-title="Contents">
+<h2>Contents</h2>
+<div class="toc" id="toc"></div>
+</section>
+
+<!-- ================================================================== -->
+<!-- CHAPTER 1                                                            -->
+<!-- ================================================================== -->
+
+<section class="chapter" data-num="1" data-title="The Ship Systems Bus" data-part="Part One: Programming the Ship">
+
+<h2>The Ship Computer</h2>
+<p>The ship computer is a pc86 personal computer with three cards in its slots: the video card (the console screen in the cockpit), the diskette controller (one 3&frac12;-inch drive, drive A:), and the ship systems bus card, which connects the computer to the rest of the ship. It runs COS from the ship's diskette, and at start-up COS runs <code>AUTOEXEC.BAT</code>, which loads the ship's programs.</p>
+<p>The processor runs about 400,000 instructions a second. That is shared by everything the computer does: the resident programs that fly the ship and work its systems, and whatever you run at the COS prompt. Appendix A says how much of it each of the ship's programs takes.</p>
+
+<h2>Slots and Ports</h2>
+<p>The bus card gives the ship's devices sixteen slots of sixteen ports each, from port 100h. Slot <var>n</var> begins at port 100h + 16 &times; <var>n</var>: slot 3 is 130h to 13Fh. A program reads a device's registers with <code>IN</code> and writes them with <code>OUT</code>, a byte at a time, with the port in DX:</p>
+<pre class="listing">    mov dx, 130h + 3        ; the radar's contacts
+    in al, dx
+</pre>
+<p>Every device has the same first two registers:</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+0</td><td>The device's type: a number that says what kind of device it is (the table below). A slot with no device reads 0.</td></tr>
+<tr><td>+1</td><td>The version of the device's registers. A later version keeps the registers of the earlier ones and adds to them.</td></tr>
+</table>
+<p>The ship's devices are always in the same slots:</p>
+<table class="ref">
+<tr><th>Slot</th><th>Port</th><th>Type</th><th>Device</th></tr>
+<tr><td>0</td><td>100h</td><td>1</td><td>Pilot's controls</td></tr>
+<tr><td>1</td><td>110h</td><td>2</td><td>Inertial unit</td></tr>
+<tr><td>2</td><td>120h</td><td>3</td><td>Thrusters</td></tr>
+<tr><td>3</td><td>130h</td><td>4</td><td>Radar</td></tr>
+<tr><td>4</td><td>140h</td><td>5</td><td>Gimballed turret</td></tr>
+<tr><td>5</td><td>150h</td><td>6</td><td>Display card</td></tr>
+<tr><td>6</td><td>160h</td><td>7</td><td>Missile launcher and datalink</td></tr>
+<tr><td>7</td><td>170h</td><td>8</td><td>Radar warning receiver</td></tr>
+<tr><td>8</td><td>180h</td><td>10</td><td>Countermeasures dispenser</td></tr>
+<tr><td>9</td><td>190h</td><td>11</td><td>Pulse laser</td></tr>
+<tr><td>10</td><td>1A0h</td><td>12</td><td>Thrusters' rating plate</td></tr>
+<tr><td>11</td><td>1B0h</td><td>15</td><td>Power distributor</td></tr>
+<tr><td>12</td><td>1C0h</td><td>13</td><td>Shield generator</td></tr>
+<tr><td>13</td><td>1D0h</td><td>14</td><td>Heat sink launcher</td></tr>
+<tr><td>14</td><td>1E0h</td><td>16</td><td>Radar jammer</td></tr>
+<tr><td>15</td><td>1F0h</td><td>17</td><td>Main engine</td></tr>
+</table>
+<p>Not every ship has every device: a ship may have a laser and no turret, or no jammer. Before a program uses a device, it reads the device's type register and checks it. A program that writes to an empty slot does nothing; one that reads from it reads zeros, which may be taken for real readings.</p>
+<pre class="listing">    mov dx, 1D0h            ; a heat sink launcher?
+    in al, dx
+    cmp al, 14
+    jne no_heat_sinks
+</pre>
+
+<h2>How the Devices Work</h2>
+<p>The devices and the computer take turns, sixty times a second. At each <i>step</i>:</p>
+<ol>
+<li>Every device puts its new readings in its registers: the controls where the pilot holds them, the inertial unit's new sample, the radar's track.</li>
+<li>The inertial unit raises the sample interrupt, IRQ 5, and the computer runs for 1/60 of a second.</li>
+<li>Every device looks at what the program wrote to it during the step, and does it: the thrusters push, the turret's servos turn, the laser fires.</li>
+</ol>
+<p>So a device sees what the program wrote only at the end of the step, and if a register was written more than once, it sees the last value. Writing a register is what tells the device to act: the laser fires in a step in which its fire register was written, whatever was in it before. A word is written as two bytes, the low byte first; write both bytes in the same step.</p>
+<p>A device's readings do not change during a step. A program that reads a register twice in the same step reads the same value.</p>
+
+<h2>The Sample Interrupt</h2>
+<p>IRQ 5 comes from the inertial unit, sixty times a second, as soon as its new sample and all the other devices' readings are in their registers. It is interrupt 0Dh. Programs that have to do something every step (flying the ship, aiming a turret) do it there: see Chapter 2.</p>
+<p>The interrupt line is enabled at the interrupt controller (port 21h, bit 5 clear) by the first program that takes it. The flight program acknowledges each sample by reading the inertial unit's status register (+14); no other program should read that register.</p>
+
+<h2>Memory Windows</h2>
+<p>Some devices have more to give than sixteen ports can hold: the radar's contacts, the warning receiver's emitters, the screens. They keep it in memory, in a window above the video memory, in segment D000h. The device's registers say where (a segment and an offset), and a program should take the addresses from there. In this ship:</p>
+<table class="ref">
+<tr><th>Address</th><th>Contents</th></tr>
+<tr><td>D000:1000</td><td>The radar's contact table (Chapter 4)</td></tr>
+<tr><td>D000:1100</td><td>The radar's track</td></tr>
+<tr><td>D000:1200</td><td>The display card's screen table (Chapter 7)</td></tr>
+<tr><td>D000:1300</td><td>The warning receiver's emitter table (Chapter 5)</td></tr>
+<tr><td>D000:1400</td><td>The whole rating plate (Chapter 3)</td></tr>
+<tr><td>D000:2000</td><td>The screens' memory, from here up</td></tr>
+</table>
+<p>These are written by the devices at each step. A program reads them, and writes only the screens' memory.</p>
+
+<h2>Units</h2>
+<p>The devices give and take numbers in a few units, chosen so that whole numbers are precise enough:</p>
+<table class="ref">
+<tr><th>Unit</th><th>Used for</th></tr>
+<tr><td>65536 to the turn</td><td>Angles (binary angles): 16384 is a right angle, and a word wraps round as an angle does. Azimuth is positive to the right, elevation upward, both from the nose.</td></tr>
+<tr><td>1/1024 rad/s</td><td>Turn rates: 1024 is about 57 degrees a second.</td></tr>
+<tr><td>1/1024 rad/s&sup2;</td><td>Turning accelerations.</td></tr>
+<tr><td>1/8 m/s</td><td>Speeds: 8 is a metre a second.</td></tr>
+<tr><td>1/8 m/s&sup2;</td><td>Accelerations.</td></tr>
+<tr><td>1/4 m</td><td>Positions measured by the radar.</td></tr>
+<tr><td>m</td><td>Ranges.</td></tr>
+<tr><td>0 to 255</td><td>Fractions: 255 is full.</td></tr>
+<tr><td>-32767 to 32767</td><td>The controls and the thruster commands: 32767 is all the way.</td></tr>
+</table>
+<p>Directions are in the ship's own axes: <i>right</i>, <i>up</i> and <i>forward</i>. Turns are positive when the nose pitches up, the ship rolls to the right and the nose yaws to the right.</p>
+</section>
+
+<!-- ================================================================== -->
+<!-- CHAPTER 2                                                            -->
+<!-- ================================================================== -->
+
+<section class="chapter" data-num="2" data-title="Resident Programs" data-part="Part One: Programming the Ship">
+
+<h2>The Ship's Programs</h2>
+<p>The programs that fly the ship and work its systems are resident COS programs: started from <code>AUTOEXEC.BAT</code>, each takes the sample interrupt, stays in memory (COS function 31h) and gives the prompt back. From then on each does its work at every step, inside the interrupt, and the console stays free for you. The ship's <code>AUTOEXEC.BAT</code> is:</p>
+<pre class="listing">@ECHO OFF
+FLIGHT
+FIRECTL
+RWR
+POWER
+</pre>
+<p>Each one can be taken out of memory with <code>OFF</code> (<code>FIRECTL OFF</code>), and started again by its name.</p>
+
+<h2>The Interrupt Chain</h2>
+<p>Every program that takes IRQ 5 keeps the address of the handler that had it before, and calls it first: the programs form a chain, the last one started at its head, and every one of them runs at every step. At the end of the chain is the BIOS's own handler, which ends the interrupt at the interrupt controller. A handler on the chain looks like this:</p>
+<pre class="listing">on_irq:
+    pushf                   ; as if the interrupt had called it
+    call far [cs:old_irq]   ; the programs before this one first
+    push ax
+    ...                     ; its own work
+    pop ax
+    iret
+</pre>
+<p>The ship's programs follow a convention, so that they can find each other on the chain:</p>
+<table class="ref">
+<tr><th>Offset</th><th>Contents</th></tr>
+<tr><td>100h</td><td>A near jump to the start of the program (<code>jmp near start</code>, three bytes).</td></tr>
+<tr><td>103h</td><td>The program's signature: six characters, the first two <code>XP</code>.</td></tr>
+<tr><td>109h</td><td>The handler it calls: the offset, then the segment (<code>old_irq</code>).</td></tr>
+</table>
+<p>To take itself out of memory, a program follows the chain from the interrupt vector: at each program on it, it compares the signature with its own, and if it is not its own, goes on to the handler at 109h. Found, the program before it is made to call what it called (its word at 109h is changed), or, if it is the first, the vector is. That way any of them can leave, wherever it is on the chain. A handler that does not follow the convention ends the search: programs started after it cannot be taken out until it is.</p>
+<p>A handler on the chain must keep to a few rules:</p>
+<ul>
+<li>It must not call COS (interrupt 21h): the interrupt may have stopped COS itself in the middle of a call. BIOS calls are safe.</li>
+<li>It must be quick. Every handler on the chain runs at every step, and together they share 1/60 of a second with the program at the prompt. A handler that takes the whole step leaves nothing for the others.</li>
+<li>It must keep every register it uses, and DS: set DS from CS on entry, if it needs its own data.</li>
+</ul>
+
+<h2>Changing a Program in Flight</h2>
+<p>The sources of the ship's programs are on the ship's diskette (<code>FLIGHT.ASM</code>, <code>FIRECTL.ASM</code>, <code>RWR.ASM</code>, <code>POWER.ASM</code>). To change one, edit its source with EDIT, assemble it with ASM, and start the new program in place of the old one. Assemble it to a new name, so that the program that works stays on the diskette:</p>
+<pre class="screen">A:\&gt;<b>edit firectl.asm</b>
+
+A:\&gt;<b>asm firectl.asm new.com</b>
+
+A:\&gt;<b>firectl off</b>
+Fire control removed: radar off.
+
+A:\&gt;<b>new</b>
+Fire control resident: scope on RADAR, page on WEAPON.
+</pre>
+<p>While ASM works (about half a minute for <code>FIRECTL.ASM</code> in flight: the resident programs keep their share of the processor) the old program goes on working. Between <code>FIRECTL OFF</code> and <code>NEW</code> the radar is off.</p>
+<p>When the new program works as you wish, copy it over the old one (<code>COPY NEW.COM FIRECTL.COM</code>), and <code>AUTOEXEC.BAT</code> starts it next time.</p>
+<div class="warn">If the flight program stops writing the thrusters' commands for a tenth of a second, the thrusters take the pilot's controls directly, with no flight assist (Chapter 3). A flight program that hangs inside the interrupt hangs the whole computer: then only the computer's reset brings the ship's programs back.</div>
+
+<h2>The Ship's Diskette</h2>
+<p>What programs write on the ship's diskette stays on it. It is the ship's own, and it goes with the ship: a ship lost is its diskette lost. Send a copy to your insurer when you have changed the ship's programs; a replacement ship comes with the last copy you sent, or, if you sent none, with the diskette the ship was delivered with.</p>
+
+<h2>A Sample Program</h2>
+<p>Appendix B lists <code>COOL.ASM</code>, a complete resident program in thirty lines of work and a page of installing and removing. It watches the ship's heat and throws a heat sink when the ship runs hot. Type it with EDIT, assemble it and start it:</p>
+<pre class="screen">A:\&gt;<b>asm cool.asm</b>
+
+A:\&gt;<b>cool</b>
+COOL resident.
+</pre>
+<p>It goes on the chain like the ship's programs, and <code>COOL OFF</code> takes it out. The parts that install it and take it out of the chain (<code>start</code>, <code>remove</code>, <code>find_resident</code>) can be used as they are in programs of your own; change the signature.</p>
+</section>
+
+<!-- ================================================================== -->
+<!-- CHAPTER 3                                                            -->
+<!-- ================================================================== -->
+
+<section class="chapter" data-num="3" data-title="Flight" data-part="Part Two: The Devices">
+
+<h2 class="cmd">Pilot's Controls<span>100h &middot; type 1</span></h2>
+<p>Where the pilot holds the stick, the throttle and the other controls, and which buttons are down. The device only reports them: what they do is the programs'.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2 word</td><td>Pitch (positive: nose up)</td></tr>
+<tr><td>+4 word</td><td>Roll (positive: to the right)</td></tr>
+<tr><td>+6 word</td><td>Yaw (positive: to the right)</td></tr>
+<tr><td>+8 word</td><td>Strafe right</td></tr>
+<tr><td>+10 word</td><td>Strafe up</td></tr>
+<tr><td>+12 word</td><td>Throttle (negative: reverse)</td></tr>
+<tr><td>+14</td><td>Buttons held: bit 0 flight assist, bit 1 boost, bit 2 target ahead, bit 3 next target, bit 4 fire, bit 5 next weapon, bit 6 chaff, bit 7 flare</td></tr>
+<tr><td>+15</td><td>More buttons held: bit 0 safe turns, bit 1 power to systems, bit 2 to engines, bit 3 to weapons, bit 4 even out the power, bit 5 heat sink, bit 6 jammer</td></tr>
+</table>
+<p>The axes run from -32767 to 32767. A button's bit is set while it is held: a program that acts once on each press keeps the last value and looks for bits that have just come on.</p>
+
+<h2 class="cmd">Inertial Unit<span>110h &middot; type 2</span></h2>
+<p>The ship's gyroscopes and its velocity, sixty times a second. Its new sample raises IRQ 5.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2 word</td><td>Pitch rate (1/1024 rad/s)</td></tr>
+<tr><td>+4 word</td><td>Roll rate</td></tr>
+<tr><td>+6 word</td><td>Yaw rate</td></tr>
+<tr><td>+8 word</td><td>Speed to the right (1/8 m/s)</td></tr>
+<tr><td>+10 word</td><td>Speed upward</td></tr>
+<tr><td>+12 word</td><td>Speed forward</td></tr>
+<tr><td>+14</td><td>Status: 1, a new sample. Reading it acknowledges the sample. Only the flight program reads it.</td></tr>
+</table>
+
+<h2 class="cmd">Thrusters<span>120h &middot; type 3</span></h2>
+<p>The thruster controller: the manoeuvring thrusters for the three turns and the three directions, and the main engine forward. A program writes six commands, each a share of the most that group of thrusters gives, and then +14, to have them taken.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2 word</td><td>Pitch torque (write; -32767 to 32767)</td></tr>
+<tr><td>+4 word</td><td>Roll torque (write)</td></tr>
+<tr><td>+6 word</td><td>Yaw torque (write)</td></tr>
+<tr><td>+8 word</td><td>Force to the right (write)</td></tr>
+<tr><td>+10 word</td><td>Force upward (write)</td></tr>
+<tr><td>+12 word</td><td>Force forward: the main engine; negative, the reverse thrusters (write)</td></tr>
+<tr><td>+14</td><td>Write: take the commands. Read: 1 while in direct mode.</td></tr>
+<tr><td>+15</td><td>The mode the flight program shows on the head-up display (write): bit 0 flight assist on, bit 1 safe turns</td></tr>
+</table>
+<p>If nothing writes +14 for a tenth of a second, the controller goes to <i>direct mode</i>: the thrusters follow the pilot's controls as they are, the stick to the turns and the throttle to the main engine, and the ship keeps whatever motion it has. It leaves direct mode at the first command taken.</p>
+<p>The main engine gives what its own controller decides of what is asked.</p>
+
+<h2 class="cmd">Rating Plate<span>1A0h &middot; type 12</span></h2>
+<p>What the thrusters and the main engine can do to this ship, as it is fitted: its mass, its thrusters and its engine together. A flight program reads it to fly within what the ship can do, and fits itself to a new engine or new thrusters without being changed. Version 2.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2 word</td><td>Forward acceleration, at the main engine's rating (1/8 m/s&sup2;)</td></tr>
+<tr><td>+4 word</td><td>Reverse acceleration</td></tr>
+<tr><td>+6 word</td><td>Sideways acceleration</td></tr>
+<tr><td>+8 word</td><td>Up and down acceleration</td></tr>
+<tr><td>+10 word</td><td>Pitch acceleration (1/1024 rad/s&sup2;)</td></tr>
+<tr><td>+12 word</td><td>Yaw acceleration</td></tr>
+<tr><td>+14 word</td><td>Roll acceleration</td></tr>
+</table>
+<p>The whole plate is at D000:1400, fourteen words: the seven accelerations above, in the same order, and then the top speeds and turn rates, where each meets the veil's drag:</p>
+<table class="ref">
+<tr><th>Offset</th><th>Contents</th></tr>
+<tr><td>+0 to +12</td><td>The seven accelerations</td></tr>
+<tr><td>+14 word</td><td>Top speed forward (1/8 m/s)</td></tr>
+<tr><td>+16 word</td><td>Top speed in reverse</td></tr>
+<tr><td>+18 word</td><td>Top speed sideways</td></tr>
+<tr><td>+20 word</td><td>Top speed up and down</td></tr>
+<tr><td>+22 word</td><td>Top pitch rate (1/1024 rad/s)</td></tr>
+<tr><td>+24 word</td><td>Top yaw rate</td></tr>
+<tr><td>+26 word</td><td>Top roll rate</td></tr>
+</table>
+<p>32767 means there is no top. The veil drags harder across the hull than along it: a ship slides less the faster it goes, and its top speeds sideways are far below its top speed forward.</p>
+
+<h2 class="cmd">Main Engine<span>1F0h &middot; type 17</span></h2>
+<p>The main engine, its controller and its cooling unit. The engine gives the forward thrust the thrusters' +12 command asks for, as its controller allows. The controller is built into the engine and works on its own: it reckons the core's temperature from the coolant's, as the cooling unit reports it, and from the thrust it gives, and when it reckons the core too hot it cuts the engine out until the core has cooled to its resume temperature. Held at full thrust, the engine pulses. The ship's programs cannot switch the controller off.</p>
+<p>The cooling unit carries the core's heat to the radiators. More power to the engines (Chapter 6) drives it harder; its boost harder still, drawing power and making the radiators glow brighter, which heat-seeking missiles see.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2 word</td><td>The core's temperature as the controller reckons it (&deg;C)</td></tr>
+<tr><td>+4 word</td><td>The coolant's temperature as the cooling unit reports it (&deg;C)</td></tr>
+<tr><td>+6</td><td>Status: bit 0 cut out, bit 3 cooling boost, bit 4 calibration mode, bit 5 worn, bit 6 failed. Write: the cooling unit's controls, bit 0 boost, bit 7 calibration mode.</td></tr>
+<tr><td>+7</td><td>Thrust given, 0 to 255 of the engine's rating</td></tr>
+<tr><td>+8 word</td><td>The controller's cut-out temperature (&deg;C)</td></tr>
+<tr><td>+10 word</td><td>The controller's resume temperature (&deg;C)</td></tr>
+<tr><td>+12 word</td><td>The diagnostic port: an address in the controller's program memory (write)</td></tr>
+<tr><td>+14</td><td>The byte at that address, a step after it was written</td></tr>
+<tr><td>+15</td><td>The service port (write; for the maker's service equipment)</td></tr>
+</table>
+<p>In calibration mode the cooling unit reports, at +4, whatever is written there, so that its reading can be checked against a known temperature. Leave it off in flight.</p>
+<div class="warn">An engine run hotter than its safe temperature wears and gives less thrust, for good (bit 5). Hotter still it fails (bit 6), and the ship with it. Thrust beyond what the hull is rated for breaks the hull. The controller keeps the engine within its rating; nothing keeps it there if the controller is misled.</div>
+</section>
+
+<!-- ================================================================== -->
+<!-- CHAPTER 4                                                            -->
+<!-- ================================================================== -->
+
+<section class="chapter" data-num="4" data-title="Sensors and Weapons" data-part="Part Two: The Devices">
+
+<h2 class="cmd">Radar<span>130h &middot; type 4</span></h2>
+<p>A pulse-Doppler radar looking in a cone ahead of the ship. Searching, it sweeps the cone twice a second and writes what it sees into a table of contacts. Told to lock one of them, it tracks it sixty times a second and writes where it is.</p>
+<p>What it measures is only as good as the echo against the noise. An echo falls with the fourth power of the range and grows with the size of the target, so its errors grow with the range; jamming adds noise, and rocks near a target echo with it. The track gives only the target's position: its velocity is for the program to work out, by following the positions.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2</td><td>Mode (write: 0 off, 1 on)</td></tr>
+<tr><td>+3</td><td>Contacts in the table</td></tr>
+<tr><td>+4</td><td>Sweeps so far, counting up</td></tr>
+<tr><td>+5</td><td>1 while a target is locked</td></tr>
+<tr><td>+6 word</td><td>Write: lock the contact with this id; 0 lets the target go</td></tr>
+<tr><td>+8 word</td><td>The id of the locked target</td></tr>
+<tr><td>+10 word</td><td>The segment of the tables</td></tr>
+<tr><td>+12 word</td><td>The offset of the contact table</td></tr>
+<tr><td>+14 word</td><td>The offset of the track</td></tr>
+</table>
+<h3>The Contact Table</h3>
+<p>Up to sixteen contacts of sixteen bytes, written at every sweep:</p>
+<table class="ref">
+<tr><th>Offset</th><th>Contents</th></tr>
+<tr><td>+0 word</td><td>The contact's id</td></tr>
+<tr><td>+2 word</td><td>Range (m)</td></tr>
+<tr><td>+4 word</td><td>Azimuth (binary angle)</td></tr>
+<tr><td>+6 word</td><td>Elevation</td></tr>
+<tr><td>+8 word</td><td>Closing speed, from the Doppler (1/8 m/s)</td></tr>
+<tr><td>+10</td><td>Flags: bit 0 locked, bit 1 a jammer's strobe</td></tr>
+</table>
+<p>A jammer's noise is heard from its direction, but gives no range: it is written after the echoes as a <i>strobe</i>, with range 0 and flag bit 1, and cannot be locked.</p>
+<h3>The Track</h3>
+<table class="ref">
+<tr><th>Offset</th><th>Contents</th></tr>
+<tr><td>+0 word</td><td>The id of the target</td></tr>
+<tr><td>+2 word</td><td>Its position to the right (1/4 m, from the turret's pivot)</td></tr>
+<tr><td>+4 word</td><td>Upward</td></tr>
+<tr><td>+6 word</td><td>Forward</td></tr>
+<tr><td>+8 word</td><td>The echo's signal-to-noise ratio (dB)</td></tr>
+<tr><td>+14 word</td><td>Range (m)</td></tr>
+</table>
+<p>The tracker follows what is in its gate, a small cell of angle, range and Doppler round where the target was, moved on at the velocity it has been following. It measures the middle of all the echoes in it and keeps the lock on the strongest. Chaff that sits in the gate pulls the track toward itself and may take the lock; a repeater jammer can walk the gate away. A target lost at the edge of the cone or to a weak echo is taken back by itself if it is seen again within three seconds, near where the gate would be.</p>
+
+<h2 class="cmd">Gimballed Turret<span>140h &middot; type 5</span></h2>
+<p>A kinetic cannon on a gimbal under the ship. The program writes the angles it wants; servos turn the turret toward them, following how fast the asked-for angles move, within a top rate and an acceleration. Every round leaves a little off the bore, more when the barrel is hot, and kicks the mount.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2 word</td><td>Azimuth wanted (write; binary angle, 0 straight ahead)</td></tr>
+<tr><td>+4 word</td><td>Elevation wanted (write)</td></tr>
+<tr><td>+6 word</td><td>Azimuth now</td></tr>
+<tr><td>+8 word</td><td>Elevation now</td></tr>
+<tr><td>+10 word</td><td>Muzzle speed (m/s)</td></tr>
+<tr><td>+12</td><td>Write 1: fire in this step</td></tr>
+<tr><td>+13</td><td>Status: bit 0 ready, bit 1 at a limit of the gimbal, bit 2 too hot to fire</td></tr>
+<tr><td>+14</td><td>Barrel heat, 0 to 255</td></tr>
+<tr><td>+15</td><td>Rounds fired, counting up</td></tr>
+</table>
+<p>The gun fires while the program writes +12 at every step. A round flies at the muzzle speed on top of the ship's own velocity; at 2 km it takes nearly two seconds to arrive, and a target that turns meanwhile is missed. Where to point is the program's to work out.</p>
+
+<h2 class="cmd">Missile Launcher<span>160h &middot; type 7</span></h2>
+<p>The launcher carries radar-guided missiles and heat-seeking missiles. A radar missile is guided by the launcher's datalink: at every step the radar keeps its track, the datalink sends the missile where the radar puts the target. Without the track it flies on what it last knew, and is lost after two seconds of silence. A heat seeker needs neither: its own head follows the brightest heat in its view.</p>
+<p>Powered, the head of the heat seeker on the rail looks along the launcher's boresight, or where the radar's target is if there is a lock; heat in its view makes it growl in the pilot's headset, and held for a moment it locks on. A heat seeker can be fired at any time: it leaves looking where the head on the rail looked.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2</td><td>Radar missiles left</td></tr>
+<tr><td>+3</td><td>Missiles in flight</td></tr>
+<tr><td>+4</td><td>Status: bit 0 a radar missile ready to fire, bit 1 the radar has a lock, bit 2 a heat seeker ready, bit 3 its head sees heat, bit 4 its head is locked on</td></tr>
+<tr><td>+6</td><td>Write 1: fire a radar missile at the radar's target; 2: fire a heat seeker</td></tr>
+<tr><td>+7</td><td>Bit 0: power the heat seeker's head (write)</td></tr>
+<tr><td>+8 word</td><td>The newest missile's time to go (1/8 s; 0FFFFh unknown)</td></tr>
+<tr><td>+10</td><td>Its status: bit 0 guided, bit 1 no word from the ship (or its head sees nothing), bit 2 lost</td></tr>
+<tr><td>+11</td><td>How it went: 0 none, 1 flying, 2 hit, 3 missed</td></tr>
+<tr><td>+12 word</td><td>Its fuel: the speed change it has left (m/s)</td></tr>
+<tr><td>+14</td><td>Heat seekers left</td></tr>
+<tr><td>+15</td><td>The newest missile's kind: 1 radar, 2 heat seeker</td></tr>
+</table>
+<p>The datalink sends the radar's track, whatever the tracker follows: if chaff has taken it, the missile goes for the chaff. The next heat seeker brought to the rail after a launch starts with its head off.</p>
+
+<h2 class="cmd">Pulse Laser<span>190h &middot; type 11</span></h2>
+<p>A pulse laser fixed along the nose: the pilot aims it by pointing the ship. While the program writes the fire register at every step it fires a pulse at a time, from its emitters in turn. A pulse is a bolt that flies at the bolt speed on top of the ship's velocity, so far out the pilot has to lead the target. Every pulse takes power from the weapons capacitor (Chapter 6) and heats the emitters; too hot, the laser stops until they cool.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2</td><td>Status: bit 0 ready, bit 1 no power, bit 2 too hot</td></tr>
+<tr><td>+3</td><td>Heat, 0 to 255</td></tr>
+<tr><td>+4</td><td>Write 1: fire in this step</td></tr>
+<tr><td>+5</td><td>Pulses fired, counting up</td></tr>
+<tr><td>+6 word</td><td>Bolt speed (m/s)</td></tr>
+<tr><td>+8 word</td><td>The lead point to the right (write; 1/4 m, from where the radar measures)</td></tr>
+<tr><td>+10 word</td><td>Upward (write)</td></tr>
+<tr><td>+12 word</td><td>Forward (write)</td></tr>
+<tr><td>+14</td><td>Bit 0: show the lead circle in this step (write)</td></tr>
+</table>
+<p>The sight is the program's: it works out where a pulse fired now would meet the target, writes that point to +8 to +12 and bit 0 of +14 at every step, and the head-up display draws a circle there and a pipper where the pulses go at that range. The pilot puts the pipper on the circle and fires.</p>
+</section>
+
+<!-- ================================================================== -->
+<!-- CHAPTER 5                                                            -->
+<!-- ================================================================== -->
+
+<section class="chapter" data-num="5" data-title="Defence" data-part="Part Two: The Devices">
+
+<h2 class="cmd">Radar Warning Receiver<span>170h &middot; type 8</span></h2>
+<p>Antennas round the hull hear the radars whose beams light the ship, from every side; the receiver only listens. For each radar it hears it works out a bearing, from the antennas; a range, guessed from the strength of the signal and the power its library lists for that kind of radar; a type, from the signature; and whether the radar has the ship locked. A searching radar is heard only as its beam passes, and stays in the table for a while after.</p>
+<p>The same box has a missile approach warner: it sees the plume of a burning missile motor coming at the ship. A missile that has burnt out coasts unseen.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2</td><td>Entries in the table</td></tr>
+<tr><td>+3</td><td>Updates so far, counting up</td></tr>
+<tr><td>+4</td><td>Flags: bit 0 something has the ship locked, bit 1 a new emitter in the last second, bit 2 a missile coming, bit 3 a radar guiding a missile at the ship</td></tr>
+<tr><td>+5</td><td>Audio: bit 0 the receiver's tones off (write)</td></tr>
+<tr><td>+6 word</td><td>The segment of the table</td></tr>
+<tr><td>+8 word</td><td>Its offset</td></tr>
+</table>
+<p>The table has up to sixteen entries of eight bytes:</p>
+<table class="ref">
+<tr><th>Offset</th><th>Contents</th></tr>
+<tr><td>+0 word</td><td>The emitter's id</td></tr>
+<tr><td>+2 word</td><td>Bearing (binary angle from the nose, to the right, in the ship's horizontal plane)</td></tr>
+<tr><td>+4 word</td><td>Range, as guessed (m)</td></tr>
+<tr><td>+6</td><td>Type: a letter (D drone, F fighter, J jammer, M missile, U unknown)</td></tr>
+<tr><td>+7</td><td>Flags: bit 0 locked on the ship, bit 1 heard in this step, bit 2 new, bit 3 a missile, bit 4 guiding a missile at the ship</td></tr>
+</table>
+<p>A radar that guides a missile at the ship sends the datalink's words with its pulses: the receiver calls that a launch (bit 4). A heat seeker gives no such warning; only its plume, and the receiver cannot tell whose it is.</p>
+
+<h2 class="cmd">Countermeasures Dispenser<span>180h &middot; type 10</span></h2>
+<p>A load of chaff bundles and a load of flares, thrown out behind the ship. Chaff is a cloud of radar echo; a flare, a bright source of heat. Both keep the ship's velocity and a small kick from the dispenser: it is the ship's turn that parts them from it. The dispenser takes a quarter of a second to bring the next of a kind to the chute: asked sooner, it throws nothing.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2</td><td>Chaff bundles left</td></tr>
+<tr><td>+3</td><td>Flares left</td></tr>
+<tr><td>+4</td><td>Write: bit 0 throw a bundle of chaff, bit 1 a flare</td></tr>
+<tr><td>+5</td><td>How many it has thrown, counting up</td></tr>
+</table>
+
+<h2 class="cmd">Shield Generator<span>1C0h &middot; type 13</span></h2>
+<p>A field round the ship that takes hits before the hull does. It builds back on power from the systems capacitor (Chapter 6): with that dry, only as fast as the power coming in. Knocked down to nothing it collapses, and starts again from nothing after a while.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2</td><td>Strength, 0 to 255 full</td></tr>
+<tr><td>+3</td><td>Status: bit 0 up, bit 1 building back, bit 2 collapsed</td></tr>
+<tr><td>+4</td><td>Collapsed: quarter seconds until it starts again</td></tr>
+</table>
+
+<h2 class="cmd">Radar Jammer<span>1E0h &middot; type 16</span></h2>
+<p>A jammer fills the radars' receivers with noise, so that an echo has to be stronger to be seen and is measured worse. The noise falls with the square of the distance and the echo with the fourth power, so close in a radar burns through. Models with deception also hear a radar tracking the ship and send its pulses back, stronger than the ship's own echo, and walk the copy away in range, taking the radar's gate with it; then they stop, and the gate is left on nothing.</p>
+<p>The antenna sends all round, or, aimed, puts much more into a beam toward the bearing the program gives (the radar that has the ship locked, from the warning receiver). Sending, the jammer draws from the systems capacitor, and all it draws ends as heat. And it is heard: warning receivers far beyond the range it hides the ship at show it as a J.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2</td><td>Mode (write: 0 off, 1 noise, 2 deception). Read: what it does; a model without deception makes noise.</td></tr>
+<tr><td>+3</td><td>What the model can do: bit 0 noise, bit 1 deception</td></tr>
+<tr><td>+4 word</td><td>Azimuth to aim at (write; binary angle)</td></tr>
+<tr><td>+6 word</td><td>Elevation to aim at (write)</td></tr>
+<tr><td>+8</td><td>Write 0: send all round; 1: aim at +4 and +6</td></tr>
+<tr><td>+9</td><td>Status: bit 0 sending, bit 1 short of power, bit 2 deceiving a tracking radar</td></tr>
+<tr><td>+10</td><td>The power it gets, 0 to 255</td></tr>
+</table>
+</section>
+
+<!-- ================================================================== -->
+<!-- CHAPTER 6                                                            -->
+<!-- ================================================================== -->
+
+<section class="chapter" data-num="6" data-title="Power and Heat" data-part="Part Two: The Devices">
+
+<h2 class="cmd">Power Distributor<span>1B0h &middot; type 15</span></h2>
+<p>The power plant and its distributor. The distributor shares the plant's power among three capacitors, by the program's setting: systems (the shield and the jammer), engines (the thrusters and the cooling unit's boost) and weapons (the laser). The setting is in twelve half pips, at most eight on one. A capacitor fills at its share of the plant while it has room, and empties as what hangs on it draws: a share too small for what draws on it runs dry, and then the shield builds back slowly, the thrusters push only as hard as the power coming in lets them, and the laser waits. Part of the power drawn ends as heat.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2</td><td>Half pips to systems</td></tr>
+<tr><td>+3</td><td>Half pips to engines</td></tr>
+<tr><td>+4</td><td>Half pips to weapons</td></tr>
+<tr><td>+6</td><td>The systems capacitor, 0 to 255 full</td></tr>
+<tr><td>+7</td><td>The engines capacitor</td></tr>
+<tr><td>+8</td><td>The weapons capacitor</td></tr>
+</table>
+<p>To change the setting, write all three of +2, +3 and +4, the weapons last: writing +4 sets the three. A setting that does not add up to twelve, or puts more than eight on one, is ignored.</p>
+
+<h2 class="cmd">Heat Sink Launcher<span>1D0h &middot; type 14</span></h2>
+<p>The ship's heat, and the launcher of heat sinks. What the systems give, what the power plant wastes and what the weapons and the jammer leave in the ship warms it; the radiators give it off, the more the hotter it is. Past 100% the ship cooks: its hull wears, and the shield does not help. A hot hull shines on heat seekers. A heat sink soaks heat up for a few seconds and is thrown away with it.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2</td><td>Heat, in percent (to 255)</td></tr>
+<tr><td>+3</td><td>Heat sinks left</td></tr>
+<tr><td>+4</td><td>Write: bit 0 throw a heat sink</td></tr>
+<tr><td>+5</td><td>Status: bit 0 a heat sink working, bit 1 over 100%</td></tr>
+</table>
+</section>
+
+<!-- ================================================================== -->
+<!-- CHAPTER 7                                                            -->
+<!-- ================================================================== -->
+
+<section class="chapter" data-num="7" data-title="The Display Card" data-part="Part Two: The Devices">
+
+<h2 class="cmd">Display Card<span>150h &middot; type 6</span></h2>
+<p>The cockpit's screens, other than the computer's console, with their memory in segment D000h. Each screen has a name (RADAR, WEAPON, RWR, FLIGHT), a size and a mode; a program finds the screen it draws on by its name, in the screen table. A cockpit may have more screens or fewer: a program that finds no screen of its name works the same, unseen. Version 3.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2 word</td><td>The segment of the table and the screens' memory</td></tr>
+<tr><td>+4 word</td><td>The offset of the screen table</td></tr>
+<tr><td>+6</td><td>Screens in the table</td></tr>
+<tr><td>+7</td><td>The screen of interest: the one the pilot picked (0FFh, none)</td></tr>
+<tr><td>+8</td><td>Bezel keys pressed so far, counting up</td></tr>
+<tr><td>+9</td><td>The last key: 1 zoom in, 2 zoom out, 3 sound</td></tr>
+<tr><td>+10</td><td>The screen it was pressed for</td></tr>
+</table>
+<p>A program looks at +8 now and then: when it has moved on and +10 is its own screen, the key in +9 is for it. What the key does is the program's to decide.</p>
+<h3>The Screen Table</h3>
+<p>Sixteen bytes a screen:</p>
+<table class="ref">
+<tr><th>Offset</th><th>Contents</th></tr>
+<tr><td>+0</td><td>Name: six characters, filled with spaces</td></tr>
+<tr><td>+6</td><td>Mode (the program writes it): 0 text, 1 graphics</td></tr>
+<tr><td>+7</td><td>Columns (text)</td></tr>
+<tr><td>+8</td><td>Rows (text)</td></tr>
+<tr><td>+10 word</td><td>Width (graphics, pixels)</td></tr>
+<tr><td>+12 word</td><td>Height (graphics, pixels)</td></tr>
+<tr><td>+14 word</td><td>The offset of the screen's memory (a multiple of 16)</td></tr>
+</table>
+<p>In text mode the memory holds a character and an attribute for each cell, as the video card's colour text mode does. In graphics mode it holds two bits a pixel (off, dim, half, bright), four pixels to a byte with the leftmost in the top bits, width/4 bytes a row. The screens' phosphor glows on for a moment after a pixel goes off.</p>
+</section>
+
+<!-- ================================================================== -->
+<!-- APPENDIX A                                                           -->
+<!-- ================================================================== -->
+
+<section class="chapter appendix" data-num="A" data-title="The Ship's Programs" data-part="Appendixes">
+
+<h2 class="cmd">FLIGHT<span>Flight control</span></h2>
+<p>Flies the ship from the pilot's controls. With flight assist on, the stick asks for turn rates and the throttle for a forward speed, the strafe controls for speeds across, up to what the rating plate says the ship can do; let go, and the ship stops turning and drifting. With flight assist off, the controls drive the thrusters directly and the ship keeps its motion. Safe turns ask only for the turn rates at which the ship's path can follow its nose. Its page is on the FLIGHT screen, if the cockpit has one. It acknowledges the inertial unit's samples. About 5% of the processor.</p>
+<p>Buttons: flight assist, safe turns, boost (the main engine's cooling boost).</p>
+
+<h2 class="cmd">FIRECTL<span>Fire control</span></h2>
+<p>Works the radar, the turret, the laser and the missile launcher. Target ahead locks the contact nearest the middle of the view, or lets the target go; next target locks the next one. With a target locked it smooths the radar's positions with an alpha-beta filter, which gives the target's velocity, and works out where a round fired now meets the target if it flies on straight; it points the turret there, or writes the laser's lead point. Next weapon steps through the cannon, the radar missiles, the heat seekers and the laser, as the ship has them. Its radar scope is on RADAR, its page on WEAPON. About a third of the processor.</p>
+<p>Buttons: target ahead, next target, fire, next weapon.</p>
+
+<h2 class="cmd">RWR<span>Threat warning</span></h2>
+<p>Draws the warning receiver's picture on the RWR screen, works the countermeasures dispenser and the jammer, and aims the jammer at the radar that has the ship locked.</p>
+<p>Buttons: chaff, flare, jammer (off, noise, deception if the model has it).</p>
+
+<h2 class="cmd">POWER<span>Power manager</span></h2>
+<p>Moves the power distributor's pips: a pip to systems, engines or weapons, from the others; evens them out; throws heat sinks.</p>
+<p>Buttons: systems, engines, weapons, even out, heat sink.</p>
+
+<h2>Signatures</h2>
+<table class="ref">
+<tr><th>Program</th><th>Signature at 103h</th></tr>
+<tr><td>FLIGHT</td><td>XPFL15</td></tr>
+<tr><td>FIRECTL</td><td>XPFC12</td></tr>
+<tr><td>RWR</td><td>XPRW15</td></tr>
+<tr><td>POWER</td><td>XPPW11</td></tr>
+</table>
+<p>The last two characters are the version. Change them when you change a program, so that a new version is not taken for the old one; a program that finds another version of itself on the chain does not take it out.</p>
+</section>
+
+<!-- ================================================================== -->
+<!-- APPENDIX B                                                           -->
+<!-- ================================================================== -->
+
+<section class="chapter appendix" data-num="B" data-title="The Sample Program COOL.ASM" data-part="Appendixes">
+
+<h2>What It Does</h2>
+<p>At every step it reads the ship's heat; at 100% or more, with no heat sink working, it throws one. It is a resident program on the sample interrupt, and follows the convention of Chapter 2, so it can be taken out of the chain wherever it is (<code>COOL OFF</code>).</p>
+
+<h2>The Listing</h2>
+<pre class="listing full">; COOL.ASM - throws a heat sink when the ship runs hot
+;
+;   COOL        stays resident
+;   COOL OFF    takes it out of memory
+
+org 100h
+
+HEAT        equ 1D0h
+TYPE_HEAT   equ 14
+TOO_HOT     equ 100                 ; percent
+IRQ_VECTOR  equ 0Dh
+IRQ_BIT     equ 20h
+
+    jmp near start
+
+; ---------- the resident part ----------
+
+signature   db 'XPCOOL'             ; 103h
+old_irq     dw 0, 0                 ; 109h
+
+on_irq:
+    pushf
+    call far [cs:old_irq]           ; the programs before this one first
+    push ax
+    push dx
+    mov dx, HEAT + 5                ; a sink already working?
+    in al, dx
+    test al, 1
+    jnz .done
+    mov dx, HEAT + 2
+    in al, dx
+    cmp al, TOO_HOT
+    jb .done
+    mov dx, HEAT + 4                ; throw one
+    mov al, 1
+    out dx, al
+.done:
+    pop dx
+    pop ax
+    iret
+
+resident_end:
+
+; ---------- installing and removing ----------
+
+start:
+    mov si, 81h
+.blank:
+    lodsb
+    cmp al, ' '
+    je .blank
+    and al, 0DFh
+    cmp al, 'O'
+    je remove
+
+install:
+    call find_resident
+    jne .new
+    mov dx, msg_already
+    jmp quit_message
+.new:
+    mov dx, HEAT
+    in al, dx
+    cmp al, TYPE_HEAT
+    je .hook
+    mov dx, msg_no_device
+    jmp quit_message
+.hook:
+    mov ax, 3500h + IRQ_VECTOR
+    int 21h
+    mov [old_irq], bx
+    mov [old_irq + 2], es
+    mov dx, on_irq
+    mov ax, 2500h + IRQ_VECTOR
+    int 21h
+    in al, 21h                      ; IRQ 5 on at the interrupt controller
+    and al, 0FFh - IRQ_BIT
+    out 21h, al
+    mov es, [2Ch]                   ; the environment is not needed
+    mov ah, 49h
+    int 21h
+    mov dx, msg_installed
+    mov ah, 09h
+    int 21h
+    mov dx, (resident_end - $$ + 100h + 15) / 16
+    mov ax, 3100h
+    int 21h
+
+remove:
+    call find_resident
+    je .found
+    mov dx, msg_not_running
+    jmp quit_message
+.found:
+    push ds                         ; out of the chain
+    cli
+    mov ax, [es:old_irq]
+    mov dx, [es:old_irq + 2]
+    cmp word [prev_seg], 0
+    je .first
+    mov ds, [prev_seg]              ; the program before calls what we called
+    mov [109h], ax
+    mov [10Bh], dx
+    jmp .unlinked
+.first:
+    mov ds, dx                      ; or the vector does
+    mov dx, ax
+    mov ax, 2500h + IRQ_VECTOR
+    int 21h
+.unlinked:
+    sti
+    pop ds
+    mov ah, 49h                     ; free the resident copy
+    int 21h
+    mov dx, msg_removed
+    jmp quit_message
+
+; ZF set and ES the resident copy if it is on the chain; [prev_seg] the
+; program before it (0: it is first)
+find_resident:
+    mov word [prev_seg], 0
+    mov ax, 3500h + IRQ_VECTOR
+    int 21h
+.next:
+    mov si, signature
+    mov di, si
+    mov cx, 6
+    repe cmpsb
+    je .done
+    cmp word [es:103h], 'XP'        ; another ship's program: go on
+    jne .no
+    mov [prev_seg], es
+    les bx, [es:109h]
+    mov ax, es
+    or ax, bx
+    jnz .next
+.no:
+    or al, 1                        ; ZF = 0
+.done:
+    ret
+
+quit_message:
+    mov ah, 09h
+    int 21h
+    mov ax, 4C00h
+    int 21h
+
+prev_seg        dw 0
+msg_installed   db 'COOL resident.', 13, 10, '$'
+msg_already     db 'COOL is already resident.', 13, 10, '$'
+msg_not_running db 'COOL is not resident.', 13, 10, '$'
+msg_removed     db 'COOL removed.', 13, 10, '$'
+msg_no_device   db 'COOL: no heat sink launcher on the bus.', 13, 10, '$'</pre>
+</section>
+
+<!-- ================================================================== -->
+<!-- QUICK REFERENCE                                                      -->
+<!-- ================================================================== -->
+
+<section class="back quick" data-kind="quick" data-title="Quick Reference">
+<h2>The Bus</h2>
+<table class="ref">
+<tr><th>Port</th><th>Device and its registers</th></tr>
+<tr><td>100h</td><td>Controls: +2 pitch +4 roll +6 yaw +8 right +10 up +12 throttle; +14 +15 buttons</td></tr>
+<tr><td>110h</td><td>Inertial unit: +2 +4 +6 pitch, roll, yaw rates; +8 +10 +12 speeds; +14 status</td></tr>
+<tr><td>120h</td><td>Thrusters: +2 to +12 commands (write); +14 take them / direct mode; +15 mode shown</td></tr>
+<tr><td>130h</td><td>Radar: +2 mode +3 contacts +4 sweeps +5 locked +6 lock id (write) +8 locked id +10 segment +12 table +14 track</td></tr>
+<tr><td>140h</td><td>Turret: +2 +4 wanted (write) +6 +8 now +10 muzzle speed +12 fire (write) +13 status +14 heat +15 rounds</td></tr>
+<tr><td>150h</td><td>Display card: +2 segment +4 table +6 screens +7 of interest +8 keys +9 key +10 its screen</td></tr>
+<tr><td>160h</td><td>Launcher: +2 radar missiles +3 in flight +4 status +6 fire (write) +7 head (write) +8 time to go +10 status +11 result +12 fuel +14 heat seekers +15 kind</td></tr>
+<tr><td>170h</td><td>Warning receiver: +2 entries +3 updates +4 flags +5 audio (write) +6 segment +8 table</td></tr>
+<tr><td>180h</td><td>Dispenser: +2 chaff +3 flares +4 throw (write) +5 thrown</td></tr>
+<tr><td>190h</td><td>Laser: +2 status +3 heat +4 fire (write) +5 pulses +6 bolt speed +8 +10 +12 lead point (write) +14 show (write)</td></tr>
+<tr><td>1A0h</td><td>Rating plate: +2 to +14 accelerations; the whole plate at D000:1400</td></tr>
+<tr><td>1B0h</td><td>Power: +2 +3 +4 half pips (write all three, +4 last) +6 +7 +8 capacitors</td></tr>
+<tr><td>1C0h</td><td>Shield: +2 strength +3 status +4 time to restart</td></tr>
+<tr><td>1D0h</td><td>Heat: +2 percent +3 sinks left +4 throw (write) +5 status</td></tr>
+<tr><td>1E0h</td><td>Jammer: +2 mode +3 can do +4 +6 aim (write) +8 aimed (write) +9 status +10 power</td></tr>
+<tr><td>1F0h</td><td>Engine: +2 core +4 coolant +6 status / cooling (write) +7 thrust +8 cut-out +10 resume +12 diagnostic address (write) +14 its byte +15 service (write)</td></tr>
+</table>
+<h2>Units</h2>
+<p>Angles 65536 to the turn; rates 1/1024 rad/s; speeds 1/8 m/s; radar positions 1/4 m; ranges m; controls and commands &plusmn;32767. Words low byte first. IRQ 5 (interrupt 0Dh) sixty times a second.</p>
+</section>
+
+</div>
+<script>
+// ---------------------------------------------------------------------
+// Pagination: flows the sections of #source into 7 x 9 inch pages, with
+// chapter-page numbers, running heads, tabs and a table of contents.
+// ---------------------------------------------------------------------
+const book = document.getElementById("book");
+const src = document.getElementById("source");
+const pages = [];
+const ROMAN = ["", "i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x", "xi", "xii", "xiii", "xiv"];
+const BLANK = "This page intentionally left blank.";
+
+// ---------- pages ----------
+function newPage(opts) {
+  const p = document.createElement("div");
+  p.className = "page odd";
+  p.innerHTML = '<div class="head"><span class="l"></span><span class="r"></span></div>' +
+                '<div class="body"></div><div class="foot"><span class="label"></span><span class="ed"></span></div>' +
+                '<div class="tab"></div>';
+  Object.assign(p, opts || {});
+  book.appendChild(p);
+  pages.push(p);
+  return p;
+}
+function blankPage(chap) {
+  const p = newPage({ kind: "blank", chap });
+  p.classList.add("blank");
+  bodyOf(p).textContent = BLANK;
+  return p;
+}
+const bodyOf = p => p.querySelector(".body");
+const fits = b => b.scrollHeight <= b.clientHeight + 1;
+const isHead = el => /^(H[1-4]|DT)$/.test(el.tagName) || el.classList.contains("fnhead");
+
+let cur = null;
+function startPage(opts) { cur = newPage(opts); return cur; }
+
+// A new page; headings left at the bottom of the old one go with it.
+function breakPage() {
+  const old = bodyOf(cur), moving = [];
+  while (old.children.length > 1 && isHead(old.lastElementChild)) moving.unshift(old.removeChild(old.lastElementChild));
+  startPage({ chap: cur.chap, kind: cur.kind === "opener" ? undefined : cur.kind });
+  for (const m of moving) bodyOf(cur).appendChild(m);
+}
+
+// Splits a block where the page ends: [what fits, the rest], or null.
+function split(el, body) {
+  const tag = el.tagName;
+  let items, make, fill;
+  if (tag === "PRE") {
+    items = el.innerHTML.replace(/\n$/, "").split("\n");
+    if (items.length < 6) return null;
+    make = () => el.cloneNode(false);
+    fill = (box, list) => { box.innerHTML = list.join("\n"); };
+  } else if (tag === "TABLE") {
+    const rows = [...el.querySelectorAll(":scope > tbody > tr, :scope > tr")];
+    const head = rows.length && rows[0].querySelector("th") ? rows[0] : null;
+    items = head ? rows.slice(1) : rows;
+    if (items.length < 4) return null;
+    make = () => el.cloneNode(false);
+    fill = (box, list) => {
+      box.innerHTML = "";
+      const tb = document.createElement("tbody");
+      if (head) tb.appendChild(head.cloneNode(true));
+      for (const r of list) tb.appendChild(r.cloneNode(true));
+      box.appendChild(tb);
+    };
+  } else if (tag === "UL" || tag === "OL" || tag === "DIV" && el.classList.contains("toc")) {
+    items = [...el.children];
+    if (items.length < 2) return null;
+    make = () => el.cloneNode(false);
+    fill = (box, list) => { box.innerHTML = ""; for (const li of list) box.appendChild(li.cloneNode(true)); };
+  } else if (tag === "DL") {
+    items = [];                                  // dt + dd pairs
+    for (const k of el.children) {
+      if (k.tagName === "DT" || !items.length) items.push([k]);
+      else items[items.length - 1].push(k);
+    }
+    if (items.length < 2) return null;
+    make = () => el.cloneNode(false);
+    fill = (box, list) => { box.innerHTML = ""; for (const g of list) for (const k of g) box.appendChild(k.cloneNode(true)); };
+  } else return null;
+
+  const min = tag === "PRE" ? 3 : tag === "TABLE" ? 2 : 1;
+  const a = make();
+  body.appendChild(a);
+  let best = 0, lo = min, hi = items.length - 1;      // the most items that fit
+  while (lo <= hi) {
+    const k = (lo + hi) >> 1;
+    fill(a, items.slice(0, k));
+    if (fits(body)) { best = k; lo = k + 1; } else hi = k - 1;
+  }
+  body.removeChild(a);
+  if (!best || best >= items.length) return null;
+  fill(a, items.slice(0, best));
+  const b = make();
+  fill(b, items.slice(best));
+  if (tag === "OL") b.setAttribute("start", String(best + parseInt(el.getAttribute("start") || "1")));
+  return [a, b];
+}
+
+// Boxes that may be opened up when they do not fit: their children flow.
+const container = el => el.tagName === "DIV" && el.classList.contains("entry") ||
+                        (el.tagName === "DD" || el.tagName === "DL") && el.children.length > 0;
+
+let placed = 0;
+function place(el, retried) {
+  if (++placed > 20000) throw new Error("layout loop at: " + (el.textContent || "").slice(0, 80));
+  const body = bodyOf(cur);
+  body.appendChild(el);
+  if (fits(body)) return;
+  body.removeChild(el);
+  const parts = split(el, body);
+  if (parts) {
+    body.appendChild(parts[0]);
+    breakPage();
+    place(parts[1]);
+    return;
+  }
+  if (container(el)) {
+    for (const k of [...el.children]) {
+      if (el.tagName === "DD") k.classList.add("in-dd");
+      place(k);
+    }
+    return;
+  }
+  if (body.children.length && !retried) {      // again on a new page, where it may split
+    breakPage();
+    place(el, true);
+    return;
+  }
+  bodyOf(cur).appendChild(el);
+  if (!fits(bodyOf(cur))) console.warn("too tall for a page:", el.tagName, el.className, el.textContent.slice(0, 60));
+}
+
+function flowSection(sec, opts) {
+  startPage(opts);
+  for (const el of [...sec.children]) place(el);
+}
+
+const front = [...src.querySelectorAll(":scope > section.front")];
+const chapters = [...src.querySelectorAll(":scope > section.chapter")];
+const back = [...src.querySelectorAll(":scope > section.back")];
+const frontOf = kind => front.find(s => s.dataset.kind === kind);
+
+// ---------- the cover and its back ----------
+const cover = startPage({ kind: "cover" });
+cover.classList.add("cover", "plain");
+bodyOf(cover).innerHTML =
+  '<div class="maker">STUBCORP</div><div class="titles"><div class="t1">Ship Systems</div><div class="t2">Technical Reference</div></div>';
+flowSection(frontOf("notice"), { kind: "notice" });
+
+// ---------- the chapters: their page numbers do not depend on the front matter ----------
+const frontStart = pages.length;           // the preface and contents go here later
+const chapterInfo = [];
+for (const ch of chapters) {
+  if (pages.length % 2 === 1) blankPage(cur.chap);       // a chapter starts on a right-hand page
+  const chap = { num: ch.dataset.num, title: ch.dataset.title, part: ch.dataset.part,
+                 appendix: ch.classList.contains("appendix") };
+  const op = startPage({ chap, kind: "opener" });
+  op.classList.add("opener");
+  bodyOf(op).innerHTML = '<div class="num">' + chap.num + '</div><h1>' +
+    (chap.appendix ? "Appendix " + chap.num + ". " : "") + chap.title +
+    '</h1><div class="mini"><h4>Contents</h4><div class="toc"></div></div>';
+  startPage({ chap });
+  const heads = [...ch.querySelectorAll("h2")];
+  for (const el of [...ch.children]) place(el);
+  chapterInfo.push({ chap, heads, op });
+}
+for (const b of back) {
+  if (pages.length % 2 === 1) blankPage(cur.chap);
+  flowSection(b, { kind: "back", chap: { title: b.dataset.title } });
+}
+
+// ---------- chapter-page labels ----------
+const count = {};
+for (const p of pages) {
+  if (!p.chap || !p.chap.num) continue;
+  count[p.chap.num] = (count[p.chap.num] || 0) + 1;
+  p.label = p.chap.num + "-" + count[p.chap.num];
+}
+const labelOf = el => { let p = el; while (p && !(p.classList && p.classList.contains("page"))) p = p.parentNode; return p ? p.label : ""; };
+const headText = h => h.childNodes[0].textContent.trim();
+
+function tocRow(box, text, label, cls) {
+  const r = document.createElement("div");
+  r.className = "row " + (cls || "");
+  r.innerHTML = '<span class="t"></span><span class="dots"></span><span class="p"></span>';
+  r.querySelector(".t").textContent = text;
+  r.querySelector(".p").textContent = label;
+  if (!label) r.querySelector(".dots").style.visibility = "hidden";
+  box.appendChild(r);
+}
+for (const { heads, op } of chapterInfo) {
+  const t = op.querySelector(".toc");
+  for (const h of heads) tocRow(t, headText(h), labelOf(h));
+}
+
+// ---------- the front matter, laid out last and moved in front ----------
+const toc = document.getElementById("toc");
+let part = "";
+for (const { chap, heads } of chapterInfo) {
+  if (chap.part !== part) { part = chap.part; tocRow(toc, part, "", "ch part"); }
+  tocRow(toc, (chap.appendix ? "Appendix " : "Chapter ") + chap.num + ". " + chap.title, chap.num + "-1", "ch");
+  for (const h of heads) tocRow(toc, headText(h), labelOf(h), "sec");
+}
+tocRow(toc, "Quick Reference", "", "ch");
+
+const mark = pages.length;
+for (const s of [frontOf("preface"), frontOf("contents")]) {
+  if ((frontStart + pages.length - mark) % 2 === 1) blankPage(null);
+  flowSection(s, { kind: "front", chap: { title: s.dataset.title } });
+}
+if ((frontStart + pages.length - mark) % 2 === 1) blankPage(null);   // chapter 1 on the right
+const moved = pages.splice(mark);
+const anchor = pages[frontStart];
+for (const p of moved) book.insertBefore(p, anchor);
+pages.splice(frontStart, 0, ...moved);
+
+// ---------- sides, heads, feet, tabs ----------
+const tabOrder = ["1", "2", "3", "4", "5", "6", "7", "A", "B", "C"];
+pages.forEach((p, i) => {
+  p.classList.remove("odd", "even");
+  p.classList.add(i % 2 === 0 ? "odd" : "even");
+  if (p.kind === "cover") return;
+  const chap = p.chap || {};
+  if (!chap.num && p.kind !== "back") p.label = ROMAN[i + 1];
+  const head = p.querySelector(".head"), foot = p.querySelector(".foot");
+  head.querySelector(".l").textContent = chap.num ?
+    (chap.appendix ? "Appendix " : "Chapter ") + chap.num + ". " + chap.title : (chap.title || "");
+  head.querySelector(".r").textContent = chap.part || "Ship Systems Technical Reference";
+  foot.querySelector(".label").textContent = p.label || "";
+  foot.querySelector(".ed").textContent = "Ship Systems Technical Reference";
+  if (p.kind === "opener" || p.kind === "blank" || p.kind === "notice") head.style.visibility = "hidden";
+  if (p.kind === "notice") foot.style.visibility = "hidden";
+  if (chap.num) {
+    p.classList.add("has-tab");
+    const t = p.querySelector(".tab");
+    t.textContent = chap.num;
+    t.style.top = (0.95 + tabOrder.indexOf(chap.num) * 0.6) + "in";
+  }
+});
+src.remove();
+window.MANUAL_READY = pages.length;
+</script>
+</body>
+</html>
+
