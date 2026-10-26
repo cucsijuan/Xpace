@@ -10,6 +10,8 @@
 [ext_resource type="PackedScene" path="res://assets/synty/SM_Flame_Mesh_New.fbx" id="9_flame"]
 [ext_resource type="Texture2D" path="res://assets/synty/Gradient_Boost.png" id="10_boost"]
 [ext_resource type="PackedScene" path="res://scenes/menu/settings_menu.tscn" id="6_settings"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="paint_script"]
+[ext_resource type="Script" path="res://scripts/Menu/MenuDust.cs" id="11_dust"]
 
 [sub_resource type="Sky" id="Sky_space"]
 sky_material = ExtResource("2_skybox")
@@ -38,8 +40,9 @@ light_energy = 1.4
 transform = Transform3D(-0.8660251, 0, -0.50000006, -0.31039128, 0.7839828, 0.5376132, 0.39199147, 0.6207826, -0.6789488, -0.8069687, 0, 0)
 script = ExtResource("7_menuship")
 
-[node name="SM_Ship_Fighter_03" parent="Ship" index="0"]
-material_override = ExtResource("4_paint")
+[node name="Paint" type="Node" parent="Ship"]
+script = ExtResource("paint_script")
+Material = ExtResource("4_paint")
 
 [node name="PlumeLeft" type="Node3D" parent="Ship"]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 2.295, 0.075, -3.86)
@@ -52,6 +55,9 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -2.295, 0.075, -3.86)
 script = ExtResource("8_plume")
 FlameModel = ExtResource("9_flame")
 FlameTexture = ExtResource("10_boost")
+
+[node name="Dust" type="MultiMeshInstance3D" parent="."]
+script = ExtResource("11_dust")
 
 [node name="Pivot" type="Node3D" parent="." unique_id=1492023583]
 

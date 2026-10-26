@@ -17,6 +17,15 @@ public partial class MenuShip : Node3D
     [Export] public double BurnSeconds = 2.5;           // at full push
     [Export] public float SwayDegrees = 2.5f;
     [Export] public float SwayPeriod = 7f;              // s
+    [Export] public float Acceleration = 12f;           // m/s2 at full push
+    [Export] public float Drag = 0.004f;                // the veil: dv/dt = -Drag v^2
+    [Export] public float StartSpeed = 25f;             // m/s
+
+    /// <summary>The speed it would be flying at (it stays put: <see cref="MenuDust"/> goes past instead).</summary>
+    public float Speed { get; private set; }
+
+    /// <summary>Its velocity, world axes: along the nose (the model's +Z).</summary>
+    public Vector3 Velocity => GlobalBasis.Z.Normalized() * Speed;
 
     private EnginePlume[] _plumes;
     private Basis _rest;
@@ -26,6 +35,7 @@ public partial class MenuShip : Node3D
     {
         _plumes = FindChildren("*", "", true, false).OfType<EnginePlume>().ToArray();
         _rest = Basis;
+        Speed = StartSpeed;
     }
 
     public override void _Process(double delta)
@@ -39,6 +49,7 @@ public partial class MenuShip : Node3D
             : (float)Math.Max(0, 1 - (c - RampSeconds - BurnSeconds) / RampSeconds);
         foreach (EnginePlume plume in _plumes)
             plume.Thrust = push;
+        Speed = (Speed + push * Acceleration * (float)delta) / (1 + Drag * Speed * (float)delta);
 
         float a = Mathf.DegToRad(SwayDegrees);
         float w = Mathf.Tau / SwayPeriod;

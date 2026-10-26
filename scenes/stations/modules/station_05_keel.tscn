@@ -5,10 +5,15 @@
 [ext_resource type="Script" path="res://scripts/Space/Solid.cs" id="3_solid"]
 [ext_resource type="PackedScene" path="res://assets/synty/SM_Ship_Station_05_Collision.fbx" id="4_collision"]
 [ext_resource type="Script" path="res://scripts/Space/AvoidCapsule.cs" id="5_capsule"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="paint_script"]
 
 [node name="Station05Keel" type="Node3D"]
 
 [node name="Model" parent="." instance=ExtResource("1_model")]
+
+[node name="Paint" type="Node" parent="Model"]
+script = ExtResource("paint_script")
+Material = ExtResource("2_material")
 
 [node name="Solid" type="Node3D" parent="."]
 script = ExtResource("3_solid")
@@ -20,5 +25,3 @@ script = ExtResource("5_capsule")
 Radius = 97.0
 Height = 98.0
 
-[node name="SM_Ship_Station_05" parent="Model" index="0"]
-material_override = ExtResource("2_material")

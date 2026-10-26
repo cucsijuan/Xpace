@@ -3,6 +3,7 @@
 [ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_SpaceWalk_Tube_01.fbx" id="1_model"]
 [ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="2_material"]
 [ext_resource type="Script" path="res://scripts/Space/Solid.cs" id="3_solid"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="paint_script"]
 
 [sub_resource type="BoxShape3D" id="Box_0"]
 size = Vector3(4.76, 3.961, 5.0)
@@ -11,6 +12,10 @@ size = Vector3(4.76, 3.961, 5.0)
 
 [node name="Model" parent="." instance=ExtResource("1_model")]
 
+[node name="Paint" type="Node" parent="Model"]
+script = ExtResource("paint_script")
+Material = ExtResource("2_material")
+
 [node name="Solid" type="Node3D" parent="."]
 script = ExtResource("3_solid")
 
@@ -18,5 +23,3 @@ script = ExtResource("3_solid")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -2.5)
 shape = SubResource("Box_0")
 
-[node name="SM_Prop_SpaceWalk_Tube_01" parent="Model" index="0"]
-material_override = ExtResource("2_material")

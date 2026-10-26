@@ -37,6 +37,7 @@
 [ext_resource type="Script" path="res://scripts/Ship/EngineDevice.cs" id="46_engine"]
 [ext_resource type="Resource" path="res://assets/ship/engines/engine_d50.tres" id="47_d50"]
 [ext_resource type="Resource" path="res://assets/ship/hulls/hull_fighter.tres" id="48_hull"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="paint_script"]
 
 [sub_resource type="SphereMesh" id="ShieldSphere"]
 radius = 1.0
@@ -55,8 +56,9 @@ script = ExtResource("3_netbody")
 [node name="Model" parent="." instance=ExtResource("4_model")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
-[node name="SM_Ship_Fighter_03" parent="Model" index="0"]
-material_override = ExtResource("5_paint")
+[node name="Paint" type="Node" parent="Model"]
+script = ExtResource("paint_script")
+Material = ExtResource("5_paint")
 
 [node name="Hitboxes" parent="." instance=ExtResource("6_hitboxes")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)

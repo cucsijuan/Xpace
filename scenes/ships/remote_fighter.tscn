@@ -7,6 +7,7 @@
 [ext_resource type="Script" path="res://scripts/Space/EnginePlume.cs" id="5_plume"]
 [ext_resource type="PackedScene" path="res://assets/synty/SM_Flame_Mesh_New.fbx" id="6_flame"]
 [ext_resource type="Texture2D" path="res://assets/synty/Gradient_Boost.png" id="7_boost"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="paint_script"]
 
 [node name="RemoteFighter" type="Node3D"]
 script = ExtResource("1_remote")
@@ -14,8 +15,9 @@ script = ExtResource("1_remote")
 [node name="Model" parent="." instance=ExtResource("2_model")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
-[node name="SM_Ship_Fighter_03" parent="Model" index="0"]
-material_override = ExtResource("3_atlas")
+[node name="Paint" type="Node" parent="Model"]
+script = ExtResource("paint_script")
+Material = ExtResource("3_atlas")
 
 [node name="Hitboxes" parent="." instance=ExtResource("4_hitboxes")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
