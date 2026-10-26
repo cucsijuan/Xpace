@@ -26,6 +26,7 @@ public partial class MainMenu : Node3D
     private Label _status;
     private SettingsMenu _settings;
     private Button[] _buttons;
+    private static bool _checkedUpdates;
 
     public override void _Ready()
     {
@@ -64,12 +65,123 @@ public partial class MainMenu : Node3D
         _status.Text = "";
         Input.MouseMode = Input.MouseModeEnum.Visible;
         single.GrabFocus();
+        CheckForUpdates();
     }
 
     public override void _Process(double delta)
     {
         _pivot?.RotateY(Mathf.DegToRad(TurnRate) * (float)delta);
     }
+
+    /// <summary>Once a run, in an exported build: offers a newer release, unless the player skipped that one.</summary>
+    private async void CheckForUpdates()
+    {
+        if (_checkedUpdates || !GameSettings.Current.CheckForUpdates || !Updater.Checks)
+            return;
+        _checkedUpdates = true;
+        if (await Updater.NewerAsync() is { } release && release.Tag != GameSettings.Current.SkippedVersion && IsInsideTree())
+            ShowUpdate(release);
+    }
+
+    /// <summary>The update dialog: what's new, then Update (or the download page when it can't update itself), Later or Skip.</summary>
+    private void ShowUpdate(ReleaseInfo release)
+    {
+        var overlay = new Control();
+        overlay.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        var shade = new ColorRect { Color = new Color(0, 0, 0, 0.6f) };
+        shade.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        overlay.AddChild(shade);
+        var centre = new CenterContainer();
+        centre.SetAnchorsPreset(Control.LayoutPreset.FullRect);
+        overlay.AddChild(centre);
+        var panel = new PanelContainer();
+        centre.AddChild(panel);
+
+        var box = new VBoxContainer();
+        box.AddThemeConstantOverride("separation", 12);
+        panel.AddChild(box);
+        var title = new Label { Text = $"Xpace {release.Tag} is available", HorizontalAlignment = HorizontalAlignment.Center };
+        title.AddThemeFontSizeOverride("font_size", 30);
+        box.AddChild(title);
+        box.AddChild(new Label { Text = $"You have {Updater.GameVersion}.", Modulate = new Color(1, 1, 1, 0.6f) });
+        var notes = new RichTextLabel { Text = PlainNotes(release.Notes), FitContent = true, ScrollActive = false, CustomMinimumSize = new Vector2(600, 0) };
+        var scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, CustomMinimumSize = new Vector2(620, 300) };
+        scroll.AddChild(notes);
+        box.AddChild(scroll);
+        var status = new Label { HorizontalAlignment = HorizontalAlignment.Center, AutowrapMode = TextServer.AutowrapMode.WordSmart };
+        status.AddThemeColorOverride("font_color", new Color(1, 0.65f, 0.2f));
+        box.AddChild(status);
+        var buttons = new HBoxContainer { Alignment = BoxContainer.AlignmentMode.Center };
+        buttons.AddThemeConstantOverride("separation", 12);
+        box.AddChild(buttons);
+
+        void Close()
+        {
+            overlay.QueueFree();
+            _buttons[0].GrabFocus();
+        }
+        Button Answer(string text, Action action)
+        {
+            var button = new Button { Text = text, CustomMinimumSize = new Vector2(160, 0) };
+            button.Pressed += action;
+            buttons.AddChild(button);
+            return button;
+        }
+        Answer("Skip this version", () =>
+        {
+            GameSettings.Current.SkippedVersion = release.Tag;
+            GameSettings.Current.Save();
+            Close();
+        });
+        Answer("Later", Close);
+        Button main;
+        if (release.ZipUrl == null || !Updater.CanUpdate || !Updater.InstallFolderWritable())
+        {
+            status.Text = "This copy of the game can't update itself here: download it from the release page.";
+            main = Answer("Open download page", () =>
+            {
+                OS.ShellOpen(release.PageUrl);
+                Close();
+            });
+        }
+        else
+        {
+            main = Answer("Update", async () =>
+            {
+                foreach (Button b in buttons.GetChildren().OfType<Button>())
+                    b.Disabled = true;
+                try
+                {
+                    string zip = await Updater.DownloadAsync(release, p => Callable.From(() => status.Text = $"Downloading... {p:P0}").CallDeferred());
+                    status.Text = "Installing... the game starts again by itself.";
+                    await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+                    Updater.InstallAndRestart(zip);
+                    GetTree().Quit();
+                }
+                catch (Exception e)
+                {
+                    GD.PushWarning($"Update failed: {e}");
+                    status.Text = $"The update failed: {e.Message}";
+                    foreach (Node child in buttons.GetChildren())
+                        child.QueueFree();
+                    Answer("Open download page", () =>
+                    {
+                        OS.ShellOpen(release.PageUrl);
+                        Close();
+                    }).GrabFocus();
+                    Answer("Close", Close);
+                }
+            });
+        }
+        GetNode("Ui/Root").AddChild(overlay);
+        main.GrabFocus();
+    }
+
+    /// <summary>Release notes without Markdown marks (headings, bold, code).</summary>
+    private static string PlainNotes(string markdown) =>
+        string.Join("\n", markdown.Replace("\r", "").Split('\n')
+                .Select(line => line.StartsWith('#') ? line.TrimStart('#', ' ').ToUpperInvariant() : line))
+            .Replace("**", "").Replace("*", "").Replace("`", "");
 
     private void Play() => GetTree().ChangeSceneToFile(GameScene);
 

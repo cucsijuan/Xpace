@@ -7,7 +7,7 @@ using Xpace.Cockpit;
 namespace Xpace.Menu;
 
 /// <summary>
-/// The settings screen (scenes/menu/settings_menu.tscn): general (the pilot's name), video and controls, with the key
+/// The settings screen (scenes/menu/settings_menu.tscn): general (the pilot's name, the update check), video and controls, with the key
 /// bindings. Every change is applied at once; Back saves them. A binding's button waits for the next key or mouse
 /// button (Esc leaves it as it was); a key already bound to another action is taken from it.
 /// </summary>
@@ -30,7 +30,7 @@ public partial class SettingsMenu : Control
     private GameSettings _s;
     private LineEdit _name;
     private OptionButton _resolution, _window, _antialiasing;
-    private CheckButton _vsync, _invertY;
+    private CheckButton _vsync, _invertY, _checkUpdates;
     private HSlider _mouse, _look;
     private GridContainer _bindings;
     private readonly Dictionary<string, Button> _bindButtons = new();
@@ -41,6 +41,7 @@ public partial class SettingsMenu : Control
     public override void _Ready()
     {
         _name = GetNode<LineEdit>("%PlayerName");
+        _checkUpdates = GetNode<CheckButton>("%CheckUpdates");
         _resolution = GetNode<OptionButton>("%Resolution");
         _window = GetNode<OptionButton>("%Window");
         _vsync = GetNode<CheckButton>("%VSync");
@@ -64,6 +65,7 @@ public partial class SettingsMenu : Control
         }
 
         _name.TextChanged += text => Change(s => s.PlayerName = text.Trim().Length > 0 ? text.Trim() : "Pilot", apply: false);
+        _checkUpdates.Toggled += on => Change(s => s.CheckForUpdates = on, apply: false);
         _resolution.ItemSelected += i => Change(s => s.Resolution = _resolutions[(int)i]);
         _window.ItemSelected += i => Change(s => s.Window = Windows[(int)i].Kind);
         _vsync.Toggled += on => Change(s => s.VSync = on);
@@ -89,6 +91,7 @@ public partial class SettingsMenu : Control
     {
         _filling = true;
         _name.Text = _s.PlayerName;
+        _checkUpdates.ButtonPressed = _s.CheckForUpdates;
         Vector2I screen = GameSettings.Screen;
         _resolutions = GameSettings.Resolutions.Where(r => r.X <= screen.X && r.Y <= screen.Y).Append(screen).Append(_s.Resolution)
             .Distinct().OrderBy(r => r.X * r.Y).ToList();

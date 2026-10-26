@@ -69,6 +69,12 @@ public partial class GameSettings : Node
     /// <summary>The mouse's speed as a stick, and turning the head: 1 as the cockpit is made.</summary>
     public float MouseSensitivity = 1, LookSensitivity = 1;
 
+    /// <summary>Look for a newer release when the game starts.</summary>
+    public bool CheckForUpdates = true;
+
+    /// <summary>A release the player chose to skip (not offered again; a later one is).</summary>
+    public string SkippedVersion = "";
+
     /// <summary>The settings changed (the menu applied them).</summary>
     public event Action Changed;
 
@@ -161,6 +167,8 @@ public partial class GameSettings : Node
         file.SetValue("controls", "invert_mouse_y", InvertMouseY);
         file.SetValue("controls", "mouse_sensitivity", MouseSensitivity);
         file.SetValue("controls", "look_sensitivity", LookSensitivity);
+        file.SetValue("updates", "check", CheckForUpdates);
+        file.SetValue("updates", "skipped", SkippedVersion);
         file.SetValue("bindings", "version", BindingsVersion);
         foreach (var (action, _) in FlightInput.Bindable)
             file.SetValue("bindings", action, Binding(action) switch
@@ -185,6 +193,8 @@ public partial class GameSettings : Node
         InvertMouseY = file.GetValue("controls", "invert_mouse_y", InvertMouseY).AsBool();
         MouseSensitivity = file.GetValue("controls", "mouse_sensitivity", MouseSensitivity).AsSingle();
         LookSensitivity = file.GetValue("controls", "look_sensitivity", LookSensitivity).AsSingle();
+        CheckForUpdates = file.GetValue("updates", "check", CheckForUpdates).AsBool();
+        SkippedVersion = file.GetValue("updates", "skipped", SkippedVersion).AsString();
         int version = file.GetValue("bindings", "version", 1).AsInt32();
         foreach (var (action, _) in FlightInput.Bindable)
         {
