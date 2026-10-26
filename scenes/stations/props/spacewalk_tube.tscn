@@ -1,0 +1,22 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_SpaceWalk_Tube_01.fbx" id="1_model"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="2_material"]
+[ext_resource type="Script" path="res://scripts/Space/Solid.cs" id="3_solid"]
+
+[sub_resource type="BoxShape3D" id="Box_0"]
+size = Vector3(4.76, 3.961, 5.0)
+
+[node name="SpacewalkTube" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+
+[node name="Solid" type="Node3D" parent="."]
+script = ExtResource("3_solid")
+
+[node name="Box0" type="CollisionShape3D" parent="Solid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -2.5)
+shape = SubResource("Box_0")
+
+[node name="SM_Prop_SpaceWalk_Tube_01" parent="Model" index="0"]
+material_override = ExtResource("2_material")

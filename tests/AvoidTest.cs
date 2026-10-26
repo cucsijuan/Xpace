@@ -56,6 +56,8 @@ public partial class AvoidTest : Node
         Check($"and gets across, slowly where the rocks are thick ({crossed} of 3)", crossed == 3);
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
+        System.GC.Collect();
+        System.GC.WaitForPendingFinalizers();
         GetTree().Quit(_failures == 0 ? 0 : 1);
     }
 

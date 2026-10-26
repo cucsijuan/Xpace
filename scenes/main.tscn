@@ -18,7 +18,7 @@
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_large_02.tres" id="8_rock_large_02"]
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_large_holes_02.tres" id="8_rock_large_holes_02"]
 [ext_resource type="Script" uid="uid://dmloccduosk8w" path="res://scripts/Space/SpaceDust.cs" id="9_dust"]
-[ext_resource type="Script" uid="uid://c7chsve02emo" path="res://scripts/Space/PlaceholderStation.cs" id="10_station"]
+[ext_resource type="PackedScene" path="res://scenes/stations/synty_station.tscn" id="10_station"]
 [ext_resource type="Script" uid="uid://crtawnlsvvjj0" path="res://scripts/Ship/ShipSpec.cs" id="11_spec"]
 [ext_resource type="Script" uid="uid://ddb4d5eq3ibf1" path="res://scripts/Ship/DisplayDevice.cs" id="12_display"]
 [ext_resource type="Script" uid="uid://c4xgxkaeap2pe" path="res://scripts/Ship/RadarDevice.cs" id="13_radar"]
@@ -132,9 +132,8 @@ Kinds = Array[ExtResource("8_kind")]([ExtResource("8_rock_01"), ExtResource("8_r
 CellSize = 400.0
 RocksPerCell = 10
 
-[node name="Station" type="Node3D" parent="." unique_id=1661568946]
+[node name="Station" parent="." unique_id=1661568946 instance=ExtResource("10_station")]
 transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 450, 60, -1200)
-script = ExtResource("10_station")
 
 [node name="Projectiles" type="MultiMeshInstance3D" parent="." unique_id=1887929994]
 script = ExtResource("15_rounds")

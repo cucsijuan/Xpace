@@ -1,0 +1,42 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Turret_Base_Double_08.fbx" id="1_model"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="2_material"]
+[ext_resource type="Script" path="res://scripts/Space/Solid.cs" id="3_solid"]
+
+[sub_resource type="BoxShape3D" id="Box_0"]
+size = Vector3(1.591, 1.597, 1.591)
+
+[sub_resource type="BoxShape3D" id="Box_1"]
+size = Vector3(1.87, 1.06, 1.513)
+
+[sub_resource type="BoxShape3D" id="Box_2"]
+size = Vector3(1.535, 0.676, 0.154)
+
+[node name="TurretMissileDouble" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+
+[node name="Solid" type="Node3D" parent="."]
+script = ExtResource("3_solid")
+
+[node name="Box0" type="CollisionShape3D" parent="Solid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.381, 0)
+shape = SubResource("Box_0")
+
+[node name="Box1" type="CollisionShape3D" parent="Solid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.062, -0.183)
+shape = SubResource("Box_1")
+
+[node name="Box2" type="CollisionShape3D" parent="Solid"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.062, 0.479)
+shape = SubResource("Box_2")
+
+[node name="SM_Prop_Turret_Base_Double_08" parent="Model" index="0"]
+material_override = ExtResource("2_material")
+
+[node name="SM_Prop_Turret_Missile_Base_Double_02" parent="Model/SM_Prop_Turret_Base_Double_08" index="0"]
+material_override = ExtResource("2_material")
+
+[node name="SM_Prop_Turret_Missile_Barrel_Double_02" parent="Model/SM_Prop_Turret_Base_Double_08/SM_Prop_Turret_Missile_Base_Double_02" index="0"]
+material_override = ExtResource("2_material")

@@ -1,0 +1,24 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Ship_Station_02.fbx" id="1_model"]
+[ext_resource type="Material" path="res://assets/materials/synty_station.tres" id="2_material"]
+[ext_resource type="Script" path="res://scripts/Space/Solid.cs" id="3_solid"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Ship_Station_02_Collision.fbx" id="4_collision"]
+[ext_resource type="Script" path="res://scripts/Space/AvoidCapsule.cs" id="5_capsule"]
+
+[node name="Station02OuterRing" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+
+[node name="Solid" type="Node3D" parent="."]
+script = ExtResource("3_solid")
+Shape = ExtResource("4_collision")
+
+[node name="AvoidCapsule" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -5.6, 0)
+script = ExtResource("5_capsule")
+Radius = 255.0
+Height = 0.0
+
+[node name="SM_Ship_Station_02" parent="Model" index="0"]
+material_override = ExtResource("2_material")

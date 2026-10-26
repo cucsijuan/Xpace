@@ -4,11 +4,15 @@ using Godot;
 namespace Xpace.Space;
 
 /// <summary>
-/// A ship's eyes for rocks: a lidar looking along the way it flies. Every
+/// A ship's eyes for rocks, and for the capsules round stations and other
+/// big things (<see cref="AvoidCapsule"/>): a lidar looking along the way
+/// it flies. Every
 /// <see cref="ScanSeconds"/> it sends a ray along its heading and rings of
 /// rays round it out to <see cref="ConeDegrees"/>, each as wide as the ship
 /// (<see cref="Clearance"/>), each out to <see cref="Range"/>, and learns
-/// how far each way is clear (<see cref="RockField.SegmentAll"/>).
+/// how far each way is clear (<see cref="RockField.SegmentAll"/>,
+/// <see cref="AvoidCapsule.SegmentAll"/>). A pilot going into a station
+/// sets <see cref="Entering"/> to it: its capsules are no longer seen.
 ///
 /// <see cref="Steer"/> turns that into a way to go: the way its pilot
 /// wants while that is clear far enough, else the clear ray nearest it,
@@ -31,6 +35,9 @@ public partial class RockSensor : Node3D
     [Export] public double ScanSeconds = 0.2;
     /// <summary>The ship's half width and then some: a ray is clear only if something this far round it gets through (m).</summary>
     [Export] public float Clearance = 12f;
+
+    /// <summary>What the ship means to go into (a station): the capsules below it are not seen.</summary>
+    public Node Entering;
 
     /// <summary>The rays of the last scan (world directions) and how far each was clear.</summary>
     public Vector3[] Rays { get; private set; } = Array.Empty<Vector3>();
@@ -72,7 +79,13 @@ public partial class RockSensor : Node3D
             }
         }
         for (i = 0; i < count; i++)
-            Clear[i] = RockField.SegmentAll(from, from + Rays[i] * Range, out float t, out _, Clearance) ? t * Range : Range;
+        {
+            Vector3 to = from + Rays[i] * Range;
+            float rock = RockField.SegmentAll(from, to, out float t, out _, Clearance) ? t : 1;
+            if (AvoidCapsule.SegmentAll(from, to, out float c, Clearance, Entering))
+                rock = MathF.Min(rock, c);
+            Clear[i] = rock * Range;
+        }
     }
 
     /// <summary>How far the last scan saw clear along the ray nearest a direction (its range before any scan).</summary>

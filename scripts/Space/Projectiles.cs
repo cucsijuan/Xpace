@@ -126,9 +126,9 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
             Round r = _rounds[i];
             Vector3 next = r.Position + r.Velocity * dt;
             r.Age += dt;
-            // Rocks stop every round, judged or for show
+            // Rocks and solids stop every round, judged or for show
             float clear = 1;
-            if (RockField.SegmentAll(r.Position, next, out float rock, out _))
+            if (Obstacles.Segment(r.Position, next, out float rock, out _))
                 clear = rock;
             if (r.Harmless)
             {

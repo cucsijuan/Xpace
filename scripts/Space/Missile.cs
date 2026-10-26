@@ -231,8 +231,8 @@ public partial class Missile : Node3D, INetShip
                 bestT = at;
             }
         }
-        // Rock in the way: it goes off against it, before anything farther on
-        if (RockField.SegmentAll(GlobalPosition, GlobalPosition + Velocity * dt, out float rock, out _) && rock * dt < (best <= FuseRadius ? bestT : dt))
+        // Rock or solid in the way: it goes off against it, before anything farther on
+        if (Obstacles.Segment(GlobalPosition, GlobalPosition + Velocity * dt, out float rock, out _) && rock * dt < (best <= FuseRadius ? bestT : dt))
         {
             Burst(GlobalPosition + Velocity * (rock * dt), rock, Outcome.Missed);
             return true;

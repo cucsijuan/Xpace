@@ -5,7 +5,10 @@
 #
 #   cmake -DPACK=<path to SourceFiles> -DGODOT=<path to Godot .NET> -P tools/import_synty.cmake
 #
-# PACK defaults to .raw-assets/SourceFiles in the project. With GODOT, it
+# PACK defaults to .raw-assets/SourceFiles in the project. Collision meshes
+# are not among the source files: they come out of the Unity package
+# (PACKAGE, by default the .unitypackage in .raw-assets; a tar.gz with each
+# asset in a folder named by its GUID, its path in the folder's pathname). With GODOT, it
 # then has Godot import them and runs the mesh part tool on every list in
 # tools/mesh_parts/lists (the cockpit's sliders and switches, as meshes of
 # their own, into assets/synty/parts; see docs/tools/mesh-parts.md). The
@@ -39,10 +42,21 @@ set(MODELS
   SM_Env_Astroid_Large_02
   SM_Env_Astroid_Holes_03
   SM_Env_Astroid_Large_Holes_02
+  SM_Ship_Station_01
+  SM_Ship_Station_02
+  SM_Ship_Station_03
+  SM_Ship_Station_04
+  SM_Ship_Station_05
+  SM_Ship_Station_06
+  SM_Prop_Turret_Base_Double_06
+  SM_Prop_Turret_Base_Double_08
+  SM_Prop_SpaceWalk_Tube_01
 )
 set(TEXTURES
   PolygonSciFiSpace_Texture_01_A
   PolygonSciFiSpace_Emissive_01
+  Alts/PolygonSciFiSpace_Texture_01_B
+  PolygonSciFiSpace_Ship_Mask_Station_01
   FX_Textures/Gradient_Boost
   FX_Textures/Explosion
   FX_Textures/ExplosionCloud
@@ -55,6 +69,15 @@ set(TEXTURES
   FX_Textures/PolygonSciFiSpace_Skybox_04_Up
   FX_Textures/PolygonSciFiSpace_Skybox_04_Down
 )
+# Out of the Unity package's Models/Collision
+set(COLLISIONS
+  SM_Ship_Station_01_Collision
+  SM_Ship_Station_02_Collision
+  SM_Ship_Station_03_Collision
+  SM_Ship_Station_04_Collision
+  SM_Ship_Station_05_Collision
+  SM_Ship_Station_06_Collision
+)
 
 file(MAKE_DIRECTORY "${DEST}")
 foreach(m IN LISTS MODELS)
@@ -63,6 +86,42 @@ endforeach()
 foreach(t IN LISTS TEXTURES)
   file(COPY "${PACK}/Textures/${t}.png" DESTINATION "${DEST}")
 endforeach()
+
+if(NOT PACKAGE)
+  file(GLOB PACKAGE "${ROOT}/.raw-assets/*.unitypackage")
+  list(GET PACKAGE 0 PACKAGE)
+endif()
+if(NOT EXISTS "${PACKAGE}")
+  message(FATAL_ERROR "No Synty Unity package for the collision meshes (pass -DPACKAGE=...)")
+endif()
+set(UNPACK "${ROOT}/.godot/synty_package")
+file(REMOVE_RECURSE "${UNPACK}")
+file(ARCHIVE_EXTRACT INPUT "${PACKAGE}" DESTINATION "${UNPACK}" PATTERNS "*/pathname")
+file(GLOB NAMES "${UNPACK}/*/pathname")
+set(WANTED "")
+foreach(n IN LISTS NAMES)
+  file(READ "${n}" asset)
+  string(STRIP "${asset}" asset)
+  foreach(c IN LISTS COLLISIONS)
+    if(asset STREQUAL "Assets/Synty/PolygonSciFiSpace/Models/Collision/${c}.fbx")
+      get_filename_component(dir "${n}" DIRECTORY)
+      get_filename_component(guid "${dir}" NAME)
+      list(APPEND WANTED "${guid}/asset")
+      set(FROM_${guid} "${c}")
+    endif()
+  endforeach()
+endforeach()
+list(LENGTH COLLISIONS want)
+list(LENGTH WANTED found)
+if(NOT found EQUAL want)
+  message(FATAL_ERROR "Found ${found} of the ${want} collision meshes in ${PACKAGE}")
+endif()
+file(ARCHIVE_EXTRACT INPUT "${PACKAGE}" DESTINATION "${UNPACK}" PATTERNS ${WANTED})
+foreach(w IN LISTS WANTED)
+  get_filename_component(dir "${w}" DIRECTORY)
+  file(COPY_FILE "${UNPACK}/${w}" "${DEST}/${FROM_${dir}}.fbx")
+endforeach()
+file(REMOVE_RECURSE "${UNPACK}")
 message(STATUS "Synty files copied to ${DEST}")
 
 if(GODOT)
