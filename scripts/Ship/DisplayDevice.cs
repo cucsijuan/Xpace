@@ -150,25 +150,23 @@ public partial class DisplayDevice : Node, IShipDevice
 
     public unsafe void BeforeStep(ShipBody ship, double delta)
     {
-        if (_ship != null)
-        {
-            ShipBus b = ship.Computer.Bus;
-            b[Slot, 7] = Selected < 0 ? NoScreen : (byte)Selected;
-            b[Slot, 8] = _keys;
-            b[Slot, 9] = _lastKey;
-            b[Slot, 10] = _keyScreen;
-            return;
-        }
-        _ship = ship;
         ShipBus bus = ship.Computer.Bus;
-        bus[Slot, 0] = Type;
-        bus[Slot, 1] = Version;
-        bus.SetWord(Slot, 2, unchecked((short)ShipMemory.Segment));
-        bus.SetWord(Slot, 4, ShipMemory.Screens);
-        bus[Slot, 6] = (byte)_outputs.Length;
-        bus[Slot, 7] = NoScreen;
-        bus[Slot, 10] = NoScreen;
+        if (_ship == null)
+        {
+            _ship = ship;
+            bus[Slot, 0] = Type;
+            bus[Slot, 1] = Version;
+            bus.SetWord(Slot, 2, unchecked((short)ShipMemory.Segment));
+            bus.SetWord(Slot, 4, ShipMemory.Screens);
+            bus[Slot, 6] = (byte)_outputs.Length;
+        }
+        bus[Slot, 7] = Selected < 0 ? NoScreen : (byte)Selected;
+        bus[Slot, 8] = _keys;
+        bus[Slot, 9] = _lastKey;
+        bus[Slot, 10] = _keyScreen;
 
+        // The table is in the computer's memory, which a power cycle (a reset, the insurer's new ship) wipes: the
+        // card keeps it written, all but the mode, which is the program's
         byte* table = ship.Computer.Memory + ShipMemory.Base + ShipMemory.Screens;
         for (int i = 0; i < _outputs.Length; i++)
         {
@@ -177,7 +175,6 @@ public partial class DisplayDevice : Node, IShipDevice
             string name = (s.Name ?? "").ToUpperInvariant().PadRight(6);
             for (int c = 0; c < 6; c++)
                 e[c] = (byte)name[c];
-            e[6] = 0;
             e[7] = (byte)s.Columns;
             e[8] = (byte)s.Rows;
             e[9] = 0;

@@ -21,7 +21,9 @@ namespace Xpace.Tests;
 ///     diskette's FIRECTL.COM, and the new one runs;
 ///   - the example program of the ship's hardware manual (COOL.ASM, put on
 ///     the diskette before it boots) assembles, goes on top of the chain,
-///     throws a heat sink when the ship runs hot, and comes off again.
+///     throws a heat sink when the ship runs hot, and comes off again;
+///   - after a power cycle (the insurer's new computer) the programs find
+///     their screens again.
 ///
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/chain_test.tscn
 /// Exits with 0 if every check passed.
@@ -101,6 +103,13 @@ public partial class ChainTest : Node3D
         Check("only one while it works", _heat.SinksLeft == sinks - 1);
         await Command("COOL OFF");
         Check($"COOL OFF ({Chain()})", await Until(() => Chain() == before, 10));
+
+        var display = _ship.GetNode<DisplayDevice>("Display");
+        Check("FIRECTL draws its page on the WEAPON screen", display.Text("WEAPON").Contains("FIRECTL"));
+        computer.Rearm();
+        Check("the insurer's new computer boots", await Until(() => Screen().Contains("Power manager resident"), 60));
+        Check("and FIRECTL finds its screens again (the table is written after the power cycle wiped it)",
+              await Until(() => display.Text("WEAPON").Contains("FIRECTL"), 5));
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GC.Collect();
