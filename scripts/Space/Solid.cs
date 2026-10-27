@@ -44,7 +44,31 @@ public partial class Solid : Node3D
     private Basis _turn = Basis.Identity;           // the unscaled frame's turn
     private Basis _baked;                           // the global basis the triangles were made with
 
-    public override void _EnterTree() => All.Add(this);
+    /// <summary>It stops ships, rounds and missiles (a door that has opened does not).</summary>
+    public bool Blocks
+    {
+        get => _blocks;
+        set
+        {
+            if (_blocks == value)
+                return;
+            _blocks = value;
+            if (!IsInsideTree())
+                return;
+            if (value)
+                All.Add(this);
+            else
+                All.Remove(this);
+        }
+    }
+    private bool _blocks = true;
+
+    public override void _EnterTree()
+    {
+        if (_blocks)
+            All.Add(this);
+    }
+
     public override void _ExitTree() => All.Remove(this);
 
     public override void _Ready() => Bake();

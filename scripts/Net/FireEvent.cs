@@ -101,6 +101,7 @@ public struct FireEvent
 public struct HitEvent
 {
     public byte Shooter;
+    public ushort Ship;                     // the ship that fired the round or launched the missile
     public ushort Sequence;
     public ushort Target;
     public uint Tick;                       // in the shooter's timeline: the tick the round reached the ship
@@ -110,6 +111,7 @@ public struct HitEvent
     {
         var w = new BitWriter();
         w.Write(Shooter, 8);
+        w.Write(Ship, 16);
         w.Write(Sequence, 16);
         w.Write(Target, 16);
         w.Write(Tick, 32);
@@ -120,6 +122,7 @@ public struct HitEvent
     public static HitEvent Read(BitReader r) => new()
     {
         Shooter = (byte)r.Read(8),
+        Ship = (ushort)r.Read(16),
         Sequence = (ushort)r.Read(16),
         Target = (ushort)r.Read(16),
         Tick = r.Read(32),

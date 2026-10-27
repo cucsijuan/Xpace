@@ -1,0 +1,120 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/Cockpit/CockpitScreen.cs" id="1_screen"]
+[ext_resource type="PackedScene" path="res://scenes/controls/buttons/panel_key.tscn" id="2_key"]
+
+[sub_resource type="StandardMaterial3D" id="Material_housing"]
+albedo_color = Color(0.36, 0.38, 0.4, 1)
+roughness = 0.7
+
+[sub_resource type="BoxMesh" id="Mesh_housing"]
+material = SubResource("Material_housing")
+size = Vector3(0.284, 0.256, 0.024)
+
+[sub_resource type="StandardMaterial3D" id="Material_bezel"]
+albedo_color = Color(0.12, 0.13, 0.14, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="Mesh_bezel"]
+material = SubResource("Material_bezel")
+size = Vector3(0.262, 0.192, 0.004)
+
+[sub_resource type="StandardMaterial3D" id="Material_screen"]
+shading_mode = 0
+albedo_color = Color(0.1, 0.5, 0.35, 1)
+texture_filter = 1
+
+[sub_resource type="QuadMesh" id="Mesh_screen"]
+size = Vector2(0.25, 0.18)
+
+[node name="CommsPanel" type="Node3D"]
+
+[node name="Housing" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.012)
+mesh = SubResource("Mesh_housing")
+
+[node name="Bezel" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.028, 0.001)
+mesh = SubResource("Mesh_bezel")
+
+[node name="Screen" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.028, 0.0035)
+material_override = SubResource("Material_screen")
+mesh = SubResource("Mesh_screen")
+script = ExtResource("1_screen")
+Source = 1
+DisplayName = "COMMS"
+Size = Vector2(0.25, 0.18)
+
+
+[node name="UpKey" parent="." instance=ExtResource("2_key")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.100, -0.088, 0)
+Target = NodePath("Display")
+Method = &"PressKeyOn"
+Arguments = ["COMMS", 4]
+
+[node name="UpKeyLegend" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.100, -0.111, 0.0005)
+pixel_size = 0.0001
+modulate = Color(0.85, 0.9, 0.95, 1)
+text = "UP"
+font_size = 80
+outline_size = 0
+
+[node name="DownKey" parent="." instance=ExtResource("2_key")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.060, -0.088, 0)
+Target = NodePath("Display")
+Method = &"PressKeyOn"
+Arguments = ["COMMS", 5]
+
+[node name="DownKeyLegend" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.060, -0.111, 0.0005)
+pixel_size = 0.0001
+modulate = Color(0.85, 0.9, 0.95, 1)
+text = "DOWN"
+font_size = 80
+outline_size = 0
+
+[node name="SelectKey" parent="." instance=ExtResource("2_key")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.020, -0.088, 0)
+Target = NodePath("Display")
+Method = &"PressKeyOn"
+Arguments = ["COMMS", 6]
+
+[node name="SelectKeyLegend" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.020, -0.111, 0.0005)
+pixel_size = 0.0001
+modulate = Color(0.85, 0.9, 0.95, 1)
+text = "SELECT"
+font_size = 80
+outline_size = 0
+
+[node name="BackKey" parent="." instance=ExtResource("2_key")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.020, -0.088, 0)
+Target = NodePath("Display")
+Method = &"PressKeyOn"
+Arguments = ["COMMS", 7]
+
+[node name="BackKeyLegend" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.020, -0.111, 0.0005)
+pixel_size = 0.0001
+modulate = Color(0.85, 0.9, 0.95, 1)
+text = "BACK"
+font_size = 80
+outline_size = 0
+
+[node name="Key5" parent="." instance=ExtResource("2_key")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.060, -0.088, 0)
+
+[node name="PowerKey" parent="." instance=ExtResource("2_key")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.100, -0.088, 0)
+Target = NodePath("Radio")
+Toggle = &"Powered"
+
+[node name="PowerKeyLegend" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.100, -0.111, 0.0005)
+pixel_size = 0.0001
+modulate = Color(0.85, 0.9, 0.95, 1)
+text = "PWR"
+font_size = 80
+outline_size = 0

@@ -163,6 +163,8 @@ public partial class Missile : Node3D, INetShip
         if (Result != Outcome.Flying)
             return;
         float dt = (float)delta;
+        if (Age == 0 && Shooter != null && !NetBody.IsPuppet(this))
+            Combat.Fire(Shooter, GlobalPosition);   // it leaves its rail: seen as a weapon going off
         Age += dt;
 
         if (HeatSeeker)
@@ -265,7 +267,7 @@ public partial class Missile : Node3D, INetShip
             if (t == Target)
                 DamageDealt = damage;
             if (!judged && !(session && NetBody.IsPuppet(node)))
-                victim.Hit(damage);
+                Combat.Strike(victim, damage, Shooter, burst);
         }
         Result = result;
         Explosion.Spawn(GetParent(), burst, 14f, 0.8, 10f);

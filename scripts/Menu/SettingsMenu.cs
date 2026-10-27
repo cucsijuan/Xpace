@@ -7,7 +7,7 @@ using Xpace.Cockpit;
 namespace Xpace.Menu;
 
 /// <summary>
-/// The settings screen (scenes/menu/settings_menu.tscn): general (the pilot's name, the update check), video and controls, with the key
+/// The settings screen (scenes/menu/settings_menu.tscn): general (the pilot's name, the update check), video, controls, audio (the radio's voices), with the key
 /// bindings. Every change is applied at once; Back saves them. A binding's button waits for the next key or mouse
 /// button (Esc leaves it as it was); a key already bound to another action is taken from it.
 /// </summary>
@@ -31,7 +31,7 @@ public partial class SettingsMenu : Control
     private LineEdit _name;
     private OptionButton _resolution, _window, _antialiasing;
     private CheckButton _vsync, _invertY, _checkUpdates;
-    private HSlider _mouse, _look;
+    private HSlider _mouse, _look, _voices;
     private GridContainer _bindings;
     private readonly Dictionary<string, Button> _bindButtons = new();
     private List<Vector2I> _resolutions;
@@ -49,6 +49,7 @@ public partial class SettingsMenu : Control
         _invertY = GetNode<CheckButton>("%InvertY");
         _mouse = GetNode<HSlider>("%MouseSensitivity");
         _look = GetNode<HSlider>("%LookSensitivity");
+        _voices = GetNode<HSlider>("%VoiceVolume");
         _bindings = GetNode<GridContainer>("%Bindings");
 
         foreach (var (_, name) in Windows)
@@ -73,6 +74,7 @@ public partial class SettingsMenu : Control
         _invertY.Toggled += on => Change(s => s.InvertMouseY = on);
         _mouse.ValueChanged += v => Change(s => s.MouseSensitivity = (float)v);
         _look.ValueChanged += v => Change(s => s.LookSensitivity = (float)v);
+        _voices.ValueChanged += v => Change(s => s.VoiceVolume = (float)v);
         GetNode<Button>("%Defaults").Pressed += Defaults;
         GetNode<Button>("%Back").Pressed += Close;
         Hide();
@@ -105,6 +107,7 @@ public partial class SettingsMenu : Control
         _invertY.ButtonPressed = _s.InvertMouseY;
         _mouse.Value = _s.MouseSensitivity;
         _look.Value = _s.LookSensitivity;
+        _voices.Value = _s.VoiceVolume;
         ShowBindings();
         _filling = false;
     }
@@ -174,6 +177,7 @@ public partial class SettingsMenu : Control
         _s.InvertMouseY = fresh.InvertMouseY;
         _s.MouseSensitivity = fresh.MouseSensitivity;
         _s.LookSensitivity = fresh.LookSensitivity;
+        _s.VoiceVolume = fresh.VoiceVolume;
         fresh.Free();
         _s.PlayerName = name;
         _s.Apply();

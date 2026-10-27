@@ -52,12 +52,12 @@ public partial class ChainTest : Node3D
 
         Check("AUTOEXEC.BAT ends with POWER resident", await Until(() => Screen().Contains("Power manager resident"), 60));
         await Seconds(1);
-        Check($"the chain is POWER, RWR, FIRECTL, FLIGHT ({Chain()})", Chain() == "XPPW11 XPRW15 XPFC12 XPFL15");
+        Check($"the chain is POWER, RWR, FIRECTL, FLIGHT ({Chain()})", Chain() == "XPPW11 XPRW15 XPFC12 XPFL16");
         Check("FLIGHT drives the thrusters", !_ship.DirectMode);
 
         await Command("FIRECTL OFF");
         Check("FIRECTL OFF from the middle of the chain", await Until(() => Screen().Contains("Fire control removed"), 10));
-        Check($"the chain is POWER, RWR, FLIGHT ({Chain()})", Chain() == "XPPW11 XPRW15 XPFL15");
+        Check($"the chain is POWER, RWR, FLIGHT ({Chain()})", Chain() == "XPPW11 XPRW15 XPFL16");
         await Seconds(1);
         Check("the radar is off", _radar.Mode == RadarMode.Off);
         Check("FLIGHT still drives the thrusters", !_ship.DirectMode);
@@ -65,7 +65,7 @@ public partial class ChainTest : Node3D
         await Command("FIRECTL");
         Check("FIRECTL again", await Until(() => Screen().Contains("Fire control resident"), 10));
         await Seconds(1);
-        Check($"it is on top ({Chain()})", Chain() == "XPFC12 XPPW11 XPRW15 XPFL15");
+        Check($"it is on top ({Chain()})", Chain() == "XPFC12 XPPW11 XPRW15 XPFL16");
         Check("the radar searches again", _radar.Mode == RadarMode.Search);
 
         await Command("FLIGHT OFF");

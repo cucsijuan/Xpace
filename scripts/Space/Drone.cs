@@ -75,6 +75,8 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
 
     [ExportGroup("Attack")]
     [Export] public bool Attacks;
+    /// <summary>It keeps out of stations' protected zones, and hunts nothing in them (a station's police would come).</summary>
+    [Export] public bool RespectsZones = true;
     [Export] public float FriendGate = 250f;            // m: an echo this near where a friend says it is, is the friend
     [Export] public double MemorySeconds = 8;           // it hunts where it last saw its quarry this long
     [Export] public float BreakOffRange = 500f;         // closer than this it flies on past
@@ -277,7 +279,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
             bool sawQuarry = false;
             foreach (Node3D echo in _radar.Swept)
             {
-                if (_link != null && _link.Friendly(echo.GlobalPosition, FriendGate))
+                if (_link != null && _link.Friendly(echo.GlobalPosition, FriendGate) || Protected(echo.GlobalPosition))
                     continue;
                 sawQuarry |= echo == Quarry;
                 float range = GlobalPosition.DistanceTo(echo.GlobalPosition);
@@ -293,10 +295,13 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
             else if (sawQuarry)
                 See(Quarry);
         }
-        if (Quarry != null && _seenAge > MemorySeconds)
+        if (Quarry != null && (_seenAge > MemorySeconds || Protected(_seenAt)))
             Lose();
         _radar.Target = Quarry;
     }
+
+    private bool Protected(Vector3 point) =>
+        RespectsZones && (StationRadio.ProtectingAt(point) != null || StationRadio.ProtectingAt(GlobalPosition) != null);
 
     private void See(Node3D echo)
     {
@@ -480,7 +485,8 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     private Vector3 NewWaypoint()
     {
         var direction = new Vector3(_rng.RandfRange(-1, 1), _rng.RandfRange(-0.4f, 0.4f), _rng.RandfRange(-1, 1)).Normalized();
-        return Centre + direction * _rng.RandfRange(0.4f, 1f) * WanderRadius;
+        Vector3 point = Centre + direction * _rng.RandfRange(0.4f, 1f) * WanderRadius;
+        return RespectsZones ? StationRadio.Outside(point) : point;
     }
 
     /// <summary>A round or a blast hit it.</summary>

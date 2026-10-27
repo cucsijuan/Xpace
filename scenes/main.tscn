@@ -73,6 +73,10 @@
 [ext_resource type="Script" path="res://scripts/Ship/EngineDevice.cs" id="70_engine"]
 [ext_resource type="Resource" path="res://assets/ship/engines/engine_d50.tres" id="71_d50"]
 [ext_resource type="Resource" path="res://assets/ship/hulls/hull_fighter.tres" id="72_hull"]
+[ext_resource type="Script" path="res://scripts/Ship/RadioDevice.cs" id="80_radio"]
+[ext_resource type="Resource" path="res://assets/ship/displays/comms.tres" id="81_comms"]
+[ext_resource type="Script" path="res://scripts/Cockpit/RadioVoice.cs" id="82_voice"]
+[ext_resource type="PackedScene" path="res://scenes/ships/police_fighter.tscn" id="83_police"]
 
 [sub_resource type="Sky" id="Sky_space"]
 sky_material = ExtResource("43_skybox")
@@ -199,7 +203,7 @@ BackupDiskPath = "user://disks/insurer.img"
 
 [node name="Display" type="Node" parent="Ship" unique_id=1227318872]
 script = ExtResource("12_display")
-Screens = Array[ExtResource("19_screen")]([ExtResource("20_radar"), ExtResource("21_weapon"), ExtResource("27_rwr")])
+Screens = Array[ExtResource("19_screen")]([ExtResource("20_radar"), ExtResource("21_weapon"), ExtResource("27_rwr"), ExtResource("81_comms")])
 
 [node name="Turret" type="Node3D" parent="Ship" unique_id=1909061706]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 0.5, -6.5)
@@ -255,6 +259,14 @@ script = ExtResource("28_rwr")
 
 [node name="RwrTone" type="AudioStreamPlayer" parent="Ship/Rwr" unique_id=727146807]
 script = ExtResource("31_rwr_tone")
+
+[node name="Radio" type="Node3D" parent="Ship"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 1)
+script = ExtResource("80_radio")
+PilotsName = true
+
+[node name="RadioVoice" type="AudioStreamPlayer" parent="Ship/Radio"]
+script = ExtResource("82_voice")
 
 [node name="Power" type="Node" parent="Ship"]
 script = ExtResource("60_power")
@@ -393,7 +405,7 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -600, 150, 4000)
 script = ExtResource("33_session")
 RemoteShipScene = ExtResource("38_remote_fighter")
 KeepSceneShips = false
-Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_missile"), ExtResource("35_chaff"), ExtResource("36_flare"), ExtResource("41_ai_fighter")])
+Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_missile"), ExtResource("35_chaff"), ExtResource("36_flare"), ExtResource("41_ai_fighter"), ExtResource("83_police")])
 Jammers = Array[ExtResource("69_jammer_spec")]([ExtResource("66_nj1"), ExtResource("67_nj2"), ExtResource("68_dj3")])
 
 [node name="NetLauncher" type="Node" parent="."]

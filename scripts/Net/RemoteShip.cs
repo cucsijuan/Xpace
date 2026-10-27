@@ -17,7 +17,8 @@ namespace Xpace.Net;
 /// the snapshots say it pushes. Its jammer (a <see cref="Xpace.Ship.JammerDevice"/>
 /// it makes below itself) sends what the owner's sends, as hard as the
 /// model the snapshots name (<see cref="SessionNode.Jammers"/>; not
-/// there: <see cref="Jammer"/>). A warhead's
+/// there: <see cref="Jammer"/>). Radios hear it and speak to it (a
+/// <see cref="RemoteRadio"/> it makes below itself). A warhead's
 /// fuse goes off on it; the damage is the host's to judge and its owner's
 /// to take.
 /// </summary>
@@ -78,6 +79,7 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
         AddChild(_jammer);
         _jammer.Follow(JamMode.Off, false, Vector3.Forward);
         _plumes = FindChildren("*", "", true, false).OfType<EnginePlume>().ToArray();
+        AddChild(new RemoteRadio { Name = "Radio" });
     }
 
     public void Paint() { }

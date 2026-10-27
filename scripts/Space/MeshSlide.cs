@@ -16,6 +16,9 @@ public partial class MeshSlide : Node
     [Export(PropertyHint.Range, "0,1")] public float Open = 1;
     [Export] public float Seconds = 6;
 
+    /// <summary>How open the meshes are now, 0 to 1 (they move towards <see cref="Open"/>).</summary>
+    public float At => _at;
+
     private Node3D[] _parts = [];
     private Vector3[] _shut = [];
     private float _at;

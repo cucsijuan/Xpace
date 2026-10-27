@@ -22,6 +22,7 @@ public static class FlightInput
     public const string Chaff = "chaff", Flare = "flare";
     public const string PipSystems = "pip_systems", PipEngines = "pip_engines", PipWeapons = "pip_weapons", PipReset = "pip_reset";
     public const string HeatSink = "heat_sink", Jammer = "jammer";
+    public const string Parking = "parking";
     public const string Zoom = "zoom";
     public const string DisplayZoomIn = "display_zoom_in", DisplayZoomOut = "display_zoom_out", DisplaySound = "display_sound";
     public const string Look = "look", LookAhead = "look_ahead", Pointer = "pointer";
@@ -33,7 +34,7 @@ public static class FlightInput
         (YawLeft, "Yaw left"), (YawRight, "Yaw right"),
         (PitchUp, "Pitch up"), (PitchDown, "Pitch down"), (RollLeft, "Roll left"), (RollRight, "Roll right"),
         (StrafeLeft, "Strafe left"), (StrafeRight, "Strafe right"), (StrafeUp, "Strafe up"), (StrafeDown, "Strafe down"),
-        (FlightAssist, "Flight assist"), (SafeTurns, "Safe turns"), (Boost, "Boost"),
+        (FlightAssist, "Flight assist"), (SafeTurns, "Safe turns"), (Parking, "Parking mode"), (Boost, "Boost"),
         (Look, "Look around (tap: stay, hold: peek)"), (LookAhead, "Look ahead"), (Pointer, "Pointer (tap: stay, hold: while held)"),
         (FirePrimary, "Fire"), (TargetAhead, "Target ahead"), (NextTarget, "Next target"), (NextWeapon, "Next weapon"),
         (Chaff, "Chaff"), (Flare, "Flare"), (HeatSink, "Heat sink"), (Jammer, "Jammer (off, noise, deception)"),
@@ -59,6 +60,7 @@ public static class FlightInput
         Add(StrafeDown, Key(Godot.Key.F), Joy(JoyAxis.RightY, 1));
         Add(FlightAssist, Key(Godot.Key.Z), Button(JoyButton.Y));
         Add(SafeTurns, Key(Godot.Key.B), Button(JoyButton.Back));
+        Add(Parking, Key(Godot.Key.P));
         Add(Boost, Key(Godot.Key.Tab), Button(JoyButton.A));
         Add(FirePrimary, new InputEventMouseButton { ButtonIndex = MouseButton.Left }, Button(JoyButton.X));
         Add(TargetAhead, Key(Godot.Key.T), Button(JoyButton.B));

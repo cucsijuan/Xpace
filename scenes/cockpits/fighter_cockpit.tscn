@@ -10,6 +10,7 @@
 [ext_resource type="ArrayMesh" path="res://assets/synty/parts/pov_cockpit_01/cockpit_body.res" id="8_body_mesh"]
 [ext_resource type="PackedScene" path="res://scenes/panels/cockpit/rwr_panel.tscn" id="9_rwr_panel"]
 [ext_resource type="PackedScene" path="res://scenes/panels/cockpit/radar_panel.tscn" id="10_radar_panel"]
+[ext_resource type="PackedScene" path="res://scenes/panels/cockpit/comms_panel.tscn" id="11_comms_panel"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_16ts0"]
 shading_mode = 0
@@ -49,6 +50,9 @@ material_override = SubResource("StandardMaterial3D_16ts0")
 mesh = SubResource("QuadMesh_t0lbf")
 script = ExtResource("5_screen")
 Size = Vector2(0.2, 0.15)
+
+[node name="CommsPanel" parent="." instance=ExtResource("11_comms_panel")]
+transform = Transform3D(-0.0077, 0.5306, -0.8478, -0.0159, 0.8482, 0.5304, 0.9998, 0.0175, 0.0019, 0.5512, 0.4307, 0.0635)
 
 [node name="RadarPanel" parent="." instance=ExtResource("10_radar_panel")]
 transform = Transform3D(1, 0, 0, 0, 0.951057, 0.309017, 0, -0.309017, 0.951057, 0.165, 0.4239, -0.8281)

@@ -103,6 +103,7 @@ public partial class Pilot : Node3D
     private float _fov, _wheelFov;
     private Vector2 _stick;
     private float _throttle, _detentTime;
+    private bool _inDetent;
     private PilotControls _controls;
     private string _notice = "";
     private double _noticeTime;
@@ -449,28 +450,33 @@ public partial class Pilot : Node3D
             PipReset = keys && Input.IsActionPressed(FlightInput.PipReset),
             HeatSink = keys && Input.IsActionPressed(FlightInput.HeatSink),
             Jammer = keys && Input.IsActionPressed(FlightInput.Jammer),
+            Parking = keys && Input.IsActionPressed(FlightInput.Parking),
         };
     }
 
-    // The throttle has a detent at zero: passing through it stops there, and
-    // it only leaves zero after ThrottleDetent seconds of pushing.
+    // The throttle has a detent at zero: a lever pushed through it stops there,
+    // and goes on only after ThrottleDetent more seconds of the same push. A
+    // fresh press leaves zero at once, so short taps move it a little.
     private void MoveThrottle(float input, float dt)
     {
         if (input == 0)
         {
-            _detentTime = 0;
+            _inDetent = false;
             return;
         }
         float next = Mathf.Clamp(_throttle + input * ThrottleRate * dt, -1, 1);
-        if (_throttle == 0)
+        if (_inDetent)
         {
             _detentTime += dt;
             if (_detentTime < ThrottleDetent)
                 next = 0;
+            else
+                _inDetent = false;
         }
-        else if (Mathf.Sign(next) != Mathf.Sign(_throttle))
+        else if (_throttle != 0 && Mathf.Sign(next) != Mathf.Sign(_throttle))
         {
             next = 0;
+            _inDetent = true;
             _detentTime = 0;
         }
         _throttle = next;
@@ -518,6 +524,8 @@ public partial class Pilot : Node3D
         if (_ship != null)
         {
             string mode = _ship.DirectMode ? "DIRECT" : _ship.AssistOn ? "ASSIST ON" : "ASSIST OFF";
+            if (_ship.ParkingOn)
+                mode += _ship.ParkingLimited ? "   PARKING" : "   PARKING (no limit here)";
             state += $"   Throttle {_throttle * 100:+0;-0;0}%   {mode}   {_ship.LinearVelocity.Length():0} m/s";
             _hull ??= _ship.GetChildren().OfType<ShipHull>().FirstOrDefault();
             if (_hull?.Wrecked == true)

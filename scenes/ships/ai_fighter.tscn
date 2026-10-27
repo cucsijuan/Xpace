@@ -1,4 +1,4 @@
-[gd_scene load_steps=37 format=3]
+[gd_scene load_steps=38 format=3]
 
 [ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="1_ship"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="2_spec"]
@@ -38,6 +38,7 @@
 [ext_resource type="Resource" path="res://assets/ship/engines/engine_d50.tres" id="47_d50"]
 [ext_resource type="Resource" path="res://assets/ship/hulls/hull_fighter.tres" id="48_hull"]
 [ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="paint_script"]
+[ext_resource type="Script" path="res://scripts/Ship/RadioDevice.cs" id="49_radio"]
 
 [sub_resource type="SphereMesh" id="ShieldSphere"]
 radius = 1.0
@@ -117,6 +118,10 @@ Spec = ExtResource("45_nj2")
 
 [node name="Rwr" type="Node3D" parent="."]
 script = ExtResource("21_rwr")
+
+[node name="Radio" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 1)
+script = ExtResource("49_radio")
 
 [node name="Power" type="Node" parent="."]
 script = ExtResource("40_power")

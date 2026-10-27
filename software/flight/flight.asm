@@ -1,4 +1,4 @@
-; flight.asm - CucsiCorp Flight Control 1.5 (FLIGHT.COM)
+; flight.asm - CucsiCorp Flight Control 1.6 (FLIGHT.COM)
 ;
 ;   FLIGHT          stays resident and flies the ship
 ;   FLIGHT OFF      takes it out of memory: the thrusters answer the
@@ -30,6 +30,13 @@
 ; its turns; better thrusters turn it harder. Without a rating plate on
 ; the bus there are no safe turns.
 ;
+; Parking (the pilot's PARK button, with flight assist on and a radio on
+; the bus): full throttle and full strafe ask only for the speed limit of
+; the station whose zone the ship is in, as the laws its radio holds say;
+; the whole range of the controls for that much less. If the radio holds
+; no laws for where the ship is, it asks the nearest station for them once
+; a second, and there is no limit until they come.
+;
 ; The pilot's boost button, held, drives the main engine's cooling harder
 ; (the cooling unit's boost): the engine keeps up more thrust before its
 ; controller cuts it out, and its radiators glow brighter.
@@ -43,7 +50,7 @@
 ;                            +8 strafe right  +10 strafe up  +12 throttle
 ;                            (all -32767..32767)  +14 buttons: bit 0 FA,
 ;                            1 boost, 2 target ahead, 3 next target, 4 fire
-;                            +15 more buttons: bit 0 SAFE
+;                            +15 more buttons: bit 0 SAFE, bit 7 PARK
 ;   110h  inertial unit      +0 type 2   +2 pitch rate  +4 roll rate
 ;                            +6 yaw rate (1/1024 rad/s)  +8 right  +10 up
 ;                            +12 forward speed (1/8 m/s)  +14 status:
@@ -52,7 +59,8 @@
 ;                            +8 right  +10 up  +12 forward force
 ;                            (-32767..32767 of the most they give)
 ;                            +14 write: take the commands  +15 mode shown
-;                            (bit 0 assist, bit 1 safe turns)
+;                            (bit 0 assist, bit 1 safe turns, bit 2
+;                            parking, bit 3 keeping to a speed limit)
 ;   150h  display card       +0 type 6   +2 segment  +4 screen table
 ;                            +6 screens; a screen (16 bytes): +0 name
 ;                            +6 mode (0 text: character and attribute
@@ -70,6 +78,11 @@
 ;   1F0h  main engine        +0 type 17  +6 status (bit 4 the cooling
 ;                            unit's calibration mode); write: the cooling
 ;                            unit, bit 0 boost, bit 7 calibration mode
+;   200h  radio              +0 type 18  +4 status (bit 0 it holds a
+;                            station's laws, bit 1 the ship is inside their
+;                            zone)  +5 write: 1 ask for the laws of the
+;                            contact in +6 (FFh the nearest station); the
+;                            laws at D000:1600: +8 speed limit (1/8 m/s)
 
 org 100h
 
@@ -79,17 +92,22 @@ THRUST      equ 120h
 DISPLAYS    equ 150h
 RATINGS     equ 1A0h
 ENGINE      equ 1F0h
+RADIO       equ 200h
 TYPE_CTRL   equ 1
 TYPE_IMU    equ 2
 TYPE_THRUST equ 3
 TYPE_DISPLAYS equ 6
 TYPE_RATINGS equ 12
 TYPE_ENGINE equ 17
+TYPE_RADIO  equ 18
 IRQ_VECTOR  equ 0Dh                 ; IRQ 5
 IRQ_BIT     equ 20h
 
 PLATE_SEG   equ 0D000h              ; the whole rating plate (version 2)
 PLATE       equ 1400h
+LAWS        equ 1600h               ; the laws the radio holds (same segment)
+BUTTON_PARK equ 80h                 ; on CTRL + 15
+ASK_EVERY   equ 60                  ; steps between asks for the laws (a second)
 GAIN_RATE   equ 96                  ; command for each unit of turn-rate error
 GAIN_SPEED  equ 204                 ; command for each unit of speed error
 SAFE_SHARE  equ 1024                ; safe turns use all the push across (x 1024)
@@ -111,7 +129,7 @@ COLS        equ 40
 ; ======================================================================
 
 ; FLIGHT OFF finds the resident copy by these, at fixed places
-signature   db 'XPFL15'             ; 103h
+signature   db 'XPFL16'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -171,6 +189,11 @@ step:
     mov [buttons2], al
     not ah
     and al, ah
+    test al, BUTTON_PARK
+    jz .no_park
+    mov ah, [has_radio]
+    xor [parking], ah               ; (no radio: no laws to keep to)
+.no_park:
     test al, 1
     jz .no_safe
     mov al, [rated]
@@ -202,6 +225,7 @@ step:
     call read_plate
 .limits:
     call turn_limits
+    call speed_limits
 
     cmp byte [assist], 0
     je .direct
@@ -264,7 +288,13 @@ step:
     out dx, ax
     add dx, 2
     loop .write
-    mov al, [safe]
+    mov al, [parking]
+    cmp word [park_limit], 0
+    je .mode
+    or al, 2
+.mode:
+    shl al, 1
+    or al, [safe]
     shl al, 1
     or al, [assist]
     mov dx, THRUST + 15
@@ -316,6 +346,58 @@ turn_limits:
 .set:
     mov [lim_pitch], ax
     mov [lim_yaw], bx
+    ret
+
+; Full throttle's and full strafe's speeds: the tops, or parking with the
+; laws of where the ship is, no more than their speed limit (written into
+; the axes below). Parking without them: the radio asks now and then.
+speed_limits:
+    xor ax, ax                      ; the limit (0: none)
+    cmp byte [parking], 0
+    je .set
+    mov dx, RADIO + 4
+    in al, dx
+    and al, 3
+    cmp al, 3                       ; laws, and inside their zone?
+    je .lawful
+    dec byte [ask_wait]
+    jnz .none
+    mov byte [ask_wait], ASK_EVERY
+    mov dx, RADIO + 6               ; the nearest station: its laws, please
+    mov al, 0FFh
+    out dx, al
+    dec dx
+    mov al, 1
+    out dx, al
+.none:
+    xor ax, ax
+    jmp .set
+.lawful:
+    mov byte [ask_wait], 1          ; (lost them: ask at once)
+    push ds
+    mov ax, PLATE_SEG
+    mov ds, ax
+    mov ax, [LAWS + 8]
+    pop ds
+    test ax, ax
+    jnz .set
+    inc ax                          ; a limit of nothing: still a limit
+.set:
+    mov [park_limit], ax
+    mov si, max_side                ; sideways, up and down, forward
+    mov di, lim_side
+    mov cx, 3
+.axis:
+    lodsw
+    mov bx, [park_limit]
+    test bx, bx
+    jz .keep
+    cmp ax, bx
+    jbe .keep
+    mov ax, bx
+.keep:
+    stosw
+    loop .axis
     ret
 
 ; The tops from the whole rating plate, every step (a worn engine, a new
@@ -447,9 +529,9 @@ axes:
     dw controls + 0, lim_pitch,  motion + 0,  GAIN_RATE,  max_pitch
     dw controls + 2, max_roll,   motion + 2,  GAIN_RATE,  max_roll
     dw controls + 4, lim_yaw,    motion + 4,  GAIN_RATE,  max_yaw
-    dw controls + 6, max_side,   motion + 6,  GAIN_SPEED, max_side
-    dw controls + 8, max_vert,   motion + 8,  GAIN_SPEED, max_vert
-    dw controls + 10, max_speed, motion + 10, GAIN_SPEED, max_speed
+    dw controls + 6, lim_side,   motion + 6,  GAIN_SPEED, max_side
+    dw controls + 8, lim_vert,   motion + 8,  GAIN_SPEED, max_vert
+    dw controls + 10, lim_speed, motion + 10, GAIN_SPEED, max_speed
     dw 0
 
 ; CX words from the ports at DX, DX+2, ... to DI
@@ -543,6 +625,30 @@ draw_values:
     mov di, (7 * COLS + 12) * 2
     call put_speed
 
+    mov si, s_park_off              ; parking
+    cmp byte [parking], 0
+    je .park_text
+    mov si, s_park_ask
+    mov ax, [park_limit]
+    test ax, ax
+    jz .park_text
+    mov di, (8 * COLS + 12) * 2
+    call put_speed
+    mov si, s_ms
+    mov di, (8 * COLS + 17) * 2
+    mov ah, ATTR_LABEL
+    call put_text
+    jmp .parked
+.park_text:
+    cmp byte [has_radio], 0
+    jne .park_shown
+    mov si, s_park_none
+.park_shown:
+    mov di, (8 * COLS + 12) * 2
+    mov ah, ATTR_OFF
+    call put_text
+.parked:
+
     mov ax, [motion + 0]            ; turn rates, degrees a second
     mov di, (9 * COLS + 12) * 2
     call put_rate
@@ -626,6 +732,10 @@ put_text:
 s_on            db 'ON ', 0
 s_off           db 'OFF', 0
 s_none          db '---', 0
+s_park_off      db '  OFF     ', 0
+s_park_ask      db '  NO LAWS ', 0
+s_park_none     db '  ---     ', 0
+s_ms            db ' m/s ', 0
 
 assist          db 1
 safe            db 0
@@ -642,6 +752,13 @@ max_vert        dw 800
 max_speed       dw 2000
 lim_pitch       dw 1229             ; full stick's pitch and yaw now (safe turns)
 lim_yaw         dw 614
+lim_side        dw 800              ; full strafe's and throttle's speeds now (parking)
+lim_vert        dw 800
+lim_speed       dw 2000
+parking         db 0
+has_radio       db 0                ; the ship has a radio (for the laws)
+ask_wait        db 1
+park_limit      dw 0                ; the speed limit kept to (1/8 m/s; 0: none)
 setpoint        dw 0
 p_term          dw 0
 boost           db 0                ; the boost asked for, last step
@@ -708,6 +825,12 @@ install:
     jne .no_engine
     mov byte [has_engine], 1
 .no_engine:
+    mov dx, RADIO                   ; a radio, for the stations' laws
+    in al, dx
+    cmp al, TYPE_RADIO
+    jne .no_radio
+    mov byte [has_radio], 1
+.no_radio:
 
     mov si, n_flight                ; its page, if the ship has the screen
     call find_screen
@@ -908,7 +1031,7 @@ draw_labels:
 ; Screen offset, attribute, text (0); 0FFFFh ends
 labels:
     dw (0 * COLS + 0) * 2
-    db ATTR_TITLE, ' FLIGHT CONTROL 1.2            CUCSICORP', 0
+    db ATTR_TITLE, ' FLIGHT CONTROL 1.6            CUCSICORP', 0
     dw (2 * COLS + 1) * 2
     db ATTR_LABEL, 'ASSIST', 0
     dw (3 * COLS + 1) * 2
@@ -929,6 +1052,8 @@ labels:
     db ATTR_LABEL, 'UP', 0
     dw (7 * COLS + 18) * 2
     db ATTR_LABEL, 'm/s', 0
+    dw (8 * COLS + 1) * 2
+    db ATTR_LABEL, 'PARKING', 0
     dw (9 * COLS + 1) * 2
     db ATTR_LABEL, 'PITCH', 0
     dw (9 * COLS + 18) * 2

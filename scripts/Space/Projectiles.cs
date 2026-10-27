@@ -31,6 +31,7 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
         public byte Shooter;
         public ushort Sequence;
         public Godot.Collections.Array<Rid> Own;    // the shooter's own areas: a round never hits its own ship
+        public Node From;                           // who fired it
     }
 
     private readonly List<Round> _rounds = new();
@@ -97,10 +98,11 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
     /// <summary>A round of a <paramref name="kind"/> leaves a muzzle of <paramref name="shooter"/> (it is never hit by its own round).</summary>
     public void Fire(Vector3 origin, Vector3 velocity, float damage, Node shooter = null, byte kind = 0)
     {
+        Combat.Fire(shooter, origin);
         if (SessionNode.Instance is SessionNode session && session.Active)
             session.Fire(origin, velocity, damage, shooter, kind);
         else if (_rounds.Count < MaxRounds)
-            _rounds.Add(new Round { Position = origin, Velocity = velocity, Damage = damage, Kind = kind, Own = Areas(shooter) });
+            _rounds.Add(new Round { Position = origin, Velocity = velocity, Damage = damage, Kind = kind, Own = Areas(shooter), From = shooter });
     }
 
     /// <summary>A round that only flies for show, named by its shooter and sequence.</summary>
@@ -159,7 +161,7 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
             }
             if (hit.Count > 0 && Damageable(hit["collider"].As<Node>()) is IDamageable victim)
             {
-                victim.Hit(r.Damage);
+                Combat.Strike(victim, r.Damage, r.From, hit["position"].AsVector3());
                 _rounds.RemoveAt(i);
                 continue;
             }

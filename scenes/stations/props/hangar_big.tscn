@@ -10,6 +10,8 @@
 [ext_resource type="Script" path="res://scripts/Space/MeshSlide.cs" id="8_slide"]
 [ext_resource type="Script" path="res://scripts/Space/Solid.cs" id="9_solid"]
 [ext_resource type="PackedScene" path="res://scenes/stations/props/hangar_casing.tscn" id="10_casing"]
+[ext_resource type="Script" path="res://scripts/Space/HangarDock.cs" id="11_dock"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/dock_beacon.tscn" id="12_beacon"]
 [ext_resource type="PackedScene" path="res://assets/synty/SM_Bld_Ceiling_Pipes_Straight_01.fbx" id="p1"]
 [ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Detail_Pipes_02.fbx" id="p2"]
 [ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_AirVent_Large_01.fbx" id="p3"]
@@ -21,6 +23,9 @@
 [ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Detail_Machine_01.fbx" id="p15"]
 [ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Antenna_01.fbx" id="p16"]
 
+
+[sub_resource type="BoxShape3D" id="Shape_door"]
+size = Vector3(54, 22, 1)
 [node name="HangarBig" type="Node3D"]
 
 [node name="Model" parent="." instance=ExtResource("1_model")]
@@ -36,6 +41,8 @@ ByMesh = {
 script = ExtResource("8_slide")
 Meshes = PackedStringArray("SM_Bld_HangarDoor_01", "SM_Bld_HangarDoor_02")
 Travel = Vector3(0, 22.5, 0)
+Open = 0.0
+Seconds = 12.0
 
 [node name="Floor" parent="." instance=ExtResource("2_floor")]
 
@@ -217,3 +224,18 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6, 10.55, -80.6)
 
 [node name="Antenna1" parent="Dressing" instance=ExtResource("p16")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 9.9, -80.8)
+
+[node name="Dock" type="Node3D" parent="." node_paths=PackedStringArray("Door", "DoorSolid", "Beacon")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11, 15)
+script = ExtResource("11_dock")
+Door = NodePath("../Model/Doors")
+DoorSolid = NodePath("DoorSolid")
+Beacon = NodePath("Beacon")
+
+[node name="DoorSolid" type="Node3D" parent="Dock"]
+script = ExtResource("9_solid")
+
+[node name="Box" type="CollisionShape3D" parent="Dock/DoorSolid"]
+shape = SubResource("Shape_door")
+
+[node name="Beacon" parent="Dock" instance=ExtResource("12_beacon")]

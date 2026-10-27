@@ -6,13 +6,13 @@ namespace Xpace.Computer;
 /// <summary>
 /// The ship's expansion bus as the game sees it: a window of I/O ports whose
 /// registers the game reads and writes between machine steps (native/xbus.c).
-/// Device slot n is at <see cref="BasePort"/> + n * 16.
+/// Device slot n is at <see cref="BasePort"/> + n * 16: 32 slots, 100h to 2FFh.
 /// </summary>
 public sealed unsafe class ShipBus : IDisposable
 {
     public const ushort BasePort = 0x100;
     public const int SlotSize = 16;
-    public const int Slots = 16;
+    public const int Slots = 32;
     public const int Irq = 5;
 
     public IntPtr Card => Pc86.xbus_slot(_bus);

@@ -68,6 +68,13 @@ public static class NetIds
 ///   already flying;
 /// - what a ship throws out to fly on its own (chaff, flares: <see cref="Drop"/>)
 ///   is announced once, and every machine flies it;
+/// - the host speaks for the stations: what its radios say to a guest's
+///   ship goes to that guest (<see cref="Say"/>), a guest's requests go to
+///   it (<see cref="Request"/>) and its answers come back
+///   (<see cref="Cleared"/>), and every machine opens and shuts the docks
+///   the host does (<see cref="Dock"/>, told to late joiners too);
+/// - each ship's radio, as its owner has it (callsign, on or off:
+///   <see cref="SetRadio"/>), is known everywhere, late joiners included;
 /// - guests keep their tick on the host's: they ping it every
 ///   <see cref="PingInterval"/> ticks (every 6 until the first answer), and
 ///   move their clock by <see cref="AdjustClock"/> when the best of the
@@ -83,7 +90,8 @@ public sealed class Session
 {
     public const byte HostPeer = 0;
     private const byte KindSnapshot = 1, KindFire = 2, KindHit = 3, KindPing = 4, KindPong = 5,
-                       KindSpawn = 6, KindDespawn = 7, KindBlast = 8, KindDrop = 9, KindDelta = 10, KindAck = 11;
+                       KindSpawn = 6, KindDespawn = 7, KindBlast = 8, KindDrop = 9, KindDelta = 10, KindAck = 11, KindRadio = 12,
+                       KindRadioState = 13, KindRequest = 14, KindCleared = 15, KindDock = 16;
     private const uint AckLost = uint.MaxValue;     // an ack saying: the base of that delta isn't here, send it whole
     private const int PingSamples = 5;
 
@@ -122,6 +130,21 @@ public sealed class Session
     /// <summary>Something spawned elsewhere ended at that tick (blown up, or just gone): show its end, then remove it.</summary>
     public event Action<INetEntity, uint, bool> Despawned;
 
+    /// <summary>A ship of this machine hears the host's radio: the ship, who speaks, the words, the speech (<see cref="RadioVoicePack"/>).</summary>
+    public event Action<INetEntity, string, string, string> RadioHeard;
+
+    /// <summary>A ship's radio, as its owner has it (the ship, callsign, on).</summary>
+    public event Action<ushort, string, bool> RadioChanged;
+
+    /// <summary>The host: another machine's ship asks a station (the ship, the station's callsign, what).</summary>
+    public event Action<ushort, string, byte> Requested;
+
+    /// <summary>The host's station cleared a ship of this machine to a dock (the ship, the station, the dock; 0: over).</summary>
+    public event Action<INetEntity, string, int> DockCleared;
+
+    /// <summary>The host opened or shut a station's dock (the station, the dock, open).</summary>
+    public event Action<string, int, bool> DockChanged;
+
     /// <summary>Someone else dropped something: make it, already flying.</summary>
     public event Action<DropEvent> Dropped;
 
@@ -147,6 +170,8 @@ public sealed class Session
     private readonly Dictionary<ushort, List<ShipSnapshot.Wire>> _got = new();        // what came in of each, newest last
     private readonly Dictionary<(byte Peer, ushort Id), uint> _acked = new();         // the newest each peer has of each
     private readonly Dictionary<byte, Dictionary<ushort, uint>> _toAck = new();       // to tell each peer: what came of theirs
+    private readonly Dictionary<ushort, byte[]> _radios = new();           // the host: each ship's radio state, as sent
+    private readonly Dictionary<(string Station, int Dock), bool> _docks = new();   // the host: docks open
     private ushort _sequence;
     private ushort _nextDynamic = NetIds.FirstDynamic;
 
@@ -180,6 +205,7 @@ public sealed class Session
     public void Remove(ushort id)
     {
         _entities.Remove(id);
+        _radios.Remove(id);
         _histories.Remove(id);
         _heard.Remove(id);
         _sent.Remove(id);
@@ -266,13 +292,19 @@ public sealed class Session
         return sent;
     }
 
-    /// <summary>The warhead of <paramref name="missile"/>, flown here, went off: the host hurts what it reached.</summary>
-    public void Blast(uint now, float fraction, ushort missile, SectorPoint at, float damage, float lethalRadius, float blastRadius)
+    /// <summary>
+    /// The warhead of <paramref name="missile"/>, flown here and launched by
+    /// <paramref name="ship"/> (this machine's player ship if not given),
+    /// went off: the host hurts what it reached.
+    /// </summary>
+    public void Blast(uint now, float fraction, ushort missile, SectorPoint at, float damage, float lethalRadius, float blastRadius,
+                      ushort? ship = null)
     {
         var blast = new BlastEvent
         {
             Shooter = LocalPeer, Sequence = _sequence++, Tick = now, TickFraction = fraction, Position = at,
-            Damage = damage, LethalRadius = lethalRadius, BlastRadius = blastRadius, Missile = missile, Views = Views(now),
+            Damage = damage, LethalRadius = lethalRadius, BlastRadius = blastRadius, Missile = missile,
+            Ship = ship ?? NetIds.PlayerShip(LocalPeer), Views = Views(now),
         };
         byte[] bytes = blast.ToBytes();
         if (IsHost)
@@ -280,6 +312,95 @@ public sealed class Session
         else
             Send(HostPeer, KindBlast, bytes, reliable: true);
     }
+
+    /// <summary>
+    /// The host: a radio here says something to <paramref name="ship"/>, of
+    /// another machine; that machine's ship hears it
+    /// (<see cref="RadioHeard"/> there): the words and how they are spoken
+    /// (at most 255 characters). Both are plain ASCII.
+    /// </summary>
+    public void Say(ushort ship, string from, string text, string speech = "")
+    {
+        byte owner = NetIds.Owner(ship);
+        if (!IsHost || owner == LocalPeer)
+            return;
+        var body = new List<byte>(BitConverter.GetBytes(ship));
+        body.AddRange(Sign(from));
+        byte[] spoken = Ascii(speech);
+        body.Add((byte)Math.Min(spoken.Length, 255));
+        body.AddRange(spoken[..Math.Min(spoken.Length, 255)]);
+        body.AddRange(Ascii(text));
+        Send(owner, KindRadio, body.ToArray(), reliable: true);
+    }
+
+    /// <summary>A ship owned here: its radio's callsign and whether it is on (send when either changes).</summary>
+    public void SetRadio(ushort ship, string callsign, bool on)
+    {
+        var body = new List<byte>(BitConverter.GetBytes(ship)) { (byte)(on ? 1 : 0) };
+        body.AddRange(Sign(callsign));
+        byte[] bytes = body.ToArray();
+        if (IsHost)
+        {
+            _radios[ship] = bytes;
+            Broadcast(KindRadioState, bytes, reliable: true, except: null);
+        }
+        else
+            Send(HostPeer, KindRadioState, bytes, reliable: true);
+    }
+
+    /// <summary>A guest: its ship asks a station (by callsign) for something; the host's station answers.</summary>
+    public void Request(ushort ship, string station, byte what)
+    {
+        if (IsHost)
+            return;
+        var body = new List<byte>(BitConverter.GetBytes(ship));
+        body.AddRange(Sign(station));
+        body.Add(what);
+        Send(HostPeer, KindRequest, body.ToArray(), reliable: true);
+    }
+
+    /// <summary>The host: a station cleared another machine's ship to a dock (0: the clearance is over).</summary>
+    public void Cleared(ushort ship, string station, int dock)
+    {
+        byte owner = NetIds.Owner(ship);
+        if (!IsHost || owner == LocalPeer)
+            return;
+        var body = new List<byte>(BitConverter.GetBytes(ship));
+        body.AddRange(Sign(station));
+        body.Add((byte)Math.Clamp(dock, 0, 255));
+        Send(owner, KindCleared, body.ToArray(), reliable: true);
+    }
+
+    /// <summary>The host: a station's dock opens or shuts, on every machine.</summary>
+    public void Dock(string station, int dock, bool open)
+    {
+        if (!IsHost)
+            return;
+        if (open)
+            _docks[(station, dock)] = true;
+        else
+            _docks.Remove((station, dock));
+        Broadcast(KindDock, DockBody(station, dock, open), reliable: true, except: null);
+    }
+
+    private static byte[] DockBody(string station, int dock, bool open)
+    {
+        var body = new List<byte>(Sign(station)) { (byte)Math.Clamp(dock, 0, 255), (byte)(open ? 1 : 0) };
+        return body.ToArray();
+    }
+
+    private static byte[] Sign(string callsign) => Ascii((callsign ?? "").PadRight(Radio.CallsignLength)[..Radio.CallsignLength]);
+
+    private static byte[] Ascii(string text)
+    {
+        var bytes = new byte[(text ?? "").Length];
+        for (int i = 0; i < bytes.Length; i++)
+            bytes[i] = text[i] is >= ' ' and <= '~' ? (byte)text[i] : (byte)'?';
+        return bytes;
+    }
+
+    private static string Text(byte[] bytes, int from, int to) =>
+        System.Text.Encoding.ASCII.GetString(bytes, from, Math.Min(to, bytes.Length) - from);
 
     /// <summary>A ship here threw out something that flies on its own (<paramref name="scene"/>); everyone else makes it.</summary>
     public void Drop(uint now, byte scene, SectorPoint at, Vector3 velocity)
@@ -347,6 +468,11 @@ public sealed class Session
                 foreach ((ushort id, byte scene) in _spawned)
                     if (NetIds.Owner(id) != peer)
                         Send(peer, KindSpawn, SpawnBody(id, scene), reliable: true);
+                foreach ((ushort id, byte[] radio) in _radios)
+                    if (NetIds.Owner(id) != peer)
+                        Send(peer, KindRadioState, radio, reliable: true);
+                foreach ((string station, int dock) in _docks.Keys)
+                    Send(peer, KindDock, DockBody(station, dock, true), reliable: true);
             }
     }
 
@@ -542,9 +668,55 @@ public sealed class Session
                 if (IsHost)
                 {
                     BlastEvent blast = BlastEvent.Read(new BitReader(body));
-                    if (blast.Shooter == peer && theirs(blast.Missile))
+                    if (blast.Shooter == peer && theirs(blast.Missile) && theirs(blast.Ship))
                         Judge.Blast(blast);
                 }
+                break;
+
+            case KindRadio:
+                if (!IsHost && peer == HostPeer && body.Length >= 3 + Radio.CallsignLength &&
+                    body.Length >= 3 + Radio.CallsignLength + body[2 + Radio.CallsignLength])
+                {
+                    ushort id = BitConverter.ToUInt16(body, 0);
+                    int spoken = 3 + Radio.CallsignLength, text = spoken + body[spoken - 1];
+                    if (_entities.GetValueOrDefault(id) is INetEntity { IsLocal: true } e)
+                        RadioHeard?.Invoke(e, Text(body, 2, 2 + Radio.CallsignLength).TrimEnd(), Text(body, text, body.Length), Text(body, spoken, text));
+                }
+                break;
+
+            case KindRadioState:
+                if (body.Length == 3 + Radio.CallsignLength)
+                {
+                    ushort id = BitConverter.ToUInt16(body, 0);
+                    if (!theirs(id) || NetIds.Owner(id) == LocalPeer)
+                        return;
+                    if (IsHost)
+                    {
+                        _radios[id] = body;
+                        Broadcast(KindRadioState, body, reliable: true, except: peer);
+                    }
+                    RadioChanged?.Invoke(id, Text(body, 3, body.Length).TrimEnd(), body[2] != 0);
+                }
+                break;
+
+            case KindRequest:
+                if (IsHost && body.Length == 3 + Radio.CallsignLength)
+                {
+                    ushort id = BitConverter.ToUInt16(body, 0);
+                    if (theirs(id))
+                        Requested?.Invoke(id, Text(body, 2, 2 + Radio.CallsignLength).TrimEnd(), body[^1]);
+                }
+                break;
+
+            case KindCleared:
+                if (!IsHost && peer == HostPeer && body.Length == 3 + Radio.CallsignLength &&
+                    _entities.GetValueOrDefault(BitConverter.ToUInt16(body, 0)) is INetEntity { IsLocal: true } cleared)
+                    DockCleared?.Invoke(cleared, Text(body, 2, 2 + Radio.CallsignLength).TrimEnd(), body[^1]);
+                break;
+
+            case KindDock:
+                if (!IsHost && peer == HostPeer && body.Length == 2 + Radio.CallsignLength)
+                    DockChanged?.Invoke(Text(body, 0, Radio.CallsignLength).TrimEnd(), body[^2], body[^1] != 0);
                 break;
 
             case KindDrop:

@@ -24,4 +24,5 @@ public struct PilotControls
     public bool PipReset;
     public bool HeatSink;
     public bool Jammer;             // the jammer: off, noise, deception, off
+    public bool Parking;            // FLIGHT's parking mode, on and off
 }

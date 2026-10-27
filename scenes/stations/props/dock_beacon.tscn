@@ -1,0 +1,58 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Shader" path="res://assets/materials/dock_beam.gdshader" id="1_beam"]
+
+[sub_resource type="StandardMaterial3D" id="Material_lights"]
+albedo_color = Color(0.25, 1, 0.7, 1)
+emission_enabled = true
+emission = Color(0.25, 1, 0.7, 1)
+emission_energy_multiplier = 4.0
+
+[sub_resource type="BoxMesh" id="Mesh_side"]
+material = SubResource("Material_lights")
+size = Vector3(0.8, 23.6, 0.8)
+
+[sub_resource type="BoxMesh" id="Mesh_top"]
+material = SubResource("Material_lights")
+size = Vector3(56.4, 0.8, 0.8)
+
+[sub_resource type="ShaderMaterial" id="Material_beam"]
+render_priority = 0
+shader = ExtResource("1_beam")
+
+[sub_resource type="BoxMesh" id="Mesh_beam"]
+material = SubResource("Material_beam")
+size = Vector3(54, 22, 220)
+
+[node name="DockBeacon" type="Node3D"]
+
+[node name="Left" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27.8, 0, 0.6)
+mesh = SubResource("Mesh_side")
+cast_shadow = 0
+
+[node name="Right" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27.8, 0, 0.6)
+mesh = SubResource("Mesh_side")
+cast_shadow = 0
+
+[node name="Top" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11.4, 0.6)
+mesh = SubResource("Mesh_top")
+cast_shadow = 0
+
+[node name="Bottom" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -11.4, 0.6)
+mesh = SubResource("Mesh_top")
+cast_shadow = 0
+
+[node name="Beam" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 110.5)
+mesh = SubResource("Mesh_beam")
+cast_shadow = 0
+
+[node name="Light" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 8)
+light_color = Color(0.25, 1, 0.7, 1)
+light_energy = 4.0
+omni_range = 60.0

@@ -33,6 +33,20 @@ namespace Xpace.Net;
 /// and flares dropped here (<see cref="Countermeasures.Drop"/>) are made on
 /// every machine. A ship a radar somewhere has locked is painted here, if
 /// it is this machine's.
+///
+/// Every machine's ships fight under the same eyes (<see cref="Combat"/>):
+/// a round or a missile another machine fires goes off here too, the host's
+/// hits name the ship that fired, and a ship that blew up on its owner's
+/// machine was destroyed by the last ship to hit it (within
+/// <see cref="BlameSeconds"/>). So a station's security, on the host, judges
+/// a guest as it judges anyone, and what its radio says to a guest's ship
+/// (a <see cref="RemoteRadio"/> hears it) reaches that guest's radio.
+///
+/// The host's stations are the stations: a guest's request for a dock goes
+/// to the host's station of the same callsign, its clearance comes back to
+/// the guest's radio, and the docks it opens and shuts open and shut on
+/// every machine. Every ship's radio is as its owner has it: callsign (the
+/// pilot's name, for players) and power.
 /// </summary>
 public partial class SessionNode : Node
 {
@@ -48,6 +62,9 @@ public partial class SessionNode : Node
     /// the session starts, leaving only the players.
     /// </summary>
     [Export] public bool KeepSceneShips = true;
+
+    /// <summary>A ship that blows up this soon after a hit was destroyed by whoever hit it.</summary>
+    [Export] public float BlameSeconds = 10f;
 
     /// <summary>What a session can make on every machine: missiles, chaff, flares (the same list everywhere).</summary>
     [Export] public Godot.Collections.Array<PackedScene> Spawnables = new();
@@ -77,6 +94,10 @@ public partial class SessionNode : Node
     public bool Active => Session != null;
 
     private FloatingOrigin _origin;
+    private readonly System.Collections.Generic.Dictionary<ushort, (ushort By, uint At)> _lastHit = new();
+    private readonly System.Collections.Generic.HashSet<ushort> _down = new();
+    private readonly System.Collections.Generic.Dictionary<ushort, (IRadio Radio, string Sign, bool On)> _radios = new();
+    private readonly System.Collections.Generic.Dictionary<ushort, (string Sign, bool On)> _theirRadios = new();
 
     public override void _EnterTree()
     {
@@ -88,6 +109,7 @@ public partial class SessionNode : Node
     {
         if (Instance == this)
             Instance = null;
+        HangarDock.Changed -= DockChanged;
     }
 
     public override void _Ready()
@@ -111,7 +133,21 @@ public partial class SessionNode : Node
         Session.SpawnRemote = Spawn;
         Session.SpawnDynamic = SpawnPuppet;
         Session.RoundFired += Show;
+        Session.RoundFired += e => Combat.Fire(NodeOf(e.Ship), Scene(e.Origin));
         Session.HitConfirmed += Confirmed;
+        Session.RadioHeard += Heard;
+        Session.RadioChanged += RadioChanged;
+        Session.Requested += Requested;
+        Session.DockCleared += DockCleared;
+        Session.DockChanged += (station, number, open) =>
+            StationRadio.Called(station)?.Docks.FirstOrDefault(d => d.Number == number)?.Show(open);
+        if (Session.IsHost)
+        {
+            HangarDock.Changed += DockChanged;
+            foreach (StationRadio station in StationRadio.All)
+                foreach (HangarDock dock in station.Docks.Where(d => d.IsOpen))
+                    DockChanged(dock);
+        }
         Session.Despawned += (e, tick, exploded) => (e as NetBody)?.EndAt(tick, exploded);
         Session.Dropped += Dropped;
         Session.Forgotten += e =>
@@ -167,6 +203,38 @@ public partial class SessionNode : Node
             if (!e.IsLocal && e.Track.ShownTick.HasValue && e.Track.Sample() is { Radar: RadarMode.Track } p &&
                 Session.Entity(p.RadarTarget) is NetBody { IsLocal: true } target)
                 target.Paint();
+
+        // The radios of the ships owned here, as they are
+        foreach (INetEntity e in Session.Entities)
+        {
+            if (!e.IsLocal || e is not NetBody { Joined: true } body)
+                continue;
+            if (!_radios.TryGetValue(e.NetId, out var radio))
+                radio = (body.Ship.FindChildren("*", "", true, false).OfType<IRadio>().FirstOrDefault(), null, false);
+            if (radio.Radio is IRadio r && (r.Callsign != radio.Sign || r.RadioOn != radio.On))
+            {
+                radio = (r, r.Callsign, r.RadioOn);
+                Session.SetRadio(e.NetId, radio.Sign, radio.On);
+            }
+            _radios[e.NetId] = radio;
+        }
+
+        // Ships of other machines that blew up there
+        foreach (INetEntity e in Session.Entities)
+        {
+            if (e.IsLocal || !e.Track.ShownTick.HasValue)
+                continue;
+            bool down = e.Track.Sample().Destroyed;
+            if (down && _down.Add(e.NetId))
+            {
+                Node3D by = _lastHit.TryGetValue(e.NetId, out var hit) && (Now - hit.At) * Session.TickSeconds < BlameSeconds
+                    ? NodeOf(hit.By) : null;
+                if (NodeOf(e.NetId) is Node3D ship)
+                    Combat.Lost(ship, by, ship.GlobalPosition);
+            }
+            else if (!down)
+                _down.Remove(e.NetId);
+        }
     }
 
     /// <summary>A round leaves a muzzle of <paramref name="shooter"/> here (scene position and velocity).</summary>
@@ -180,7 +248,8 @@ public partial class SessionNode : Node
     public void Blast(Node missile, Vector3 at, float fraction, float damage, float lethalRadius, float blastRadius)
     {
         ushort id = IdOf(missile) ?? NetIds.PlayerShip(Session.LocalPeer);
-        Session.Blast(Now, fraction, id, Sector(at), damage, lethalRadius, blastRadius);
+        ushort ship = IdOf((missile as Missile)?.Shooter) ?? NetIds.PlayerShip(Session.LocalPeer);
+        Session.Blast(Now, fraction, id, Sector(at), damage, lethalRadius, blastRadius, ship);
     }
 
     /// <summary>Something thrown out here (a <see cref="Spawnables"/> scene) is made on the other machines too.</summary>
@@ -263,6 +332,8 @@ public partial class SessionNode : Node
         ship.NetId = id;
         ship.Driven = true;
         World.AddChild(ship);
+        if (_theirRadios.TryGetValue(id, out var radio))
+            ship.GetNodeOrNull<RemoteRadio>("Radio")?.Follow(radio.Sign, radio.On);
         return ship;
     }
 
@@ -280,6 +351,15 @@ public partial class SessionNode : Node
         ship.Visible = false;                   // until its first snapshot
         World.AddChild(ship);
         body.Join(id, false, Session.TickSeconds);
+        if (_theirRadios.TryGetValue(id, out var radio))
+            foreach (Xpace.Ship.RadioDevice device in ship.FindChildren("*", "", true, false).OfType<Xpace.Ship.RadioDevice>())
+                device.Follow(radio.Sign, radio.On);
+        // A guest's missile was launched by its player's ship, the only ship a guest flies
+        if (ship is Missile missile && NetIds.Owner(id) != Session.HostPeer && NodeOf(NetIds.PlayerShip(NetIds.Owner(id))) is Node3D shooter)
+        {
+            missile.Shooter = shooter;
+            Combat.Fire(shooter, shooter.GlobalPosition);
+        }
         return body;
     }
 
@@ -300,7 +380,79 @@ public partial class SessionNode : Node
         Projectiles.Instance?.Show(Scene(e.At(now - e.Tick, Session.TickSeconds)), e.Velocity, age, e.Shooter, e.Sequence, e.Kind);
     }
 
-    private void Confirmed(HitEvent hit) => Projectiles.Instance?.Remove(hit.Shooter, hit.Sequence);
+    private void Confirmed(HitEvent hit)
+    {
+        Projectiles.Instance?.Remove(hit.Shooter, hit.Sequence);
+        if (Session.Entity(hit.Target) is INetEntity { IsLocal: false } victim)
+        {
+            _lastHit[victim.NetId] = (hit.Ship, Now);
+            Combat.Struck(NodeOf(victim.NetId), NodeOf(hit.Ship));     // the owner takes it (and Combat hears of it there)
+        }
+    }
+
+    /// <summary>A guest's ship asks a station: the host's station of that callsign answers.</summary>
+    public void Request(IRadioReceiver from, StationRadio station, RadioRequest what)
+    {
+        if (IdOf(from as Node) is ushort ship)
+            Session.Request(ship, station.Sign, (byte)what);
+    }
+
+    /// <summary>The host: another machine's ship asks one of the stations here.</summary>
+    private void Requested(ushort ship, string station, byte what)
+    {
+        if (StationRadio.Called(station) is StationRadio s && NodeOf(ship) is Node3D node &&
+            node.FindChildren("*", "", true, false).OfType<RemoteRadio>().FirstOrDefault() is RemoteRadio radio)
+            s.Request(radio, (RadioRequest)what);
+    }
+
+    /// <summary>The host's station cleared a ship of this machine to a dock: its radio has the clearance.</summary>
+    private void DockCleared(INetEntity ship, string station, int dock)
+    {
+        if (StationRadio.Called(station) is StationRadio s && NodeOf(ship.NetId) is Node3D node &&
+            node.FindChildren("*", "", true, false).OfType<IRadioReceiver>().FirstOrDefault() is IRadioReceiver radio)
+            radio.Cleared(s, dock);
+    }
+
+    /// <summary>The host: a dock here opened or shut; every machine shows it.</summary>
+    private void DockChanged(HangarDock dock)
+    {
+        if (Active && Session.IsHost && dock.Station != null)
+            Session.Dock(dock.Station.Sign, dock.Number, dock.IsOpen);
+    }
+
+    /// <summary>Another machine's ship's radio, as its owner has it.</summary>
+    private void RadioChanged(ushort ship, string callsign, bool on)
+    {
+        _theirRadios[ship] = (callsign, on);       // also for when what shows it is made
+        switch (NodeOf(ship))
+        {
+            case RemoteShip remote:
+                remote.GetNodeOrNull<RemoteRadio>("Radio")?.Follow(callsign, on);
+                break;
+            case Node3D puppet:
+                foreach (Xpace.Ship.RadioDevice radio in puppet.FindChildren("*", "", true, false).OfType<Xpace.Ship.RadioDevice>())
+                    radio.Follow(callsign, on);
+                break;
+        }
+    }
+
+    /// <summary>The host's radio said something to a ship of this machine: its radio hears it.</summary>
+    private void Heard(INetEntity ship, string from, string text, string speech)
+    {
+        if (NodeOf(ship.NetId) is not Node3D node ||
+            node.FindChildren("*", "", true, false).OfType<IRadioReceiver>().FirstOrDefault() is not IRadioReceiver radio)
+            return;
+        IRadio speaker = Radio.All(GetTree()).FirstOrDefault(r => r.Callsign == from) ?? new Speaker(from, node.GlobalPosition);
+        radio.Hear(speaker, text, speech);
+    }
+
+    /// <summary>The host's radio, when this machine has none of that callsign.</summary>
+    private sealed record Speaker(string Callsign, Vector3 RadioPosition) : IRadio
+    {
+        public char Kind => 'S';
+        public float RadioRange => float.MaxValue;
+        public bool RadioOn => true;
+    }
 
     /// <summary>Someone else dropped something: it is made here, already as old as it is by now.</summary>
     private void Dropped(DropEvent d)

@@ -23,4 +23,5 @@ public static class ShipMemory
     public const ushort Screens = 0x1200;                                 // the display card's screen table; screens from 2000h
     public const ushort Rwr = 0x1300;                                     // the warning receiver's emitters
     public const ushort Ratings = 0x1400;                                 // the thrusters' whole rating plate
+    public const ushort Radios = 0x1500, Laws = 0x1600, Messages = 0x1700; // the radio's contacts, the laws it holds, what it heard
 }

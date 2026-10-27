@@ -52,6 +52,12 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     /// <summary>The mode the flight program shows (bit 0: flight assist on).</summary>
     public bool AssistOn => Computer != null && (Computer.Bus[SlotThrusters, 15] & 1) != 0 && !DirectMode;
 
+    /// <summary>The flight program's parking mode is on (bit 2 of the mode shown).</summary>
+    public bool ParkingOn => Computer != null && (Computer.Bus[SlotThrusters, 15] & 4) != 0 && !DirectMode;
+
+    /// <summary>Parking, and keeping to a station's speed limit (bit 3): it has the laws and is inside their zone.</summary>
+    public bool ParkingLimited => ParkingOn && (Computer.Bus[SlotThrusters, 15] & 8) != 0;
+
     public PilotControls Controls { get; private set; }
 
     /// <summary>Metres a second, world axes.</summary>
@@ -249,7 +255,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
                                         (c.NextWeapon ? 32 : 0) | (c.Chaff ? 64 : 0) | (c.Flare ? 128 : 0));
         bus[SlotControls, 15] = (byte)((c.SafeButton ? 1 : 0) | (c.PipSystems ? 2 : 0) | (c.PipEngines ? 4 : 0) |
                                         (c.PipWeapons ? 8 : 0) | (c.PipReset ? 16 : 0) | (c.HeatSink ? 32 : 0) |
-                                        (c.Jammer ? 64 : 0));
+                                        (c.Jammer ? 64 : 0) | (c.Parking ? 128 : 0));
     }
 
     /// <summary>

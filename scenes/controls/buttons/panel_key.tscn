@@ -1,0 +1,22 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/Controls/PushButton.cs" id="1_button"]
+
+[sub_resource type="StandardMaterial3D" id="Material_cap"]
+albedo_color = Color(0.78, 0.79, 0.8, 1)
+roughness = 0.6
+
+[sub_resource type="BoxMesh" id="Mesh_cap"]
+material = SubResource("Material_cap")
+size = Vector3(0.032, 0.02, 0.008)
+
+[node name="PanelKey" type="Node3D" node_paths=PackedStringArray("Part")]
+script = ExtResource("1_button")
+PressOffset = Vector3(0, 0, -0.003)
+Part = NodePath("Cap")
+Radius = 0.016
+
+[node name="Cap" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.004)
+mesh = SubResource("Mesh_cap")
+

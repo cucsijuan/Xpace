@@ -34,7 +34,7 @@ public partial class StationTest : Node
         Solid[] solids = Solid.All.Where(s => station.IsAncestorOf(s)).ToArray();
         int triangles = solids.Sum(s => s.A.Length);
         Check($"every module and part is solid ({solids.Length} solids, {triangles} triangles)",
-              solids.Length == 25 && triangles > 4000);
+              solids.Length == 29 && triangles > 4000);
         int capsules = AvoidCapsule.All.Count(c => station.IsAncestorOf(c));
         Check($"every module has its capsule ({capsules})", capsules == 6);
 
@@ -83,8 +83,14 @@ public partial class StationTest : Node
                 Check($"and the crash takes from the hull ({hull.CrashDamage - before:0} points)", hull.CrashDamage > before);
             }
 
-        // In through each hangar's door, along the room, to the control room
-        // at its back
+        // In through each hangar's door (open: a shut one stops ships, see
+        // docking_test), along the room, to the control room at its back
+        foreach (HangarDock dock in station.FindChildren("*", "", true, false).OfType<HangarDock>())
+        {
+            dock.Door.Seconds = 0.01f;
+            dock.Clear(null);
+        }
+        await Frames(3);
         for (int n = 1; n <= 4; n++)
         {
             var hangar = station.GetNode<Node3D>($"HangarBig{n}");

@@ -127,7 +127,7 @@ public sealed class LagCompensator
                     {
                         Hit?.Invoke(new HitEvent
                         {
-                            Shooter = e.Shooter, Sequence = e.Sequence, Target = t.Id,
+                            Shooter = e.Shooter, Ship = e.Ship, Sequence = e.Sequence, Target = t.Id,
                             Tick = (uint)(e.Tick + n + 1), Damage = e.Damage,
                         });
                         return true;
@@ -164,7 +164,7 @@ public sealed class LagCompensator
             if (damage > 0)
                 Hit?.Invoke(new HitEvent
                 {
-                    Shooter = e.Shooter, Sequence = e.Sequence, Target = t.Id, Tick = e.Tick, Damage = damage,
+                    Shooter = e.Shooter, Ship = e.Ship, Sequence = e.Sequence, Target = t.Id, Tick = e.Tick, Damage = damage,
                 });
         }
         return true;

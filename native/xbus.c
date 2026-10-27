@@ -20,7 +20,7 @@
 #  define XBUS_API
 #endif
 
-#define XBUS_MAX_PORTS 256
+#define XBUS_MAX_PORTS 512
 
 typedef struct xbus {
     pc_card_t card;
@@ -87,7 +87,7 @@ static int x_load_state(void *user, const void *buf, size_t len)
     return 0;
 }
 
-/* Ports base .. base+size-1 (size up to 256), interrupts on IRQ irq_line (2-7). */
+/* Ports base .. base+size-1 (size up to 512), interrupts on IRQ irq_line (2-7). */
 XBUS_API xbus_t *xbus_create(uint16_t base, uint16_t size, int irq_line)
 {
     xbus_t *x;

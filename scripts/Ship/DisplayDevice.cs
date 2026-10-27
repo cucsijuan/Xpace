@@ -15,6 +15,11 @@ public enum DisplayKey
     ZoomOut,
     /// <summary>The screen's system's sound, off or on.</summary>
     Sound,
+    /// <summary>A list's cursor up, down; choose what it is on; back out.</summary>
+    Up,
+    Down,
+    Select,
+    Back,
 }
 
 /// <summary>
@@ -23,7 +28,8 @@ public enum DisplayKey
 ///
 ///   +0 type 6  +1 version 3  +2 segment  +4 screen table (offset)  +6 screens
 ///   +7 the screen of interest (the one the pilot picked; FFh none)
-///   +8 keys pressed so far  +9 the last key (<see cref="DisplayKey"/>)
+///   +8 keys pressed so far  +9 the last key (<see cref="DisplayKey"/>: 1 zoom
+///   in, 2 zoom out, 3 sound, 4 up, 5 down, 6 select, 7 back)
 ///   +10 the screen it was for
 ///
 /// A program looks at +8 now and then: when it has moved on and +10 is its

@@ -14,7 +14,7 @@ namespace Xpace.Net;
 ///
 ///   shooter 8, sequence 16, tick 32 and 1/256 of one 8, position 3 x 32
 ///   (1/1024 m), damage 16 (1/100), lethal and blast radius 2 x 16 (1/100 m),
-///   the missile 16, views as in a fire event
+///   the missile 16, the ship that launched it 16, views as in a fire event
 /// </summary>
 public struct BlastEvent
 {
@@ -27,6 +27,7 @@ public struct BlastEvent
     public float LethalRadius;
     public float BlastRadius;
     public ushort Missile;                  // what went off: not hurt by itself
+    public ushort Ship;                     // the ship that launched it
     public List<FireEvent.View> Views;
 
     /// <summary>What the fragments do at <paramref name="distance"/> m from the burst.</summary>
@@ -50,6 +51,7 @@ public struct BlastEvent
         w.Write((uint)Math.Clamp(Math.Round(LethalRadius * 100), 1, 65535), 16);
         w.Write((uint)Math.Clamp(Math.Round(BlastRadius * 100), 0, 65535), 16);
         w.Write(Missile, 16);
+        w.Write(Ship, 16);
         FireEvent.WriteViews(w, Views);
         return w.ToArray();
     }
@@ -65,6 +67,7 @@ public struct BlastEvent
         LethalRadius = r.Read(16) / 100f,
         BlastRadius = r.Read(16) / 100f,
         Missile = (ushort)r.Read(16),
+        Ship = (ushort)r.Read(16),
         Views = FireEvent.ReadViews(r),
     };
 }

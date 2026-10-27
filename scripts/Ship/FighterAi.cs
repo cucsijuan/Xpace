@@ -52,6 +52,14 @@ namespace Xpace.Ship;
 /// sight it flies with FLIGHT's safe turns on (<see cref="SafeTurnsNearRocks"/>),
 /// so the ship goes where it points; in the open it turns them off again. With none, it hits them.
 ///
+/// Stations' protected zones (<see cref="StationRadio"/>): with
+/// <see cref="RespectsZones"/> it goes after nothing inside one, nor from
+/// inside one, and patrols outside them (a station's police would come).
+/// A station's police (<see cref="Police"/> set) go after only the ships
+/// that station's security holds hostile, wherever they are, and patrol
+/// round the station. Given a <see cref="Route"/>, with no target it flies
+/// the route's points in turn (out of a hangar, back into it).
+///
 /// Put it under the <see cref="ShipBody"/> it flies, beside the ship's
 /// radar, launcher, warning receiver, datalink and rock sensor.
 /// </summary>
@@ -87,6 +95,15 @@ public partial class FighterAi : Node
     [Export] public float BrakeShare = 0.7f;            // of the reverse thrust it counts on to stop
     [Export] public float CreepSpeed = 8f;              // m/s: never slower than this among rocks (a bump at it barely scratches)
     [Export] public bool SafeTurnsNearRocks = true;
+    /// <summary>It keeps out of stations' protected zones, and fights nothing in them.</summary>
+    [Export] public bool RespectsZones = true;
+    /// <summary>A station's security whose police this pilot is (null: none).</summary>
+    [Export] public Space.StationSecurity Police;
+    [Export] public float RouteSpeed = 120f;            // m/s, along a route
+    [Export] public float RouteEndSpeed = 25f;          // m/s, nearing the route's last point
+
+    /// <summary>Points to fly through, in turn, while it has no target.</summary>
+    public readonly Queue<Vector3> Route = new();
 
     /// <summary>What it is doing, for the tests and the curious.</summary>
     public string Doing { get; private set; } = "";
@@ -177,7 +194,7 @@ public partial class FighterAi : Node
             return;
         }
 
-        // The radar's lock: on no friend, a target; on a friend, the next contact
+        // The radar's lock: on no friend, a target; on a friend, the next contact; on what it may not fight, let go
         Target = null;
         if (_radar?.Locked != null)
         {
@@ -189,12 +206,24 @@ public partial class FighterAi : Node
                     Press("next");
                 }
             }
+            else if (!MayEngage(_radar.TrackPosition))
+            {
+                if (_sinceLockPress > 0.6)
+                {
+                    _sinceLockPress = 0;
+                    Press("target");
+                }
+            }
             else
                 Target = _radar.Locked;
         }
+        if (_eyes != null && Police != null)
+            _eyes.Entering = Route.Count > 0 ? Police.Radio?.GetParent() : null;
 
         if (Target != null)
             Attack(ref c, dt);
+        else if (Route.Count > 0)
+            FollowRoute(ref c);
         else if (Interest() is Vector3 echo)
         {
             Doing = "intercepting";
@@ -209,7 +238,7 @@ public partial class FighterAi : Node
                 Press("target");
             }
         }
-        else if (_sinceSeen < SearchSeconds)
+        else if (_sinceSeen < SearchSeconds && MayEngage(_lastSeen))
         {
             Doing = "searching";
             _hadTrack = false;
@@ -236,6 +265,34 @@ public partial class FighterAi : Node
 
     private bool Friendly(Vector3 point) => _link?.Friendly(point, FriendGate) ?? false;
 
+    /// <summary>
+    /// It may fight what is there: a station's police only the station's
+    /// hostile ships; others nothing in a protected zone, nor from one.
+    /// </summary>
+    private bool MayEngage(Vector3 point)
+    {
+        if (Police != null)
+            return Police.Hostiles.Any(h => h.GlobalPosition.DistanceTo(point) < FriendGate);
+        return !RespectsZones || (StationRadio.ProtectingAt(point) == null && StationRadio.ProtectingAt(_ship.GlobalPosition) == null);
+    }
+
+    /// <summary>Through the route's points in turn, slowing for the last.</summary>
+    private void FollowRoute(ref PilotControls c)
+    {
+        Doing = "on its route";
+        _hadTrack = false;
+        Vector3 next = Route.Peek();
+        float range = next.DistanceTo(_ship.GlobalPosition);
+        if (range < (Route.Count > 1 ? 120 : 30))
+        {
+            Route.Dequeue();
+            return;
+        }
+        Steer(ref c, _ship.GlobalBasis.Inverse() * (next - _ship.GlobalPosition));
+        float speed = Route.Count > 1 ? RouteSpeed : Mathf.Clamp(range * 0.15f, RouteEndSpeed, RouteSpeed);
+        c.Throttle = Speed(speed);
+    }
+
     /// <summary>The nearest echo of the last sweep that is none of its friends.</summary>
     private Vector3? Interest()
     {
@@ -246,7 +303,7 @@ public partial class FighterAi : Node
         foreach (RadarDevice.Echo e in _radar.Echoes)
         {
             float range = e.Seen.DistanceTo(_ship.GlobalPosition);
-            if (range < nearest && !Friendly(e.Seen))
+            if (range < nearest && !Friendly(e.Seen) && MayEngage(e.Seen))
             {
                 nearest = range;
                 best = e.Seen;
@@ -313,6 +370,8 @@ public partial class FighterAi : Node
         {
             var way = new Vector3(_rng.RandfRange(-1, 1), _rng.RandfRange(-0.3f, 0.3f), _rng.RandfRange(-1, 1)).Normalized();
             _waypoint = _anchor + way * _rng.RandfRange(0.4f, 1f) * PatrolRadius;
+            if (RespectsZones && Police == null)
+                _waypoint = StationRadio.Outside(_waypoint);
             _hasWaypoint = true;
         }
         Steer(ref c, _ship.GlobalBasis.Inverse() * (_waypoint - _ship.GlobalPosition));

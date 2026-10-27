@@ -208,7 +208,11 @@ public partial class NetBody : Node, INetEntity
         };
     }
 
-    public void TakeHit(HitEvent hit) => _hull?.Hit(hit.Damage);
+    public void TakeHit(HitEvent hit)
+    {
+        if (_hull != null)
+            Combat.Strike(_hull, hit.Damage, SessionNode.Instance?.NodeOf(hit.Ship), Ship.GlobalPosition);
+    }
 
     /// <summary>A puppet: its original ended at <paramref name="tick"/>; it ends when it is shown there.</summary>
     public void EndAt(uint tick, bool exploded)

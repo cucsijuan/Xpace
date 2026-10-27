@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_01_ring_hangar.tscn" id="1_station_01_ring"]
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_02_outer_ring.tscn" id="2_station_02_outer_ring"]
@@ -11,6 +11,15 @@
 [ext_resource type="PackedScene" path="res://scenes/stations/props/turret_laser_double.tscn" id="9_turret_laser_double"]
 [ext_resource type="PackedScene" path="res://scenes/stations/props/turret_missile_double.tscn" id="10_turret_missile_double"]
 [ext_resource type="PackedScene" path="res://scenes/stations/props/hangar_big.tscn" id="11_hangar_big"]
+[ext_resource type="Script" path="res://scripts/Space/StationRadio.cs" id="12_radio"]
+[ext_resource type="Resource" path="res://assets/stations/laws/laws_default.tres" id="13_laws"]
+[ext_resource type="Script" path="res://scripts/Space/StationSecurity.cs" id="14_security"]
+[ext_resource type="PackedScene" path="res://scenes/ships/police_fighter.tscn" id="15_police"]
+[ext_resource type="Script" path="res://scripts/Space/RadioVoicePack.cs" id="20_voice_pack"]
+[ext_resource type="Resource" path="res://assets/voices/operator_f1/voice.tres" id="16_voice_f1"]
+[ext_resource type="Resource" path="res://assets/voices/operator_f2/voice.tres" id="17_voice_f2"]
+[ext_resource type="Resource" path="res://assets/voices/operator_m1/voice.tres" id="18_voice_m1"]
+[ext_resource type="Resource" path="res://assets/voices/operator_m2/voice.tres" id="19_voice_m2"]
 
 [node name="SyntyStation" type="Node3D"]
 
@@ -85,3 +94,13 @@ transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, 
 
 [node name="HangarBig4" parent="." instance=ExtResource("11_hangar_big")]
 transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 187.011, -112, 187.011)
+
+[node name="Radio" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 60, 0)
+script = ExtResource("12_radio")
+Laws = ExtResource("13_laws")
+Voices = Array[ExtResource("20_voice_pack")]([ExtResource("16_voice_f1"), ExtResource("17_voice_f2"), ExtResource("18_voice_m1"), ExtResource("19_voice_m2")])
+
+[node name="Security" type="Node" parent="."]
+script = ExtResource("14_security")
+PoliceScene = ExtResource("15_police")
