@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://assets/stations/bay/hull_trim.glb" id="1_model"]
+[ext_resource type="Material" path="res://assets/materials/synty_station.tres" id="2_material"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="3_paint"]
+
+[node name="HullTrim" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+
+[node name="Paint" type="Node" parent="Model"]
+script = ExtResource("3_paint")
+Material = ExtResource("2_material")

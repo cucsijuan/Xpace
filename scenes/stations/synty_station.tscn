@@ -1,6 +1,6 @@
-[gd_scene load_steps=11 format=3]
+[gd_scene load_steps=12 format=3]
 
-[ext_resource type="PackedScene" path="res://scenes/stations/modules/station_01_ring.tscn" id="1_station_01_ring"]
+[ext_resource type="PackedScene" path="res://scenes/stations/modules/station_01_ring_hangar.tscn" id="1_station_01_ring"]
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_02_outer_ring.tscn" id="2_station_02_outer_ring"]
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_03_inner_ring.tscn" id="3_station_03_inner_ring"]
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_04_hub.tscn" id="4_station_04_hub"]
@@ -10,6 +10,7 @@
 [ext_resource type="PackedScene" path="res://scenes/stations/props/steam_vent.tscn" id="8_steam_vent"]
 [ext_resource type="PackedScene" path="res://scenes/stations/props/turret_laser_double.tscn" id="9_turret_laser_double"]
 [ext_resource type="PackedScene" path="res://scenes/stations/props/turret_missile_double.tscn" id="10_turret_missile_double"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/hangar_big.tscn" id="11_hangar_big"]
 
 [node name="SyntyStation" type="Node3D"]
 
@@ -72,3 +73,15 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.31, 1.57, 44.19)
 
 [node name="Steam3" parent="." instance=ExtResource("8_steam_vent")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.7, 1.57, 40.91)
+
+[node name="HangarBig1" parent="." instance=ExtResource("11_hangar_big")]
+transform = Transform3D(-0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, -0.707107, 187.011, -112, -187.011)
+
+[node name="HangarBig2" parent="." instance=ExtResource("11_hangar_big")]
+transform = Transform3D(-0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, -0.707107, -187.011, -112, -187.011)
+
+[node name="HangarBig3" parent="." instance=ExtResource("11_hangar_big")]
+transform = Transform3D(0.707107, 0, -0.707107, 0, 1, 0, 0.707107, 0, 0.707107, -187.011, -112, 187.011)
+
+[node name="HangarBig4" parent="." instance=ExtResource("11_hangar_big")]
+transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 187.011, -112, 187.011)

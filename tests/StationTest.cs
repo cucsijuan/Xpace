@@ -11,7 +11,8 @@ namespace Xpace.Tests;
 /// The station from Synty's demo, built of modules: every module solid
 /// with its collision mesh; segments stopping on its walls; ships flying
 /// into it, slow and fast, head on and from above, bouncing off and never
-/// passing through; rounds stopped on it; and the capsules round it seen
+/// passing through; a ship flying in through the hangar's door without
+/// touching it; rounds stopped on it; and the capsules round it seen
 /// by a pilot's lidar, unless the pilot means to go in.
 /// Needs the Synty files (tools/import_synty.cmake).
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/station_test.tscn
@@ -33,7 +34,7 @@ public partial class StationTest : Node
         Solid[] solids = Solid.All.Where(s => station.IsAncestorOf(s)).ToArray();
         int triangles = solids.Sum(s => s.A.Length);
         Check($"every module and part is solid ({solids.Length} solids, {triangles} triangles)",
-              solids.Length == 17 && triangles > 4000);
+              solids.Length == 25 && triangles > 4000);
         int capsules = AvoidCapsule.All.Count(c => station.IsAncestorOf(c));
         Check($"every module has its capsule ({capsules})", capsules == 6);
 
@@ -81,6 +82,30 @@ public partial class StationTest : Node
                       ship.LinearVelocity.Dot(way) < 0.5f && deepest > 0);
                 Check($"and the crash takes from the hull ({hull.CrashDamage - before:0} points)", hull.CrashDamage > before);
             }
+
+        // In through each hangar's door, along the room, to the control room
+        // at its back
+        for (int n = 1; n <= 4; n++)
+        {
+            var hangar = station.GetNode<Node3D>($"HangarBig{n}");
+            Vector3 inward = -hangar.GlobalBasis.Z;
+            Vector3 from = hangar.ToGlobal(new Vector3(0, 10, 66));
+            float before = hull.CrashDamage;
+            ship.State = new ShipState
+            {
+                Position = from, Orientation = Basis.LookingAt(inward, hangar.GlobalBasis.Y).GetRotationQuaternion(),
+                Velocity = inward * 20, AngularVelocity = Vector3.Zero,
+            };
+            float firstCrash = float.NaN;
+            for (int f = 0; f < 60 * 12; f++)
+            {
+                await Frames(1);
+                if (float.IsNaN(firstCrash) && hull.CrashDamage > before)
+                    firstCrash = (ship.GlobalPosition - from).Dot(inward);
+            }
+            Check($"a ship flying in through hangar {n}'s door first touches its control room ({firstCrash:0.0} m in)",
+                  firstCrash > 120 && firstCrash < 145);
+        }
 
         // A round fired at it goes no farther
         ship.State = new ShipState { Position = start + new Vector3(0, 3000, 0), Orientation = Quaternion.Identity };

@@ -3,7 +3,7 @@
 # redistributing its files, so they stay out of the repository; without them
 # the game falls back to placeholder geometry.
 #
-#   cmake -DPACK=<path to SourceFiles> -DGODOT=<path to Godot .NET> -P tools/import_synty.cmake
+#   cmake -DPACK=<path to SourceFiles> -DGODOT=<path to Godot .NET> -DBLENDER=<blender> -P tools/import_synty.cmake
 #
 # PACK defaults to .raw-assets/SourceFiles in the project. Collision meshes
 # are not among the source files: they come out of the Unity package
@@ -12,7 +12,11 @@
 # then has Godot import them and runs the mesh part tool on every list in
 # tools/mesh_parts/lists (the cockpit's sliders and switches, as meshes of
 # their own, into assets/synty/parts; see docs/tools/mesh-parts.md). The
-# C# project must be built first (dotnet build).
+# C# project must be built first (dotnet build). With BLENDER, it then builds
+# the big hangar out of Synty's and cuts its room out of the station's ring
+# (tools/station_bay/build_hangar.py and cut_station.py, into
+# assets/synty/cut), and makes hull panels in the station's style
+# (tools/station_bay/hull_panels.py; see docs/stations.md).
 
 get_filename_component(ROOT "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
 if(NOT PACK)
@@ -29,6 +33,7 @@ set(MODELS
   SM_Veh_POV_Cockpit_Frame_02
   SM_Veh_POV_Cockpit_Frame_03
   SM_Ship_Fighter_03
+  SM_Ship_Cruiser_03
   FX_Meshes/SM_Flame_Mesh_New
   FX_Meshes/SM_Pebble_Debris_03
   SM_Prop_Missile_01
@@ -51,6 +56,18 @@ set(MODELS
   SM_Prop_Turret_Base_Double_06
   SM_Prop_Turret_Base_Double_08
   SM_Prop_SpaceWalk_Tube_01
+  SM_Bld_Landing_Platform_01
+  SM_Bld_Hangar_01
+  SM_Bld_Ceiling_Pipes_Straight_01
+  SM_Prop_AirVent_Large_01
+  SM_Prop_Antenna_01
+  SM_Prop_Detail_Machine_01
+  SM_Prop_Detail_Pipes_02
+  SM_Prop_Detail_Wire_03
+  SM_Prop_Detail_Wirebox_01
+  SM_Prop_Wires_01
+  SM_Prop_Wires_03
+  SM_Prop_Wires_05
 )
 set(TEXTURES
   PolygonSciFiSpace_Texture_01_A
@@ -77,6 +94,8 @@ set(COLLISIONS
   SM_Ship_Station_04_Collision
   SM_Ship_Station_05_Collision
   SM_Ship_Station_06_Collision
+  SM_Bld_Hanger_01_Collision
+  SM_Bld_HangerFloor_01_Collision
 )
 
 file(MAKE_DIRECTORY "${DEST}")
@@ -88,7 +107,7 @@ foreach(t IN LISTS TEXTURES)
 endforeach()
 
 if(NOT PACKAGE)
-  file(GLOB PACKAGE "${ROOT}/.raw-assets/*.unitypackage")
+  file(GLOB PACKAGE "${ROOT}/.raw-assets/*SciFi_Space*.unitypackage")
   list(GET PACKAGE 0 PACKAGE)
 endif()
 if(NOT EXISTS "${PACKAGE}")
@@ -123,6 +142,19 @@ foreach(w IN LISTS WANTED)
 endforeach()
 file(REMOVE_RECURSE "${UNPACK}")
 message(STATUS "Synty files copied to ${DEST}")
+
+if(BLENDER)
+  foreach(step build_hangar cut_station hull_panels)
+    execute_process(COMMAND "${BLENDER}" -b -P "${ROOT}/tools/station_bay/${step}.py"
+                    RESULT_VARIABLE made)
+    if(NOT made EQUAL 0)
+      message(FATAL_ERROR "Blender failed on tools/station_bay/${step}.py (${made})")
+    endif()
+  endforeach()
+  message(STATUS "Hangar built and cut into the station: ${DEST}/cut")
+else()
+  message(STATUS "The hangar is not built (run this again with -DBLENDER=<blender>)")
+endif()
 
 if(GODOT)
   execute_process(COMMAND "${GODOT}" --headless --path "${ROOT}" --import

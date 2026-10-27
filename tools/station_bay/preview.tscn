@@ -1,0 +1,37 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/Tools/ViewShots.cs" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/stations/synty_station.tscn" id="2_station"]
+[ext_resource type="Material" path="res://assets/materials/synty_skybox_04.tres" id="3_skybox"]
+
+[sub_resource type="Sky" id="Sky_space"]
+sky_material = ExtResource("3_skybox")
+
+[sub_resource type="Environment" id="Environment_space"]
+background_mode = 2
+sky = SubResource("Sky_space")
+ambient_light_source = 2
+ambient_light_color = Color(0.25, 0.27, 0.32, 1)
+ambient_light_energy = 0.6
+tonemap_mode = 2
+glow_enabled = true
+
+[node name="Preview" type="Node3D"]
+script = ExtResource("1_script")
+Folder = "user://station_hangar"
+Names = PackedStringArray("back_a", "back_b", "top", "back_h1", "front_h1", "front_h3")
+Eyes = PackedVector3Array(-45.61, -67.0, 144.6, -137.53, -132.0, 52.68, -102.18, -32.0, 144.6, 137.53, -82.0, -38.54, 271.88, -87.0, -271.88, -247.13, -92.0, 282.49)
+Targets = PackedVector3Array(-144.6, -102.0, 144.6, -144.6, -102.0, 144.6, -144.6, -86.0, 144.6, 144.6, -102.0, -144.6, 197.64, -97.0, -197.64, -197.64, -97.0, 197.64)
+Fovs = PackedFloat32Array(65, 65, 65, 65, 65, 65)
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_space")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 0, 0, 0)
+light_energy = 1.4
+
+[node name="Station" parent="." instance=ExtResource("2_station")]
+
+[node name="Camera" type="Camera3D" parent="."]
+far = 20000.0

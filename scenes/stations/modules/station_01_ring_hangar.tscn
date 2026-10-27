@@ -1,0 +1,27 @@
+[gd_scene load_steps=6 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/synty/cut/SM_Ship_Station_01_Hangar.glb" id="1_model"]
+[ext_resource type="Material" path="res://assets/materials/synty_station.tres" id="2_material"]
+[ext_resource type="Script" path="res://scripts/Space/Solid.cs" id="3_solid"]
+[ext_resource type="PackedScene" path="res://assets/synty/cut/SM_Ship_Station_01_Collision_Hangar.glb" id="4_collision"]
+[ext_resource type="Script" path="res://scripts/Space/AvoidCapsule.cs" id="5_capsule"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="paint_script"]
+
+[node name="Station01RingHangar" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+
+[node name="Paint" type="Node" parent="Model"]
+script = ExtResource("paint_script")
+Material = ExtResource("2_material")
+
+[node name="Solid" type="Node3D" parent="."]
+script = ExtResource("3_solid")
+Shape = ExtResource("4_collision")
+
+[node name="AvoidCapsule" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -72, 0)
+script = ExtResource("5_capsule")
+Radius = 295.0
+Height = 0.0
+

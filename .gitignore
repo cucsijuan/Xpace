@@ -32,3 +32,6 @@ scripts/Net/EosProduct.g.cs.uid
 
 # Exports (export_presets.cfg)
 /build/
+
+# Python
+__pycache__/

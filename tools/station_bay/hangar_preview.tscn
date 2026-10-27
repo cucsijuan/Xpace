@@ -1,0 +1,55 @@
+[gd_scene load_steps=14 format=3]
+
+[ext_resource type="Script" path="res://scripts/Tools/ViewShots.cs" id="1_shots"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/hangar_big.tscn" id="2_hangar"]
+[ext_resource type="PackedScene" path="res://assets/stations/bay/hangar_floor.glb" id="3_floor"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Ship_Cruiser_03.fbx" id="4_cruiser"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Ship_Fighter_03.fbx" id="5_fighter"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="6_atlas"]
+[ext_resource type="Material" path="res://assets/materials/synty_station.tres" id="7_station"]
+[ext_resource type="Material" path="res://assets/materials/synty_cockpit_glass.tres" id="8_glass"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="9_paint"]
+[ext_resource type="Script" path="res://scripts/Space/MeshSlide.cs" id="10_slide"]
+[ext_resource type="Material" path="res://assets/materials/synty_skybox_04.tres" id="11_skybox"]
+
+[sub_resource type="Sky" id="Sky_space"]
+sky_material = ExtResource("11_skybox")
+
+[sub_resource type="Environment" id="Environment_space"]
+background_mode = 2
+sky = SubResource("Sky_space")
+ambient_light_source = 2
+ambient_light_color = Color(0.25, 0.27, 0.32, 1)
+ambient_light_energy = 0.6
+tonemap_mode = 2
+glow_enabled = true
+
+[node name="HangarPreview" type="Node3D"]
+script = ExtResource("1_shots")
+Folder = "user://hangar_preview"
+Names = PackedStringArray("ceiling_alone", "ceiling_alone2")
+Eyes = PackedVector3Array(0, 8, -20, 0, 12, 10)
+Targets = PackedVector3Array(0, 23, -45, 0, 24, -31)
+Fovs = PackedFloat32Array(80, 80)
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_space")
+
+[node name="Hangar" parent="." instance=ExtResource("2_hangar")]
+
+[node name="Cruiser" parent="." instance=ExtResource("4_cruiser")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 7, -30)
+
+[node name="Paint" type="Node" parent="Cruiser"]
+script = ExtResource("9_paint")
+Material = ExtResource("6_atlas")
+
+[node name="Fighter" parent="." instance=ExtResource("5_fighter")]
+transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 20, 2.6, -15)
+
+[node name="Paint" type="Node" parent="Fighter"]
+script = ExtResource("9_paint")
+Material = ExtResource("6_atlas")
+
+[node name="Camera" type="Camera3D" parent="."]
+far = 20000.0
