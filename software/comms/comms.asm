@@ -581,7 +581,7 @@ draw_laws:
     mov ah, ATTR_STATION
     jmp put_name
 
-; 16 bytes at table_seg:SI into entry; SI past them
+; 16 bytes at table_seg:SI into entry (and the 4 after, for the laws' dock and pad); SI past the 16
 fetch:
     push es
     push ds
@@ -593,6 +593,7 @@ fetch:
     mov ds, [table_seg]
     mov cx, 10
     rep movsw
+    sub si, 4
     pop cx
     pop di
     pop ds

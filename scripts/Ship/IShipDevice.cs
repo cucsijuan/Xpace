@@ -25,4 +25,5 @@ public static class ShipMemory
     public const ushort Ratings = 0x1400;                                 // the thrusters' whole rating plate
     public const ushort Radios = 0x1500, Laws = 0x1600, Messages = 0x1700; // the radio's contacts, the laws it holds, what it heard
     public const ushort Pad = 0x1900;                                     // the landing pad's guidance, as the radio hears it
+    public const ushort Cargo = 0x1A00;                                   // what the hold carries
 }

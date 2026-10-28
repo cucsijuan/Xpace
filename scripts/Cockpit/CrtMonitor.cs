@@ -37,6 +37,9 @@ public partial class CrtMonitor : Resource
     /// <summary>The tube's own colour, unlit.</summary>
     [Export] public Color Tube = new(0.015f, 0.02f, 0.018f);
 
+    /// <summary>A monochrome tube's phosphor: the picture's brightness in this colour (alpha 0: a colour tube).</summary>
+    [Export] public Color Monochrome = new(0, 0, 0, 0);
+
     public void Apply(ShaderMaterial material)
     {
         material.SetShaderParameter("brightness", Brightness);
@@ -51,5 +54,6 @@ public partial class CrtMonitor : Resource
         material.SetShaderParameter("roll", Roll);
         material.SetShaderParameter("glass", Glass);
         material.SetShaderParameter("tube", Tube);
+        material.SetShaderParameter("monochrome", Monochrome);
     }
 }

@@ -77,6 +77,9 @@ public partial class GameSettings : Node
     /// <summary>The name other players see.</summary>
     public string PlayerName = "Pilot";
 
+    /// <summary>Who the player is to every universe they play in (made once, the first time the game runs).</summary>
+    public string PilotId = "";
+
     public bool InvertMouseY;
 
     /// <summary>The mouse's speed as a stick, and turning the head: 1 as the cockpit is made.</summary>
@@ -102,6 +105,11 @@ public partial class GameSettings : Node
         Current = this;
         ControlSets.Register();
         Load();
+        if (PilotId == "")
+        {
+            PilotId = Guid.NewGuid().ToString("N");
+            Save();
+        }
         Apply();
     }
 
@@ -208,6 +216,7 @@ public partial class GameSettings : Node
     {
         var file = new ConfigFile();
         file.SetValue("player", "name", PlayerName);
+        file.SetValue("player", "id", PilotId);
         file.SetValue("video", "resolution", Resolution);
         file.SetValue("video", "window", Window.ToString());
         file.SetValue("video", "vsync", VSync);
@@ -240,6 +249,7 @@ public partial class GameSettings : Node
         if (file.Load(Path) != Error.Ok)
             return;
         PlayerName = file.GetValue("player", "name", PlayerName).AsString();
+        PilotId = file.GetValue("player", "id", PilotId).AsString();
         Resolution = file.GetValue("video", "resolution", Resolution).AsVector2I();
         Enum.TryParse(file.GetValue("video", "window", Window.ToString()).AsString(), out Window);
         VSync = file.GetValue("video", "vsync", VSync).AsBool();

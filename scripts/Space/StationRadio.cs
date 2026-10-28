@@ -66,6 +66,8 @@ public partial class StationRadio : Node3D, IRadio
     /// <summary>{0} the dock's number, {1} the pad's.</summary>
     [Export] public string LaunchText = "Hangar {0} opening. Pad {1}, cleared for launch.";
     [Export] public string NotDockedText = "You are not docked here.";
+    /// <summary>{0} the bounty.</summary>
+    [Export] public string HeldText = "You are wanted here. Launch denied until your bounty of {0} credits is paid.";
     /// <summary>{0} the dock's number.</summary>
     [Export] public string DepartedText = "Hangar {0} closing. Fly safe.";
     /// <summary>{0} the dock's number.</summary>
@@ -80,6 +82,7 @@ public partial class StationRadio : Node3D, IRadio
     [Export] public string DockedSpeech = "";
     [Export] public string LaunchSpeech = "";
     [Export] public string NotDockedSpeech = "";
+    [Export] public string HeldSpeech = "";
     [Export] public string DepartedSpeech = "";
 
     public static readonly List<StationRadio> All = new();
@@ -169,6 +172,16 @@ public partial class StationRadio : Node3D, IRadio
             session.Request(from, this, what);      // the host's station answers
         else
             _replies.Add((from, what, _now + ReplySeconds));
+    }
+
+    /// <summary>The station <paramref name="node"/> is part of (its radio is beside it or beside something above it), or null.</summary>
+    public static StationRadio Above(Node node)
+    {
+        for (Node n = node; n != null; n = n.GetParent())
+            foreach (Node child in n.GetChildren())
+                if (child is StationRadio radio)
+                    return radio;
+        return null;
     }
 
     /// <summary>The station of that callsign, if there is one here.</summary>
@@ -286,10 +299,22 @@ public partial class StationRadio : Node3D, IRadio
             Say(ship, NotDockedText, NotDockedSpeech);
             return;
         }
+        if (Security?.Holds(ShipOf(ship)) == true && Security.Jurisdiction(ShipOf(ship)) is (_, World.CrimeRecord record))
+        {
+            Say(ship, string.Format(HeldText, record.Bounty), HeldSpeech);
+            return;
+        }
         c.Departing = true;
         Doors(c.Dock);
         Say(ship, string.Format(LaunchText, c.Dock.Number, c.Pad?.Number ?? 0), LaunchSpeech, c.Dock.Number);
     }
+
+    /// <summary>The ship is in one of the station's hangars (docked or not: a ship that slipped in counts).</summary>
+    public bool Inside(Node3D ship) => ship != null && _docks.Any(d => d.Holds(ship));
+
+    /// <summary>The ship is docked here, on the pad it was cleared to (and not leaving).</summary>
+    public bool DockedHere(Node3D ship) =>
+        ship != null && _cleared.Any(c => c.Docked && !c.Departing && c.Ship is GodotObject o && IsInstanceValid(o) && ShipOf(c.Ship) == ship);
 
     /// <summary>A dock the station's own ships use (its police): opened for them, not given to anyone else meanwhile.</summary>
     public void Hold(HangarDock dock, Node3D ship, double seconds)

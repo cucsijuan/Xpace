@@ -1,5 +1,5 @@
 # Copies the Synty POLYGON Sci-Fi Space files the game uses from the pack's
-# source files into assets/synty/. The pack's licence does not allow
+# source files into assets/synty/ (and a few of POLYGON Sci-Fi Horror's). The pack's licence does not allow
 # redistributing its files, so they stay out of the repository; without them
 # the game falls back to placeholder geometry. Files whose import settings are
 # not Godot's defaults get them from tools/synty_imports.
@@ -112,6 +112,29 @@ endforeach()
 foreach(t IN LISTS TEXTURES)
   file(COPY "${PACK}/Textures/${t}.png" DESTINATION "${DEST}")
 endforeach()
+
+# A few props out of POLYGON Sci-Fi Horror (HORROR_PACK: its source files' SciFiHorror folder; skipped without it)
+if(NOT HORROR_PACK)
+  set(HORROR_PACK "${ROOT}/.raw-assets/SourceFilesHorror/SciFiHorror")
+endif()
+set(HORROR_MODELS
+  Props/SM_Prop_Kiosk_07
+  Props/SM_Prop_Kiosk_08
+)
+set(HORROR_TEXTURES
+  Alts/PolygonSciFiHorror_01_A
+  Emissive/PolygonSciFiHorror_Emissive_01_A
+)
+if(EXISTS "${HORROR_PACK}/FBX")
+  foreach(m IN LISTS HORROR_MODELS)
+    file(COPY "${HORROR_PACK}/FBX/${m}.fbx" DESTINATION "${DEST}")
+  endforeach()
+  foreach(t IN LISTS HORROR_TEXTURES)
+    file(COPY "${HORROR_PACK}/Textures/${t}.png" DESTINATION "${DEST}")
+  endforeach()
+else()
+  message(WARNING "No Synty Sci-Fi Horror source files at ${HORROR_PACK}: its props stay placeholders")
+endif()
 
 if(NOT PACKAGE)
   file(GLOB PACKAGE "${ROOT}/.raw-assets/*SciFi_Space*.unitypackage")

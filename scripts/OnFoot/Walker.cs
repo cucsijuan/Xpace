@@ -5,6 +5,18 @@ using Xpace.Menu;
 namespace Xpace.OnFoot;
 
 /// <summary>
+/// Something a walker can use with the interact key when it is at it (a ship's seat, a kiosk): in the group
+/// <see cref="Walker.UsesGroup"/>, it offers itself to each walker every frame.
+/// </summary>
+public interface IWalkerUse
+{
+    /// <summary>What using it would do, for the prompt ("board the ship"), if this walker may use it now; else null.</summary>
+    string Offer(Walker walker);
+
+    void Use(Walker walker);
+}
+
+/// <summary>
 /// A person on foot, seen from behind the right shoulder as in Helldivers 2. The mouse turns the camera; WASD walk
 /// (jog) where the camera looks, Shift sprints, Space jumps; the body turns to where it goes, or, while aiming (right
 /// button), to where the camera looks. The dot in the middle of the view is where the camera looks; the circle is
@@ -53,11 +65,19 @@ public partial class Walker : CharacterBody3D
     /// <summary>Where the arms aim from (the chest); the circle is where its ray along the aim meets something.</summary>
     [Export] public Node3D Chest;
 
+    public const string UsesGroup = "walker_uses";
+
     /// <summary>What the player can do here now, shown at the bottom ("E: board the ship"); empty for nothing.</summary>
     public string Prompt { get; set; } = "";
 
-    /// <summary>The interact key was pressed this frame (the mode that owns the walker reads it).</summary>
+    /// <summary>The interact key was pressed this frame (after what it was at was used).</summary>
     public event Action Interacted;
+
+    /// <summary>The player is busy with something on screen (a kiosk): the walker stands still and the mouse is free.</summary>
+    public bool Busy { get; set; }
+
+    /// <summary>What the interact key uses now (<see cref="IWalkerUse"/>), or null.</summary>
+    public IWalkerUse Offered { get; private set; }
 
     /// <summary>Where the arms point (scene direction).</summary>
     public Vector3 AimDirection { get; private set; } = Vector3.Forward;
@@ -119,7 +139,7 @@ public partial class Walker : CharacterBody3D
 
     public override void _UnhandledInput(InputEvent e)
     {
-        if (GameMenu.IsOpen || Camera == null || !Camera.Current)
+        if (GameMenu.IsOpen || Busy || Camera == null || !Camera.Current)
             return;
         switch (e)
         {
@@ -138,7 +158,10 @@ public partial class Walker : CharacterBody3D
                 break;
             default:
                 if (e.IsActionPressed(OnFootInput.Interact, false, true))
+                {
+                    Offered?.Use(this);
                     Interacted?.Invoke();
+                }
                 break;
         }
     }
@@ -157,7 +180,7 @@ public partial class Walker : CharacterBody3D
             GlobalBasis = parent.GlobalBasis.Orthonormalized();
         UpDirection = Up;
 
-        bool controls = !GameMenu.IsOpen && Camera != null && Camera.Current;
+        bool controls = !GameMenu.IsOpen && !Busy && Camera != null && Camera.Current;
         Vector2 input = controls ? Input.GetVector(OnFootInput.Left, OnFootInput.Right, OnFootInput.Forward, OnFootInput.Back) : Vector2.Zero;
         Aiming = controls && Input.IsActionPressed(OnFootInput.Aim);
         bool sprint = controls && !Aiming && Input.IsActionPressed(OnFootInput.Sprint) && input.Y < 0;
@@ -201,6 +224,15 @@ public partial class Walker : CharacterBody3D
     public override void _Process(double delta)
     {
         float dt = (float)delta;
+        Offered = null;
+        Prompt = "";
+        foreach (Node n in Busy ? new Godot.Collections.Array<Node>() : GetTree().GetNodesInGroup(UsesGroup))
+            if (n is IWalkerUse use && use.Offer(this) is string offer)
+            {
+                Offered = use;
+                Prompt = $"{GameSettings.Describe(GameSettings.Binding(OnFootInput.Interact))}: {offer}";
+                break;
+            }
         if (Yaw != null)
             Yaw.Rotation = new Vector3(0, LookYaw, 0);
         if (Pitch != null)

@@ -7,6 +7,7 @@ using Xpace.Computer;
 using Xpace.Net;
 using Xpace.Ship;
 using Xpace.Space;
+using Xpace.World;
 
 namespace Xpace.Tests;
 
@@ -20,6 +21,9 @@ namespace Xpace.Tests;
 ///     the pad here glows for it; over it and lined up, green;
 ///   - the guest's ship (docked on its own machine) sits in its place on the
 ///     pad: the station here shuts the door, everywhere, and tells the guest;
+///   - docked, the guest's pilot trades at the station's market through the
+///     host: the host's universe takes the credits and loads the hold, and
+///     sends the guest the market's answer and the pilot's record;
 ///   - the guest asks to launch: the door opens everywhere, the guest is
 ///     told; once its ship is out of the hangar the door shuts and its
 ///     clearance is over.
@@ -73,6 +77,7 @@ public partial class SessionPadTest : Node
 
     private async Task AsHost()
     {
+        Universe.Current.Forget();
         HangarDock dock = World();
         var hostNode = new SessionNode();
         _origin.AddChild(hostNode);
@@ -107,6 +112,21 @@ public partial class SessionPadTest : Node
               await Until(() => !dock.IsOpen && _doors[^1] == ("HAVEN", dock.Number, false), 3));
         Check($"the guest is told ({Last})", await Until(() => Last.Contains("Docked"), 1));
         Check($"the pad here shows it docked ({pad.State})", pad.State == LandingPad.PadState.Docked);
+
+        var documents = new Dictionary<string, string>();
+        _other.DocumentArrived += (topic, text) => documents[topic] = text;
+        _other.Introduce("ace-pilot", "Ace");
+        Check("the guest says who flies its ship: the host sends the pilot's record",
+              await Until(() => documents.ContainsKey(Universe.PilotTopic), 2) && Universe.Current.PilotOfPeer(GuestPeer) == "ace-pilot");
+        _other.Ask(StationMarket.Topic, System.Text.Json.JsonSerializer.Serialize(
+            new MarketRequest { Station = "HAVEN", Do = MarketRequest.Buy, Good = "food", Tonnes = 2 }));
+        Check("the guest buys at the market through the host", await Until(() => documents.ContainsKey(StationMarket.Topic), 2));
+        MarketView view = System.Text.Json.JsonSerializer.Deserialize<MarketView>(documents.GetValueOrDefault(StationMarket.Topic) ?? "{}");
+        PilotRecord ace = Universe.Current.State.Pilot("ace-pilot");
+        Check($"docked there, the host's universe takes the credits and loads the hold ({view.Message})",
+              view.Docked && ace.Ship.Holds("food") == 2 && ace.Credits < PilotRecord.StartingCredits && view.Credits == ace.Credits);
+        Check("and the guest gets the pilot's record with it",
+              await Until(() => documents[Universe.PilotTopic].Contains("\"food\":2"), 1));
 
         _other.Request(GuestShipId, "HAVEN", (byte)RadioRequest.Launch);
         Check("asking to launch: the door opens, everywhere", await Until(() => dock.IsOpen && _doors[^1] == ("HAVEN", dock.Number, true), 2));

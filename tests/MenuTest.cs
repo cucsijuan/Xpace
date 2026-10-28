@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 using Xpace.Cockpit;
@@ -41,8 +42,9 @@ public partial class MenuTest : Node
               resolution.ItemCount >= 1 && resolution.Selected >= 0 && settings.GetNode<OptionButton>("%Window").ItemCount == 3
               && settings.GetNode<OptionButton>("%Antialiasing").ItemCount == 6);
         var bindings = settings.GetNode<GridContainer>("%Bindings");
-        Check($"every flight action has its binding ({bindings.GetChildCount() / 2} of {FlightInput.Bindable.Length})",
-              bindings.GetChildCount() == 2 * FlightInput.Bindable.Length);
+        int actions = ControlSets.All.Count();
+        Check($"every action has its binding, under its set's heading ({bindings.GetChildCount() / 2 - ControlSets.Sets.Length} of {actions})",
+              bindings.GetChildCount() == 2 * (actions + ControlSets.Sets.Length));
 
         // Rebinding
         tabs.CurrentTab = 3;
@@ -92,7 +94,10 @@ public partial class MenuTest : Node
 
     private async Task Rebind(GridContainer bindings, string action, Key key)
     {
-        int row = System.Array.FindIndex(FlightInput.Bindable, b => b.Action == action);
+        string name = ControlSets.All.First(a => a.Action == action).Name;
+        int row = 0;
+        while (bindings.GetChild(2 * row) is not Label { Text: var text } || text != name)
+            row++;
         bindings.GetChild<Button>(2 * row + 1).EmitSignal(BaseButton.SignalName.Pressed);
         await Frames(10);
         Input.ParseInputEvent(new InputEventKey { PhysicalKeycode = key, Keycode = key, Pressed = true });

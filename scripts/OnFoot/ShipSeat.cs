@@ -12,7 +12,7 @@ namespace Xpace.OnFoot;
 /// with the pilot's own view and controls stopped (<see cref="Pilot.Stand"/>). Back at the ship's side, Use (E)
 /// boards it again. The ship stays on the pad meanwhile, its computer running.
 /// </summary>
-public partial class ShipSeat : Node
+public partial class ShipSeat : Node, IWalkerUse
 {
     [Export] public Pilot Pilot;
     [Export] public PackedScene WalkerScene;
@@ -33,6 +33,7 @@ public partial class ShipSeat : Node
     public override void _Ready()
     {
         OnFootInput.Register();
+        AddToGroup(Walker.UsesGroup);
         _ship = GetParentOrNull<ShipBody>();
         ShowSeated(true);
     }
@@ -75,11 +76,13 @@ public partial class ShipSeat : Node
             Walker = null;
             ShowSeated(true);
             Pilot.Sit();
-            return;
         }
-        bool near = Walker.GlobalPosition.DistanceTo(ExitPoint) < BoardDistance;
-        Walker.Prompt = near ? $"{Key(OnFootInput.Interact)}: board the ship" : "";
     }
+
+    public string Offer(Walker walker) =>
+        walker == Walker && walker.GlobalPosition.DistanceTo(ExitPoint) < BoardDistance ? "board the ship" : null;
+
+    public void Use(Walker walker) => Board();
 
     /// <summary>Where the pilot steps out, in the scene.</summary>
     public Vector3 ExitPoint
@@ -105,7 +108,6 @@ public partial class ShipSeat : Node
         // Looking along the ship, as the pilot did
         Vector3 ahead = Walker.GlobalBasis.Inverse() * -_ship.GlobalBasis.Z;
         Walker.LookYaw = Mathf.Atan2(-ahead.X, -ahead.Z);
-        Walker.Interacted += Board;
         Pilot.Stand();
         ShowSeated(false);
         Walker.TakeControl();

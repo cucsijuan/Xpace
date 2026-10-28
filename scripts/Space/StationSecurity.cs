@@ -3,6 +3,7 @@ using System.Linq;
 using Godot;
 using Xpace.Net;
 using Xpace.Ship;
+using Xpace.World;
 
 namespace Xpace.Space;
 
@@ -25,18 +26,33 @@ public enum Standing
 ///   a weapon going off   the first time, a warning by radio
 ///                        (<see cref="WarningText"/>); going on firing more
 ///                        than <see cref="WarnGraceSeconds"/> after it, the
-///                        ship is hostile (<see cref="EngageText"/>). A ship
-///                        hit by another in the last
+///                        ship is hostile and fined
+///                        (<see cref="EngageText"/>, <see cref="FiringFine"/>).
+///                        A ship hit by another in the last
 ///                        <see cref="DefenceSeconds"/> fires back freely;
+///   a ship damaged       one the security had nothing against: its attacker
+///                        is hostile at once, with a bounty on it
+///                        (<see cref="AssaultText"/>, <see cref="DamageBounty"/>);
 ///   a ship destroyed     one the security had nothing against: its
-///                        destroyer is hostile at once, and told so
-///                        (<see cref="DestroyedText"/>); destroying a
-///                        warned or hostile ship is no crime;
+///                        destroyer is hostile at once, with a big bounty and
+///                        infamy (<see cref="DestroyedText"/>,
+///                        <see cref="KillBounty"/>, <see cref="KillInfamy"/>);
+///                        destroying a warned or hostile ship is no crime;
 ///   going too fast       inside the speed limit's radius, faster than the
 ///                        limit (and <see cref="SpeedTolerance"/>) for
 ///                        <see cref="SpeedingSeconds"/>: a fine, told by
 ///                        radio (<see cref="FineText"/>) and counted in
-///                        <see cref="Fines"/> (money comes later).
+///                        <see cref="Fines"/>; a player owes it to the
+///                        station (<see cref="SpeedingFine"/>, in the
+///                        universe's record of what the station holds
+///                        against the pilot) until it is paid.
+///
+/// What players owe goes on their record with the station, in the universe
+/// (<see cref="CrimeRecord"/>, with <see cref="Justice"/>'s rules), but only
+/// for a ship it can tell who flies: one whose radio is on. A pilot with a
+/// bounty here is held on the pad until it is paid (<see cref="Holds"/>); a
+/// notorious one is refused docking and attacked on sight
+/// (<see cref="NotoriousText"/>).
 ///
 /// Hostile ships are fair game for its police: up to
 /// <see cref="PoliceCount"/> of <see cref="PoliceScene"/> launch from the
@@ -57,6 +73,15 @@ public partial class StationSecurity : Node
     [Export] public float SpeedTolerance = 1.1f;
     [Export] public double SpeedingSeconds = 3;
     [Export] public double FineEverySeconds = 60;
+    /// <summary>What speeding costs (credits).</summary>
+    [Export] public long SpeedingFine = 200;
+    /// <summary>What going on firing after the warning costs.</summary>
+    [Export] public long FiringFine = 500;
+    /// <summary>The bounty for damaging a ship that had done nothing.</summary>
+    [Export] public long DamageBounty = 1000;
+    /// <summary>The bounty for destroying one, and the infamy it brings (<see cref="Justice.Notorious"/> is 1).</summary>
+    [Export] public long KillBounty = 5000;
+    [Export] public double KillInfamy = 2;
 
     [ExportGroup("Police")]
     [Export] public PackedScene PoliceScene;
@@ -68,11 +93,15 @@ public partial class StationSecurity : Node
 
     [ExportGroup("Texts")]
     [Export] public string WarningText = "Weapons fire in the protected zone. Cease fire or you will be engaged.";
-    [Export] public string EngageText = "You were warned. Police are engaging you.";
-    /// <summary>{0} the ship destroyed.</summary>
-    [Export] public string DestroyedText = "You destroyed {0}. Police are engaging you.";
-    /// <summary>{0} the speed (m/s), {1} the limit.</summary>
-    [Export] public string FineText = "Speeding at {0} m/s, limit {1} m/s. You have been fined.";
+    /// <summary>{0} the fine.</summary>
+    [Export] public string EngageText = "You were warned. You have been fined {0} credits. Police are engaging you.";
+    /// <summary>{0} the ship attacked, {1} the bounty.</summary>
+    [Export] public string AssaultText = "You attacked {0}. A bounty of {1} credits is on you. Police are engaging you.";
+    /// <summary>{0} the ship destroyed, {1} the bounty.</summary>
+    [Export] public string DestroyedText = "You destroyed {0}. A bounty of {1} credits is on you. Police are engaging you.";
+    [Export] public string NotoriousText = "You are not welcome here. Police are engaging you.";
+    /// <summary>{0} the speed (m/s), {1} the limit, {2} the fine.</summary>
+    [Export] public string FineText = "Speeding at {0} m/s, limit {1} m/s. You have been fined {2} credits.";
 
     /// <summary>The station operator's lines for each text (see <see cref="StationRadio.Say"/>).</summary>
     [ExportGroup("Speech")]
@@ -89,13 +118,14 @@ public partial class StationSecurity : Node
 
     public StationRadio Radio { get; private set; }
 
-    /// <summary>Fines given, by ship (for when there is money).</summary>
+    /// <summary>Fines given, by ship (players also owe them: <see cref="Fine"/>).</summary>
     public IReadOnlyDictionary<Node3D, int> Fines => _fines;
 
     private readonly Dictionary<Node3D, Record> _records = new();
     private readonly Dictionary<Node3D, (Node3D By, double At)> _lastHit = new();
     private readonly Dictionary<Node3D, int> _fines = new();
     private readonly Dictionary<Node3D, (double Fast, double Fined)> _speeding = new();
+    private readonly Dictionary<(Node3D By, Node3D Victim), double> _assaults = new();
     private readonly List<(Node3D Ship, FighterAi Pilot, HangarDock From)> _police = new();
     private readonly HashSet<Node3D> _returning = new();
     private double _now, _quiet, _sinceLaunch = double.MaxValue, _sinceLook;
@@ -123,8 +153,28 @@ public partial class StationSecurity : Node
 
     public Standing StandingOf(Node3D ship) => ship != null && _records.TryGetValue(ship, out Record r) ? r.Standing : Standing.Clean;
 
-    /// <summary>Traffic control does not deal with it.</summary>
-    public bool Refuses(Node3D ship) => StandingOf(ship) == Standing.Hostile;
+    /// <summary>Traffic control does not deal with it: hostile now, or its pilot is notorious here.</summary>
+    public bool Refuses(Node3D ship) => StandingOf(ship) == Standing.Hostile || Notorious(ship);
+
+    /// <summary>Its pilot is wanted here: held on the pad until the bounty is paid (or the ship impounded for it).</summary>
+    public bool Holds(Node3D ship) =>
+        Jurisdiction(ship) is (PilotRecord pilot, CrimeRecord record) && Justice.Wanted(record) &&
+        !Universe.Current.State.Station(Radio.Sign).Impounded.ContainsKey(pilot.Id);
+
+    /// <summary>Its pilot's infamy here is too high: refused and attacked on sight.</summary>
+    public bool Notorious(Node3D ship) => Jurisdiction(ship) is (PilotRecord pilot, CrimeRecord record) && Justice.IsNotorious(record, pilot);
+
+    /// <summary>The pilot flying the ship and their record here, if the ship can be told (its radio on) and a player flies it.</summary>
+    public (PilotRecord Pilot, CrimeRecord Record)? Jurisdiction(Node3D ship)
+    {
+        if (Radio == null || ship == null || Universe.Current is not Universe universe || universe.IsGuest ||
+            !Identified(ship) || universe.PilotOf(ship) is not PilotRecord pilot)
+            return null;
+        return (pilot, universe.State.Station(Radio.Sign).CrimesOf(pilot.Id));
+    }
+
+    private static bool Identified(Node3D ship) =>
+        ship.FindChildren("*", "", true, false).OfType<IRadio>().Any(r => r.RadioOn);
 
     /// <summary>The ships its police go after.</summary>
     public IEnumerable<Node3D> Hostiles => _records.Where(kv => kv.Value.Standing == Standing.Hostile && Valid(kv.Key)).Select(kv => kv.Key);
@@ -146,10 +196,24 @@ public partial class StationSecurity : Node
             Say(ship, WarningText, WarningSpeech);
         }
         else if (r.Standing == Standing.Warned && _now - r.Since > WarnGraceSeconds)
-            Engage(ship, EngageText, EngageSpeech);
+        {
+            Owe(ship, FiringFine, 0, 0);
+            Engage(ship, string.Format(EngageText, FiringFine), EngageSpeech);
+        }
     }
 
-    private void OnDamaged(Node3D victim, Node3D by) => _lastHit[victim] = (by, _now);
+    private void OnDamaged(Node3D victim, Node3D by)
+    {
+        bool crime = Acts && by != null && by != victim && Radio.Protects(victim.GlobalPosition) && !IsPolice(by) && !Defending(by) &&
+                     StandingOf(victim) == Standing.Clean &&
+                     !(_assaults.TryGetValue((by, victim), out double at) && _now - at < DefenceSeconds);
+        _lastHit[victim] = (by, _now);
+        if (!crime)
+            return;
+        _assaults[(by, victim)] = _now;
+        Owe(by, 0, DamageBounty, 0);
+        Engage(by, string.Format(AssaultText, Callsign(victim), DamageBounty), EngageSpeech, force: true);
+    }
 
     private void OnDestroyed(Node3D victim, Node3D by, Vector3 at)
     {
@@ -158,16 +222,20 @@ public partial class StationSecurity : Node
         _records.Remove(victim);                    // a ship destroyed starts clean
         _lastHit.Remove(victim);
         if (crime)
-            Engage(by, string.Format(DestroyedText, Callsign(victim)), DestroyedSpeech);
+        {
+            Owe(by, 0, KillBounty, KillInfamy);
+            Engage(by, string.Format(DestroyedText, Callsign(victim), KillBounty), DestroyedSpeech, force: true);
+        }
     }
 
     // Hit by another ship lately: firing back is no crime
     private bool Defending(Node3D ship) => _lastHit.TryGetValue(ship, out var hit) && _now - hit.At < DefenceSeconds && hit.By != ship;
 
-    private void Engage(Node3D ship, string text, string speech)
+    // Hostile from now; told so, unless it already was (a new crime is told anyway)
+    private void Engage(Node3D ship, string text, string speech, bool force = false)
     {
         Record r = RecordOf(ship);
-        if (r.Standing == Standing.Hostile)
+        if (r.Standing == Standing.Hostile && !force)
             return;
         r.Standing = Standing.Hostile;
         r.Since = r.LastSeen = _now;
@@ -200,6 +268,7 @@ public partial class StationSecurity : Node
         if (_sinceLook >= 0.5)
         {
             Speeding(_sinceLook);
+            OnSight();
             _sinceLook = 0;
         }
         Police(delta);
@@ -222,6 +291,8 @@ public partial class StationSecurity : Node
         }
         foreach (Node3D ship in _lastHit.Keys.Where(s => !Valid(s)).ToList())
             _lastHit.Remove(ship);
+        foreach (var pair in _assaults.Keys.Where(p => !Valid(p.By) || !Valid(p.Victim)).ToList())
+            _assaults.Remove(pair);
     }
 
     private void Speeding(double dt)
@@ -239,12 +310,34 @@ public partial class StationSecurity : Node
             {
                 fined = _now;
                 _fines[ship] = (_fines.TryGetValue(ship, out int n) ? n : 0) + 1;
-                Say(ship, string.Format(FineText, Mathf.RoundToInt(speed), Mathf.RoundToInt(laws.SpeedLimit)), FineSpeech);
+                Owe(ship, SpeedingFine, 0, 0);
+                Say(ship, string.Format(FineText, Mathf.RoundToInt(speed), Mathf.RoundToInt(laws.SpeedLimit), SpeedingFine), FineSpeech);
             }
             _speeding[ship] = (fast, fined);
         }
         foreach (Node3D ship in _speeding.Keys.Where(s => !Valid(s)).ToList())
             _speeding.Remove(ship);
+    }
+
+    /// <summary>The player flying <paramref name="ship"/> (if it can be told) owes the station more, or is more infamous here.</summary>
+    private void Owe(Node3D ship, long fine, long bounty, double infamy)
+    {
+        if (Jurisdiction(ship) is not (PilotRecord pilot, CrimeRecord record))
+            return;
+        record.Fines += fine;
+        record.Bounty += bounty;
+        if (infamy > 0)
+            Justice.AddInfamy(record, pilot, infamy);
+        Universe.Current.Touch(pilot);
+    }
+
+    // Notorious pilots it can tell, in the zone: attacked on sight
+    private void OnSight()
+    {
+        foreach (Node node in GetTree().GetNodesInGroup(Space.Radio.Group))
+            if (Combat.ShipOf(node) is Node3D ship && Combat.IsAlive(ship) && !IsPolice(ship) &&
+                Radio.Protects(ship.GlobalPosition) && StandingOf(ship) != Standing.Hostile && Notorious(ship))
+                Engage(ship, NotoriousText, EngageSpeech);
     }
 
     private static Vector3? Velocity(Node3D ship) => ship switch

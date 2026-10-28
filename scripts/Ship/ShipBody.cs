@@ -35,7 +35,29 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     public const int SlotControls = 0, SlotInertial = 1, SlotThrusters = 2, SlotRatings = 10;
     public const byte TypeControls = 1, TypeInertial = 2, TypeThrusters = 3, TypeRatings = 12;
 
-    [Export] public ShipSpec Spec;
+    [Export]
+    public ShipSpec Spec
+    {
+        get => _spec;
+        set
+        {
+            if (_spec == value)
+                return;
+            _spec = value;
+            SpecChanged?.Invoke();
+        }
+    }
+    private ShipSpec _spec;
+
+    /// <summary>The hull changed (a courtesy ship for an impounded one, say).</summary>
+    public event System.Action SpecChanged;
+
+    /// <summary>What the hold carries (kg; <see cref="CargoHold"/> sets it).</summary>
+    public float CargoMass { get; set; }
+
+    /// <summary>The hull and what it carries (kg).</summary>
+    public float Mass => Spec.Mass + CargoMass;
+
     [Export] public NodePath ComputerPath = "ShipComputer";
     [Export] public double WatchdogSeconds = 0.1;
     /// <summary>What goes when it blows up, fading into the fire and smoke (its outside: model, plumes), until it comes back.</summary>
@@ -343,8 +365,10 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         float forward = Commands[5] >= 0 ? Commands[5] * s.MainThrust : Commands[5] * s.Reverse;
         var force = new Vector3(Commands[3] * s.Lateral, Commands[4] * s.Vertical, -forward);
         ShipState before = State;
-        ShipState after = ShipMotion.Step(before, force, torque, s.Mass, s.Inertia, dt, s.VeilAxes, s.VeilSpin);
-        float crash = ShipContact.Collide(ref after, before.Position, _hitboxes, _bound, s, _near);
+        // Cargo is spread through the hull: it weighs on turning as on going
+        float load = Mass / s.Mass;
+        ShipState after = ShipMotion.Step(before, force, torque, Mass, s.Inertia * load, dt, s.VeilAxes, s.VeilSpin);
+        float crash = ShipContact.Collide(ref after, before.Position, _hitboxes, _bound, s, _near, load);
         State = after;
         if (crash > 0)
             Impact?.Invoke(crash);

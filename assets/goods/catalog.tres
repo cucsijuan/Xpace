@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="GoodsCatalog" load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/World/GoodsCatalog.cs" id="1_catalog"]
+[ext_resource type="Script" path="res://scripts/World/Good.cs" id="1_good"]
+[ext_resource type="Resource" path="res://assets/goods/water.tres" id="2_water"]
+[ext_resource type="Resource" path="res://assets/goods/food.tres" id="3_food"]
+[ext_resource type="Resource" path="res://assets/goods/hydrogen.tres" id="4_hydrogen"]
+[ext_resource type="Resource" path="res://assets/goods/iron_ore.tres" id="5_iron_ore"]
+[ext_resource type="Resource" path="res://assets/goods/metals.tres" id="6_metals"]
+[ext_resource type="Resource" path="res://assets/goods/machinery.tres" id="7_machinery"]
+[ext_resource type="Resource" path="res://assets/goods/electronics.tres" id="8_electronics"]
+[ext_resource type="Resource" path="res://assets/goods/medicines.tres" id="9_medicines"]
+
+[resource]
+script = ExtResource("1_catalog")
+Goods = Array[ExtResource("1_good")]([ExtResource("2_water"), ExtResource("3_food"), ExtResource("4_hydrogen"), ExtResource("5_iron_ore"), ExtResource("6_metals"), ExtResource("7_machinery"), ExtResource("8_electronics"), ExtResource("9_medicines")])

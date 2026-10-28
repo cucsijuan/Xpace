@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="ShipSpec" format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="1_spec"]
+[ext_resource type="Resource" uid="uid://o32wi1s62afr" path="res://assets/ship/thrusters/thrusters_t35.tres" id="2_thrusters"]
+[ext_resource type="Resource" path="res://assets/ship/monitors/old_green.tres" id="3_screens"]
+
+[resource]
+script = ExtResource("1_spec")
+Thrusters = ExtResource("2_thrusters")
+VeilDrag = 0.00031
+Compartments = PackedInt32Array(3, 2)
+CargoRacks = PackedInt32Array(2, 0)
+Screens = ExtResource("3_screens")

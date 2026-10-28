@@ -22,7 +22,7 @@ public sealed class EnetTransport : INetTransport, IDisposable
     public const int MaxGuests = 15;
 
     /// <summary>Bumped whenever the packets change: other versions are turned away.</summary>
-    public const byte Version = 7;
+    public const byte Version = 8;
 
     private const int Unreliable = 0, Reliable = 1, Control = 2, Channels = 3;
     private const byte Welcome = 1;

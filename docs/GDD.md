@@ -207,6 +207,7 @@ Engines are products: a manufacturer can close a flaw in a newer firmware, so an
 - Stations produce from raw materials in production chains like X4's: ore → metal → components → modules → ships.
 - The economy is simulated: prices from supply and demand, and trading ships that really exist and can be attacked.
 - **Nothing comes from nowhere.** Every good, part and ship is made from materials someone mined and refined. A ship is not taken off a shelf: it is ordered at a shipyard, which builds it from what it has in stock, as in X4. The same goes for missiles, rounds, modules and anything else the game sells: each has a recipe and a place that makes it.
+- **Built so far (M5):** station markets whose stock moves with universe time and whose prices move with stock; two stations with complementary markets; cargo racks in hull compartments, cargo with weight; a character inventory and a locker at each station. See docs/universe.md.
 - **Players can steer the economy, with consequences.** Supplying, starving or blockading a chain changes what stations can make and what things cost downstream: cutting off a shipyard's metal stops its ships, flooding a market sinks its prices.
 
 ### 8.2 Corporations
@@ -229,6 +230,15 @@ Engines are products: a manufacturer can close a flaw in a newer firmware, so an
   - setting taxes and tolls;
   - forming alliances;
   - founding a faction of your own.
+
+### 8.4 Law and crime (decided)
+
+- Each station keeps a record of what it holds against each pilot: its jurisdiction (factions' jurisdictions later).
+- **Fines** (speeding, firing in the protected zone) are owed: the pilot docks, trades and pays as anyone.
+- **A bounty** (damaging a ship that did nothing) makes the pilot wanted: docked, they are held on the pad until it is paid.
+- **Destroying a ship that did nothing** brings a big bounty and **infamy**. While infamy is high the station refuses docking and its police attack the pilot on sight. Infamy wears off with the pilot's played time; money owed never goes away by itself.
+- A station can only tell who flies a ship with its radio on (scanning later). Two ways out, one dearer than the other: slip in with the radio off and pay at face value, or pay a disreputable factor at another station half as much again.
+- A wanted pilot with no money surrenders: the cargo is seized, then the ship is impounded where it is (no loss, no storage fee), and the insurer gives a free basic courtesy ship (old monochrome green screens) to earn the money back.
 
 ## 9. Player roles
 
@@ -377,12 +387,15 @@ Missiles, blasts and countermeasures (`tests/net_missile_test.tscn`, from both s
 | Software and insurance | The ship's diskette is lost with the ship. The pilot keeps backup copies (at a station, once there are stations); the insurer's new ship comes with the last backup. |
 | Travel between sectors | Jumps: owned gates and the ship's own jump drive. |
 | Propulsion | Missiles are rockets (propellant, a delta-v budget). Ships fly on their generator: the engines push against the veil, which sets the top speed; each engine's embedded controller limits stress and heat, and can be overclocked through its flaws, at a physical cost (6.5). |
+| Cargo | Only in ships, in tonnes: cargo racks in the hull's internal compartments (2^size tonnes), Elite style. It weighs, and is lost with the ship. |
+| Inventory | The character carries a few things (diskettes, later weapons); each station has a locker of its own for each pilot. |
+| Trade | At a kiosk in the hangar for now; later a market zone inside the station and a separate retrofit hangar. |
+| Saving | The owner of the universe (the host, or the player alone) keeps its whole state as a folder of documents, one for each record, stamped with universe time so that what nobody looks at can be simulated later. A guest's pilot lives in the host's universe. |
 | Name | Codename Xpace. |
 
 ### Pending
 
 - **The final name of the game and of the galaxy.** To be decided soon.
 - Which modular parts the Synty kit has, and how they show in the numbers.
-- Insurance: what is lost on death besides the diskette (cargo)?
 - How far politics goes beyond the Elite base.
 - The drive's numbers (veil drag, cut-out and resume temperatures, cooling, stress ratings) and how much energy to the engines helps the cooling; to be tuned in play.

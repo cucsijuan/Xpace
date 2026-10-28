@@ -1,5 +1,6 @@
 // A picture tube: the screen's picture behind curved glass, drawn in scanlines through the phosphor's mask, with the
-// glow of bright phosphor bleeding round it, a dim edge and a faint flicker. CrtMonitor holds the settings.
+// glow of bright phosphor bleeding round it, a dim edge and a faint flicker; a monochrome tube shows the picture's
+// brightness in its one phosphor's colour. CrtMonitor holds the settings.
 shader_type spatial;
 render_mode unshaded, cull_back;
 
@@ -16,6 +17,8 @@ uniform float noise : hint_range(0.0, 0.3) = 0.04;
 uniform float roll : hint_range(0.0, 0.3) = 0.03;
 uniform float glass : hint_range(0.0, 0.3) = 0.04;
 uniform vec3 tube : source_color = vec3(0.015, 0.02, 0.018);
+// A monochrome tube's phosphor (alpha 0: a colour tube)
+uniform vec4 monochrome : source_color = vec4(0.0);
 
 float hash(vec2 p)
 {
@@ -50,6 +53,7 @@ void fragment()
         }
         halo /= 16.0;
         vec3 lit = sharp + bloom * halo * halo;
+        lit = mix(lit, vec3(dot(lit, vec3(0.3, 0.6, 0.1))) * monochrome.rgb * 1.6, monochrome.a);
 
         // The beam's line is gaussian across; bright lines swell and close the gap
         float row = uv.y * size.y;

@@ -137,6 +137,14 @@ public partial class NetBody : Node, INetEntity
             _origin = n as FloatingOrigin;
         if ((OwnedBy == NetOwner.Maker || Spawned) && !Puppet)
             CallDeferred(MethodName.Made);              // the ship's own _Ready (after this one) has run by then
+        if (OwnedBy == NetOwner.Pilot && !Puppet)
+            World.Universe.Current?.Board(Ship);
+    }
+
+    public override void _ExitTree()
+    {
+        if (OwnedBy == NetOwner.Pilot && Ship != null)
+            World.Universe.Current?.Leave(Ship);
     }
 
     private void Made()

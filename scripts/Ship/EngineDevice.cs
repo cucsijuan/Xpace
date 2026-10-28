@@ -221,7 +221,7 @@ public partial class EngineDevice : Node, IShipDevice, IRearmable
 
         // The structure: more than the hull is rated for breaks it
         float rated = hull.RatedAcceleration;
-        float acceleration = Thrust / hull.Mass;
+        float acceleration = Thrust / (at is ShipBody ship ? ship.Mass : hull.Mass);
         if (rated > 0 && acceleration > rated)
             _hull?.Burn(hull.StressDamagePerSecond * (acceleration / rated - 1) * dt);
         return Thrust;

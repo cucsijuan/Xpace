@@ -61,6 +61,7 @@ public partial class CockpitScreen : MeshInstance3D, IInteractive
     private static readonly Shader Tube = GD.Load<Shader>("res://assets/materials/crt_screen.gdshader");
 
     private ShaderMaterial _material;
+    private ShipBody _ship;
     private StandardMaterial3D _frameMaterial;
     private Node3D _frame;
     private bool _bound, _selected, _hovered;
@@ -78,7 +79,14 @@ public partial class CockpitScreen : MeshInstance3D, IInteractive
             return;
         }
         _material = new ShaderMaterial { Shader = Tube };
-        (Monitor ?? new CrtMonitor { Mask = Source == ScreenSource.Computer ? 0.2f : 0f }).Apply(_material);
+        for (Node n = GetParent(); n != null && _ship == null; n = n.GetParent())
+            _ship = n as ShipBody;
+        Refit();
+        if (_ship != null)
+        {
+            _ship.SpecChanged += Refit;
+            TreeExiting += () => _ship.SpecChanged -= Refit;
+        }
         MaterialOverride = _material;
         // An area, not a body: it rides along with the ship and only answers clicks
         var area = new Area3D { Monitoring = false };
@@ -86,6 +94,10 @@ public partial class CockpitScreen : MeshInstance3D, IInteractive
         AddChild(area);
         BuildFrame();
     }
+
+    // The tube: the hull's own screens if it comes with some (a courtesy ship's old monochrome set), else this one's
+    private void Refit() =>
+        (_ship?.Spec?.Screens ?? Monitor ?? new CrtMonitor { Mask = Source == ScreenSource.Computer ? 0.2f : 0f }).Apply(_material);
 
     // Four thin strips round the picture, just in front of it
     private void BuildFrame()

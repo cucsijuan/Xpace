@@ -7,3 +7,5 @@
 script = ExtResource("1_spec")
 Thrusters = ExtResource("2_thrusters")
 VeilDrag = 0.00031
+Compartments = PackedInt32Array(3, 2)
+CargoRacks = PackedInt32Array(3, 1)

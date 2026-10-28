@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CrtMonitor" format=3]
+
+[ext_resource type="Script" path="res://scripts/Cockpit/CrtMonitor.cs" id="1_monitor"]
+
+[resource]
+script = ExtResource("1_monitor")
+Brightness = 1.2
+Scanlines = 0.6
+Bloom = 0.9
+Overscan = 0.08
+Curvature = 0.09
+Vignette = 0.6
+Flicker = 0.06
+Noise = 0.08
+Roll = 0.06
+Glass = 0.06
+Tube = Color(0.01, 0.025, 0.012, 1)
+Monochrome = Color(0.3, 1, 0.42, 1)

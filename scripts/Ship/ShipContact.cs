@@ -41,7 +41,9 @@ public static class ShipContact
     /// </summary>
     /// <param name="boxes">The ship's hitboxes, in its frame.</param>
     /// <param name="bound">The radius about the ship's origin that holds every box.</param>
-    public static float Collide(ref ShipState s, Vector3 previous, Hitbox[] boxes, float bound, ShipSpec spec, List<RockSphere> spheres)
+    /// <param name="load">The ship's mass over its hull's: cargo puts more energy in the same motion.</param>
+    public static float Collide(ref ShipState s, Vector3 previous, Hitbox[] boxes, float bound, ShipSpec spec, List<RockSphere> spheres,
+                                float load = 1)
     {
         if (RockField.All.Count == 0 && Solid.All.Count == 0 || boxes.Length == 0)
             return 0;
@@ -79,7 +81,7 @@ public static class ShipContact
             s.Position += c.Normal * c.Depth;
             Push(ref s, c, spec);
         }
-        return touched ? MathF.Max(0, before - Energy(s, spec)) : 0;
+        return touched ? MathF.Max(0, before - Energy(s, spec)) * load : 0;
     }
 
     /// <summary>The radius about a ship's origin that holds all its boxes.</summary>

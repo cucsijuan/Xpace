@@ -44,6 +44,8 @@ public partial class NetLauncher : Node
             string value = kv.Length > 1 ? kv[1] : i + 1 < args.Length && !args[i + 1].StartsWith("--") ? args[++i] : null;
             try
             {
+                if (kv[0] is "--host" or "--online")
+                    World.Universe.Current?.Open();     // the universe this machine plays in if it hosts
                 if (kv[0] == "--host")
                     Host(value == null ? EnetTransport.DefaultPort : int.Parse(value));
                 else if (kv[0] == "--join")

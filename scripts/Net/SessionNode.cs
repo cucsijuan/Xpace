@@ -110,6 +110,8 @@ public partial class SessionNode : Node
         if (Instance == this)
             Instance = null;
         HangarDock.Changed -= DockChanged;
+        if (Session != null)
+            Xpace.World.Universe.Current?.Detach();
     }
 
     public override void _Ready()
@@ -128,6 +130,7 @@ public partial class SessionNode : Node
     public void Start(byte peer, INetTransport transport)
     {
         Session = new Session(peer, transport) { TickSeconds = 1f / Engine.PhysicsTicksPerSecond };
+        Xpace.World.Universe.Current?.Attach(Session);
         if (Session.Judge != null)
             Session.Judge.Solid = (a, b) => Obstacles.Blocked(Scene(a), Scene(b));
         Session.SpawnRemote = Spawn;

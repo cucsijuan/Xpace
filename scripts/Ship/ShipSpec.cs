@@ -55,6 +55,32 @@ public partial class ShipSpec : Resource
     /// <summary>What the main motor draws at full thrust from the engines capacitor, if the ship has a power plant (MW).</summary>
     [Export] public float ThrustMegawatts = 4f;
 
+    [ExportGroup("Compartments")]
+    /// <summary>
+    /// The hull's internal compartments, by the largest size of module each takes. A module of size n is twice one of
+    /// size n - 1: a cargo rack of size n holds 2^n tonnes.
+    /// </summary>
+    [Export] public int[] Compartments = System.Array.Empty<int>();
+    /// <summary>The cargo racks the hull comes with from the factory: a size for each compartment (0 or less: none).</summary>
+    [Export] public int[] CargoRacks = System.Array.Empty<int>();
+
+    /// <summary>Tonnes the racks hold (a rack too big for its compartment isn't fitted, and holds nothing).</summary>
+    public int CargoCapacity
+    {
+        get
+        {
+            int tonnes = 0;
+            for (int i = 0; i < CargoRacks.Length && i < Compartments.Length; i++)
+                if (CargoRacks[i] > 0 && CargoRacks[i] <= Compartments[i])
+                    tonnes += 1 << CargoRacks[i];
+            return tonnes;
+        }
+    }
+
+    [ExportGroup("Cockpit")]
+    /// <summary>The picture tubes the hull's screens come with; none: each screen's own (<see cref="Cockpit.CockpitScreen.Monitor"/>).</summary>
+    [Export] public Cockpit.CrtMonitor Screens;
+
     [ExportGroup("Turning (rad/s², at full torque): with no thrusters set")]
     [Export] public float PitchAcceleration = 2.1f;
     [Export] public float RollAcceleration = 4.2f;

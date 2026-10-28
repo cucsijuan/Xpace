@@ -1,0 +1,43 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/OnFoot/StationKiosk.cs" id="1_kiosk"]
+[ext_resource type="PackedScene" path="res://scenes/ui/market_window.tscn" id="7_window"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Kiosk_07.fbx" id="2_model"]
+[ext_resource type="Material" path="res://assets/materials/synty_horror_atlas.tres" id="3_atlas"]
+[ext_resource type="Material" path="res://assets/materials/kiosk_screen.tres" id="4_screen"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="5_paint"]
+[ext_resource type="Script" path="res://scripts/OnFoot/WalkSurface.cs" id="6_walk"]
+
+[sub_resource type="BoxShape3D" id="Body"]
+size = Vector3(1.24, 1.97, 0.96)
+
+[node name="MarketKiosk" type="Node3D" node_paths=PackedStringArray("Front")]
+script = ExtResource("1_kiosk")
+WindowScene = ExtResource("7_window")
+Front = NodePath("Front")
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+
+[node name="Paint" type="Node" parent="Model"]
+script = ExtResource("5_paint")
+Material = ExtResource("3_atlas")
+BySurface = Dictionary[int, Material]({
+1: ExtResource("4_screen")
+})
+
+[node name="Front" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.95)
+
+[node name="Body" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.985, 0)
+shape = SubResource("Body")
+
+[node name="Walk" type="Node3D" parent="."]
+script = ExtResource("6_walk")
+ParentMeshes = false
+
+[node name="Light" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.55, 0.35)
+light_color = Color(0.35, 1, 0.55, 1)
+light_energy = 0.4
+omni_range = 1.5

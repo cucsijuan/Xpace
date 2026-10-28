@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="Good" format=3]
+
+[ext_resource type="Script" path="res://scripts/World/Good.cs" id="1_good"]
+
+[resource]
+script = ExtResource("1_good")
+Name = "Hydrogen"
+BasePrice = 80

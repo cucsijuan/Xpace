@@ -91,7 +91,11 @@ public sealed class Session
     public const byte HostPeer = 0;
     private const byte KindSnapshot = 1, KindFire = 2, KindHit = 3, KindPing = 4, KindPong = 5,
                        KindSpawn = 6, KindDespawn = 7, KindBlast = 8, KindDrop = 9, KindDelta = 10, KindAck = 11, KindRadio = 12,
-                       KindRadioState = 13, KindRequest = 14, KindCleared = 15, KindDock = 16;
+                       KindRadioState = 13, KindRequest = 14, KindCleared = 15, KindDock = 16, KindPilot = 17, KindDocument = 18,
+                       KindAsk = 19;
+
+    /// <summary>A document for a guest goes in parts of at most this many bytes (EOS carries 1170 a packet).</summary>
+    public const int PartBytes = 1000;
     private const uint AckLost = uint.MaxValue;     // an ack saying: the base of that delta isn't here, send it whole
     private const int PingSamples = 5;
 
@@ -145,6 +149,15 @@ public sealed class Session
     /// <summary>The host opened or shut a station's dock (the station, the dock, open).</summary>
     public event Action<string, int, bool> DockChanged;
 
+    /// <summary>The host: a guest says who flies its ship (the guest, the pilot's id, the pilot's name).</summary>
+    public event Action<byte, string, string> PilotIntroduced;
+
+    /// <summary>A guest: the host sent a document on a topic (the topic, the document), whole once all its parts came.</summary>
+    public event Action<string, string> DocumentArrived;
+
+    /// <summary>The host: a guest asks something of it (the guest, the topic, what it asks).</summary>
+    public event Action<byte, string, string> Asked;
+
     /// <summary>Someone else dropped something: make it, already flying.</summary>
     public event Action<DropEvent> Dropped;
 
@@ -172,7 +185,8 @@ public sealed class Session
     private readonly Dictionary<byte, Dictionary<ushort, uint>> _toAck = new();       // to tell each peer: what came of theirs
     private readonly Dictionary<ushort, byte[]> _radios = new();           // the host: each ship's radio state, as sent
     private readonly Dictionary<(string Station, int Dock), bool> _docks = new();   // the host: docks open
-    private ushort _sequence;
+    private readonly Dictionary<ushort, byte[][]> _parts = new();          // a guest: documents still coming, by number
+    private ushort _sequence, _documents;
     private ushort _nextDynamic = NetIds.FirstDynamic;
 
     public Session(byte localPeer, INetTransport transport)
@@ -188,6 +202,9 @@ public sealed class Session
     }
 
     public IEnumerable<INetEntity> Entities => _entities.Values;
+
+    /// <summary>The other machines in the session (the host: its guests; a guest: the host).</summary>
+    public IReadOnlyList<byte> Peers => _transport.Peers;
 
     public INetEntity Entity(ushort id) => _entities.GetValueOrDefault(id);
 
@@ -403,6 +420,71 @@ public sealed class Session
     private static string Text(byte[] bytes, int from, int to) =>
         System.Text.Encoding.ASCII.GetString(bytes, from, Math.Min(to, bytes.Length) - from);
 
+    /// <summary>A guest: tells the host who flies its ship (send until the host answers with the pilot's record).</summary>
+    public void Introduce(string pilot, string name)
+    {
+        if (IsHost)
+            return;
+        var body = new List<byte>();
+        Counted(body, pilot);
+        body.AddRange(Utf8(name, PartBytes / 2));
+        Send(HostPeer, KindPilot, body.ToArray(), reliable: true);
+    }
+
+    /// <summary>The host: a document on <paramref name="topic"/> for a guest, any length (it goes in parts).</summary>
+    public void SendDocument(byte peer, string topic, string text)
+    {
+        if (!IsHost)
+            return;
+        byte[] all = System.Text.Encoding.UTF8.GetBytes(text ?? "");
+        int count = Math.Max(1, (all.Length + PartBytes - 1) / PartBytes);
+        if (count > 255)
+            throw new ArgumentException($"a document of {all.Length} bytes is too long to send");
+        ushort number = _documents++;
+        for (int part = 0; part < count; part++)
+        {
+            var body = new List<byte>(BitConverter.GetBytes(number)) { (byte)part, (byte)count };
+            Counted(body, topic);
+            body.AddRange(all[(part * PartBytes)..Math.Min(all.Length, (part + 1) * PartBytes)]);
+            Send(peer, KindDocument, body.ToArray(), reliable: true);
+        }
+    }
+
+    /// <summary>A guest: asks the host something on <paramref name="topic"/> (at most <see cref="PartBytes"/> bytes).</summary>
+    public void Ask(string topic, string text)
+    {
+        if (IsHost)
+            return;
+        var body = new List<byte>();
+        Counted(body, topic);
+        body.AddRange(Utf8(text, PartBytes));
+        Send(HostPeer, KindAsk, body.ToArray(), reliable: true);
+    }
+
+    // A string with its length before it, in a byte
+    private static void Counted(List<byte> body, string text)
+    {
+        byte[] bytes = Utf8(text, 255);
+        body.Add((byte)bytes.Length);
+        body.AddRange(bytes);
+    }
+
+    private static string Counted(byte[] body, ref int at)
+    {
+        int length = at < body.Length ? body[at] : 0;
+        if (at + 1 + length > body.Length)
+            throw new FormatException("a string runs past the message");
+        string text = System.Text.Encoding.UTF8.GetString(body, at + 1, length);
+        at += 1 + length;
+        return text;
+    }
+
+    private static byte[] Utf8(string text, int most)
+    {
+        byte[] bytes = System.Text.Encoding.UTF8.GetBytes(text ?? "");
+        return bytes.Length <= most ? bytes : bytes[..most];
+    }
+
     /// <summary>A ship here threw out something that flies on its own (<paramref name="scene"/>); everyone else makes it.</summary>
     public void Drop(uint now, byte scene, SectorPoint at, Vector3 velocity)
     {
@@ -418,7 +500,14 @@ public sealed class Session
     {
         while (_transport.Poll(out byte peer, out byte[] packet))
             if (packet.Length > 0)
-                Arrived(peer, packet, now);
+                try
+                {
+                    Arrived(peer, packet, now);
+                }
+                catch (Exception e) when (e is FormatException or ArgumentException)
+                {
+                    // a malformed packet: dropped
+                }
         now = Resync(now);
         Forget(now);
         if (IsHost)
@@ -718,6 +807,46 @@ public sealed class Session
             case KindDock:
                 if (!IsHost && peer == HostPeer && body.Length == 2 + Radio.CallsignLength)
                     DockChanged?.Invoke(Text(body, 0, Radio.CallsignLength).TrimEnd(), body[^2], body[^1] != 0);
+                break;
+
+            case KindPilot:
+                if (IsHost)
+                {
+                    int at = 0;
+                    string pilot = Counted(body, ref at);
+                    if (pilot.Length > 0)
+                        PilotIntroduced?.Invoke(peer, pilot, System.Text.Encoding.UTF8.GetString(body, at, body.Length - at));
+                }
+                break;
+
+            case KindDocument:
+                if (!IsHost && peer == HostPeer && body.Length >= 5)
+                {
+                    ushort number = BitConverter.ToUInt16(body, 0);
+                    int part = body[2], count = body[3], at = 4;
+                    string topic = Counted(body, ref at);
+                    if (count == 0 || part >= count)
+                        return;
+                    if (!_parts.TryGetValue(number, out byte[][] parts) || parts.Length != count)
+                        _parts[number] = parts = new byte[count][];
+                    parts[part] = body[at..];
+                    if (Array.IndexOf(parts, null) >= 0)
+                        return;
+                    _parts.Remove(number);
+                    var whole = new List<byte>();
+                    foreach (byte[] p in parts)
+                        whole.AddRange(p);
+                    DocumentArrived?.Invoke(topic, System.Text.Encoding.UTF8.GetString(whole.ToArray()));
+                }
+                break;
+
+            case KindAsk:
+                if (IsHost)
+                {
+                    int at = 0;
+                    string topic = Counted(body, ref at);
+                    Asked?.Invoke(peer, topic, System.Text.Encoding.UTF8.GetString(body, at, body.Length - at));
+                }
                 break;
 
             case KindDrop:

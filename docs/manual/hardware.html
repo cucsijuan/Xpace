@@ -228,8 +228,9 @@ pre.listing.full { font-size: 7.3pt; line-height: 1.16; }
 <tr><td>14</td><td>1E0h</td><td>16</td><td>Radar jammer</td></tr>
 <tr><td>15</td><td>1F0h</td><td>17</td><td>Main engine</td></tr>
 <tr><td>16</td><td>200h</td><td>18</td><td>Radio</td></tr>
+<tr><td>17</td><td>210h</td><td>19</td><td>Cargo hold</td></tr>
 </table>
-<p>Slots 17 to 31 are free for devices still to come.</p>
+<p>Slots 18 to 31 are free for devices still to come.</p>
 <p>Not every ship has every device: a ship may have a laser and no turret, or no jammer. Before a program uses a device, it reads the device's type register and checks it. A program that writes to an empty slot does nothing; one that reads from it reads zeros, which may be taken for real readings.</p>
 <pre class="listing">    mov dx, 1D0h            ; a heat sink launcher?
     in al, dx
@@ -683,7 +684,7 @@ COOL resident.
 <tr><td>+18</td><td>The landing pad in that dock the ship is cleared to (0, none)</td></tr>
 </table>
 <h3>The Messages</h3>
-<p>The last four, the newest first, 128 bytes each: who sent it (eight characters), then its words (120 characters, filled with spaces). Inside a station's protected zone no weapon may go off: its security warns by radio, then its police engage. A ship that destroys another the security had nothing against is engaged at once. Too fast within the speed limit's radius, a ship is fined.</p>
+<p>The last four, the newest first, 128 bytes each: who sent it (eight characters), then its words (120 characters, filled with spaces). Inside a station's protected zone no weapon may go off: its security warns by radio, then its police engage. A ship that destroys another the security had nothing against is engaged at once. Too fast within the speed limit's radius, a ship is fined. Fines and bounties are owed to the station, and paid at its market; a station knows who flies a ship only by its radio.</p>
 
 <h3>Docking</h3>
 <p>A dock is a hangar. A hangar may hold several ships, one to a landing pad: the station clears the ship to a hangar and to one of its pads. The ship flies in through the open door and onto its pad, the only one lit red; no other pad takes it. Over the pad, turned as the pad is and level, the light turns green: the ship has only to come down. Low and slow enough, the pad's clamps take the ship and bring it to its place. Docked, the thrusters no longer move the ship; the station shuts the door once no ship it cleared to that hangar is on its way in or out. To leave, ask the station to launch: the door opens, and the clamps lift the ship and let it go. Once the ship is out of the hangar, the door shuts and the clearance is over.</p>
@@ -703,6 +704,23 @@ COOL resident.
 <tr><td>+16 word</td><td>Its leeway in heading (binary angle)</td></tr>
 <tr><td>+18 word</td><td>How far above its place the ship must come down for the clamps, 1/16 m</td></tr>
 <tr><td>+20</td><td>The pad's number</td></tr>
+</table>
+
+<h2 class="cmd">Cargo Hold<span>210h &middot; type 19</span></h2>
+<p>The racks fitted in the hull's internal compartments, and what they carry. A compartment takes a rack of its size or smaller; a rack of size n holds 2<sup>n</sup> tonnes. Cargo is bought and sold at a station's market, never through the hold: the hold only tells what is aboard. A tonne of cargo weighs a tonne: a laden ship is slower to push and to turn. Version 1.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2 word</td><td>Capacity, in tonnes</td></tr>
+<tr><td>+4 word</td><td>Carried, in tonnes</td></tr>
+<tr><td>+6</td><td>Kinds of goods aboard (up to 16)</td></tr>
+<tr><td>+8 word</td><td>The segment of the list</td></tr>
+<tr><td>+10 word</td><td>The offset of the list</td></tr>
+</table>
+<p>Sixteen bytes a kind of good, in the order of their names:</p>
+<table class="ref">
+<tr><th>Offset</th><th>Contents</th></tr>
+<tr><td>+0</td><td>The good's name: twelve characters, upper case, filled with spaces</td></tr>
+<tr><td>+12 word</td><td>Tonnes aboard</td></tr>
 </table>
 
 <h2 class="cmd">Display Card<span>150h &middot; type 6</span></h2>
@@ -952,6 +970,7 @@ msg_no_device   db 'COOL: no heat sink launcher on the bus.', 13, 10, '$'</pre>
 <tr><td>140h</td><td>Turret: +2 +4 wanted (write) +6 +8 now +10 muzzle speed +12 fire (write) +13 status +14 heat +15 rounds</td></tr>
 <tr><td>150h</td><td>Display card: +2 segment +4 table +6 screens +7 of interest +8 keys +9 key +10 its screen</td></tr>
 <tr><td>200h</td><td>Radio: +2 contacts +3 updates +4 status +5 request (write) +6 its contact +7 messages +8 segment +10 table +12 laws +14 messages; the pad's guidance at D000:1900</td></tr>
+<tr><td>210h</td><td>Cargo hold: +2 capacity +4 carried +6 kinds +8 segment +10 list</td></tr>
 <tr><td>160h</td><td>Launcher: +2 radar missiles +3 in flight +4 status +6 fire (write) +7 head (write) +8 time to go +10 status +11 result +12 fuel +14 heat seekers +15 kind</td></tr>
 <tr><td>170h</td><td>Warning receiver: +2 entries +3 updates +4 flags +5 audio (write) +6 segment +8 table</td></tr>
 <tr><td>180h</td><td>Dispenser: +2 chaff +3 flares +4 throw (write) +5 thrown</td></tr>

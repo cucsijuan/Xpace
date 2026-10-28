@@ -183,7 +183,11 @@ public partial class MainMenu : Node3D
                 .Select(line => line.StartsWith('#') ? line.TrimStart('#', ' ').ToUpperInvariant() : line))
             .Replace("**", "").Replace("*", "").Replace("`", "");
 
-    private void Play() => GetTree().ChangeSceneToFile(GameScene);
+    private void Play()
+    {
+        World.Universe.Current?.Open();
+        GetTree().ChangeSceneToFile(GameScene);
+    }
 
     private async void PlayOnline()
     {

@@ -5,6 +5,7 @@ using Godot;
 using Xpace.Computer;
 using Xpace.Ship;
 using Xpace.Space;
+using Xpace.World;
 
 namespace Xpace.Tests;
 
@@ -20,8 +21,9 @@ namespace Xpace.Tests;
 ///     crime, and the destroyed ship starts clean;
 ///   - destroying a ship the security had nothing against: hostile at once,
 ///     and told why; docking is refused to a hostile ship;
-///   - too fast near the station: a fine (counted), told by radio; outside
-///     the speed limit's radius, no fine;
+///   - too fast near the station: a fine (counted), told by radio, and a
+///     player owes it to the station; outside the speed limit's radius, no
+///     fine;
 ///   - with no hostile ship left the police fly back into their hangar.
 ///
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/security_test.tscn
@@ -35,6 +37,7 @@ public partial class SecurityTest : Node3D
 
     public override async void _Ready()
     {
+        Universe.Current.Forget();
         AddChild(new Projectiles());
         var station = GD.Load<PackedScene>("res://scenes/stations/synty_station.tscn").Instantiate<Node3D>();
         station.Name = "Haven";
@@ -78,7 +81,7 @@ public partial class SecurityTest : Node3D
               await Until(() => pilot.Doing is "intercepting" or "attacking" && !from.Holds(police), 90));
         GD.Print($"     police: {pilot.Doing}, {police.GlobalPosition.DistanceTo(a.GlobalPosition):0} m from it");
 
-        Strike(c, b, 10);                       // Bravo hits Charlie: Charlie may answer
+        Strike(c, a, 10);                       // the hostile Alpha hits Charlie: Charlie may answer
         Fire(c);
         await Seconds(0.2);
         Check("fired upon, a ship fires back freely", _security.StandingOf(c) == Standing.Clean);
@@ -99,6 +102,7 @@ public partial class SecurityTest : Node3D
         await Seconds(0.2);
 
         ShipBody fast = Ship("Foxtrot", _station.GlobalPosition + new Vector3(0, 0, 1000));
+        Universe.Current.Fly(fast, "foxtrot");
         await Seconds(1);
         int heard = Radio(fast).Heard.Count;
         for (int i = 0; i < 4 * 60; i++)
@@ -108,6 +112,10 @@ public partial class SecurityTest : Node3D
         }
         Check($"too fast near the station: fined ({Last(fast)})",
               _security.Fines.TryGetValue(fast, out int fines) && fines == 1 && Radio(fast).Heard.Count > heard && Last(fast).Contains("fined"));
+        PilotRecord fined = Universe.Current.State.Pilot("foxtrot");
+        long owed = Universe.Current.State.Station(_station.Sign).CrimesOf("foxtrot").Fines;
+        Check($"its pilot owes the station the fine ({owed} credits), and still has their money ({fined.Credits})",
+              owed == _security.SpeedingFine && fined.Credits == PilotRecord.StartingCredits && Last(fast).Contains($"{owed} credits"));
         for (int i = 0; i < 4 * 60; i++)
         {
             b.LinearVelocity = new Vector3(80, 0, 0);

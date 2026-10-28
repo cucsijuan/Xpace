@@ -83,6 +83,65 @@
 [ext_resource type="PackedScene" uid="uid://c24bvglq01n2e" path="res://assets/synty/SM_Ship_Fighter_03.fbx" id="fighter_model"]
 [ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="atlas_paint"]
 [ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="model_paint"]
+[ext_resource type="Script" path="res://scripts/Ship/CargoHold.cs" id="cargo_hold"]
+[ext_resource type="Script" path="res://scripts/Ship/PilotShip.cs" id="pilot_ship"]
+[ext_resource type="Script" path="res://scripts/World/MarketGood.cs" id="kestrel_market_good"]
+[ext_resource type="Resource" path="res://assets/goods/water.tres" id="good_water"]
+[ext_resource type="Resource" path="res://assets/goods/food.tres" id="good_food"]
+[ext_resource type="Resource" path="res://assets/goods/iron_ore.tres" id="good_iron_ore"]
+[ext_resource type="Resource" path="res://assets/goods/medicines.tres" id="good_medicines"]
+[ext_resource type="Resource" path="res://assets/goods/metals.tres" id="good_metals"]
+[ext_resource type="Resource" path="res://assets/goods/machinery.tres" id="good_machinery"]
+[ext_resource type="Resource" path="res://assets/goods/electronics.tres" id="good_electronics"]
+[ext_resource type="Resource" path="res://assets/goods/hydrogen.tres" id="good_hydrogen"]
+
+[sub_resource type="Resource" id="Kestrel_water"]
+script = ExtResource("kestrel_market_good")
+Good = ExtResource("good_water")
+Stock = 500
+Rate = 80.0
+
+[sub_resource type="Resource" id="Kestrel_food"]
+script = ExtResource("kestrel_market_good")
+Good = ExtResource("good_food")
+Stock = 400
+Rate = 50.0
+
+[sub_resource type="Resource" id="Kestrel_iron_ore"]
+script = ExtResource("kestrel_market_good")
+Good = ExtResource("good_iron_ore")
+Stock = 600
+Rate = 100.0
+
+[sub_resource type="Resource" id="Kestrel_medicines"]
+script = ExtResource("kestrel_market_good")
+Good = ExtResource("good_medicines")
+Stock = 80
+Rate = 8.0
+
+[sub_resource type="Resource" id="Kestrel_metals"]
+script = ExtResource("kestrel_market_good")
+Good = ExtResource("good_metals")
+Stock = 200
+Rate = -40.0
+
+[sub_resource type="Resource" id="Kestrel_machinery"]
+script = ExtResource("kestrel_market_good")
+Good = ExtResource("good_machinery")
+Stock = 100
+Rate = -12.0
+
+[sub_resource type="Resource" id="Kestrel_electronics"]
+script = ExtResource("kestrel_market_good")
+Good = ExtResource("good_electronics")
+Stock = 60
+Rate = -6.0
+
+[sub_resource type="Resource" id="Kestrel_hydrogen"]
+script = ExtResource("kestrel_market_good")
+Good = ExtResource("good_hydrogen")
+Stock = 200
+Rate = -30.0
 
 [sub_resource type="Sky" id="Sky_space"]
 sky_material = ExtResource("43_skybox")
@@ -159,6 +218,13 @@ RocksPerCell = 10
 
 [node name="Station" parent="." unique_id=1661568946 instance=ExtResource("10_station")]
 transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 450, 60, -1200)
+
+[node name="Kestrel" parent="." instance=ExtResource("10_station")]
+transform = Transform3D(-0.5, 0, -0.866025, 0, 1, 0, 0.866025, 0, -0.5, -18000, 400, -16000)
+
+[node name="Market" parent="Kestrel"]
+Goods = Array[ExtResource("kestrel_market_good")]([SubResource("Kestrel_water"), SubResource("Kestrel_food"), SubResource("Kestrel_iron_ore"), SubResource("Kestrel_medicines"), SubResource("Kestrel_metals"), SubResource("Kestrel_machinery"), SubResource("Kestrel_electronics"), SubResource("Kestrel_hydrogen")])
+Factor = true
 
 [node name="Projectiles" type="MultiMeshInstance3D" parent="." unique_id=1887929994]
 script = ExtResource("15_rounds")
@@ -306,6 +372,12 @@ PilotsName = true
 
 [node name="RadioVoice" type="AudioStreamPlayer" parent="Ship/Radio" unique_id=152962600]
 script = ExtResource("82_voice")
+
+[node name="Hold" type="Node" parent="Ship"]
+script = ExtResource("cargo_hold")
+
+[node name="Fit" type="Node" parent="Ship"]
+script = ExtResource("pilot_ship")
 
 [node name="Power" type="Node" parent="Ship" unique_id=1962482993]
 script = ExtResource("60_power")

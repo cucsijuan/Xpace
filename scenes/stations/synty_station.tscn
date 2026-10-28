@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3]
+[gd_scene load_steps=39 format=3]
 
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_01_ring_hangar.tscn" id="1_station_01_ring"]
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_02_outer_ring.tscn" id="2_station_02_outer_ring"]
@@ -20,6 +20,65 @@
 [ext_resource type="Resource" path="res://assets/voices/operator_f2/voice.tres" id="17_voice_f2"]
 [ext_resource type="Resource" path="res://assets/voices/operator_m1/voice.tres" id="18_voice_m1"]
 [ext_resource type="Resource" path="res://assets/voices/operator_m2/voice.tres" id="19_voice_m2"]
+[ext_resource type="Script" path="res://scripts/Space/StationMarket.cs" id="30_market"]
+[ext_resource type="Script" path="res://scripts/Space/StationLockers.cs" id="40_lockers"]
+[ext_resource type="Script" path="res://scripts/World/MarketGood.cs" id="31_market_good"]
+[ext_resource type="Resource" path="res://assets/goods/water.tres" id="32_water"]
+[ext_resource type="Resource" path="res://assets/goods/food.tres" id="32_food"]
+[ext_resource type="Resource" path="res://assets/goods/iron_ore.tres" id="32_iron_ore"]
+[ext_resource type="Resource" path="res://assets/goods/medicines.tres" id="32_medicines"]
+[ext_resource type="Resource" path="res://assets/goods/metals.tres" id="32_metals"]
+[ext_resource type="Resource" path="res://assets/goods/machinery.tres" id="32_machinery"]
+[ext_resource type="Resource" path="res://assets/goods/electronics.tres" id="32_electronics"]
+[ext_resource type="Resource" path="res://assets/goods/hydrogen.tres" id="32_hydrogen"]
+
+[sub_resource type="Resource" id="Market_water"]
+script = ExtResource("31_market_good")
+Good = ExtResource("32_water")
+Stock = 400
+Rate = -60.0
+
+[sub_resource type="Resource" id="Market_food"]
+script = ExtResource("31_market_good")
+Good = ExtResource("32_food")
+Stock = 300
+Rate = -40.0
+
+[sub_resource type="Resource" id="Market_iron_ore"]
+script = ExtResource("31_market_good")
+Good = ExtResource("32_iron_ore")
+Stock = 500
+Rate = -80.0
+
+[sub_resource type="Resource" id="Market_medicines"]
+script = ExtResource("31_market_good")
+Good = ExtResource("32_medicines")
+Stock = 60
+Rate = -6.0
+
+[sub_resource type="Resource" id="Market_metals"]
+script = ExtResource("31_market_good")
+Good = ExtResource("32_metals")
+Stock = 300
+Rate = 50.0
+
+[sub_resource type="Resource" id="Market_machinery"]
+script = ExtResource("31_market_good")
+Good = ExtResource("32_machinery")
+Stock = 120
+Rate = 15.0
+
+[sub_resource type="Resource" id="Market_electronics"]
+script = ExtResource("31_market_good")
+Good = ExtResource("32_electronics")
+Stock = 80
+Rate = 4.0
+
+[sub_resource type="Resource" id="Market_hydrogen"]
+script = ExtResource("31_market_good")
+Good = ExtResource("32_hydrogen")
+Stock = 400
+Rate = 20.0
 
 [node name="SyntyStation" type="Node3D"]
 
@@ -100,6 +159,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 60, 0)
 script = ExtResource("12_radio")
 Laws = ExtResource("13_laws")
 Voices = Array[ExtResource("20_voice_pack")]([ExtResource("16_voice_f1"), ExtResource("17_voice_f2"), ExtResource("18_voice_m1"), ExtResource("19_voice_m2")])
+
+[node name="Market" type="Node" parent="."]
+script = ExtResource("30_market")
+Goods = Array[ExtResource("31_market_good")]([SubResource("Market_water"), SubResource("Market_food"), SubResource("Market_iron_ore"), SubResource("Market_medicines"), SubResource("Market_metals"), SubResource("Market_machinery"), SubResource("Market_electronics"), SubResource("Market_hydrogen")])
+
+[node name="Lockers" type="Node" parent="."]
+script = ExtResource("40_lockers")
 
 [node name="Security" type="Node" parent="."]
 script = ExtResource("14_security")
