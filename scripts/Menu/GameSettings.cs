@@ -23,8 +23,17 @@ public enum Antialiasing
     Taa,
 }
 
+/// <summary>How much of the card an effect may take: off, or better looking and dearer.</summary>
+public enum Quality
+{
+    Off,
+    Low,
+    Medium,
+    High,
+}
+
 /// <summary>
-/// The player's settings: video (resolution, window, vertical sync, antialiasing) and controls (mouse, key bindings),
+/// The player's settings: video (resolution, window, vertical sync, antialiasing, the dearer effects) and controls (mouse, key bindings),
 /// kept in user://settings.cfg. An autoload: it registers the flight actions, loads the settings and applies them when
 /// the game starts; the settings menu changes them, applies and saves.
 ///
@@ -60,6 +69,10 @@ public partial class GameSettings : Node
     public WindowKind Window = WindowKind.Windowed;
     public bool VSync = true;
     public Antialiasing Antialiasing = Antialiasing.Msaa4;
+
+    /// <summary>The effects a card may struggle with (a scene's <see cref="QualityEnvironment"/> follows them).</summary>
+    public Quality Shadows = Quality.High, AmbientOcclusion = Quality.Medium, IndirectLight = Quality.Medium;
+    public bool Reflections = true, Glow = true;
 
     /// <summary>The name other players see.</summary>
     public string PlayerName = "Pilot";
@@ -129,8 +142,34 @@ public partial class GameSettings : Node
             };
             root.ScreenSpaceAA = Antialiasing == Antialiasing.Fxaa ? Viewport.ScreenSpaceAAEnum.Fxaa : Viewport.ScreenSpaceAAEnum.Disabled;
             root.UseTaa = Antialiasing == Antialiasing.Taa;
+            ApplyEffects();
         }
         Changed?.Invoke();
+    }
+
+    /// <summary>The effects' quality, for every scene (turning them on and off is each scene's QualityEnvironment).</summary>
+    private void ApplyEffects()
+    {
+        RenderingServer.DirectionalShadowAtlasSetSize(Shadows switch { Quality.High => 8192, Quality.Medium => 4096, _ => 2048 }, true);
+        RenderingServer.DirectionalSoftShadowFilterSetQuality(Shadows switch
+        {
+            Quality.High => RenderingServer.ShadowQuality.SoftMedium,
+            Quality.Medium => RenderingServer.ShadowQuality.SoftLow,
+            _ => RenderingServer.ShadowQuality.Hard,
+        });
+        // Ships and stations are tens to hundreds of metres: the occlusion fades out far beyond Godot's 300 m.
+        RenderingServer.EnvironmentSetSsaoQuality(AmbientOcclusion switch
+        {
+            Quality.High => RenderingServer.EnvironmentSsaoQuality.High,
+            Quality.Medium => RenderingServer.EnvironmentSsaoQuality.Medium,
+            _ => RenderingServer.EnvironmentSsaoQuality.Low,
+        }, AmbientOcclusion != Quality.High, 0.5f, 2, 400, 2500);
+        RenderingServer.EnvironmentSetSsilQuality(IndirectLight switch
+        {
+            Quality.High => RenderingServer.EnvironmentSsilQuality.High,
+            Quality.Medium => RenderingServer.EnvironmentSsilQuality.Medium,
+            _ => RenderingServer.EnvironmentSsilQuality.Low,
+        }, IndirectLight != Quality.High, 0.5f, 4, 400, 2500);
     }
 
     /// <summary>The flight actions back to their default keys.</summary>
@@ -173,6 +212,11 @@ public partial class GameSettings : Node
         file.SetValue("video", "window", Window.ToString());
         file.SetValue("video", "vsync", VSync);
         file.SetValue("video", "antialiasing", Antialiasing.ToString());
+        file.SetValue("video", "shadows", Shadows.ToString());
+        file.SetValue("video", "ambient_occlusion", AmbientOcclusion.ToString());
+        file.SetValue("video", "indirect_light", IndirectLight.ToString());
+        file.SetValue("video", "reflections", Reflections);
+        file.SetValue("video", "glow", Glow);
         file.SetValue("controls", "invert_mouse_y", InvertMouseY);
         file.SetValue("controls", "mouse_sensitivity", MouseSensitivity);
         file.SetValue("controls", "look_sensitivity", LookSensitivity);
@@ -200,6 +244,11 @@ public partial class GameSettings : Node
         Enum.TryParse(file.GetValue("video", "window", Window.ToString()).AsString(), out Window);
         VSync = file.GetValue("video", "vsync", VSync).AsBool();
         Enum.TryParse(file.GetValue("video", "antialiasing", Antialiasing.ToString()).AsString(), out Antialiasing);
+        Enum.TryParse(file.GetValue("video", "shadows", Shadows.ToString()).AsString(), out Shadows);
+        Enum.TryParse(file.GetValue("video", "ambient_occlusion", AmbientOcclusion.ToString()).AsString(), out AmbientOcclusion);
+        Enum.TryParse(file.GetValue("video", "indirect_light", IndirectLight.ToString()).AsString(), out IndirectLight);
+        Reflections = file.GetValue("video", "reflections", Reflections).AsBool();
+        Glow = file.GetValue("video", "glow", Glow).AsBool();
         InvertMouseY = file.GetValue("controls", "invert_mouse_y", InvertMouseY).AsBool();
         MouseSensitivity = file.GetValue("controls", "mouse_sensitivity", MouseSensitivity).AsSingle();
         LookSensitivity = file.GetValue("controls", "look_sensitivity", LookSensitivity).AsSingle();

@@ -11,6 +11,9 @@
 [ext_resource type="PackedScene" path="res://scenes/panels/cockpit/rwr_panel.tscn" id="9_rwr_panel"]
 [ext_resource type="PackedScene" path="res://scenes/panels/cockpit/radar_panel.tscn" id="10_radar_panel"]
 [ext_resource type="PackedScene" path="res://scenes/panels/cockpit/comms_panel.tscn" id="11_comms_panel"]
+[ext_resource type="Script" path="res://scripts/Space/SmoothNormals.cs" id="12_smooth"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="13_paint"]
+[ext_resource type="Script" path="res://scripts/Space/ModelMeshes.cs" id="14_meshes"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_16ts0"]
 shading_mode = 0
@@ -25,21 +28,29 @@ size = Vector2(0.2, 0.15)
 [node name="Body" parent="." unique_id=274325208 instance=ExtResource("1_body")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
-[node name="SM_Veh_POV_Cockpit_01" parent="Body" index="0" unique_id=2105568551]
-material_override = ExtResource("3_atlas")
-mesh = ExtResource("8_body_mesh")
+[node name="Meshes" type="Node" parent="Body"]
+script = ExtResource("14_meshes")
+Meshes = {
+"SM_Veh_POV_Cockpit_01": ExtResource("8_body_mesh")
+}
 
-[node name="SM_Veh_POV_Joystick_01" parent="Body/SM_Veh_POV_Cockpit_01" index="0" unique_id=714031852]
-material_override = ExtResource("3_atlas")
+[node name="Paint" type="Node" parent="Body"]
+script = ExtResource("13_paint")
+Material = ExtResource("3_atlas")
 
 [node name="Frame" parent="." unique_id=151505607 instance=ExtResource("2_frame")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
-[node name="SM_Veh_POV_Cockpit_Frame_02" parent="Frame" index="0" unique_id=1537016932]
-material_override = ExtResource("3_atlas")
+[node name="Paint" type="Node" parent="Frame"]
+script = ExtResource("13_paint")
+Material = ExtResource("3_atlas")
+ByMesh = {
+"SM_Veh_POV_Cockpit_Frame_Glass_02": ExtResource("4_glass")
+}
 
-[node name="SM_Veh_POV_Cockpit_Frame_Glass_02" parent="Frame/SM_Veh_POV_Cockpit_Frame_02" index="0" unique_id=1630976592]
-material_override = ExtResource("4_glass")
+[node name="SmoothGlass" type="Node" parent="Frame"]
+script = ExtResource("12_smooth")
+Meshes = PackedStringArray("SM_Veh_POV_Cockpit_Frame_Glass_02")
 
 [node name="Eye" type="Marker3D" parent="." unique_id=1359755989]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)

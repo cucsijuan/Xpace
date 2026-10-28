@@ -24,13 +24,18 @@ public partial class SettingsMenu : Control
         (Antialiasing.Msaa8, "MSAA 8x"), (Antialiasing.Taa, "TAA"),
     };
 
+    private static readonly (Quality Kind, string Name)[] Qualities =
+    {
+        (Quality.Off, "Off"), (Quality.Low, "Low"), (Quality.Medium, "Medium"), (Quality.High, "High"),
+    };
+
     /// <summary>Back was pressed (the settings are saved).</summary>
     public event Action Closed;
 
     private GameSettings _s;
     private LineEdit _name;
-    private OptionButton _resolution, _window, _antialiasing;
-    private CheckButton _vsync, _invertY, _checkUpdates;
+    private OptionButton _resolution, _window, _antialiasing, _shadows, _occlusion, _indirect;
+    private CheckButton _vsync, _invertY, _checkUpdates, _reflections, _glow;
     private HSlider _mouse, _look, _voices;
     private GridContainer _bindings;
     private readonly Dictionary<string, Button> _bindButtons = new();
@@ -46,6 +51,11 @@ public partial class SettingsMenu : Control
         _window = GetNode<OptionButton>("%Window");
         _vsync = GetNode<CheckButton>("%VSync");
         _antialiasing = GetNode<OptionButton>("%Antialiasing");
+        _shadows = GetNode<OptionButton>("%Shadows");
+        _occlusion = GetNode<OptionButton>("%AmbientOcclusion");
+        _indirect = GetNode<OptionButton>("%IndirectLight");
+        _reflections = GetNode<CheckButton>("%Reflections");
+        _glow = GetNode<CheckButton>("%Glow");
         _invertY = GetNode<CheckButton>("%InvertY");
         _mouse = GetNode<HSlider>("%MouseSensitivity");
         _look = GetNode<HSlider>("%LookSensitivity");
@@ -56,6 +66,12 @@ public partial class SettingsMenu : Control
             _window.AddItem(name);
         foreach (var (_, name) in Smoothing)
             _antialiasing.AddItem(name);
+        foreach (var (_, name) in Qualities)
+        {
+            _shadows.AddItem(name);
+            _occlusion.AddItem(name);
+            _indirect.AddItem(name);
+        }
         foreach (var (action, name) in FlightInput.Bindable)
         {
             _bindings.AddChild(new Label { Text = name, SizeFlagsHorizontal = SizeFlags.ExpandFill });
@@ -71,6 +87,11 @@ public partial class SettingsMenu : Control
         _window.ItemSelected += i => Change(s => s.Window = Windows[(int)i].Kind);
         _vsync.Toggled += on => Change(s => s.VSync = on);
         _antialiasing.ItemSelected += i => Change(s => s.Antialiasing = Smoothing[(int)i].Kind);
+        _shadows.ItemSelected += i => Change(s => s.Shadows = Qualities[(int)i].Kind);
+        _occlusion.ItemSelected += i => Change(s => s.AmbientOcclusion = Qualities[(int)i].Kind);
+        _indirect.ItemSelected += i => Change(s => s.IndirectLight = Qualities[(int)i].Kind);
+        _reflections.Toggled += on => Change(s => s.Reflections = on);
+        _glow.Toggled += on => Change(s => s.Glow = on);
         _invertY.Toggled += on => Change(s => s.InvertMouseY = on);
         _mouse.ValueChanged += v => Change(s => s.MouseSensitivity = (float)v);
         _look.ValueChanged += v => Change(s => s.LookSensitivity = (float)v);
@@ -104,6 +125,11 @@ public partial class SettingsMenu : Control
         _window.Select(Array.FindIndex(Windows, w => w.Kind == _s.Window));
         _vsync.ButtonPressed = _s.VSync;
         _antialiasing.Select(Array.FindIndex(Smoothing, a => a.Kind == _s.Antialiasing));
+        _shadows.Select(Array.FindIndex(Qualities, q => q.Kind == _s.Shadows));
+        _occlusion.Select(Array.FindIndex(Qualities, q => q.Kind == _s.AmbientOcclusion));
+        _indirect.Select(Array.FindIndex(Qualities, q => q.Kind == _s.IndirectLight));
+        _reflections.ButtonPressed = _s.Reflections;
+        _glow.ButtonPressed = _s.Glow;
         _invertY.ButtonPressed = _s.InvertMouseY;
         _mouse.Value = _s.MouseSensitivity;
         _look.Value = _s.LookSensitivity;
@@ -174,6 +200,11 @@ public partial class SettingsMenu : Control
         _s.Window = fresh.Window;
         _s.VSync = fresh.VSync;
         _s.Antialiasing = fresh.Antialiasing;
+        _s.Shadows = fresh.Shadows;
+        _s.AmbientOcclusion = fresh.AmbientOcclusion;
+        _s.IndirectLight = fresh.IndirectLight;
+        _s.Reflections = fresh.Reflections;
+        _s.Glow = fresh.Glow;
         _s.InvertMouseY = fresh.InvertMouseY;
         _s.MouseSensitivity = fresh.MouseSensitivity;
         _s.LookSensitivity = fresh.LookSensitivity;

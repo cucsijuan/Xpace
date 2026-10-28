@@ -109,9 +109,11 @@ slider_knob: 22 triangles -> res://assets/synty/parts/pov_cockpit_01/slider_knob
 A part that finds no triangles is reported (and the tool exits with 1):
 its box is wrong, or an earlier part took its triangles.
 
-Then give the remainder to the model's mesh node in its scene (the cockpit:
-`Body/SM_Veh_POV_Cockpit_01`, property `mesh`), and use the part meshes in
-control scenes (see [controls.md](../controls.md)).
+Then give the remainder to the model's mesh node in its scene through a
+`ModelMeshes` node under the model's instance (the cockpit: `Body/Meshes`,
+`SM_Veh_POV_Cockpit_01` -> `cockpit_body.res`; a mesh set on the imported
+node itself is lost in an export), and use the part meshes in control
+scenes (see [controls.md](../controls.md)).
 
 ## Example: the cockpit's slider
 

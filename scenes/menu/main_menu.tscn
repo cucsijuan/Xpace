@@ -12,6 +12,7 @@
 [ext_resource type="PackedScene" path="res://scenes/menu/settings_menu.tscn" id="6_settings"]
 [ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="paint_script"]
 [ext_resource type="Script" path="res://scripts/Menu/MenuDust.cs" id="11_dust"]
+[ext_resource type="Script" path="res://scripts/Menu/QualityEnvironment.cs" id="q_env"]
 
 [sub_resource type="Sky" id="Sky_space"]
 sky_material = ExtResource("2_skybox")
@@ -24,6 +25,13 @@ ambient_light_source = 2
 ambient_light_color = Color(0.25, 0.27, 0.32, 1)
 ambient_light_energy = 0.6
 tonemap_mode = 2
+ssao_enabled = true
+ssao_radius = 3.0
+ssao_intensity = 3.0
+ssao_power = 1.5
+ssao_light_affect = 0.3
+ssil_enabled = true
+ssil_radius = 8.0
 glow_enabled = true
 
 [node name="MainMenu" type="Node3D" unique_id=305615630]
@@ -31,10 +39,17 @@ script = ExtResource("1_menu")
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=130376335]
 environment = SubResource("Environment_space")
+script = ExtResource("q_env")
 
 [node name="Sun" type="DirectionalLight3D" parent="." unique_id=1866414150]
 transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 0, 0, 0)
 light_energy = 1.4
+shadow_enabled = true
+directional_shadow_split_1 = 0.05
+directional_shadow_split_2 = 0.15
+directional_shadow_split_3 = 0.4
+directional_shadow_blend_splits = true
+directional_shadow_max_distance = 100.0
 
 [node name="Ship" parent="." unique_id=3446935 instance=ExtResource("3_ship")]
 transform = Transform3D(-0.8660251, 0, -0.50000006, -0.31039128, 0.7839828, 0.5376132, 0.39199147, 0.6207826, -0.6789488, -0.8069687, 0, 0)
