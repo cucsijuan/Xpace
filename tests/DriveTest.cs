@@ -236,6 +236,10 @@ public partial class DriveTest : Node3D
         _throttle = () => 0;
         await Seconds(0.5);
         _hull.Restore();                            // the insurer's ship: the engine repaired, its controller as from the factory
+        // and its computer booted afresh: FLIGHT resident again, with the assist on
+        await Until(() => _ship.Computer.ScreenText().Contains("FLIGHT OFF removes it"), 40);
+        if (_ship.AssistOn)
+            await Press(() => _controls.AssistButton = true, () => _controls.AssistButton = false);
 
         // On the bench nothing cuts it out: pushed as hard as it goes the core runs away (a worn core gives
         // less and heats less, but not enough) and the engine fails
