@@ -67,6 +67,11 @@ public partial class Walker : CharacterBody3D
 
     public const string UsesGroup = "walker_uses";
 
+    /// <summary>This machine's player on foot, or null (a session sends them to the other machines).</summary>
+    public static Walker Local => _all.Count > 0 ? _all[0] : null;
+
+    private static readonly System.Collections.Generic.List<Walker> _all = new();
+
     /// <summary>What the player can do here now, shown at the bottom ("E: board the ship"); empty for nothing.</summary>
     public string Prompt { get; set; } = "";
 
@@ -95,6 +100,30 @@ public partial class Walker : CharacterBody3D
     private float _sensitivity;
     private bool _invert;
     private int _settleFrames;
+
+    public override void _EnterTree() => _all.Add(this);
+
+    public override void _ExitTree() => _all.Remove(this);
+
+    /// <summary>
+    /// How the other machines see this walker (<see cref="Net.WalkerState"/>): in the station it walks, in its frame;
+    /// null when it walks no station.
+    /// </summary>
+    public Net.WalkerState? State()
+    {
+        if (Space.StationRadio.Above(this) is not Space.StationRadio radio || radio.GetParent() is not Node3D station)
+            return null;
+        Transform3D into = station.GlobalTransform.AffineInverse();
+        Basis facing = (Body ?? (Node3D)this).GlobalBasis;
+        return new Net.WalkerState
+        {
+            Station = radio.Sign,
+            Position = into * GlobalPosition,
+            Facing = (into.Basis * facing).Orthonormalized().GetRotationQuaternion(),
+            Velocity = into.Basis * Velocity,
+            Grounded = IsOnFloor(),
+        };
+    }
 
     public override void _Ready()
     {

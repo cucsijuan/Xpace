@@ -75,6 +75,10 @@ public static class NetIds
 ///   the host does (<see cref="Dock"/>, told to late joiners too);
 /// - each ship's radio, as its owner has it (callsign, on or off:
 ///   <see cref="SetRadio"/>), is known everywhere, late joiners included;
+/// - a player on foot (<see cref="Walk"/>) is sent with the snapshots, guests
+///   to the host and the host to everyone (relaying the guests'), and once
+///   when they stop being on foot; silent for <see cref="ForgetSeconds"/>,
+///   they are gone too;
 /// - guests keep their tick on the host's: they ping it every
 ///   <see cref="PingInterval"/> ticks (every 6 until the first answer), and
 ///   move their clock by <see cref="AdjustClock"/> when the best of the
@@ -92,7 +96,7 @@ public sealed class Session
     private const byte KindSnapshot = 1, KindFire = 2, KindHit = 3, KindPing = 4, KindPong = 5,
                        KindSpawn = 6, KindDespawn = 7, KindBlast = 8, KindDrop = 9, KindDelta = 10, KindAck = 11, KindRadio = 12,
                        KindRadioState = 13, KindRequest = 14, KindCleared = 15, KindDock = 16, KindPilot = 17, KindDocument = 18,
-                       KindAsk = 19;
+                       KindAsk = 19, KindWalker = 20;
 
     /// <summary>A document for a guest goes in parts of at most this many bytes (EOS carries 1170 a packet).</summary>
     public const int PartBytes = 1000;
@@ -164,6 +168,12 @@ public sealed class Session
     /// <summary>Something made for another machine went silent and was removed: take away what shows it.</summary>
     public event Action<INetEntity> Forgotten;
 
+    /// <summary>Another machine's player is on foot, or moved (their peer, how they are now).</summary>
+    public event Action<byte, WalkerState> WalkerMoved;
+
+    /// <summary>Another machine's player is no longer on foot (or left).</summary>
+    public event Action<byte> WalkerGone;
+
     /// <summary>Snapshots sent whole and as deltas, and the bytes of both (their packets' bodies).</summary>
     public int WholeSent { get; private set; }
     public int DeltasSent { get; private set; }
@@ -186,6 +196,11 @@ public sealed class Session
     private readonly Dictionary<ushort, byte[]> _radios = new();           // the host: each ship's radio state, as sent
     private readonly Dictionary<(string Station, int Dock), bool> _docks = new();   // the host: docks open
     private readonly Dictionary<ushort, byte[][]> _parts = new();          // a guest: documents still coming, by number
+    private readonly Dictionary<byte, WalkerState> _walkers = new();      // others on foot, by peer
+    private readonly Dictionary<byte, uint> _walkerTicks = new();           // the newest of each peer's, by their tick
+    private readonly Dictionary<byte, uint> _walkerHeard = new();           // when each was last heard, by this one's
+    private WalkerState? _walking;
+    private bool _walked;
     private ushort _sequence, _documents;
     private ushort _nextDynamic = NetIds.FirstDynamic;
 
@@ -365,6 +380,15 @@ public sealed class Session
             Send(HostPeer, KindRadioState, bytes, reliable: true);
     }
 
+    /// <summary>This machine's player on foot as they are now (each tick), or null: not on foot.</summary>
+    public void Walk(WalkerState? state) => _walking = state;
+
+    /// <summary>Another machine's player on foot, as last heard; null: not on foot.</summary>
+    public WalkerState? WalkerOf(byte peer) => _walkers.TryGetValue(peer, out WalkerState s) ? s : null;
+
+    /// <summary>The other machines' players on foot, by peer.</summary>
+    public IReadOnlyDictionary<byte, WalkerState> Walkers => _walkers;
+
     /// <summary>A guest: its ship asks a station (by callsign) for something; the host's station answers.</summary>
     public void Request(ushort ship, string station, byte what)
     {
@@ -534,6 +558,7 @@ public sealed class Session
                     SendSnapshot(HostPeer, e.NetId, wire);
             }
         }
+        SendWalker(now);
         SendAcks();
         if (Judge != null)
         {
@@ -543,6 +568,39 @@ public sealed class Session
         if (!IsHost && now % (uint)(Synced ? PingInterval : 6) == 0)
             Send(HostPeer, KindPing, BitConverter.GetBytes(now), reliable: false);
         _transport.Flush();
+    }
+
+    /// <summary>This machine's player on foot, with the snapshots; once, reliably, when they are no longer.</summary>
+    private void SendWalker(uint now)
+    {
+        if (!Synced)
+            return;
+        byte[] body;
+        bool reliable = false;
+        if (_walking is WalkerState state)
+        {
+            if (now % (uint)SnapshotInterval != 0)
+                return;
+            state.Tick = now;
+            var b = new List<byte> { LocalPeer, 1 };
+            b.AddRange(state.ToBytes());
+            body = b.ToArray();
+            _walked = true;
+        }
+        else if (_walked)
+        {
+            var b = new List<byte> { LocalPeer, 0 };
+            b.AddRange(BitConverter.GetBytes(now));
+            body = b.ToArray();
+            reliable = true;
+            _walked = false;
+        }
+        else
+            return;
+        if (IsHost)
+            Broadcast(KindWalker, body, reliable, except: null);
+        else
+            Send(HostPeer, KindWalker, body, reliable);
     }
 
     /// <summary>The host: a guest that has just come hears of everything spawned that still flies.</summary>
@@ -599,6 +657,17 @@ public sealed class Session
             Remove(id);
             _spawned.Remove(id);
             Forgotten?.Invoke(e);
+        }
+        var silent = new List<byte>();
+        foreach ((byte peer, uint heard) in _walkerHeard)
+            if ((int)(now - heard) > quiet)
+                silent.Add(peer);
+        foreach (byte peer in silent)
+        {
+            _walkers.Remove(peer);
+            _walkerHeard.Remove(peer);
+            _walkerTicks.Remove(peer);
+            WalkerGone?.Invoke(peer);
         }
     }
 
@@ -848,6 +917,36 @@ public sealed class Session
                     Asked?.Invoke(peer, topic, System.Text.Encoding.UTF8.GetString(body, at, body.Length - at));
                 }
                 break;
+
+            case KindWalker:
+            {
+                if (body.Length < 2)
+                    return;
+                byte owner = body[0];
+                if (owner == LocalPeer || IsHost && owner != peer || !IsHost && peer != HostPeer)
+                    return;
+                WalkerState? state = body[1] != 0 ? WalkerState.Read(body, 2) : null;
+                if (body[1] != 0 ? state == null : body.Length != 6)
+                    return;
+                uint tick = state?.Tick ?? BitConverter.ToUInt32(body, 2);
+                if (_walkerTicks.TryGetValue(owner, out uint newest) && (int)(tick - newest) <= 0)
+                    return;                             // older than what came already (unreliable ones come in any order)
+                _walkerTicks[owner] = tick;
+                if (IsHost)
+                    Broadcast(KindWalker, body, reliable: state == null, except: peer);
+                if (state is WalkerState s)
+                {
+                    _walkers[owner] = s;
+                    _walkerHeard[owner] = now;
+                    WalkerMoved?.Invoke(owner, s);
+                }
+                else if (_walkers.Remove(owner))
+                {
+                    _walkerHeard.Remove(owner);
+                    WalkerGone?.Invoke(owner);
+                }
+                break;
+            }
 
             case KindDrop:
             {

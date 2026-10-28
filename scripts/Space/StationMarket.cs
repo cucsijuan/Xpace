@@ -96,7 +96,7 @@ public partial class StationMarket : Node
     [Export] public string HoldFullText = "The hold is full.";
     [Export] public string NotHeldText = "None of it in the hold.";
     [Export] public string NotTradedText = "Not traded here.";
-    [Export] public string NotPresentText = "Your ship must be in a hangar here.";
+    [Export] public string NotPresentText = "You must be at this station: on foot here, or your ship in a hangar here.";
     /// <summary>{0} credits.</summary>
     [Export] public string PaidText = "Paid {0} credits. Nothing owed here.";
     [Export] public string ReleasedText = "Your ship is released.";
@@ -155,7 +155,7 @@ public partial class StationMarket : Node
         PilotRecord pilot = state.Pilot(pilotId);
         Market.Advance(station, Goods, state.Clock);
         Node3D ship = universe.ShipOf(pilotId);
-        bool docked = Radio.DockedHere(ship), present = docked || Radio.Inside(ship);
+        bool docked = Radio.DockedHere(ship), present = docked || Radio.Inside(ship) || universe.OnFootAt(pilotId) == Radio.Sign;
         CrimeRecord crimes = station.CrimesOf(pilotId);
         string message = "";
         bool changed = false;

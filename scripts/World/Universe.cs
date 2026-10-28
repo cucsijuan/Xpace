@@ -204,6 +204,20 @@ public partial class Universe : Node
         return null;
     }
 
+    /// <summary>
+    /// The station (its callsign) where <paramref name="pilot"/> is on foot, as this machine knows (the owner of the
+    /// universe: its own player's walker and the ones its guests send), or null.
+    /// </summary>
+    public string OnFootAt(string pilot)
+    {
+        if (pilot == LocalPilotId && Xpace.OnFoot.Walker.Local is { } walker && IsInstanceValid(walker))
+            return walker.State()?.Station;
+        foreach ((byte peer, string id) in _peers)
+            if (id == pilot && _session?.WalkerOf(peer) is WalkerState state)
+                return state.Station;
+        return null;
+    }
+
     /// <summary>A player's ship blew up (here or on its owner's machine): its cargo went with it.</summary>
     public void Lose(Node3D ship)
     {

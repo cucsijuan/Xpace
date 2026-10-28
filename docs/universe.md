@@ -73,6 +73,10 @@ Pilots trade docked at the station, on foot at the market's kiosk in the hangar 
 `MarketWindow`); the lockers' kiosk beside it opens the locker (`StationLockers` + `LockerWindow`). Later trading moves
 to a market zone inside the station and refits to a hangar of their own.
 
+A pilot is present at a station when their ship is docked there or inside one of its hangars, or when they are on
+foot there. The market and the lockers both check this. The host's universe knows where each pilot is on foot: the
+local player's walker, or a guest's as the guest's machine reports it in the walker states (`Universe.OnFootAt`).
+
 The sector has two stations with complementary markets: the first (industry: metals, machinery, hydrogen) and Kestrel
 (water, food, ore, medicines), about 24 km apart.
 

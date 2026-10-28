@@ -47,6 +47,12 @@ namespace Xpace.Net;
 /// the guest's radio, and the docks it opens and shuts open and shut on
 /// every machine. Every ship's radio is as its owner has it: callsign (the
 /// pilot's name, for players) and power.
+///
+/// A player on foot here (<see cref="Xpace.OnFoot.Walker.Local"/>) is sent to
+/// the others, in the frame of the station they walk; the others' players
+/// on foot walk here as <see cref="Xpace.OnFoot.RemoteWalker"/>s showing
+/// <see cref="WalkerBody"/>, below the station of the same callsign, with
+/// their ship's callsign over their heads.
 /// </summary>
 public partial class SessionNode : Node
 {
@@ -54,6 +60,8 @@ public partial class SessionNode : Node
     public const ushort FirstHostId = 1;
 
     [Export] public PackedScene RemoteShipScene;
+    /// <summary>The body other players on foot show (none: the crew's).</summary>
+    [Export] public PackedScene WalkerBody;
     [Export] public Vector3 PilotSpacing = new(40, 0, 0);
 
     /// <summary>
@@ -98,6 +106,11 @@ public partial class SessionNode : Node
     private readonly System.Collections.Generic.HashSet<ushort> _down = new();
     private readonly System.Collections.Generic.Dictionary<ushort, (IRadio Radio, string Sign, bool On)> _radios = new();
     private readonly System.Collections.Generic.Dictionary<ushort, (string Sign, bool On)> _theirRadios = new();
+    private readonly System.Collections.Generic.Dictionary<byte, Xpace.OnFoot.RemoteWalker> _walkers = new();
+
+    /// <summary>Another machine's player on foot as it walks here, or null.</summary>
+    public Xpace.OnFoot.RemoteWalker WalkerOf(byte peer) =>
+        _walkers.TryGetValue(peer, out var w) && IsInstanceValid(w) ? w : null;
 
     public override void _EnterTree()
     {
@@ -110,6 +123,10 @@ public partial class SessionNode : Node
         if (Instance == this)
             Instance = null;
         HangarDock.Changed -= DockChanged;
+        foreach (Xpace.OnFoot.RemoteWalker walker in _walkers.Values)
+            if (IsInstanceValid(walker))
+                walker.QueueFree();
+        _walkers.Clear();
         if (Session != null)
             Xpace.World.Universe.Current?.Detach();
     }
@@ -153,6 +170,8 @@ public partial class SessionNode : Node
         }
         Session.Despawned += (e, tick, exploded) => (e as NetBody)?.EndAt(tick, exploded);
         Session.Dropped += Dropped;
+        Session.WalkerMoved += Walked;
+        Session.WalkerGone += WalkerGone;
         Session.Forgotten += e =>
         {
             if (e is RemoteShip ship)
@@ -199,6 +218,7 @@ public partial class SessionNode : Node
     {
         if (!Active || SectorClock.Instance is not SectorClock clock)
             return;
+        Session.Walk(Xpace.OnFoot.Walker.Local is { } walker && IsInstanceValid(walker) ? walker.State() : null);
         Session.Tick(clock.Tick);
 
         // Radars elsewhere that track a ship of this machine paint it here
@@ -238,6 +258,36 @@ public partial class SessionNode : Node
             else if (!down)
                 _down.Remove(e.NetId);
         }
+    }
+
+    // Another machine's player on foot: shown in the station of the same callsign here (moved there if they walk
+    // another one now)
+    private void Walked(byte peer, WalkerState state)
+    {
+        if (StationRadio.Called(state.Station)?.GetParent() is not Node3D station)
+        {
+            WalkerGone(peer);
+            return;
+        }
+        Xpace.OnFoot.RemoteWalker walker = WalkerOf(peer);
+        if (walker == null)
+        {
+            WalkerBody ??= GD.Load<PackedScene>("res://scenes/characters/crew_body.tscn");
+            _walkers[peer] = walker = Xpace.OnFoot.RemoteWalker.Make(WalkerBody, "");
+            walker.Name = $"Walker{peer}";
+            station.AddChild(walker);
+        }
+        else if (walker.GetParent() != station)
+            walker.Reparent(station, false);
+        walker.Pilot = _theirRadios.TryGetValue(NetIds.PlayerShip(peer), out var radio) ? radio.Sign : "";
+        walker.Hear(state);
+    }
+
+    private void WalkerGone(byte peer)
+    {
+        if (WalkerOf(peer) is Xpace.OnFoot.RemoteWalker walker)
+            walker.QueueFree();
+        _walkers.Remove(peer);
     }
 
     /// <summary>A round leaves a muzzle of <paramref name="shooter"/> here (scene position and velocity).</summary>

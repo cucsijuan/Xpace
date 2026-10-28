@@ -73,6 +73,26 @@ public partial class OnFootTest : Node
         await Seconds(0.5);
         Shot("1_out");
 
+        // Another player on foot, as a session shows them: a few steps ahead, facing this one, their name overhead
+        Node3D theirStation = Xpace.Space.StationRadio.Above(walker).GetParent<Node3D>();
+        Vector3 floorUp = walker.GlobalBasis.Y.Normalized();
+        Vector3 forward = -walker.Camera.GlobalBasis.Z;
+        forward = (forward - floorUp * forward.Dot(floorUp)).Normalized();
+        Transform3D toStation = theirStation.GlobalTransform.AffineInverse();
+        var other = Xpace.OnFoot.RemoteWalker.Make(GD.Load<PackedScene>("res://scenes/characters/crew_body.tscn"), "ACE");
+        theirStation.AddChild(other);
+        other.Hear(new Xpace.Net.WalkerState
+        {
+            Station = "HAVEN", Grounded = true,
+            Position = toStation * (walker.GlobalPosition + forward * 3),
+            Facing = (toStation.Basis * Basis.LookingAt(-forward, floorUp)).Orthonormalized().GetRotationQuaternion(),
+        });
+        await Seconds(0.5);
+        Check("another player on foot stands where their machine says, on the same floor",
+              other.GlobalPosition.DistanceTo(walker.GlobalPosition + forward * 3) < 0.01f && other.Body != null && other.Pilot == "ACE");
+        Shot("1b_another_player");
+        other.QueueFree();
+
         // Down on the hangar's floor, between the door and the pads, jog and sprint toward the pads
         Node3D hangar = dock.GetParentNode3D();
         walker.GlobalPosition = hangar.ToGlobal(new Vector3(0, 0.5f, -25));

@@ -41,7 +41,7 @@ public partial class StationLockers : Node
     public const string Topic = "locker";
 
     [ExportGroup("Texts")]
-    [Export] public string NotPresentText = "Your ship must be in a hangar here.";
+    [Export] public string NotPresentText = "You must be at this station: on foot here, or your ship in a hangar here.";
     [Export] public string FullText = "You can't carry any more.";
     [Export] public string NothingText = "Nothing there.";
     /// <summary>{0} the item.</summary>
@@ -91,7 +91,7 @@ public partial class StationLockers : Node
         PilotRecord pilot = universe.State.Pilot(pilotId);
         List<ItemRecord> locker = universe.State.Station(Radio.Sign).LockerOf(pilotId);
         Node3D ship = universe.ShipOf(pilotId);
-        bool present = Radio.DockedHere(ship) || Radio.Inside(ship);
+        bool present = Radio.DockedHere(ship) || Radio.Inside(ship) || universe.OnFootAt(pilotId) == Radio.Sign;
         string message = "";
         if (request.Do is LockerRequest.Store or LockerRequest.Take)
         {
