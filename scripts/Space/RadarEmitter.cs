@@ -181,7 +181,7 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
     private bool Seen(Node3D target, float range, float referenceRange, float margin)
     {
         float signal = MathF.Pow(Reach(target, referenceRange) / range, 4);     // 1 at the threshold
-        if (signal < margin || RockField.Blocked(GlobalPosition, target.GlobalPosition))
+        if (signal < margin || Obstacles.Blocked(GlobalPosition, target.GlobalPosition))
             return false;
         float jamming = Jamming.Noise(GetTree(), GlobalPosition, target.GlobalPosition - GlobalPosition,
                                       Mathf.DegToRad(BeamwidthDegrees), SidelobeLevel, _owner);
@@ -199,7 +199,7 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
         if (!Transmitting)
             return false;
         Vector3 local = GlobalBasis.Inverse() * (point - GlobalPosition);
-        if (local.LengthSquared() < 1 || RockField.Blocked(GlobalPosition, point))
+        if (local.LengthSquared() < 1 || Obstacles.Blocked(GlobalPosition, point))
             return false;                       // too close to tell, or rock in the way
         float half = Mathf.DegToRad(BeamwidthDegrees) / 2;
         if (Locked)

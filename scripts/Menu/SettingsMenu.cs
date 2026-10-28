@@ -72,14 +72,14 @@ public partial class SettingsMenu : Control
             _occlusion.AddItem(name);
             _indirect.AddItem(name);
         }
-        foreach (var (action, name) in FlightInput.Bindable)
+        foreach (var (set, actions) in ControlSets.Sets)
         {
-            _bindings.AddChild(new Label { Text = name, SizeFlagsHorizontal = SizeFlags.ExpandFill });
-            var button = new Button { CustomMinimumSize = new Vector2(200, 0) };
-            button.Pressed += () => Rebind(action);
-            _bindings.AddChild(button);
-            _bindButtons[action] = button;
+            _bindings.AddChild(new Label { Text = set.ToUpperInvariant(), Modulate = new Color(1, 1, 1, 0.6f) });
+            _bindings.AddChild(new Control());
+            foreach (var (action, name) in actions)
+                AddBinding(action, name);
         }
+
 
         _name.TextChanged += text => Change(s => s.PlayerName = text.Trim().Length > 0 ? text.Trim() : "Pilot", apply: false);
         _checkUpdates.Toggled += on => Change(s => s.CheckForUpdates = on, apply: false);
@@ -99,6 +99,15 @@ public partial class SettingsMenu : Control
         GetNode<Button>("%Defaults").Pressed += Defaults;
         GetNode<Button>("%Back").Pressed += Close;
         Hide();
+    }
+
+    private void AddBinding(string action, string name)
+    {
+        _bindings.AddChild(new Label { Text = name, SizeFlagsHorizontal = SizeFlags.ExpandFill });
+        var button = new Button { CustomMinimumSize = new Vector2(200, 0) };
+        button.Pressed += () => Rebind(action);
+        _bindings.AddChild(button);
+        _bindButtons[action] = button;
     }
 
     /// <summary>Shows the screen with the settings as they are.</summary>
@@ -175,7 +184,7 @@ public partial class SettingsMenu : Control
         GetViewport().SetInputAsHandled();
         if (bound != null)
         {
-            foreach (var (other, _) in FlightInput.Bindable)    // a key does one thing
+            foreach (var (other, _) in ControlSets.SetOf(_rebinding))    // a key does one thing (in its set)
                 if (other != _rebinding && GameSettings.Binding(other) is InputEvent old && Same(old, bound))
                     InputMap.ActionEraseEvent(other, old);
             GameSettings.Bind(_rebinding, bound);

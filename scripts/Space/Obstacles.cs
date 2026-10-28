@@ -20,4 +20,7 @@ public static class Obstacles
         }
         return rock;
     }
+
+    /// <summary>Whether a rock or a solid stands between two scene points: radar, radio and heat do not go through them.</summary>
+    public static bool Blocked(Vector3 from, Vector3 to) => RockField.Blocked(from, to) || Solid.Blocked(from, to);
 }

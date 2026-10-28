@@ -168,7 +168,7 @@ public partial class JammerDevice : Node3D, IShipDevice, IDeceiver, IRadarEmitte
     {
         if (!Sending || (Mode == JamMode.Deception && !Deceiving))
             return false;                               // a repeater sends only what it hears
-        return Gain(point) > 0 && !RockField.Blocked(GlobalPosition, point);
+        return Gain(point) > 0 && !Obstacles.Blocked(GlobalPosition, point);
     }
 
     // ---------- the bus ----------

@@ -1,0 +1,25 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Stairs_01.fbx" id="1_model"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="3_atlas"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="4_paint"]
+[ext_resource type="Script" path="res://scripts/OnFoot/WalkSurface.cs" id="5_walk"]
+
+[sub_resource type="BoxShape3D" id="Ramp"]
+size = Vector3(2.1, 0.2, 10.3)
+
+[node name="PadStairs" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+
+[node name="Paint" type="Node" parent="Model"]
+script = ExtResource("4_paint")
+Material = ExtResource("3_atlas")
+
+[node name="Ramp" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.8103, -0.586, 0, 0.586, 0.8103, -1.055, 2.702, 4.113)
+shape = SubResource("Ramp")
+
+[node name="Walk" type="Node3D" parent="."]
+script = ExtResource("5_walk")
+ParentMeshes = false

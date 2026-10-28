@@ -1,9 +1,10 @@
-[gd_scene load_steps=6 format=3]
+[gd_scene load_steps=7 format=3]
 
 [ext_resource type="PackedScene" path="res://assets/synty/SM_Bld_Landing_Platform_01.fbx" id="1_model"]
 [ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="2_material"]
 [ext_resource type="Script" path="res://scripts/Space/Solid.cs" id="3_solid"]
 [ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="paint_script"]
+[ext_resource type="Script" path="res://scripts/OnFoot/WalkSurface.cs" id="walk_script"]
 
 [sub_resource type="BoxShape3D" id="Box_0"]
 size = Vector3(13.22, 3.12, 13.22)
@@ -22,3 +23,6 @@ script = ExtResource("3_solid")
 [node name="Box0" type="CollisionShape3D" parent="Solid"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.11, 0)
 shape = SubResource("Box_0")
+
+[node name="Walk" type="Node3D" parent="Solid"]
+script = ExtResource("walk_script")

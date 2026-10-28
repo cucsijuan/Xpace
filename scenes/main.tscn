@@ -77,6 +77,12 @@
 [ext_resource type="Script" uid="uid://b0vtpw12oa5nr" path="res://scripts/Cockpit/RadioVoice.cs" id="82_voice"]
 [ext_resource type="PackedScene" path="res://scenes/ships/police_fighter.tscn" id="83_police"]
 [ext_resource type="Script" path="res://scripts/Menu/QualityEnvironment.cs" id="q_env"]
+[ext_resource type="Script" path="res://scripts/OnFoot/ShipSeat.cs" id="seat_script"]
+[ext_resource type="PackedScene" path="res://scenes/characters/walker.tscn" id="walker_scene"]
+[ext_resource type="Script" path="res://scripts/OnFoot/WalkSurface.cs" id="walk_surface"]
+[ext_resource type="PackedScene" uid="uid://c24bvglq01n2e" path="res://assets/synty/SM_Ship_Fighter_03.fbx" id="fighter_model"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="atlas_paint"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="model_paint"]
 
 [sub_resource type="Sky" id="Sky_space"]
 sky_material = ExtResource("43_skybox")
@@ -207,6 +213,24 @@ OwnedBy = 0
 
 [node name="Hitboxes" parent="Ship" unique_id=1890982627 instance=ExtResource("39_hitboxes")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="Walk" type="Node3D" parent="Ship/Hitboxes"]
+script = ExtResource("walk_surface")
+
+[node name="Exterior" parent="Ship" instance=ExtResource("fighter_model")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+visible = false
+
+[node name="Paint" type="Node" parent="Ship/Exterior"]
+script = ExtResource("model_paint")
+Material = ExtResource("atlas_paint")
+
+[node name="Seat" type="Node" parent="Ship" node_paths=PackedStringArray("Pilot", "Inside", "Outside")]
+script = ExtResource("seat_script")
+Pilot = NodePath("../Pilot")
+WalkerScene = ExtResource("walker_scene")
+Inside = [NodePath("../Cockpit")]
+Outside = [NodePath("../Exterior")]
 
 [node name="Hull" type="Node" parent="Ship" unique_id=2022416047]
 script = ExtResource("40_hull")

@@ -1,0 +1,86 @@
+[gd_scene load_steps=18 format=3]
+
+[ext_resource type="PackedScene" uid="uid://bmpcajkix8cei" path="res://assets/synty/SM_Chr_Characters.fbx" id="1_model"]
+[ext_resource type="AnimationLibrary" uid="uid://b780sptre4d0r" path="res://assets/animations/ual/AnimationLibrary_Godot_Standard.glb" id="2_anims"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="3_atlas"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="4_paint"]
+[ext_resource type="Script" path="res://scripts/Space/ModelParts.cs" id="5_parts"]
+[ext_resource type="Script" path="res://scripts/OnFoot/BodyAnimator.cs" id="6_animator"]
+[ext_resource type="Script" path="res://scripts/Space/BoneMount.cs" id="7_mount"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Chr_Attach_Crew_Male_Hair_01.fbx" id="8_hair"]
+
+[sub_resource type="AnimationNodeAnimation" id="Anim_idle"]
+animation = &"Idle"
+
+[sub_resource type="AnimationNodeAnimation" id="Anim_walk"]
+animation = &"Walk"
+
+[sub_resource type="AnimationNodeAnimation" id="Anim_jog"]
+animation = &"Jog_Fwd"
+
+[sub_resource type="AnimationNodeAnimation" id="Anim_sprint"]
+animation = &"Sprint"
+
+[sub_resource type="AnimationNodeBlendSpace1D" id="Move"]
+blend_point_0/node = SubResource("Anim_idle")
+blend_point_0/pos = 0.0
+blend_point_1/node = SubResource("Anim_walk")
+blend_point_1/pos = 1.5
+blend_point_2/node = SubResource("Anim_jog")
+blend_point_2/pos = 3.6
+blend_point_3/node = SubResource("Anim_sprint")
+blend_point_3/pos = 6.0
+max_space = 7.0
+sync = true
+
+[sub_resource type="AnimationNodeAnimation" id="Air"]
+animation = &"Jump"
+
+[sub_resource type="AnimationNodeAnimation" id="Sit"]
+animation = &"Sitting_Idle"
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="Fade"]
+xfade_time = 0.25
+
+[sub_resource type="AnimationNodeStateMachineTransition" id="Start"]
+advance_mode = 2
+
+[sub_resource type="AnimationNodeStateMachine" id="States"]
+states/Move/node = SubResource("Move")
+states/Move/position = Vector2(300, 100)
+states/Air/node = SubResource("Air")
+states/Air/position = Vector2(500, 0)
+states/Sit/node = SubResource("Sit")
+states/Sit/position = Vector2(500, 200)
+transitions = ["Start", "Move", SubResource("Start"), "Move", "Air", SubResource("Fade"), "Air", "Move", SubResource("Fade"), "Move", "Sit", SubResource("Fade"), "Sit", "Move", SubResource("Fade"), "Air", "Sit", SubResource("Fade")]
+
+[node name="CrewBody" type="Node3D" node_paths=PackedStringArray("Tree")]
+script = ExtResource("6_animator")
+Tree = NodePath("AnimationTree")
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, 0, 0)
+
+[node name="Parts" type="Node" parent="Model"]
+script = ExtResource("5_parts")
+Parts = PackedStringArray("SM_Chr_Crew_Male_01")
+
+[node name="Hair" type="Node" parent="Model"]
+script = ExtResource("7_mount")
+Part = ExtResource("8_hair")
+Material = ExtResource("3_atlas")
+
+[node name="Paint" type="Node" parent="Model"]
+script = ExtResource("4_paint")
+Material = ExtResource("3_atlas")
+
+[node name="AnimationPlayer" type="AnimationPlayer" parent="."]
+root_node = NodePath("../Model")
+libraries = {
+&"": ExtResource("2_anims")
+}
+
+[node name="AnimationTree" type="AnimationTree" parent="."]
+root_node = NodePath("../Model")
+tree_root = SubResource("States")
+anim_player = NodePath("../AnimationPlayer")

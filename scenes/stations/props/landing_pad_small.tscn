@@ -1,8 +1,9 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=9 format=3]
 
 [ext_resource type="Script" path="res://scripts/Space/LandingPad.cs" id="1_pad"]
 [ext_resource type="PackedScene" path="res://scenes/stations/props/landing_pad.tscn" id="2_platform"]
 [ext_resource type="Shader" path="res://assets/materials/pad_glow.gdshader" id="3_glow"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/pad_stairs.tscn" id="4_stairs"]
 
 [sub_resource type="ShaderMaterial" id="Material_column"]
 render_priority = 0
@@ -63,3 +64,6 @@ omni_range = 30.0
 [node name="Nose" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -10)
 gizmo_extents = 2.0
+
+[node name="Stairs" parent="." instance=ExtResource("4_stairs")]
+transform = Transform3D(-0.5754, 0, 0, 0, 0.5754, 0, 0, 0, -0.5754, -4.61, -3.336, -13.1)

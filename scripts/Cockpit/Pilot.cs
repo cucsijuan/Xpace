@@ -89,6 +89,12 @@ public partial class Pilot : Node3D
 
     public bool Viewing => Mode == MouseUse.Looking;
 
+    /// <summary>A line the HUD adds below the ship's state ("DOCKED  Y: leave the seat"); empty for none.</summary>
+    public string Hint { get; set; } = "";
+
+    /// <summary>In the seat: the pilot's camera, HUD and controls work (see <see cref="Stand"/>).</summary>
+    public bool Seated { get; private set; } = true;
+
     /// <summary>The keyboard is the computer's.</summary>
     public bool Typing => _focused != null;
 
@@ -534,13 +540,48 @@ public partial class Pilot : Node3D
                 state += $"   Hull {_hull.Fraction * 100:0}%";
         }
         ShowModeBar(delta);
-        string help = "";
+        string help = Hint != "" ? "\n" + Hint : "";
         if (_noticeTime > 0)
         {
             _noticeTime -= delta;
             help = "\n" + _notice;
         }
         _hud.Text = $"{state}{help}";
+    }
+
+    // ---------- leaving the seat ----------
+
+    /// <summary>
+    /// Gets up: the camera, the HUD and the controls stop (the ship gets no stick, no throttle and no buttons) until
+    /// <see cref="Sit"/>. Whatever had the keyboard lets it go.
+    /// </summary>
+    public void Stand()
+    {
+        Focus(null);
+        _dragging?.Release();
+        _dragging = null;
+        _hovered?.Hover(false);
+        _hovered = null;
+        _stick = Vector2.Zero;
+        _throttle = 0;
+        _controls = new PilotControls();
+        Seated = false;
+        _camera.Current = false;
+        if (GetNodeOrNull<CanvasLayer>("Hud") is CanvasLayer hud)
+            hud.Visible = false;
+        ProcessMode = ProcessModeEnum.Disabled;
+    }
+
+    /// <summary>Back in the seat: the pilot's camera, HUD and controls again, flying with the head ahead.</summary>
+    public void Sit()
+    {
+        Seated = true;
+        ProcessMode = ProcessModeEnum.Inherit;
+        _camera.MakeCurrent();
+        if (GetNodeOrNull<CanvasLayer>("Hud") is CanvasLayer hud)
+            hud.Visible = true;
+        LookAhead();
+        SetMode(MouseUse.Flying);
     }
 
     // ---------- screens, buttons and saving ----------

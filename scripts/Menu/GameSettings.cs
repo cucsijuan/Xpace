@@ -100,7 +100,7 @@ public partial class GameSettings : Node
     public override void _Ready()
     {
         Current = this;
-        FlightInput.Register();
+        ControlSets.Register();
         Load();
         Apply();
     }
@@ -175,10 +175,10 @@ public partial class GameSettings : Node
     /// <summary>The flight actions back to their default keys.</summary>
     public static void DefaultBindings()
     {
-        foreach (var (action, _) in FlightInput.Bindable)
+        foreach (var (action, _) in ControlSets.All)
             if (InputMap.HasAction(action))
                 InputMap.EraseAction(action);
-        FlightInput.Register();
+        ControlSets.Register();
     }
 
     /// <summary>The key or mouse button bound to <paramref name="action"/> (the first that is not a game controller's).</summary>
@@ -224,7 +224,7 @@ public partial class GameSettings : Node
         file.SetValue("updates", "check", CheckForUpdates);
         file.SetValue("updates", "skipped", SkippedVersion);
         file.SetValue("bindings", "version", BindingsVersion);
-        foreach (var (action, _) in FlightInput.Bindable)
+        foreach (var (action, _) in ControlSets.All)
             file.SetValue("bindings", action, Binding(action) switch
             {
                 InputEventKey key => $"key:{(long)key.PhysicalKeycode}",
@@ -256,7 +256,7 @@ public partial class GameSettings : Node
         CheckForUpdates = file.GetValue("updates", "check", CheckForUpdates).AsBool();
         SkippedVersion = file.GetValue("updates", "skipped", SkippedVersion).AsString();
         int version = file.GetValue("bindings", "version", 1).AsInt32();
-        foreach (var (action, _) in FlightInput.Bindable)
+        foreach (var (action, _) in ControlSets.All)
         {
             if (version < 2 && MovedInVersion2.Contains(action))
                 continue;

@@ -62,14 +62,14 @@ public static class Heat
         return total;
     }
 
-    /// <summary>A rock between the seeker and a source (the sun, far off, is tested a long way along its direction).</summary>
+    /// <summary>A rock or a solid between the seeker and a source (the sun, far off, is tested a long way along its direction).</summary>
     private static bool Behind(Vector3 from, Node source)
     {
-        if (RockField.All.Count == 0 || source is not Node3D n)
+        if (RockField.All.Count == 0 && Solid.All.Count == 0 || source is not Node3D n)
             return false;
         Vector3 to = n.GlobalPosition - from;
         if (to.LengthSquared() > 1e10f)
             to = to.Normalized() * 100_000f;
-        return RockField.Blocked(from, from + to);
+        return Obstacles.Blocked(from, from + to);
     }
 }

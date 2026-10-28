@@ -21,7 +21,8 @@ namespace Xpace.Ship;
 /// echo with it, and that clutter counts like noise. Rocks stand still, so
 /// a target moving along the line of sight stands apart from them in
 /// Doppler; one sitting still beside a rock is lost in its echo. The rocks
-/// are never shown.
+/// are never shown. A station's solids (<see cref="Solid"/>) hide what is
+/// behind them too, and a ship inside a hangar until its door opens.
 /// Below the detection threshold a target is not seen; below the lock
 /// threshold a lock breaks. A better radar (more power: a longer detection
 /// range; a narrower beam) measures better, and burns through jamming from
@@ -208,7 +209,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
         }
         if (_rocks.TryGetValue(t, out Rocks rocks))
             return rocks;
-        rocks.Hidden = RockField.Blocked(GlobalPosition, t.GlobalPosition);
+        rocks.Hidden = Obstacles.Blocked(GlobalPosition, t.GlobalPosition);
         if (!rocks.Hidden)
             rocks.Clutter = RockField.ClutterAll(GlobalPosition, _ship?.LinearVelocity ?? Vector3.Zero, t.GlobalPosition, t.Velocity,
                                                  Mathf.DegToRad(BeamwidthDegrees), RangeResolution, VelocityResolution);
@@ -455,7 +456,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
             float jn = j.NoiseToward(GlobalPosition) / (km * km);
             Vector3 local = GlobalBasis.Inverse() * to;
             if (jn < StrobeJnr || local.Length() < 1 || Vector3.Forward.AngleTo(local) > Mathf.DegToRad(ConeDegrees) ||
-                node is Node3D { Visible: false } || RockField.Blocked(GlobalPosition, j.GlobalPosition))
+                node is Node3D { Visible: false } || Obstacles.Blocked(GlobalPosition, j.GlobalPosition))
                 continue;
             local = Measure(j.GlobalPosition, jn, GlobalPosition, GlobalBasis);
             byte* e = table + (_contacts.Count + _strobes.Count) * 16;

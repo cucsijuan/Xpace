@@ -1,7 +1,8 @@
 # Copies the Synty POLYGON Sci-Fi Space files the game uses from the pack's
 # source files into assets/synty/. The pack's licence does not allow
 # redistributing its files, so they stay out of the repository; without them
-# the game falls back to placeholder geometry.
+# the game falls back to placeholder geometry. Files whose import settings are
+# not Godot's defaults get them from tools/synty_imports.
 #
 #   cmake -DPACK=<path to SourceFiles> -DGODOT=<path to Godot .NET> -DBLENDER=<blender> -P tools/import_synty.cmake
 #
@@ -68,6 +69,8 @@ set(MODELS
   SM_Prop_Wires_01
   SM_Prop_Wires_03
   SM_Prop_Wires_05
+  SM_Chr_Attach_Crew_Male_Hair_01
+  SM_Prop_Stairs_01
 )
 set(TEXTURES
   PolygonSciFiSpace_Texture_01_A
@@ -97,6 +100,10 @@ set(COLLISIONS
   SM_Bld_Hanger_01_Collision
   SM_Bld_HangerFloor_01_Collision
 )
+# Out of the Unity package's Models, renamed: every character (bodies, heads,
+# helmets) on one skeleton, which the source files only have one by one
+set(PACKAGE_MODELS Characters)
+set(NAME_Characters SM_Chr_Characters)
 
 file(MAKE_DIRECTORY "${DEST}")
 foreach(m IN LISTS MODELS)
@@ -129,11 +136,21 @@ foreach(n IN LISTS NAMES)
       set(FROM_${guid} "${c}")
     endif()
   endforeach()
+  foreach(m IN LISTS PACKAGE_MODELS)
+    if(asset STREQUAL "Assets/Synty/PolygonSciFiSpace/Models/${m}.fbx")
+      get_filename_component(dir "${n}" DIRECTORY)
+      get_filename_component(guid "${dir}" NAME)
+      list(APPEND WANTED "${guid}/asset")
+      set(FROM_${guid} "${NAME_${m}}")
+    endif()
+  endforeach()
 endforeach()
 list(LENGTH COLLISIONS want)
+list(LENGTH PACKAGE_MODELS more)
+math(EXPR want "${want} + ${more}")
 list(LENGTH WANTED found)
 if(NOT found EQUAL want)
-  message(FATAL_ERROR "Found ${found} of the ${want} collision meshes in ${PACKAGE}")
+  message(FATAL_ERROR "Found ${found} of the ${want} collision meshes and models in ${PACKAGE}")
 endif()
 file(ARCHIVE_EXTRACT INPUT "${PACKAGE}" DESTINATION "${UNPACK}" PATTERNS ${WANTED})
 foreach(w IN LISTS WANTED)
@@ -141,6 +158,17 @@ foreach(w IN LISTS WANTED)
   file(COPY_FILE "${UNPACK}/${w}" "${DEST}/${FROM_${dir}}.fbx")
 endforeach()
 file(REMOVE_RECURSE "${UNPACK}")
+
+# Import settings that are not Godot's defaults (the characters' skeleton
+# retargeted to Godot's humanoid profile, so the animations in
+# assets/animations fit it); a file Godot already made is left alone
+file(GLOB IMPORTS "${ROOT}/tools/synty_imports/*.import")
+foreach(i IN LISTS IMPORTS)
+  get_filename_component(name "${i}" NAME)
+  if(NOT EXISTS "${DEST}/${name}")
+    file(COPY "${i}" DESTINATION "${DEST}")
+  endif()
+endforeach()
 message(STATUS "Synty files copied to ${DEST}")
 
 if(BLENDER)

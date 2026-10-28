@@ -13,6 +13,7 @@
 [ext_resource type="Script" uid="uid://di7sf57pnphfr" path="res://scripts/Space/HangarDock.cs" id="11_dock"]
 [ext_resource type="PackedScene" path="res://scenes/stations/props/dock_beacon.tscn" id="12_beacon"]
 [ext_resource type="PackedScene" path="res://scenes/stations/props/landing_pad_small.tscn" id="23_m503l"]
+[ext_resource type="Script" path="res://scripts/OnFoot/WalkSurface.cs" id="24_walk"]
 [ext_resource type="PackedScene" uid="uid://cwy325ds6a77e" path="res://assets/synty/SM_Bld_Ceiling_Pipes_Straight_01.fbx" id="p1"]
 [ext_resource type="PackedScene" uid="uid://cdq8iyuuooxo8" path="res://assets/synty/SM_Prop_Detail_Pipes_02.fbx" id="p2"]
 [ext_resource type="PackedScene" uid="uid://dcbs85q6auuhi" path="res://assets/synty/SM_Prop_AirVent_Large_01.fbx" id="p3"]
@@ -58,6 +59,12 @@ Shape = ExtResource("3_walls")
 [node name="FloorAndCeiling" type="Node3D" parent="." unique_id=21184211]
 script = ExtResource("9_solid")
 Shape = ExtResource("2_floor")
+
+[node name="Walk" type="Node3D" parent="FloorAndCeiling"]
+script = ExtResource("24_walk")
+
+[node name="Walk" type="Node3D" parent="Walls"]
+script = ExtResource("24_walk")
 
 [node name="Light1" type="OmniLight3D" parent="." unique_id=2110645814]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 20, 0)
@@ -238,6 +245,9 @@ script = ExtResource("9_solid")
 
 [node name="Box" type="CollisionShape3D" parent="Dock/DoorSolid" unique_id=1902682085]
 shape = SubResource("Shape_door")
+
+[node name="Walk" type="Node3D" parent="Dock/DoorSolid"]
+script = ExtResource("24_walk")
 
 [node name="Beacon" parent="Dock" unique_id=711391917 instance=ExtResource("12_beacon")]
 

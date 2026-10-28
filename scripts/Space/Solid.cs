@@ -243,6 +243,23 @@ public partial class Solid : Node3D
         return hit;
     }
 
+    /// <summary>Whether the segment (scene points) passes through its surface; a long one (a line of sight) is first tried against the sphere that holds it.</summary>
+    public bool Crosses(Vector3 from, Vector3 to)
+    {
+        Vector3 centre = Frame.Origin, d = to - from;
+        float t = d.LengthSquared() > 0 ? Mathf.Clamp((centre - from).Dot(d) / d.LengthSquared(), 0, 1) : 0;
+        return (from + d * t).DistanceTo(centre) <= Reach && Segment(from, to, out _, out _);
+    }
+
+    /// <summary>Whether any solid stands between two scene points (a radar's or a seeker's line of sight).</summary>
+    public static bool Blocked(Vector3 from, Vector3 to)
+    {
+        foreach (Solid s in All)
+            if (s.Crosses(from, to))
+                return true;
+        return false;
+    }
+
     /// <summary>The nearest of every solid's <see cref="Segment"/>.</summary>
     public static bool SegmentAll(Vector3 from, Vector3 to, out float along, out Vector3 normal)
     {

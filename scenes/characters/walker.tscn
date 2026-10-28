@@ -1,0 +1,87 @@
+[gd_scene load_steps=9 format=3]
+
+[ext_resource type="Script" path="res://scripts/OnFoot/Walker.cs" id="1_walker"]
+[ext_resource type="PackedScene" path="res://scenes/characters/crew_body.tscn" id="2_body"]
+[ext_resource type="Script" path="res://scripts/OnFoot/WalkerHud.cs" id="3_hud"]
+
+[sub_resource type="CapsuleShape3D" id="Capsule"]
+radius = 0.32
+height = 1.8
+
+[sub_resource type="SphereShape3D" id="ArmBall"]
+radius = 0.2
+
+[sub_resource type="LabelSettings" id="PromptText"]
+font_size = 22
+outline_size = 6
+outline_color = Color(0, 0, 0, 0.8)
+
+[node name="Walker" type="CharacterBody3D" node_paths=PackedStringArray("Body", "Yaw", "Pitch", "Camera", "SideArm", "BackArm", "Chest")]
+floor_snap_length = 0.35
+floor_max_angle = 0.96
+script = ExtResource("1_walker")
+Body = NodePath("Body")
+Yaw = NodePath("Yaw")
+Pitch = NodePath("Yaw/Pitch")
+Camera = NodePath("Yaw/Pitch/SideArm/BackArm/Camera3D")
+SideArm = NodePath("Yaw/Pitch/SideArm")
+BackArm = NodePath("Yaw/Pitch/SideArm/BackArm")
+Chest = NodePath("Yaw/Chest")
+
+[node name="Shape" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("Capsule")
+
+[node name="Body" parent="." instance=ExtResource("2_body")]
+
+[node name="Yaw" type="Node3D" parent="."]
+
+[node name="Chest" type="Marker3D" parent="Yaw"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.2, 1.4, 0)
+
+[node name="Pitch" type="Node3D" parent="Yaw"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+
+[node name="SideArm" type="SpringArm3D" parent="Yaw/Pitch"]
+transform = Transform3D(-4.371139e-08, 0, 1, 0, 1, 0, -1, 0, -4.371139e-08, 0, 0, 0)
+shape = SubResource("ArmBall")
+spring_length = 0.6
+
+[node name="BackArm" type="SpringArm3D" parent="Yaw/Pitch/SideArm"]
+transform = Transform3D(-4.371139e-08, 0, -1, 0, 1, 0, 1, 0, -4.371139e-08, 0, 0, 0)
+shape = SubResource("ArmBall")
+spring_length = 2.6
+
+[node name="Camera3D" type="Camera3D" parent="Yaw/Pitch/SideArm/BackArm"]
+fov = 70.0
+near = 0.05
+far = 120000.0
+
+[node name="Hud" type="CanvasLayer" parent="."]
+
+[node name="Marks" type="Control" parent="Hud" node_paths=PackedStringArray("Walker", "PromptLabel")]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("3_hud")
+Walker = NodePath("../..")
+PromptLabel = NodePath("../Prompt")
+
+[node name="Prompt" type="Label" parent="Hud"]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -400.0
+offset_top = -90.0
+offset_right = 400.0
+offset_bottom = -50.0
+grow_horizontal = 2
+grow_vertical = 0
+label_settings = SubResource("PromptText")
+horizontal_alignment = 1
