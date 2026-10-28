@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Xpace.Computer;
 using Xpace.Space;
@@ -14,14 +15,15 @@ namespace Xpace.Ship;
 /// messages it heard. The radio ranges the station it holds laws from, so it
 /// knows when the ship is inside their zones.
 ///
-/// Registers: +0 type 18  +1 version 2  +2 contacts in the table
+/// Registers: +0 type 18  +1 version 3  +2 contacts in the table
 /// +3 updates so far  +4 status: bit 0 it holds a station's laws, bit 1 the
 /// ship is inside their speed limit, bit 2 asking, bit 3 off, bit 4 inside
 /// the station's protected zone, bit 5 cleared to a dock
-/// +5 write: a request to the contact in +6 (1 its laws, 2 docking; +6 =
-/// FFh: the nearest station)  +6 the request's contact  +7 messages heard so
-/// far  +8 segment  +10 the contacts' table  +12 the laws  +14 the messages
-/// (offsets).
+/// +5 write: a request to the contact in +6 (1 its laws, 2 docking, 3
+/// launch: let the docked ship go; +6 = FFh: the nearest station, or for a
+/// launch the station whose dock it is)  +6 the request's contact  +7
+/// messages heard so far  +8 segment  +10 the contacts' table  +12 the laws
+/// +14 the messages (offsets).
 ///
 /// The table, up to 16 entries of 16 bytes: +0 callsign (8 characters,
 /// space-padded)  +8 kind ('S' a station, 'V' a vessel)  +9 flags (bit 0 the
@@ -33,15 +35,29 @@ namespace Xpace.Ship;
 /// The laws, 32 bytes: +0 the station's callsign  +8 speed limit (1/8 m/s)
 /// +10 the protected zone's radius (10 m)  +12 range to the station (10 m)
 /// +14 flags (as status bits 0, 1, 4, 5)  +15 the dock cleared to (0 none)
-/// +16 the speed limit's radius (10 m).
+/// +16 the speed limit's radius (10 m)  +18 the landing pad in that dock
+/// (0 none).
 ///
 /// The messages, the newest first, 4 of 128 bytes: +0 who sent it (8
 /// characters)  +8 the words (120 characters, space-padded).
+///
+/// Version 3: the landing pad's guidance at D000:1900 (<see cref="ShipMemory.Pad"/>),
+/// 32 bytes, from the beacon of the pad the ship is cleared to (within its
+/// range): +0 flags (bit 0 guidance, bit 1 over the pad and turned as it is,
+/// bit 2 low enough for the clamps, bit 3 held by the clamps, bit 4 docked,
+/// bit 5 launch asked)  +1 the dock's number  +2 right  +4 up  +6 forward:
+/// where the ship's middle goes, from it, in its own axes (1/16 m)  +8 yaw
+/// right  +10 pitch up  +12 roll right: how it must turn to lie as the pad
+/// (binary angles, 65536 to the turn)  +14 the pad's leeway across (1/16 m)
+/// +16 its leeway in heading (binary angle)  +18 how high above its place
+/// the clamps take a ship (1/16 m)  +20 the pad's number.
 /// </summary>
 public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
 {
     public const int Slot = 16;
-    public const byte Type = 18, Version = 2;
+    public const byte Type = 18, Version = 3;
+    public const int PadSize = 32;
+    public const byte PadGuidance = 1, PadAligned = 2, PadLow = 4, PadHeld = 8, PadDocked = 16, PadLaunch = 32;
     public const int MaxContacts = 16, EntrySize = 16, LawsSize = 32;
     public const int Messages = 4, MessageSize = 128, MessageWords = 120;
     public const byte NearestStation = 0xFF;
@@ -70,6 +86,10 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
     /// <summary>The dock it is cleared to (0: none), and by whom.</summary>
     public int Dock { get; private set; }
     public StationRadio DockFrom { get; private set; }
+    /// <summary>The landing pad in that dock it is cleared to (0: a hangar with no pads).</summary>
+    public int Pad { get; private set; }
+    /// <summary>The ship asked the station that cleared it to let it go (docked: its pad lets go once the door opens).</summary>
+    public bool Launching { get; private set; }
     public IReadOnlyList<IRadio> Contacts => _contacts;
     /// <summary>What it heard, the newest last (the speech: how it was spoken, see <see cref="RadioVoicePack"/>).</summary>
     public IReadOnlyList<(string From, string Text, string Speech)> Heard => _heard;
@@ -117,11 +137,14 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
         _asking = 0;
     }
 
-    public void Cleared(StationRadio from, int dock)
+    public void Cleared(StationRadio from, int dock, int pad)
     {
         if (!On)
             return;
+        if (dock != Dock || pad != Pad || from != DockFrom)
+            Launching = false;
         Dock = dock;
+        Pad = dock == 0 ? 0 : pad;
         DockFrom = dock == 0 ? null : from;
         _asking = 0;
     }
@@ -145,6 +168,8 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
             return;
         station.Request(this, what);
         _asking = AskSeconds;
+        if (what == RadioRequest.Launch && Dock != 0 && station == DockFrom)
+            Launching = true;
     }
 
     /// <summary>Asks the nearest station for its laws (a cockpit key can work it).</summary>
@@ -152,6 +177,9 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
 
     /// <summary>Asks the nearest station for a dock.</summary>
     public void AskDocking() => Ask(RadioRequest.Docking);
+
+    /// <summary>Asks the station whose dock the ship is in to let it go.</summary>
+    public void AskLaunch() => Ask(RadioRequest.Launch, DockFrom);
 
     private StationRadio Nearest()
     {
@@ -180,6 +208,7 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
         if (DockFrom != null && !IsInstanceValid(DockFrom))
         {
             Dock = 0;
+            Pad = 0;
             DockFrom = null;
         }
 
@@ -227,6 +256,7 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
         }
         laws[14] = (byte)(status & (StatusLaws | StatusSpeedZone | StatusZone | StatusCleared));
         laws[15] = (byte)Math.Clamp(Dock, 0, 255);
+        laws[18] = (byte)Math.Clamp(Pad, 0, 255);
 
         byte* messages = ship.Computer.Memory + ShipMemory.Base + ShipMemory.Messages;
         for (int i = 0; i < Messages; i++)
@@ -236,6 +266,8 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
             PutText(m, at >= 0 ? _heard[at].From : "", Radio.CallsignLength);
             PutText(m + Radio.CallsignLength, at >= 0 ? _heard[at].Text.ToUpperInvariant() : "", MessageWords);
         }
+
+        WritePad(ship);
 
         bus[Slot, 2] = (byte)_contacts.Count;
         bus[Slot, 3] = ++_updates;
@@ -250,14 +282,42 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
         if (!bus.TakeWritten(Slot, 5))
             return;
         var what = (RadioRequest)bus[Slot, 5];
-        if (what is not (RadioRequest.Laws or RadioRequest.Docking))
+        if (what is not (RadioRequest.Laws or RadioRequest.Docking or RadioRequest.Launch))
             return;
         int which = bus[Slot, 6];
-        if (which == NearestStation)
+        if (what == RadioRequest.Launch && which == NearestStation)
+            AskLaunch();
+        else if (which == NearestStation)
             Ask(what);
         else if (which < _contacts.Count && _contacts[which] is StationRadio station)
             Ask(what, station);
     }
+
+    // What the beacon of the pad the ship is cleared to tells it
+    private unsafe void WritePad(ShipBody ship)
+    {
+        byte* p = ship.Computer.Memory + ShipMemory.Base + ShipMemory.Pad;
+        for (int i = 0; i < PadSize; i++)
+            p[i] = 0;
+        LandingPad pad = On && Dock != 0 ? DockFrom?.Docks.FirstOrDefault(d => d.Number == Dock)?.PadNumbered(Pad) : null;
+        if (pad == null || !pad.Guide(ship, out LandingPad.Guidance g))
+            return;
+        p[0] = (byte)(PadGuidance | (g.Aligned ? PadAligned : 0) | (g.Low ? PadLow : 0) | (g.Held ? PadHeld : 0) |
+                      (g.Docked ? PadDocked : 0) | (Launching ? PadLaunch : 0));
+        p[1] = (byte)Math.Clamp(Dock, 0, 255);
+        Put(p, 2, Sixteenths(g.Offset.X));
+        Put(p, 4, Sixteenths(g.Offset.Y));
+        Put(p, 6, Sixteenths(g.Offset.Z));
+        Put(p, 8, Angle(g.Yaw));
+        Put(p, 10, Angle(g.Pitch));
+        Put(p, 12, Angle(g.Roll));
+        Put(p, 14, Sixteenths(pad.Leeway));
+        Put(p, 16, Angle(Mathf.DegToRad(pad.HeadingLeeway)));
+        Put(p, 18, Sixteenths(pad.CaptureHeight));
+        p[20] = (byte)Math.Clamp(Pad, 0, 255);
+    }
+
+    private static int Sixteenths(float metres) => (int)Math.Clamp(MathF.Round(metres * 16), -32767, 32767);
 
     private float Distance(IRadio r) => r.RadioPosition.DistanceTo(GlobalPosition);
 

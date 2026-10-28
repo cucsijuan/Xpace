@@ -26,7 +26,7 @@ public enum DisplayKey
 /// The ship's display card: the screens listed in <see cref="Screens"/>,
 /// memory-mapped in segment D000. Bus slot 5 (150h):
 ///
-///   +0 type 6  +1 version 3  +2 segment  +4 screen table (offset)  +6 screens
+///   +0 type 6  +1 version 4  +2 segment  +4 screen table (offset)  +6 screens
 ///   +7 the screen of interest (the one the pilot picked; FFh none)
 ///   +8 keys pressed so far  +9 the last key (<see cref="DisplayKey"/>: 1 zoom
 ///   in, 2 zoom out, 3 sound, 4 up, 5 down, 6 select, 7 back)
@@ -38,8 +38,10 @@ public enum DisplayKey
 /// The screen table has 16 bytes a screen:
 ///
 ///   +0 name (6 characters, space-padded)  +6 mode (the program writes it:
-///   0 text, 1 graphics)  +7 columns  +8 rows  +10 width  +12 height
-///   +14 memory (offset, a multiple of 16)
+///   0 text, 1 graphics)  +7 columns  +8 rows  +9 lent (version 4: the
+///   programs' own; 0 the screen's usual program draws on it, else another
+///   program has taken it for a while and its mark is here)  +10 width
+///   +12 height  +14 memory (offset, a multiple of 16)
 ///
 /// Text: character and attribute pairs, as on a CGA. Graphics: 2 bits a
 /// pixel (off, dim, half, bright), four to a byte with the leftmost in the
@@ -48,7 +50,7 @@ public enum DisplayKey
 public partial class DisplayDevice : Node, IShipDevice
 {
     public const int Slot = 5;
-    public const byte Type = 6, Version = 3;
+    public const byte Type = 6, Version = 4;
     public const byte NoScreen = 0xFF;
     public const int EntrySize = 16, MaxScreens = 16;
     public const ushort FirstBuffer = 0x2000;
@@ -172,7 +174,7 @@ public partial class DisplayDevice : Node, IShipDevice
         bus[Slot, 10] = _keyScreen;
 
         // The table is in the computer's memory, which a power cycle (a reset, the insurer's new ship) wipes: the
-        // card keeps it written, all but the mode, which is the program's
+        // card keeps it written, all but the mode and the lending mark, which are the programs'
         byte* table = ship.Computer.Memory + ShipMemory.Base + ShipMemory.Screens;
         for (int i = 0; i < _outputs.Length; i++)
         {
@@ -183,7 +185,6 @@ public partial class DisplayDevice : Node, IShipDevice
                 e[c] = (byte)name[c];
             e[7] = (byte)s.Columns;
             e[8] = (byte)s.Rows;
-            e[9] = 0;
             *(ushort*)(e + 10) = (ushort)s.Width;
             *(ushort*)(e + 12) = (ushort)s.Height;
             *(ushort*)(e + 14) = _outputs[i].Memory;

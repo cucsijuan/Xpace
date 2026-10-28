@@ -5,13 +5,13 @@
 [ext_resource type="Script" uid="uid://cgkl0vftvxi6k" path="res://scripts/Cockpit/Pilot.cs" id="4_pilot"]
 [ext_resource type="Script" uid="uid://bhbpgfgybh0nt" path="res://scripts/Ship/ShipBody.cs" id="6_ship"]
 [ext_resource type="Script" uid="uid://c2sx2rsqw81y1" path="res://scripts/Cockpit/MouseWidget.cs" id="7_widget"]
-[ext_resource type="Script" path="res://scripts/Space/RockField.cs" id="8_rocks"]
-[ext_resource type="Script" path="res://scripts/Space/RockBox.cs" id="8_region"]
-[ext_resource type="Script" path="res://scripts/Space/RockKind.cs" id="8_kind"]
+[ext_resource type="Script" uid="uid://ckiwalmif04k4" path="res://scripts/Space/RockKind.cs" id="8_kind"]
+[ext_resource type="Script" uid="uid://cjgdfrbao84c3" path="res://scripts/Space/RockBox.cs" id="8_region"]
+[ext_resource type="Script" uid="uid://cupiki1xrg00r" path="res://scripts/Space/RockField.cs" id="8_rocks"]
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_01.tres" id="8_rock_01"]
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_02.tres" id="8_rock_02"]
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_03.tres" id="8_rock_03"]
-[ext_resource type="Resource" path="res://assets/space/rocks/rock_04.tres" id="8_rock_04"]
+[ext_resource type="Resource" uid="uid://dcgyine8s4uye" path="res://assets/space/rocks/rock_04.tres" id="8_rock_04"]
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_05.tres" id="8_rock_05"]
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_holes_03.tres" id="8_rock_holes_03"]
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_large_01.tres" id="8_rock_large_01"]
@@ -19,7 +19,6 @@
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_large_holes_02.tres" id="8_rock_large_holes_02"]
 [ext_resource type="Script" uid="uid://dmloccduosk8w" path="res://scripts/Space/SpaceDust.cs" id="9_dust"]
 [ext_resource type="PackedScene" path="res://scenes/stations/synty_station.tscn" id="10_station"]
-[ext_resource type="Script" uid="uid://crtawnlsvvjj0" path="res://scripts/Ship/ShipSpec.cs" id="11_spec"]
 [ext_resource type="Script" uid="uid://ddb4d5eq3ibf1" path="res://scripts/Ship/DisplayDevice.cs" id="12_display"]
 [ext_resource type="Script" uid="uid://c4xgxkaeap2pe" path="res://scripts/Ship/RadarDevice.cs" id="13_radar"]
 [ext_resource type="Script" uid="uid://hnoum77bd66n" path="res://scripts/Ship/TurretDevice.cs" id="14_turret"]
@@ -40,42 +39,42 @@
 [ext_resource type="Script" uid="uid://co14mxnlyoaws" path="res://scripts/Space/RadarEmitter.cs" id="29_emitter"]
 [ext_resource type="Script" uid="uid://dnpkqqauajrlf" path="res://scripts/Ship/ShipSignature.cs" id="30_signature"]
 [ext_resource type="Script" uid="uid://cxdb8imy7mdxh" path="res://scripts/Cockpit/RwrTone.cs" id="31_rwr_tone"]
-[ext_resource type="Script" path="res://scripts/Net/NetBody.cs" id="32_netbody"]
-[ext_resource type="Script" path="res://scripts/Net/SessionNode.cs" id="33_session"]
-[ext_resource type="Script" path="res://scripts/Net/NetLauncher.cs" id="34_launcher"]
+[ext_resource type="Script" uid="uid://bvfe68lfj5yss" path="res://scripts/Net/NetBody.cs" id="32_netbody"]
+[ext_resource type="Script" uid="uid://dwdkmt2qxogdw" path="res://scripts/Net/SessionNode.cs" id="33_session"]
+[ext_resource type="Script" uid="uid://by1qe2mbyebys" path="res://scripts/Net/NetLauncher.cs" id="34_launcher"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/chaff.tscn" id="35_chaff"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/flare.tscn" id="36_flare"]
-[ext_resource type="Script" path="res://scripts/Ship/DispenserDevice.cs" id="37_dispenser"]
+[ext_resource type="Script" uid="uid://bj6hcfjy152o8" path="res://scripts/Ship/DispenserDevice.cs" id="37_dispenser"]
 [ext_resource type="PackedScene" path="res://scenes/ships/remote_fighter.tscn" id="38_remote_fighter"]
 [ext_resource type="PackedScene" path="res://scenes/ships/fighter_03_hitboxes.tscn" id="39_hitboxes"]
-[ext_resource type="Script" path="res://scripts/Ship/ShipHull.cs" id="40_hull"]
+[ext_resource type="Script" uid="uid://bam7yggql8h27" path="res://scripts/Ship/ShipHull.cs" id="40_hull"]
 [ext_resource type="PackedScene" path="res://scenes/ships/ai_fighter.tscn" id="41_ai_fighter"]
-[ext_resource type="Script" path="res://scripts/Space/Datalink.cs" id="42_datalink"]
+[ext_resource type="Script" uid="uid://c8eu8l13opeim" path="res://scripts/Space/Datalink.cs" id="42_datalink"]
 [ext_resource type="Material" path="res://assets/materials/synty_skybox_04.tres" id="43_skybox"]
-[ext_resource type="Script" path="res://scripts/Ship/LaserDevice.cs" id="44_laser"]
-[ext_resource type="Script" path="res://scripts/Cockpit/LeadSight.cs" id="45_sight"]
+[ext_resource type="Script" uid="uid://ohp60d4evcwd" path="res://scripts/Ship/LaserDevice.cs" id="44_laser"]
+[ext_resource type="Script" uid="uid://unvbg5xdlch2" path="res://scripts/Cockpit/LeadSight.cs" id="45_sight"]
 [ext_resource type="Resource" path="res://assets/weapons/round_cannon.tres" id="46_cannon_look"]
 [ext_resource type="Resource" path="res://assets/weapons/round_laser.tres" id="47_laser_look"]
-[ext_resource type="Script" path="res://scripts/Space/RoundLook.cs" id="48_look"]
-[ext_resource type="Script" path="res://scripts/Cockpit/LookDot.cs" id="49_dot"]
+[ext_resource type="Script" uid="uid://bol2jhb7ha2rk" path="res://scripts/Space/RoundLook.cs" id="48_look"]
+[ext_resource type="Script" uid="uid://douaeiqguordu" path="res://scripts/Cockpit/LookDot.cs" id="49_dot"]
 [ext_resource type="PackedScene" path="res://scenes/menu/game_menu.tscn" id="50_game_menu"]
-[ext_resource type="Script" path="res://scripts/Space/RockSensor.cs" id="51_rock_sensor"]
-[ext_resource type="Script" path="res://scripts/Ship/PowerDevice.cs" id="60_power"]
-[ext_resource type="Script" path="res://scripts/Ship/ShieldDevice.cs" id="61_shield"]
-[ext_resource type="Script" path="res://scripts/Ship/HeatDevice.cs" id="62_heat"]
+[ext_resource type="Script" uid="uid://mvae8f7nlqu7" path="res://scripts/Space/RockSensor.cs" id="51_rock_sensor"]
+[ext_resource type="Script" uid="uid://blxnsma603sad" path="res://scripts/Ship/PowerDevice.cs" id="60_power"]
+[ext_resource type="Script" uid="uid://bifvl4mngdr1m" path="res://scripts/Ship/ShieldDevice.cs" id="61_shield"]
+[ext_resource type="Script" uid="uid://c8vqm3o1kn1iq" path="res://scripts/Ship/HeatDevice.cs" id="62_heat"]
 [ext_resource type="Material" path="res://assets/materials/shield_bubble.tres" id="63_bubble"]
-[ext_resource type="Script" path="res://scripts/Cockpit/PowerGauge.cs" id="64_gauge"]
-[ext_resource type="Script" path="res://scripts/Ship/JammerDevice.cs" id="65_jammer"]
+[ext_resource type="Script" uid="uid://81e1fdeshehe" path="res://scripts/Cockpit/PowerGauge.cs" id="64_gauge"]
+[ext_resource type="Script" uid="uid://c5g43l35p3ad2" path="res://scripts/Ship/JammerDevice.cs" id="65_jammer"]
 [ext_resource type="Resource" path="res://assets/ship/jammers/jammer_nj1.tres" id="66_nj1"]
 [ext_resource type="Resource" path="res://assets/ship/jammers/jammer_nj2.tres" id="67_nj2"]
 [ext_resource type="Resource" path="res://assets/ship/jammers/jammer_dj3.tres" id="68_dj3"]
-[ext_resource type="Script" path="res://scripts/Ship/JammerSpec.cs" id="69_jammer_spec"]
-[ext_resource type="Script" path="res://scripts/Ship/EngineDevice.cs" id="70_engine"]
-[ext_resource type="Resource" path="res://assets/ship/engines/engine_d50.tres" id="71_d50"]
-[ext_resource type="Resource" path="res://assets/ship/hulls/hull_fighter.tres" id="72_hull"]
-[ext_resource type="Script" path="res://scripts/Ship/RadioDevice.cs" id="80_radio"]
+[ext_resource type="Script" uid="uid://ch1htf4cluylb" path="res://scripts/Ship/JammerSpec.cs" id="69_jammer_spec"]
+[ext_resource type="Script" uid="uid://k7l05n085cd0" path="res://scripts/Ship/EngineDevice.cs" id="70_engine"]
+[ext_resource type="Resource" uid="uid://bwtxobljaprw5" path="res://assets/ship/engines/engine_d50.tres" id="71_d50"]
+[ext_resource type="Resource" uid="uid://tj7my2jw072j" path="res://assets/ship/hulls/hull_fighter.tres" id="72_hull"]
+[ext_resource type="Script" uid="uid://whqlxvr3qa25" path="res://scripts/Ship/RadioDevice.cs" id="80_radio"]
 [ext_resource type="Resource" path="res://assets/ship/displays/comms.tres" id="81_comms"]
-[ext_resource type="Script" path="res://scripts/Cockpit/RadioVoice.cs" id="82_voice"]
+[ext_resource type="Script" uid="uid://b0vtpw12oa5nr" path="res://scripts/Cockpit/RadioVoice.cs" id="82_voice"]
 [ext_resource type="PackedScene" path="res://scenes/ships/police_fighter.tscn" id="83_police"]
 
 [sub_resource type="Sky" id="Sky_space"]
@@ -89,6 +88,8 @@ ambient_light_source = 2
 ambient_light_color = Color(0.25, 0.27, 0.32, 1)
 ambient_light_energy = 0.6
 tonemap_mode = 2
+ssr_enabled = true
+ssao_enabled = true
 glow_enabled = true
 
 [sub_resource type="StandardMaterial3D" id="Material_planet"]
@@ -149,17 +150,17 @@ script = ExtResource("16_drone")
 Attacks = true
 MissileScene = ExtResource("24_ir_missile")
 
-[node name="NetBody" type="Node" parent="Drone1"]
+[node name="NetBody" type="Node" parent="Drone1" unique_id=1816900666]
 script = ExtResource("32_netbody")
 
-[node name="Datalink" type="Node" parent="Drone1"]
+[node name="Datalink" type="Node" parent="Drone1" unique_id=1506709942]
 script = ExtResource("42_datalink")
 Channel = "raiders"
 
 [node name="Radar" type="Node3D" parent="Drone1" unique_id=440645909]
 script = ExtResource("29_emitter")
 
-[node name="RockSensor" type="Node3D" parent="Drone1"]
+[node name="RockSensor" type="Node3D" parent="Drone1" unique_id=1573951677]
 script = ExtResource("51_rock_sensor")
 
 [node name="Drone2" type="Node3D" parent="." unique_id=933921391]
@@ -169,31 +170,31 @@ Speed = 100.0
 Attacks = true
 MissileScene = ExtResource("24_ir_missile")
 
-[node name="NetBody" type="Node" parent="Drone2"]
+[node name="NetBody" type="Node" parent="Drone2" unique_id=489336509]
 script = ExtResource("32_netbody")
 
-[node name="Datalink" type="Node" parent="Drone2"]
+[node name="Datalink" type="Node" parent="Drone2" unique_id=479276076]
 script = ExtResource("42_datalink")
 Channel = "raiders"
 
 [node name="Radar" type="Node3D" parent="Drone2" unique_id=1396506718]
 script = ExtResource("29_emitter")
 
-[node name="RockSensor" type="Node3D" parent="Drone2"]
+[node name="RockSensor" type="Node3D" parent="Drone2" unique_id=169482245]
 script = ExtResource("51_rock_sensor")
 
 [node name="Ship" type="AnimatableBody3D" parent="." unique_id=2058915107]
 script = ExtResource("6_ship")
 Spec = ExtResource("72_hull")
 
-[node name="NetBody" type="Node" parent="Ship"]
+[node name="NetBody" type="Node" parent="Ship" unique_id=773789896]
 script = ExtResource("32_netbody")
 OwnedBy = 0
 
-[node name="Hitboxes" parent="Ship" instance=ExtResource("39_hitboxes")]
+[node name="Hitboxes" parent="Ship" unique_id=1890982627 instance=ExtResource("39_hitboxes")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 
-[node name="Hull" type="Node" parent="Ship"]
+[node name="Hull" type="Node" parent="Ship" unique_id=2022416047]
 script = ExtResource("40_hull")
 
 [node name="ShipComputer" type="Node" parent="Ship" unique_id=327885703]
@@ -215,7 +216,7 @@ script = ExtResource("13_radar")
 TrackOriginPath = NodePath("../Turret")
 EmitterPath = NodePath("Emitter")
 
-[node name="Emitter" type="Node3D" parent="Ship/Radar"]
+[node name="Emitter" type="Node3D" parent="Ship/Radar" unique_id=644734609]
 script = ExtResource("29_emitter")
 Signature = "F"
 PowerAt1Km = 40000.0
@@ -226,30 +227,30 @@ script = ExtResource("22_launcher")
 MissileScene = ExtResource("23_missile")
 HeatSeekerScene = ExtResource("24_ir_missile")
 
-[node name="Laser" type="Node3D" parent="Ship"]
+[node name="SeekerTone" type="AudioStreamPlayer" parent="Ship/Launcher" unique_id=1115448228]
+script = ExtResource("26_growl")
+
+[node name="Laser" type="Node3D" parent="Ship" unique_id=1669483343]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, -5.5)
 script = ExtResource("44_laser")
 
-[node name="Left" type="Marker3D" parent="Ship/Laser"]
+[node name="Left" type="Marker3D" parent="Ship/Laser" unique_id=640810761]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 0)
 
-[node name="Right" type="Marker3D" parent="Ship/Laser"]
+[node name="Right" type="Marker3D" parent="Ship/Laser" unique_id=638946943]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
 
-[node name="Dispenser" type="Node3D" parent="Ship"]
+[node name="Dispenser" type="Node3D" parent="Ship" unique_id=841199006]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 4)
 script = ExtResource("37_dispenser")
 ChaffScene = ExtResource("35_chaff")
 FlareScene = ExtResource("36_flare")
 
-[node name="SeekerTone" type="AudioStreamPlayer" parent="Ship/Launcher" unique_id=1115448228]
-script = ExtResource("26_growl")
-
-[node name="Engine" type="Node" parent="Ship"]
+[node name="Engine" type="Node" parent="Ship" unique_id=2142055484]
 script = ExtResource("70_engine")
 Spec = ExtResource("71_d50")
 
-[node name="Jammer" type="Node3D" parent="Ship"]
+[node name="Jammer" type="Node3D" parent="Ship" unique_id=2090665327]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -1)
 script = ExtResource("65_jammer")
 Spec = ExtResource("68_dj3")
@@ -260,29 +261,29 @@ script = ExtResource("28_rwr")
 [node name="RwrTone" type="AudioStreamPlayer" parent="Ship/Rwr" unique_id=727146807]
 script = ExtResource("31_rwr_tone")
 
-[node name="Radio" type="Node3D" parent="Ship"]
+[node name="Radio" type="Node3D" parent="Ship" unique_id=586291882]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 1)
 script = ExtResource("80_radio")
 PilotsName = true
 
-[node name="RadioVoice" type="AudioStreamPlayer" parent="Ship/Radio"]
+[node name="RadioVoice" type="AudioStreamPlayer" parent="Ship/Radio" unique_id=152962600]
 script = ExtResource("82_voice")
 
-[node name="Power" type="Node" parent="Ship"]
+[node name="Power" type="Node" parent="Ship" unique_id=1962482993]
 script = ExtResource("60_power")
 
-[node name="Shield" type="Node" parent="Ship"]
+[node name="Shield" type="Node" parent="Ship" unique_id=449058895]
 script = ExtResource("61_shield")
 Bubble = NodePath("../ShieldBubble")
 
-[node name="ShieldBubble" type="MeshInstance3D" parent="Ship"]
+[node name="ShieldBubble" type="MeshInstance3D" parent="Ship" unique_id=153458227]
 transform = Transform3D(12, 0, 0, 0, 4.5, 0, 0, 0, 9, 0, 0, 0)
 visible = false
 cast_shadow = 0
 mesh = SubResource("ShieldSphere")
 surface_material_override/0 = ExtResource("63_bubble")
 
-[node name="Heat" type="Node" parent="Ship"]
+[node name="Heat" type="Node" parent="Ship" unique_id=1680080457]
 script = ExtResource("62_heat")
 
 [node name="Signature" type="Node3D" parent="Ship" unique_id=1823601226]
@@ -324,7 +325,7 @@ mouse_filter = 2
 script = ExtResource("17_bracket")
 RadarPath = NodePath("../../../Radar")
 
-[node name="LeadSight" type="Control" parent="Ship/Pilot/Hud"]
+[node name="LeadSight" type="Control" parent="Ship/Pilot/Hud" unique_id=579687940]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -335,7 +336,7 @@ mouse_filter = 2
 script = ExtResource("45_sight")
 LaserPath = NodePath("../../../Laser")
 
-[node name="LookDot" type="Control" parent="Ship/Pilot/Hud"]
+[node name="LookDot" type="Control" parent="Ship/Pilot/Hud" unique_id=1765825077]
 visible = false
 layout_mode = 3
 anchors_preset = 15
@@ -346,8 +347,7 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("49_dot")
 
-[node name="ModeBar" type="Label" parent="Ship/Pilot/Hud"]
-layout_mode = 3
+[node name="ModeBar" type="Label" parent="Ship/Pilot/Hud" unique_id=1693411532]
 anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0
@@ -359,14 +359,13 @@ offset_right = 500.0
 offset_bottom = -12.0
 grow_horizontal = 2
 grow_vertical = 0
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.85, 0.95, 1, 1)
 theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
 theme_override_constants/outline_size = 4
 theme_override_font_sizes/font_size = 15
 horizontal_alignment = 1
 
-[node name="PowerGauge" type="Control" parent="Ship/Pilot/Hud"]
+[node name="PowerGauge" type="Control" parent="Ship/Pilot/Hud" unique_id=608983890]
 layout_mode = 3
 anchors_preset = 3
 anchor_left = 1.0
@@ -398,17 +397,17 @@ grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("7_widget")
 
-[node name="Raider" parent="." instance=ExtResource("41_ai_fighter")]
+[node name="Raider" parent="." unique_id=1007152421 instance=ExtResource("41_ai_fighter")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -600, 150, 4000)
 
-[node name="SessionNode" type="Node" parent="."]
+[node name="SessionNode" type="Node" parent="." unique_id=137839652]
 script = ExtResource("33_session")
 RemoteShipScene = ExtResource("38_remote_fighter")
 KeepSceneShips = false
 Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_missile"), ExtResource("35_chaff"), ExtResource("36_flare"), ExtResource("41_ai_fighter"), ExtResource("83_police")])
 Jammers = Array[ExtResource("69_jammer_spec")]([ExtResource("66_nj1"), ExtResource("67_nj2"), ExtResource("68_dj3")])
 
-[node name="NetLauncher" type="Node" parent="."]
+[node name="NetLauncher" type="Node" parent="." unique_id=2088142155]
 script = ExtResource("34_launcher")
 
-[node name="GameMenu" parent="." instance=ExtResource("50_game_menu")]
+[node name="GameMenu" parent="." unique_id=1589746442 instance=ExtResource("50_game_menu")]

@@ -33,8 +33,9 @@ public partial class StationTest : Node
 
         Solid[] solids = Solid.All.Where(s => station.IsAncestorOf(s)).ToArray();
         int triangles = solids.Sum(s => s.A.Length);
-        Check($"every module and part is solid ({solids.Length} solids, {triangles} triangles)",
-              solids.Length == 29 && triangles > 4000);
+        int pads = station.FindChildren("*", "", true, false).OfType<LandingPad>().Count();
+        Check($"every module and part is solid ({solids.Length} solids, {pads} of them landing pads, {triangles} triangles)",
+              solids.Length == 29 + pads && triangles > 4000);
         int capsules = AvoidCapsule.All.Count(c => station.IsAncestorOf(c));
         Check($"every module has its capsule ({capsules})", capsules == 6);
 
@@ -88,7 +89,7 @@ public partial class StationTest : Node
         foreach (HangarDock dock in station.FindChildren("*", "", true, false).OfType<HangarDock>())
         {
             dock.Door.Seconds = 0.01f;
-            dock.Clear(null);
+            dock.Use(null, true);
         }
         await Frames(3);
         for (int n = 1; n <= 4; n++)

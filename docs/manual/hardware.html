@@ -167,7 +167,7 @@ pre.listing.full { font-size: 7.3pt; line-height: 1.16; }
 <tr><td>Chapter 4</td><td>Sensors and Weapons: the radar, the turret, the missile launcher and the pulse laser.</td></tr>
 <tr><td>Chapter 5</td><td>Defence: the warning receiver, the countermeasures dispenser, the shield and the jammer.</td></tr>
 <tr><td>Chapter 6</td><td>Power and Heat: the power distributor and the heat sink launcher.</td></tr>
-<tr><td>Chapter 7</td><td>The Display Card: the cockpit's screens and their keys.</td></tr>
+<tr><td>Chapter 7</td><td>The Display Card: the radio (stations, their laws, docking) and the cockpit's screens and their keys.</td></tr>
 <tr><td>Appendix A</td><td>The Ship's Programs: FLIGHT, FIRECTL, RWR and POWER.</td></tr>
 <tr><td>Appendix B</td><td>The Sample Program <code>COOL.ASM</code>.</td></tr>
 </table>
@@ -260,9 +260,11 @@ pre.listing.full { font-size: 7.3pt; line-height: 1.16; }
 <tr><td>D000:1200</td><td>The display card's screen table (Chapter 7)</td></tr>
 <tr><td>D000:1300</td><td>The warning receiver's emitter table (Chapter 5)</td></tr>
 <tr><td>D000:1400</td><td>The whole rating plate (Chapter 3)</td></tr>
+<tr><td>D000:1500</td><td>The radio's contacts, laws (1600) and messages (1700) (Chapter 7)</td></tr>
+<tr><td>D000:1900</td><td>The landing pad's guidance, as the radio hears it (Chapter 7)</td></tr>
 <tr><td>D000:2000</td><td>The screens' memory, from here up</td></tr>
 </table>
-<p>These are written by the devices at each step. A program reads them, and writes only the screens' memory.</p>
+<p>These are written by the devices at each step. A program reads them, and writes only the screens' memory (and, in the screen table, a screen's mode and its lending mark).</p>
 
 <h2>Units</h2>
 <p>The devices give and take numbers in a few units, chosen so that whole numbers are precise enough:</p>
@@ -643,14 +645,14 @@ COOL resident.
 <section class="chapter" data-num="7" data-title="The Display Card" data-part="Part Two: The Devices">
 
 <h2 class="cmd">Radio<span>200h &middot; type 18</span></h2>
-<p>Lists the radios it hears, stations and ships, nearest first; keeps the laws the last station sent it, the dock a station cleared the ship to, and the last four messages it heard. A station sends its laws to every ship that comes into its protected zone, once, as it comes in: a radio that was off then has none, and must ask. The radio ranges the station whose laws it holds, so it knows whether the ship is inside the zone, and inside the nearer radius of the speed limit. Version 2.</p>
+<p>Lists the radios it hears, stations and ships, nearest first; keeps the laws the last station sent it, the dock a station cleared the ship to, and the last four messages it heard. A station sends its laws to every ship that comes into its protected zone, once, as it comes in: a radio that was off then has none, and must ask. The radio ranges the station whose laws it holds, so it knows whether the ship is inside the zone, and inside the nearer radius of the speed limit. It also hears the beacon of the landing pad the ship is cleared to (see below). Version 3.</p>
 <table class="ref">
 <tr><th>Register</th><th>Contents</th></tr>
 <tr><td>+2</td><td>Contacts in the table (up to 16)</td></tr>
 <tr><td>+3</td><td>Updates so far, counting up</td></tr>
 <tr><td>+4</td><td>Status: bit 0 it holds a station's laws, bit 1 the ship is inside their speed limit, bit 2 asking, bit 3 off, bit 4 inside their protected zone, bit 5 cleared to a dock</td></tr>
-<tr><td>+5</td><td>Write: a request to the contact in +6. 1: its laws; 2: a dock</td></tr>
-<tr><td>+6</td><td>The request's contact: its place in the table, or 0FFh for the nearest station</td></tr>
+<tr><td>+5</td><td>Write: a request to the contact in +6. 1: its laws; 2: a dock; 3: launch (let the docked ship go)</td></tr>
+<tr><td>+6</td><td>The request's contact: its place in the table, or 0FFh for the nearest station (for a launch, the station whose dock the ship is in)</td></tr>
 <tr><td>+7</td><td>Messages heard so far, counting up</td></tr>
 <tr><td>+8 word</td><td>The segment of the table and the laws</td></tr>
 <tr><td>+10 word</td><td>The offset of the contacts' table</td></tr>
@@ -678,12 +680,33 @@ COOL resident.
 <tr><td>+14</td><td>Flags, as status bits 0, 1, 4 and 5</td></tr>
 <tr><td>+15</td><td>The dock the ship is cleared to (0, none)</td></tr>
 <tr><td>+16 word</td><td>The speed limit's radius, in tens of metres</td></tr>
+<tr><td>+18</td><td>The landing pad in that dock the ship is cleared to (0, none)</td></tr>
 </table>
 <h3>The Messages</h3>
 <p>The last four, the newest first, 128 bytes each: who sent it (eight characters), then its words (120 characters, filled with spaces). Inside a station's protected zone no weapon may go off: its security warns by radio, then its police engage. A ship that destroys another the security had nothing against is engaged at once. Too fast within the speed limit's radius, a ship is fined.</p>
 
+<h3>Docking</h3>
+<p>A dock is a hangar. A hangar may hold several ships, one to a landing pad: the station clears the ship to a hangar and to one of its pads. The ship flies in through the open door and onto its pad, the only one lit red; no other pad takes it. Over the pad, turned as the pad is and level, the light turns green: the ship has only to come down. Low and slow enough, the pad's clamps take the ship and bring it to its place. Docked, the thrusters no longer move the ship; the station shuts the door once no ship it cleared to that hangar is on its way in or out. To leave, ask the station to launch: the door opens, and the clamps lift the ship and let it go. Once the ship is out of the hangar, the door shuts and the clearance is over.</p>
+<h3>The Landing Pad's Guidance</h3>
+<p>The pad's beacon tells the radio where the pad is, from as far as 1.5 km. Thirty-two bytes, all 0 when there is no beacon to hear:</p>
+<table class="ref">
+<tr><th>Offset</th><th>Contents</th></tr>
+<tr><td>+0</td><td>Flags: bit 0 the beacon is heard, bit 1 the ship is over the pad and turned as it is, bit 2 it is low enough for the clamps, bit 3 the clamps hold it, bit 4 docked, bit 5 launch asked</td></tr>
+<tr><td>+1</td><td>The dock's number</td></tr>
+<tr><td>+2 word</td><td>Right: where the ship's middle goes on the pad, from where it is now, along the ship's own axes, 1/16 m</td></tr>
+<tr><td>+4 word</td><td>Up, the same (below the ship: negative)</td></tr>
+<tr><td>+6 word</td><td>Forward, the same</td></tr>
+<tr><td>+8 word</td><td>Yaw right to lie as the pad does (binary angle)</td></tr>
+<tr><td>+10 word</td><td>Pitch up, the same</td></tr>
+<tr><td>+12 word</td><td>Roll right, the same</td></tr>
+<tr><td>+14 word</td><td>The pad's leeway across: how far off its middle still counts as over it, 1/16 m</td></tr>
+<tr><td>+16 word</td><td>Its leeway in heading (binary angle)</td></tr>
+<tr><td>+18 word</td><td>How far above its place the ship must come down for the clamps, 1/16 m</td></tr>
+<tr><td>+20</td><td>The pad's number</td></tr>
+</table>
+
 <h2 class="cmd">Display Card<span>150h &middot; type 6</span></h2>
-<p>The cockpit's screens, other than the computer's console, with their memory in segment D000h. Each screen has a name (RADAR, WEAPON, RWR, FLIGHT), a size and a mode; a program finds the screen it draws on by its name, in the screen table. A cockpit may have more screens or fewer: a program that finds no screen of its name works the same, unseen. Version 3.</p>
+<p>The cockpit's screens, other than the computer's console, with their memory in segment D000h. Each screen has a name (RADAR, WEAPON, RWR, FLIGHT), a size and a mode; a program finds the screen it draws on by its name, in the screen table. A cockpit may have more screens or fewer: a program that finds no screen of its name works the same, unseen. Version 4.</p>
 <table class="ref">
 <tr><th>Register</th><th>Contents</th></tr>
 <tr><td>+2 word</td><td>The segment of the table and the screens' memory</td></tr>
@@ -703,11 +726,13 @@ COOL resident.
 <tr><td>+6</td><td>Mode (the program writes it): 0 text, 1 graphics</td></tr>
 <tr><td>+7</td><td>Columns (text)</td></tr>
 <tr><td>+8</td><td>Rows (text)</td></tr>
+<tr><td>+9</td><td>Lent (the programs write it): 0, the screen's own program draws on it; otherwise another program has taken the screen for a while, and this is its mark</td></tr>
 <tr><td>+10 word</td><td>Width (graphics, pixels)</td></tr>
 <tr><td>+12 word</td><td>Height (graphics, pixels)</td></tr>
 <tr><td>+14 word</td><td>The offset of the screen's memory (a multiple of 16)</td></tr>
 </table>
 <p>In text mode the memory holds a character and an attribute for each cell, as the video card's colour text mode does. In graphics mode it holds two bits a pixel (off, dim, half, bright), four pixels to a byte with the leftmost in the top bits, width/4 bytes a row. The screens' phosphor glows on for a moment after a pixel goes off.</p>
+<p>A program may take another's screen for a while, as FLIGHT takes RADAR while docking: it writes its mark in +9 and draws, and writes 0 when it is done. The screen's own program leaves the screen alone while +9 is not 0, and draws it afresh when it comes back.</p>
 </section>
 
 <!-- ================================================================== -->
@@ -717,11 +742,11 @@ COOL resident.
 <section class="chapter appendix" data-num="A" data-title="The Ship's Programs" data-part="Appendixes">
 
 <h2 class="cmd">FLIGHT<span>Flight control</span></h2>
-<p>Flies the ship from the pilot's controls. With flight assist on, the stick asks for turn rates and the throttle for a forward speed, the strafe controls for speeds across, up to what the rating plate says the ship can do; let go, and the ship stops turning and drifting. With flight assist off, the controls drive the thrusters directly and the ship keeps its motion. Safe turns ask only for the turn rates at which the ship's path can follow its nose. Parking, inside a station's zone, gives the whole throttle and strafe to the station's speed limit; with no laws for where the ship is, it asks the nearest station for them once a second. Its page is on the FLIGHT screen, if the cockpit has one. It acknowledges the inertial unit's samples. About 5% of the processor.</p>
+<p>Flies the ship from the pilot's controls. With flight assist on, the stick asks for turn rates and the throttle for a forward speed, the strafe controls for speeds across, up to what the rating plate says the ship can do; let go, and the ship stops turning and drifting. With flight assist off, the controls drive the thrusters directly and the ship keeps its motion. Safe turns ask only for the turn rates at which the ship's path can follow its nose. Parking, inside a station's zone, gives the whole throttle and strafe to the station's speed limit; with no laws for where the ship is, it asks the nearest station for them once a second. Its page is on the FLIGHT screen, if the cockpit has one. While the radio hears the beacon of the landing pad the ship is cleared to, it takes the RADAR screen (mark F) and shows the pad from above: the pad's square, as wide as its leeway (bright when the ship is over it and turned as it is), the ship in the middle, its nose up, and ticks along the frame every metre within 14 m, every 10 m within 56 m, every 100 m beyond; along the bottom how far to yaw, along the top how far to roll, up the left how far to pitch (the long tick in the middle: none; the short ones: the pad's leeway); up the right the height above the ship's place on the pad (the upper tick: where the clamps take it). Held by the clamps, a box round the ship; docked, a second one. It acknowledges the inertial unit's samples. About 5% of the processor.</p>
 <p>Buttons: flight assist, safe turns, parking, boost (the main engine's cooling boost).</p>
 
 <h2 class="cmd">FIRECTL<span>Fire control</span></h2>
-<p>Works the radar, the turret, the laser and the missile launcher. Target ahead locks the contact nearest the middle of the view, or lets the target go; next target locks the next one. With a target locked it smooths the radar's positions with an alpha-beta filter, which gives the target's velocity, and works out where a round fired now meets the target if it flies on straight; it points the turret there, or writes the laser's lead point. Next weapon steps through the cannon, the radar missiles, the heat seekers and the laser, as the ship has them. Its radar scope is on RADAR, its page on WEAPON. About a third of the processor.</p>
+<p>Works the radar, the turret, the laser and the missile launcher. Target ahead locks the contact nearest the middle of the view, or lets the target go; next target locks the next one. With a target locked it smooths the radar's positions with an alpha-beta filter, which gives the target's velocity, and works out where a round fired now meets the target if it flies on straight; it points the turret there, or writes the laser's lead point. Next weapon steps through the cannon, the radar missiles, the heat seekers and the laser, as the ship has them. Its radar scope is on RADAR (left alone while another program has the screen), its page on WEAPON. About a third of the processor.</p>
 <p>Buttons: target ahead, next target, fire, next weapon.</p>
 
 <h2 class="cmd">RWR<span>Threat warning</span></h2>
@@ -733,16 +758,16 @@ COOL resident.
 <p>Buttons: systems, engines, weapons, even out, heat sink.</p>
 
 <h2 class="cmd">COMMS<span>Radio contacts</span></h2>
-<p>Works the radio from the COMMS screen and its keys. It lists the contacts: callsign, station or ship, range in kilometres, and LAWS beside the station whose laws the radio holds (DOCK if it cleared the ship to a dock). UP and DOWN move the cursor, SELECT gives the contact's options (a station: request docking, request laws) and SELECT again sends the one under the cursor; BACK returns to the list. Below, the last message heard and the hangar the ship is cleared to. The bottom line gives the speed limit where the ship is and whose it is, PROTECTED ZONE inside a zone but outside its speed limit, OPEN SPACE outside the zone of the laws held, NO LAWS RECEIVED with none.</p>
+<p>Works the radio from the COMMS screen and its keys. It lists the contacts: callsign, station or ship, range in kilometres, and LAWS beside the station whose laws the radio holds (DOCK if it cleared the ship to a dock). UP and DOWN move the cursor, SELECT gives the contact's options (a station: request docking, request laws, request launch) and SELECT again sends the one under the cursor; BACK returns to the list. Below, the last message heard and the hangar the ship is cleared to. The bottom line gives the speed limit where the ship is and whose it is, PROTECTED ZONE inside a zone but outside its speed limit, OPEN SPACE outside the zone of the laws held, NO LAWS RECEIVED with none.</p>
 
 <h2>Signatures</h2>
 <table class="ref">
 <tr><th>Program</th><th>Signature at 103h</th></tr>
-<tr><td>FLIGHT</td><td>XPFL16</td></tr>
-<tr><td>FIRECTL</td><td>XPFC12</td></tr>
+<tr><td>FLIGHT</td><td>XPFL17</td></tr>
+<tr><td>FIRECTL</td><td>XPFC13</td></tr>
 <tr><td>RWR</td><td>XPRW15</td></tr>
 <tr><td>POWER</td><td>XPPW11</td></tr>
-<tr><td>COMMS</td><td>XPCM11</td></tr>
+<tr><td>COMMS</td><td>XPCM12</td></tr>
 </table>
 <p>The last two characters are the version. Change them when you change a program, so that a new version is not taken for the old one; a program that finds another version of itself on the chain does not take it out.</p>
 </section>
@@ -926,6 +951,7 @@ msg_no_device   db 'COOL: no heat sink launcher on the bus.', 13, 10, '$'</pre>
 <tr><td>130h</td><td>Radar: +2 mode +3 contacts +4 sweeps +5 locked +6 lock id (write) +8 locked id +10 segment +12 table +14 track</td></tr>
 <tr><td>140h</td><td>Turret: +2 +4 wanted (write) +6 +8 now +10 muzzle speed +12 fire (write) +13 status +14 heat +15 rounds</td></tr>
 <tr><td>150h</td><td>Display card: +2 segment +4 table +6 screens +7 of interest +8 keys +9 key +10 its screen</td></tr>
+<tr><td>200h</td><td>Radio: +2 contacts +3 updates +4 status +5 request (write) +6 its contact +7 messages +8 segment +10 table +12 laws +14 messages; the pad's guidance at D000:1900</td></tr>
 <tr><td>160h</td><td>Launcher: +2 radar missiles +3 in flight +4 status +6 fire (write) +7 head (write) +8 time to go +10 status +11 result +12 fuel +14 heat seekers +15 kind</td></tr>
 <tr><td>170h</td><td>Warning receiver: +2 entries +3 updates +4 flags +5 audio (write) +6 segment +8 table</td></tr>
 <tr><td>180h</td><td>Dispenser: +2 chaff +3 flares +4 throw (write) +5 thrown</td></tr>

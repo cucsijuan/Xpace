@@ -1,0 +1,65 @@
+[gd_scene load_steps=8 format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/LandingPad.cs" id="1_pad"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/landing_pad.tscn" id="2_platform"]
+[ext_resource type="Shader" path="res://assets/materials/pad_glow.gdshader" id="3_glow"]
+
+[sub_resource type="ShaderMaterial" id="Material_column"]
+render_priority = 0
+shader = ExtResource("3_glow")
+shader_parameter/strength = 1.5
+shader_parameter/height = 24.0
+
+[sub_resource type="CylinderMesh" id="Mesh_column"]
+material = SubResource("Material_column")
+top_radius = 3.0
+bottom_radius = 3.0
+height = 24.0
+radial_segments = 32
+rings = 1
+cap_top = false
+cap_bottom = false
+
+[sub_resource type="ShaderMaterial" id="Material_ring"]
+render_priority = 0
+shader = ExtResource("3_glow")
+shader_parameter/strength = 3.0
+shader_parameter/height = 1.2
+shader_parameter/edge_sharpness = 0.5
+
+[sub_resource type="CylinderMesh" id="Mesh_ring"]
+material = SubResource("Material_ring")
+top_radius = 12.6
+bottom_radius = 12.6
+height = 1.2
+radial_segments = 64
+rings = 1
+cap_top = false
+cap_bottom = false
+
+[node name="LandingPadSmall" type="Node3D"]
+script = ExtResource("1_pad")
+
+[node name="Platform" parent="." instance=ExtResource("2_platform")]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, -0.892, 0)
+
+[node name="Glow" type="Node3D" parent="."]
+
+[node name="Column" type="MeshInstance3D" parent="Glow"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, 0)
+cast_shadow = 0
+mesh = SubResource("Mesh_column")
+
+[node name="Ring" type="MeshInstance3D" parent="Glow"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.6, 0)
+cast_shadow = 0
+mesh = SubResource("Mesh_ring")
+
+[node name="Light" type="OmniLight3D" parent="Glow"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
+light_energy = 3.0
+omni_range = 30.0
+
+[node name="Nose" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -10)
+gizmo_extents = 2.0

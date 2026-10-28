@@ -119,7 +119,7 @@ public partial class SessionSecurityTest : Node
         foreach (ushort id in new ushort[] { SessionNode.FirstHostId, SessionNode.FirstHostId + 1 })
             _guest.Add(new Thing { NetId = id, Track = new RemoteTrack { TickSeconds = Dt } });
         _guest.RadioHeard += (e, from, text, speech) => { if (e == _ship) _heard.Add((from, text, speech)); };
-        _guest.DockCleared += (e, station, dock) => { if (e == _ship && station == "HAVEN") _cleared.Add(dock); };
+        _guest.DockCleared += (e, station, dock, _) => { if (e == _ship && station == "HAVEN") _cleared.Add(dock); };
         _guest.DockChanged += (station, dock, open) => _doors.Add((station, dock, open));
         _guest.SetRadio(GuestShipId, "ACE", true);
         _guest.SpawnDynamic = (id, scene) =>
@@ -156,7 +156,8 @@ public partial class SessionSecurityTest : Node
         await Frames(10);
         Check($"told in words ({LastHeard})", LastHeard.Contains($"hangar {number}"));
         Check($"and in the operator's voice, the hangar's number its own clip ({LastSpeech})", LastSpeech.EndsWith($":cleared hangar_{number} follow_lights"));
-        Check($"hangar {number} opens on the host, for the guest's ship", dock != null && dock.IsOpen && dock.ClearedFor == player);
+        Check($"hangar {number} opens on the host, for the guest's ship", dock != null && dock.IsOpen &&
+              (dock.Pads.Count == 0 ? dock.ClearedFor == player : dock.Pads.Any(p => p.AssignedTo == player)));
         Check("and on the guest's machine", _doors.Contains(("HAVEN", number, true)));
         _late = new Session(2, _net.Join(2)) { TickSeconds = Dt };
         _lateShip = new Thing { NetId = NetIds.PlayerShip(2), IsLocal = true, Position = new SectorPoint(0, 0, 8000) };

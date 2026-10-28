@@ -14,10 +14,18 @@ namespace Xpace.Space;
 ///
 ///   laws      sent again;
 ///   docking   a dock (<see cref="HangarDock"/>, any below the station) is
-///             cleared for the ship: its door opens and its beacon lights;
-///             the clearance lasts <see cref="ClearanceSeconds"/>, and on
-///             while the ship is in the hangar. A ship the station's
-///             security has a quarrel with is refused.
+///             cleared for the ship, and in it a landing pad that fits it
+///             and is no one else's (several ships can share a hangar, one
+///             to a pad; a hangar with no pads takes one ship): its door
+///             opens and its beacon lights, and only that pad lights; the
+///             clearance lasts <see cref="ClearanceSeconds"/>, and on while
+///             the ship is in the hangar. A ship the station's security has
+///             a quarrel with is refused. The door is open while a ship it
+///             cleared is on its way in or out, and shuts once every one of
+///             them is docked;
+///   launch    a docked ship asks to leave: the door opens, the pad lets
+///             it go, and once it is out of the hangar the door shuts and
+///             the clearance is over.
 ///
 /// In a session the host's station is the station: a guest's request for a
 /// dock goes to it, and its answers, words and docks reach the guest (see
@@ -47,10 +55,19 @@ public partial class StationRadio : Node3D, IRadio
     [ExportGroup("Texts")]
     /// <summary>{0} the zone (km), {1} the speed limit (m/s), {2} where it holds (km).</summary>
     [Export] public string WelcomeText = "Welcome. No weapons within {0} km. Speed limit {1} m/s within {2} km.";
-    /// <summary>{0} the dock's number.</summary>
+    /// <summary>{0} the dock's number (a hangar with no pads).</summary>
     [Export] public string ClearedText = "Cleared to dock, hangar {0}. Follow the lights in.";
+    /// <summary>{0} the dock's number, {1} the pad's.</summary>
+    [Export] public string ClearedPadText = "Cleared to dock, hangar {0}, pad {1}. Follow the lights in.";
     [Export] public string NoDockText = "No hangar free. Hold outside and ask again.";
     [Export] public string DeniedText = "Docking denied.";
+    /// <summary>{0} the dock's number, {1} the pad's.</summary>
+    [Export] public string DockedText = "Docked on pad {1}, hangar {0}. Welcome aboard.";
+    /// <summary>{0} the dock's number, {1} the pad's.</summary>
+    [Export] public string LaunchText = "Hangar {0} opening. Pad {1}, cleared for launch.";
+    [Export] public string NotDockedText = "You are not docked here.";
+    /// <summary>{0} the dock's number.</summary>
+    [Export] public string DepartedText = "Hangar {0} closing. Fly safe.";
     /// <summary>{0} the dock's number.</summary>
     [Export] public string ExpiredText = "Your clearance for hangar {0} has expired.";
 
@@ -60,8 +77,23 @@ public partial class StationRadio : Node3D, IRadio
     [Export] public string NoDockSpeech = "no_dock";
     [Export] public string DeniedSpeech = "denied";
     [Export] public string ExpiredSpeech = "expired";
+    [Export] public string DockedSpeech = "";
+    [Export] public string LaunchSpeech = "";
+    [Export] public string NotDockedSpeech = "";
+    [Export] public string DepartedSpeech = "";
 
     public static readonly List<StationRadio> All = new();
+
+    // A ship cleared to a dock (and a pad in it), or the dock held for the station's own ship (no radio)
+    private sealed class Clearance
+    {
+        public HangarDock Dock;
+        public LandingPad Pad;
+        public IRadioReceiver Ship;
+        public Node3D Held;
+        public double Until;
+        public bool Docked, Departing;
+    }
 
     /// <summary>Its security, if the station has one (beside it in the station's scene).</summary>
     public StationSecurity Security { get; private set; }
@@ -79,7 +111,7 @@ public partial class StationRadio : Node3D, IRadio
 
     private readonly HashSet<IRadioReceiver> _inside = new();
     private readonly List<(IRadioReceiver To, RadioRequest What, double At)> _replies = new();
-    private readonly Dictionary<HangarDock, (IRadioReceiver Ship, double Until)> _cleared = new();
+    private readonly List<Clearance> _cleared = new();
     private List<HangarDock> _docks = new();
     private double _now;
 
@@ -133,7 +165,7 @@ public partial class StationRadio : Node3D, IRadio
     {
         if (!On || what == RadioRequest.None || !from.RadioOn || from.RadioPosition.DistanceTo(GlobalPosition) > from.RadioRange)
             return;
-        if (what == RadioRequest.Docking && Net.SessionNode.Instance is { Active: true } session && !session.Session.IsHost)
+        if (what is (RadioRequest.Docking or RadioRequest.Launch) && Net.SessionNode.Instance is { Active: true } session && !session.Session.IsHost)
             session.Request(from, this, what);      // the host's station answers
         else
             _replies.Add((from, what, _now + ReplySeconds));
@@ -151,9 +183,6 @@ public partial class StationRadio : Node3D, IRadio
         if (On && to != null && Radio.Hears(to, this))
             to.Hear(this, text, Operator?.Speech(lines, args) ?? "");
     }
-
-    /// <summary>The dock cleared for the ship, if any.</summary>
-    public HangarDock DockOf(IRadioReceiver ship) => _cleared.FirstOrDefault(kv => kv.Value.Ship == ship).Key;
 
     public override void _PhysicsProcess(double delta)
     {
@@ -183,6 +212,8 @@ public partial class StationRadio : Node3D, IRadio
                 SendLaws(to, welcome: false);
             else if (what == RadioRequest.Docking)
                 Dock(to);
+            else if (what == RadioRequest.Launch)
+                Launch(to);
         }
         Clearances();
     }
@@ -204,61 +235,138 @@ public partial class StationRadio : Node3D, IRadio
             Say(ship, DeniedText, DeniedSpeech);
             return;
         }
-        HangarDock dock = DockOf(ship);
-        if (dock == null)
+        Clearance c = Of(ship);
+        if (c == null)
         {
+            Node3D body = ShipOf(ship);
             float best = float.MaxValue;
             foreach (HangarDock d in _docks)
             {
                 float range = d.GlobalPosition.DistanceTo(ship.RadioPosition);
-                if (d.ClearedFor == null && range < best)
+                if (range < best && Free(d, body, out LandingPad pad))
                 {
                     best = range;
-                    dock = d;
+                    c = new Clearance { Dock = d, Pad = pad, Ship = ship };
                 }
             }
+            if (c == null)
+            {
+                Say(ship, NoDockText, NoDockSpeech);
+                return;
+            }
+            _cleared.Add(c);
+            if (c.Pad != null)
+                c.Pad.AssignedTo = body;
         }
-        if (dock == null)
+        c.Until = _now + ClearanceSeconds;
+        Doors(c.Dock);
+        ship.Cleared(this, c.Dock.Number, c.Pad?.Number ?? 0);
+        int number = c.Pad?.Number ?? 0;
+        Say(ship, string.Format(c.Pad != null ? ClearedPadText : ClearedText, c.Dock.Number, number), ClearedSpeech, c.Dock.Number, number);
+    }
+
+    // The dock can take the ship: not held for the station's own ships; a pad that fits it and is no one else's, or
+    // no pads and no one else in it
+    private bool Free(HangarDock dock, Node3D ship, out LandingPad pad)
+    {
+        pad = null;
+        if (_cleared.Any(c => c.Dock == dock && (c.Ship == null || c.Pad == null)))
+            return false;
+        if (dock.Pads.Count == 0)
+            return true;
+        pad = dock.Pads.FirstOrDefault(p => p.Fits(ship) && _cleared.All(c => c.Pad != p));
+        return pad != null;
+    }
+
+    private void Launch(IRadioReceiver ship)
+    {
+        Clearance c = Of(ship);
+        if (c == null || !c.Docked)
         {
-            Say(ship, NoDockText, NoDockSpeech);
+            Say(ship, NotDockedText, NotDockedSpeech);
             return;
         }
-        _cleared[dock] = (ship, _now + ClearanceSeconds);
-        dock.Clear(ShipOf(ship));
-        ship.Cleared(this, dock.Number);
-        Say(ship, string.Format(ClearedText, dock.Number), ClearedSpeech, dock.Number);
+        c.Departing = true;
+        Doors(c.Dock);
+        Say(ship, string.Format(LaunchText, c.Dock.Number, c.Pad?.Number ?? 0), LaunchSpeech, c.Dock.Number);
     }
 
     /// <summary>A dock the station's own ships use (its police): opened for them, not given to anyone else meanwhile.</summary>
     public void Hold(HangarDock dock, Node3D ship, double seconds)
     {
-        _cleared[dock] = (null, _now + seconds);
-        dock.Clear(ship);
+        _cleared.Add(new Clearance { Dock = dock, Held = ship, Until = _now + seconds });
+        Doors(dock);
     }
 
-    // A clearance lasts its time, and on while the ship is in the hangar
+    // A clearance lasts its time, and on while the ship is in the hangar; docked on its pad, it no longer needs the
+    // door; leaving after a launch, once out of the hangar, the clearance is over
     private void Clearances()
     {
-        foreach (HangarDock dock in _cleared.Keys.ToList())
+        foreach (Clearance c in _cleared.ToList())
         {
-            var (ship, until) = _cleared[dock];
-            bool gone = ship != null && (ship is not GodotObject o || !IsInstanceValid(o));
-            if (!gone && ship != null && dock.Holds(ShipOf(ship)))
+            if (c.Ship == null)
             {
-                _cleared[dock] = (ship, _now + ClearanceSeconds);
+                if (c.Until <= _now)
+                    End(c);
                 continue;
             }
-            if (!gone && until > _now)
-                continue;
-            _cleared.Remove(dock);
-            dock.Close();
-            if (!gone && ship != null)
+            bool gone = c.Ship is not GodotObject o || !IsInstanceValid(o);
+            Node3D body = gone ? null : ShipOf(c.Ship);
+            if (!gone && c.Dock.Holds(body))
             {
-                ship.Cleared(this, 0);
-                Say(ship, string.Format(ExpiredText, dock.Number), ExpiredSpeech, dock.Number);
+                c.Until = _now + ClearanceSeconds;
+                if (!c.Docked && c.Pad != null && c.Pad.Docks(body))
+                {
+                    c.Docked = true;
+                    Doors(c.Dock);
+                    Say(c.Ship, string.Format(DockedText, c.Dock.Number, c.Pad.Number), DockedSpeech, c.Dock.Number);
+                }
+                continue;
             }
+            if (!gone && !c.Departing && c.Until > _now)
+                continue;
+            End(c);
+            if (gone)
+                continue;
+            c.Ship.Cleared(this, 0, 0);
+            if (c.Departing)
+                Say(c.Ship, string.Format(DepartedText, c.Dock.Number), DepartedSpeech, c.Dock.Number);
+            else
+                Say(c.Ship, string.Format(ExpiredText, c.Dock.Number), ExpiredSpeech, c.Dock.Number);
         }
     }
+
+    private void End(Clearance c)
+    {
+        _cleared.Remove(c);
+        if (c.Pad != null && c.Pad.AssignedTo == ShipOf(c.Ship))
+            c.Pad.AssignedTo = null;
+        Doors(c.Dock);
+    }
+
+    // A dock's door is open while a ship it cleared is on its way in or out (or the station's own ships use it)
+    private void Doors(HangarDock dock)
+    {
+        Node3D user = null;
+        bool open = false;
+        foreach (Clearance c in _cleared)
+        {
+            if (c.Dock != dock)
+                continue;
+            if (c.Ship == null || c.Pad == null)
+                user = c.Held ?? ShipOf(c.Ship);
+            open |= c.Ship == null || c.Pad == null || !c.Docked || c.Departing;
+        }
+        dock.Use(user, open);
+    }
+
+    private Clearance Of(IRadioReceiver ship) => ship == null ? null : _cleared.FirstOrDefault(c => c.Ship == ship);
+
+    /// <summary>The dock cleared for the ship, if any.</summary>
+    public HangarDock DockOf(IRadioReceiver ship) => Of(ship)?.Dock;
+
+    /// <summary>The pad in it cleared for the ship, if any.</summary>
+    public LandingPad PadOf(IRadioReceiver ship) => Of(ship)?.Pad;
 
     private static Node3D ShipOf(IRadioReceiver radio) => Combat.ShipOf(radio as Node) ?? radio as Node3D;
 }

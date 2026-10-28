@@ -27,6 +27,8 @@ public enum RadioRequest
     None,
     Laws,
     Docking,
+    /// <summary>A docked ship asks to leave: the hangar's door opens and its pad lets it go.</summary>
+    Launch,
 }
 
 /// <summary>A radio that takes what stations send (a ship's). Off, it hears nothing.</summary>
@@ -36,8 +38,8 @@ public interface IRadioReceiver : IRadio
     float Sensitivity { get; }
     /// <summary>A station's laws, sent to it.</summary>
     void Receive(StationRadio from, StationLaws laws);
-    /// <summary>A station clears it to a dock (its number; 0: the clearance is over).</summary>
-    void Cleared(StationRadio from, int dock);
+    /// <summary>A station clears it to a dock and a pad in it (their numbers; pad 0: a hangar with no pads; dock 0: the clearance is over).</summary>
+    void Cleared(StationRadio from, int dock, int pad);
     /// <summary>
     /// A message: the words (shown), and how they are spoken (see
     /// <see cref="RadioVoicePack.Speech"/>; empty: only the squelch is heard).

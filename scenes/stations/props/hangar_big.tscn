@@ -1,241 +1,248 @@
-[gd_scene format=3]
+[gd_scene format=3 uid="uid://bs50eeqcqo1sy"]
 
-[ext_resource type="PackedScene" path="res://assets/synty/cut/SM_Bld_Hangar_Big.glb" id="1_model"]
-[ext_resource type="PackedScene" path="res://assets/stations/bay/hangar_floor.glb" id="2_floor"]
-[ext_resource type="PackedScene" path="res://assets/synty/cut/SM_Bld_Hangar_Big_Collision.glb" id="3_walls"]
+[ext_resource type="PackedScene" uid="uid://d3n62x0p166y0" path="res://assets/synty/cut/SM_Bld_Hangar_Big.glb" id="1_model"]
+[ext_resource type="PackedScene" uid="uid://4ggqgysollhk" path="res://assets/stations/bay/hangar_floor.glb" id="2_floor"]
+[ext_resource type="PackedScene" uid="uid://mlubirwla1v0" path="res://assets/synty/cut/SM_Bld_Hangar_Big_Collision.glb" id="3_walls"]
 [ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="4_atlas"]
 [ext_resource type="Material" path="res://assets/materials/synty_station.tres" id="5_station"]
 [ext_resource type="Material" path="res://assets/materials/synty_cockpit_glass.tres" id="6_glass"]
-[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="7_paint"]
-[ext_resource type="Script" path="res://scripts/Space/MeshSlide.cs" id="8_slide"]
-[ext_resource type="Script" path="res://scripts/Space/Solid.cs" id="9_solid"]
+[ext_resource type="Script" uid="uid://c70hoi0gx5bok" path="res://scripts/Space/ModelPaint.cs" id="7_paint"]
+[ext_resource type="Script" uid="uid://cj8fhex8toh4y" path="res://scripts/Space/MeshSlide.cs" id="8_slide"]
+[ext_resource type="Script" uid="uid://cu4q4napecli5" path="res://scripts/Space/Solid.cs" id="9_solid"]
 [ext_resource type="PackedScene" path="res://scenes/stations/props/hangar_casing.tscn" id="10_casing"]
-[ext_resource type="Script" path="res://scripts/Space/HangarDock.cs" id="11_dock"]
+[ext_resource type="Script" uid="uid://di7sf57pnphfr" path="res://scripts/Space/HangarDock.cs" id="11_dock"]
 [ext_resource type="PackedScene" path="res://scenes/stations/props/dock_beacon.tscn" id="12_beacon"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Bld_Ceiling_Pipes_Straight_01.fbx" id="p1"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Detail_Pipes_02.fbx" id="p2"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_AirVent_Large_01.fbx" id="p3"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Wires_05.fbx" id="p7"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Wires_01.fbx" id="p8"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Wires_03.fbx" id="p9"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Detail_Wire_03.fbx" id="p10"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Detail_Wirebox_01.fbx" id="p11"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Detail_Machine_01.fbx" id="p15"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Antenna_01.fbx" id="p16"]
-
+[ext_resource type="PackedScene" path="res://scenes/stations/props/landing_pad_small.tscn" id="23_m503l"]
+[ext_resource type="PackedScene" uid="uid://cwy325ds6a77e" path="res://assets/synty/SM_Bld_Ceiling_Pipes_Straight_01.fbx" id="p1"]
+[ext_resource type="PackedScene" uid="uid://cdq8iyuuooxo8" path="res://assets/synty/SM_Prop_Detail_Pipes_02.fbx" id="p2"]
+[ext_resource type="PackedScene" uid="uid://dcbs85q6auuhi" path="res://assets/synty/SM_Prop_AirVent_Large_01.fbx" id="p3"]
+[ext_resource type="PackedScene" uid="uid://dnah12vlr2u52" path="res://assets/synty/SM_Prop_Wires_05.fbx" id="p7"]
+[ext_resource type="PackedScene" uid="uid://bg7ds6pjccrga" path="res://assets/synty/SM_Prop_Wires_01.fbx" id="p8"]
+[ext_resource type="PackedScene" uid="uid://b7vud17wumnic" path="res://assets/synty/SM_Prop_Wires_03.fbx" id="p9"]
+[ext_resource type="PackedScene" uid="uid://ds4r7utlskfe8" path="res://assets/synty/SM_Prop_Detail_Wire_03.fbx" id="p10"]
+[ext_resource type="PackedScene" uid="uid://dsjj3na2gbg0c" path="res://assets/synty/SM_Prop_Detail_Wirebox_01.fbx" id="p11"]
+[ext_resource type="PackedScene" uid="uid://b6s1uquijhxle" path="res://assets/synty/SM_Prop_Detail_Machine_01.fbx" id="p15"]
+[ext_resource type="PackedScene" uid="uid://dcssx2y1o5u1t" path="res://assets/synty/SM_Prop_Antenna_01.fbx" id="p16"]
 
 [sub_resource type="BoxShape3D" id="Shape_door"]
 size = Vector3(54, 22, 1)
-[node name="HangarBig" type="Node3D"]
 
-[node name="Model" parent="." instance=ExtResource("1_model")]
+[node name="HangarBig" type="Node3D" unique_id=647301019]
 
-[node name="Paint" type="Node" parent="Model"]
+[node name="Model" parent="." unique_id=2132514850 instance=ExtResource("1_model")]
+
+[node name="Paint" type="Node" parent="Model" unique_id=705805724]
 script = ExtResource("7_paint")
 Material = ExtResource("4_atlas")
-ByMesh = {
+ByMesh = Dictionary[String, Material]({
 "SM_Bld_HangarGlass_03": ExtResource("6_glass")
-}
+})
 
-[node name="Doors" type="Node" parent="Model"]
+[node name="Doors" type="Node" parent="Model" unique_id=1702899077]
 script = ExtResource("8_slide")
 Meshes = PackedStringArray("SM_Bld_HangarDoor_01", "SM_Bld_HangarDoor_02")
 Travel = Vector3(0, 22.5, 0)
 Open = 0.0
 Seconds = 12.0
 
-[node name="Floor" parent="." instance=ExtResource("2_floor")]
+[node name="Floor" parent="." unique_id=600079072 instance=ExtResource("2_floor")]
 
-[node name="Paint" type="Node" parent="Floor"]
+[node name="Paint" type="Node" parent="Floor" unique_id=1381051241]
 script = ExtResource("7_paint")
 Material = ExtResource("5_station")
 
-[node name="Walls" type="Node3D" parent="."]
+[node name="Walls" type="Node3D" parent="." unique_id=1473519654]
 script = ExtResource("9_solid")
 Shape = ExtResource("3_walls")
 
-[node name="FloorAndCeiling" type="Node3D" parent="."]
+[node name="FloorAndCeiling" type="Node3D" parent="." unique_id=21184211]
 script = ExtResource("9_solid")
 Shape = ExtResource("2_floor")
 
-[node name="Light1" type="OmniLight3D" parent="."]
+[node name="Light1" type="OmniLight3D" parent="." unique_id=2110645814]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 20, 0)
 light_color = Color(1, 0.95, 0.88, 1)
 light_energy = 5.0
 omni_range = 38.0
 
-[node name="Light2" type="OmniLight3D" parent="."]
+[node name="Light2" type="OmniLight3D" parent="." unique_id=36252242]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 20, -25)
 light_color = Color(1, 0.95, 0.88, 1)
 light_energy = 5.0
 omni_range = 38.0
 
-[node name="Light3" type="OmniLight3D" parent="."]
+[node name="Light3" type="OmniLight3D" parent="." unique_id=1301899112]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 20, -50)
 light_color = Color(1, 0.95, 0.88, 1)
 light_energy = 5.0
 omni_range = 38.0
 
-[node name="Light4" type="OmniLight3D" parent="."]
+[node name="Light4" type="OmniLight3D" parent="." unique_id=311687654]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 20, -75)
 light_color = Color(1, 0.95, 0.88, 1)
 light_energy = 5.0
 omni_range = 38.0
 
-[node name="Light5" type="OmniLight3D" parent="."]
+[node name="Light5" type="OmniLight3D" parent="." unique_id=476566497]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 20, 0)
 light_color = Color(1, 0.95, 0.88, 1)
 light_energy = 5.0
 omni_range = 38.0
 
-[node name="Light6" type="OmniLight3D" parent="."]
+[node name="Light6" type="OmniLight3D" parent="." unique_id=1411901546]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 20, -25)
 light_color = Color(1, 0.95, 0.88, 1)
 light_energy = 5.0
 omni_range = 38.0
 
-[node name="Light7" type="OmniLight3D" parent="."]
+[node name="Light7" type="OmniLight3D" parent="." unique_id=2018052829]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 20, -50)
 light_color = Color(1, 0.95, 0.88, 1)
 light_energy = 5.0
 omni_range = 38.0
 
-[node name="Light8" type="OmniLight3D" parent="."]
+[node name="Light8" type="OmniLight3D" parent="." unique_id=552954955]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 20, -75)
 light_color = Color(1, 0.95, 0.88, 1)
 light_energy = 5.0
 omni_range = 38.0
 
-[node name="Casing" parent="." instance=ExtResource("10_casing")]
+[node name="Casing" parent="." unique_id=683620139 instance=ExtResource("10_casing")]
 
-[node name="Dressing" type="Node3D" parent="."]
+[node name="Dressing" type="Node3D" parent="." unique_id=574786152]
 
-[node name="Paint" type="Node" parent="Dressing"]
+[node name="Paint" type="Node" parent="Dressing" unique_id=1052342276]
 script = ExtResource("7_paint")
 Material = ExtResource("4_atlas")
 
-[node name="PipeRun1" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun1" parent="Dressing" unique_id=1695247583 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, -33.4, 15, -85.76)
 
-[node name="PipeRun2" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun2" parent="Dressing" unique_id=2105145904 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, -28.6, 15, -85.76)
 
-[node name="PipeRun3" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun3" parent="Dressing" unique_id=1829361416 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, -23.8, 15, -85.76)
 
-[node name="PipeRun4" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun4" parent="Dressing" unique_id=2032051291 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, -19, 15, -85.76)
 
-[node name="PipeRun5" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun5" parent="Dressing" unique_id=1795675768 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, -14.2, 15, -85.76)
 
-[node name="PipeRun6" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun6" parent="Dressing" unique_id=1503344095 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, -9.4, 15, -85.76)
 
-[node name="PipeRun7" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun7" parent="Dressing" unique_id=1048688995 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, -4.6, 15, -85.76)
 
-[node name="PipeRun8" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun8" parent="Dressing" unique_id=444195538 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, 0.2, 15, -85.76)
 
-[node name="PipeRun9" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun9" parent="Dressing" unique_id=1829444089 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, 5, 15, -85.76)
 
-[node name="PipeRun10" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun10" parent="Dressing" unique_id=1414910234 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, 9.8, 15, -85.76)
 
-[node name="PipeRun11" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun11" parent="Dressing" unique_id=493231471 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, 14.6, 15, -85.76)
 
-[node name="PipeRun12" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun12" parent="Dressing" unique_id=1669726096 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, 19.4, 15, -85.76)
 
-[node name="PipeRun13" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun13" parent="Dressing" unique_id=219972151 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, 24.2, 15, -85.76)
 
-[node name="PipeRun14" parent="Dressing" instance=ExtResource("p1")]
+[node name="PipeRun14" parent="Dressing" unique_id=831234160 instance=ExtResource("p1")]
 transform = Transform3D(0, 0, 1, 1, 0, 0, 0, 1, 0, 29, 15, -85.76)
 
-[node name="PipeDrop" parent="Dressing" instance=ExtResource("p2")]
+[node name="PipeDrop" parent="Dressing" unique_id=1068771467 instance=ExtResource("p2")]
 transform = Transform3D(1, 0, 0, 0, 1.68, 0, 0, 0, 1, -3, 9.9, -82.22)
 
-[node name="Vent1" parent="Dressing" instance=ExtResource("p3")]
+[node name="Vent1" parent="Dressing" unique_id=283214410 instance=ExtResource("p3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -27, 20.6, -81.79)
 
-[node name="Vent2" parent="Dressing" instance=ExtResource("p3")]
+[node name="Vent2" parent="Dressing" unique_id=1854450525 instance=ExtResource("p3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18.5, 20.6, -81.79)
 
-[node name="Vent3" parent="Dressing" instance=ExtResource("p3")]
+[node name="Vent3" parent="Dressing" unique_id=1823876704 instance=ExtResource("p3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18.5, 20.6, -81.79)
 
-[node name="Vent4" parent="Dressing" instance=ExtResource("p3")]
+[node name="Vent4" parent="Dressing" unique_id=804658086 instance=ExtResource("p3")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 27, 20.6, -81.79)
 
-[node name="Cable1" parent="Dressing" instance=ExtResource("p7")]
+[node name="Cable1" parent="Dressing" unique_id=357553100 instance=ExtResource("p7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -24, 15.09, -82.02)
 
-[node name="Cable2" parent="Dressing" instance=ExtResource("p7")]
+[node name="Cable2" parent="Dressing" unique_id=1610747490 instance=ExtResource("p7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -21.6, 15.09, -82.02)
 
-[node name="Cable3" parent="Dressing" instance=ExtResource("p7")]
+[node name="Cable3" parent="Dressing" unique_id=1160212958 instance=ExtResource("p7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -13.5, 15.09, -82.02)
 
-[node name="Cable4" parent="Dressing" instance=ExtResource("p7")]
+[node name="Cable4" parent="Dressing" unique_id=351719481 instance=ExtResource("p7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -6.2, 15.09, -82.02)
 
-[node name="Cable5" parent="Dressing" instance=ExtResource("p7")]
+[node name="Cable5" parent="Dressing" unique_id=274933725 instance=ExtResource("p7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 15.09, -82.02)
 
-[node name="Cable6" parent="Dressing" instance=ExtResource("p7")]
+[node name="Cable6" parent="Dressing" unique_id=1707372415 instance=ExtResource("p7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6.5, 15.09, -82.02)
 
-[node name="Cable7" parent="Dressing" instance=ExtResource("p8")]
+[node name="Cable7" parent="Dressing" unique_id=785680852 instance=ExtResource("p8")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.8, 14.71, -82.02)
 
-[node name="Cable8" parent="Dressing" instance=ExtResource("p9")]
+[node name="Cable8" parent="Dressing" unique_id=1125988855 instance=ExtResource("p9")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 21, 15.03, -82.02)
 
-[node name="Cable9" parent="Dressing" instance=ExtResource("p7")]
+[node name="Cable9" parent="Dressing" unique_id=1631900309 instance=ExtResource("p7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 23.4, 15.09, -82.02)
 
-[node name="Cable10" parent="Dressing" instance=ExtResource("p7")]
+[node name="Cable10" parent="Dressing" unique_id=597590545 instance=ExtResource("p7")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 29, 15.09, -82.02)
 
-[node name="Sag1" parent="Dressing" instance=ExtResource("p10")]
+[node name="Sag1" parent="Dressing" unique_id=68015861 instance=ExtResource("p10")]
 transform = Transform3D(6, 0, 0, 0, 6, 0, 0, 0, 6, -22.8, 14.12, -81.97)
 
-[node name="Sag2" parent="Dressing" instance=ExtResource("p10")]
+[node name="Sag2" parent="Dressing" unique_id=285643964 instance=ExtResource("p10")]
 transform = Transform3D(6, 0, 0, 0, 6, 0, 0, 0, 6, 3.75, 14.12, -81.97)
 
-[node name="Sag3" parent="Dressing" instance=ExtResource("p10")]
+[node name="Sag3" parent="Dressing" unique_id=1546671619 instance=ExtResource("p10")]
 transform = Transform3D(6, 0, 0, 0, 6, 0, 0, 0, 6, 22.2, 14.12, -81.97)
 
-[node name="WireBox1" parent="Dressing" instance=ExtResource("p11")]
+[node name="WireBox1" parent="Dressing" unique_id=129318609 instance=ExtResource("p11")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -17.4, 1.4, -82.09)
 
-[node name="WireBox2" parent="Dressing" instance=ExtResource("p11")]
+[node name="WireBox2" parent="Dressing" unique_id=1057021314 instance=ExtResource("p11")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 17.4, 1.4, -82.09)
 
-[node name="Machine1" parent="Dressing" instance=ExtResource("p15")]
+[node name="Machine1" parent="Dressing" unique_id=427793006 instance=ExtResource("p15")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.5, 10.55, -79.2)
 
-[node name="Machine2" parent="Dressing" instance=ExtResource("p15")]
+[node name="Machine2" parent="Dressing" unique_id=2098465302 instance=ExtResource("p15")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6, 10.55, -80.6)
 
-[node name="Antenna1" parent="Dressing" instance=ExtResource("p16")]
+[node name="Antenna1" parent="Dressing" unique_id=484006536 instance=ExtResource("p16")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 9.9, -80.8)
 
-[node name="Dock" type="Node3D" parent="." node_paths=PackedStringArray("Door", "DoorSolid", "Beacon")]
+[node name="Dock" type="Node3D" parent="." unique_id=1760917701 node_paths=PackedStringArray("Door", "DoorSolid", "Beacon")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11, 15)
 script = ExtResource("11_dock")
 Door = NodePath("../Model/Doors")
 DoorSolid = NodePath("DoorSolid")
 Beacon = NodePath("Beacon")
 
-[node name="DoorSolid" type="Node3D" parent="Dock"]
+[node name="DoorSolid" type="Node3D" parent="Dock" unique_id=197883161]
 script = ExtResource("9_solid")
 
-[node name="Box" type="CollisionShape3D" parent="Dock/DoorSolid"]
+[node name="Box" type="CollisionShape3D" parent="Dock/DoorSolid" unique_id=1902682085]
 shape = SubResource("Shape_door")
 
-[node name="Beacon" parent="Dock" instance=ExtResource("12_beacon")]
+[node name="Beacon" parent="Dock" unique_id=711391917 instance=ExtResource("12_beacon")]
+
+[node name="LandingPadSmall" parent="." unique_id=938403270 instance=ExtResource("23_m503l")]
+transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 14.868665, 3.3364172, -58.435562)
+
+[node name="LandingPadSmall2" parent="." unique_id=1877192837 instance=ExtResource("23_m503l")]
+transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, -14.643392, 3.3364847, -58.4354)

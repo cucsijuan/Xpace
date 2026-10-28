@@ -1,4 +1,4 @@
-; flight.asm - CucsiCorp Flight Control 1.6 (FLIGHT.COM)
+; flight.asm - CucsiCorp Flight Control 1.7 (FLIGHT.COM)
 ;
 ;   FLIGHT          stays resident and flies the ship
 ;   FLIGHT OFF      takes it out of memory: the thrusters answer the
@@ -36,6 +36,19 @@
 ; the whole range of the controls for that much less. If the radio holds
 ; no laws for where the ship is, it asks the nearest station for them once
 ; a second, and there is no limit until they come.
+;
+; Docking: while the radio hears the beacon of the landing pad the ship is
+; cleared to, the RADAR screen is taken for the pad (its entry marked as
+; lent, so the program that draws there leaves it alone, and given back
+; when the beacon is no longer heard). The pad from above, the ship in the
+; middle pointing up, the pad's square as big as its leeway (half bright,
+; bright when the ship is over it and turned as it is), ticks along the
+; frame every metre within 14 m, every 10 m within 56 m, every 100 m
+; beyond; along the bottom how far to yaw, along the top how far to roll,
+; up the left how far to pitch (the middle tick: none; the others: the
+; pad's leeway); up the right the height above the ship's place on the
+; pad (the upper tick: where the clamps take it). Held by the clamps, a
+; box round the ship; docked, a second one.
 ;
 ; The pilot's boost button, held, drives the main engine's cooling harder
 ; (the cooling unit's boost): the engine keeps up more thrust before its
@@ -78,11 +91,22 @@
 ;   1F0h  main engine        +0 type 17  +6 status (bit 4 the cooling
 ;                            unit's calibration mode); write: the cooling
 ;                            unit, bit 0 boost, bit 7 calibration mode
-;   200h  radio              +0 type 18  +4 status (bit 0 it holds a
-;                            station's laws, bit 1 the ship is inside their
-;                            zone)  +5 write: 1 ask for the laws of the
-;                            contact in +6 (FFh the nearest station); the
-;                            laws at D000:1600: +8 speed limit (1/8 m/s)
+;   200h  radio              +0 type 18  +1 version  +4 status (bit 0
+;                            it holds a station's laws, bit 1 the ship is
+;                            inside their zone)  +5 write: 1 ask for the
+;                            laws of the contact in +6 (FFh the nearest
+;                            station); the laws at D000:1600: +8 speed
+;                            limit (1/8 m/s); version 3: the landing pad's
+;                            guidance at D000:1900: +0 flags (bit 0 heard,
+;                            1 over it and turned as it is, 3 held, 4
+;                            docked)  +2 right  +4 up  +6 forward to the
+;                            ship's place on it (1/16 m)  +8 yaw  +10 pitch
+;                            +12 roll to turn (binary angles)  +14 leeway
+;                            (1/16 m)  +16 leeway in heading  +18 the
+;                            clamps' height (1/16 m)
+;
+; The display card's screens (version 4): +9 lent, 0 or the mark of the
+; program that has taken the screen for a while.
 
 org 100h
 
@@ -106,6 +130,24 @@ IRQ_BIT     equ 20h
 PLATE_SEG   equ 0D000h              ; the whole rating plate (version 2)
 PLATE       equ 1400h
 LAWS        equ 1600h               ; the laws the radio holds (same segment)
+PAD         equ 1900h               ; the landing pad's guidance (same segment)
+PAD_WORDS   equ 10
+LENT_MARK   equ 'F'                 ; on a screen this program has taken
+MARK_WORDS  equ 8
+PLAN_X0     equ 16                  ; the pad's picture on RADAR (160 x 128)
+PLAN_X1     equ 143
+PLAN_Y0     equ 8
+PLAN_Y1     equ 119
+MID_X       equ 80
+MID_Y       equ 64
+ROLL_Y      equ 3                   ; the bars
+YAW_Y       equ 124
+PITCH_X     equ 5
+HEIGHT_X    equ 152
+CLAMP_TICK  equ 28                  ; the clamps' height, pixels up the height bar
+DIM         equ 55h                 ; 2-bit pixels, four to a byte
+HALF        equ 0AAh
+BRIGHT      equ 0FFh
 BUTTON_PARK equ 80h                 ; on CTRL + 15
 ASK_EVERY   equ 60                  ; steps between asks for the laws (a second)
 GAIN_RATE   equ 96                  ; command for each unit of turn-rate error
@@ -129,7 +171,7 @@ COLS        equ 40
 ; ======================================================================
 
 ; FLIGHT OFF finds the resident copy by these, at fixed places
-signature   db 'XPFL16'             ; 103h
+signature   db 'XPFL17'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -305,6 +347,9 @@ step:
     dec byte [screen_wait]
     jnz .timed
     mov byte [screen_wait], SCREEN_EVERY
+    call guide
+    push cs
+    pop es
     cmp word [screen_seg], 0
     je .unseen
     call draw_values
@@ -582,6 +627,481 @@ timer_read:
     xchg al, ah
     ret
 
+; ---------- the landing pad's guidance on the RADAR screen ----------
+
+guide:
+    cmp word [g_seg], 0
+    je .done
+    push ds                         ; the guidance, as the radio has it
+    mov ax, PLATE_SEG
+    mov ds, ax
+    mov si, PAD
+    mov di, pad
+    mov cx, PAD_WORDS
+    rep movsw
+    pop ds
+    test byte [pad], 1
+    jnz .show
+    cmp byte [g_lent], 0            ; no beacon: the screen given back
+    je .done
+    mov byte [g_lent], 0
+    les bx, [g_entry]
+    mov byte [es:bx + 9], 0
+.done:
+    ret
+.show:
+    call guide_marks                ; AL = the picture's state
+    mov bl, al
+    mov si, n_marks                 ; have the marks moved?
+    mov di, m_marks
+    mov cx, MARK_WORDS
+    repe cmpsw
+    mov bh, 0
+    je .same
+    mov bh, 1
+.same:
+    les di, [g_entry]               ; taken
+    mov byte [es:di + 9], LENT_MARK
+    mov byte [es:di + 6], 1         ; graphics
+    mov es, [g_seg]
+    cmp byte [g_lent], 0
+    je .redraw
+    cmp bl, [g_state]
+    jne .redraw
+    test bh, bh
+    jz .done
+    call xor_marks                  ; the old marks off, the new on
+    call take_marks
+    jmp xor_marks
+.redraw:
+    mov [g_state], bl
+    mov byte [g_lent], 1
+    call take_marks
+    call background
+    jmp xor_marks
+
+; The marks' places from the guidance (n_marks); AL = the state of what
+; stays drawn: held, docked, the scale
+guide_marks:
+    mov ax, [pad + 2]               ; the scale: 4 pixels a metre within
+    call absolute                   ; 14 m, 1 within 56, 1/8 beyond
+    mov bx, ax
+    mov ax, [pad + 6]
+    call absolute
+    cmp ax, bx
+    jae .far
+    mov ax, bx
+.far:
+    mov cl, 2
+    xor bl, bl
+    cmp ax, 224
+    jbe .scaled
+    mov cl, 4
+    inc bl
+    cmp ax, 896
+    jbe .scaled
+    mov cl, 7
+    inc bl
+.scaled:
+    mov [g_shift], cl
+    mov [g_scale], bl
+    mov ax, [pad + 14]              ; the leeway: the pad's square
+    shr ax, cl
+    mov dx, 1
+    mov si, 40
+    call clamp
+    mov bp, ax
+    mov ax, [pad + 2]               ; across: right
+    mov cl, [g_shift]
+    sar ax, cl
+    add ax, MID_X
+    mov dx, PLAN_X0 + 1             ; the square kept inside the frame
+    add dx, bp
+    mov si, PLAN_X1 - 1
+    sub si, bp
+    call clamp
+    sub ax, bp
+    mov [n_marks + 0], ax
+    mov ax, [pad + 6]               ; up the screen: forward
+    mov cl, [g_shift]
+    sar ax, cl
+    neg ax
+    add ax, MID_Y
+    mov dx, PLAN_Y0 + 1
+    add dx, bp
+    mov si, PLAN_Y1 - 1
+    sub si, bp
+    call clamp
+    sub ax, bp
+    mov [n_marks + 2], ax
+    shl bp, 1
+    mov [n_marks + 4], bp
+    mov ax, HALF                    ; bright when over it and turned as it is
+    test byte [pad], 2
+    jz .dull
+    mov ax, BRIGHT
+.dull:
+    mov [n_marks + 6], ax
+    mov ax, [pad + 8]               ; yaw
+    call angle_px
+    add ax, MID_X
+    mov [n_marks + 8], ax
+    mov ax, [pad + 12]              ; roll
+    call angle_px
+    add ax, MID_X
+    mov [n_marks + 10], ax
+    mov ax, [pad + 10]              ; pitch, up positive
+    call angle_px
+    mov dx, -52
+    mov si, 52
+    call clamp
+    neg ax
+    add ax, MID_Y
+    mov [n_marks + 12], ax
+    mov ax, [pad + 4]               ; the height above its place
+    neg ax
+    jns .above
+    xor ax, ax
+.above:
+    mov cx, [pad + 18]              ; the clamps' height, CLAMP_TICK up
+    test cx, cx
+    jnz .height
+    inc cx
+.height:
+    mov bx, cx
+    shl bx, 1
+    shl bx, 1
+    cmp ax, bx
+    jbe .within
+    mov ax, bx
+.within:
+    mov dx, CLAMP_TICK
+    mul dx
+    div cx
+    neg ax
+    add ax, PLAN_Y1
+    mov dx, PLAN_Y0 + 1
+    mov si, PLAN_Y1 - 1
+    call clamp
+    mov [n_marks + 14], ax
+    mov al, [pad]                   ; held, docked; the scale
+    and al, 18h
+    mov ah, [g_scale]
+    mov cl, 5
+    shl ah, cl
+    or al, ah
+    ret
+
+; AX a binary angle: 2 pixels a degree, within 60
+angle_px:
+    cwd
+    mov cx, 91
+    idiv cx
+    mov dx, -60
+    mov si, 60
+    ; fall through
+
+; AX held within DX..SI
+clamp:
+    cmp ax, dx
+    jge .above
+    mov ax, dx
+.above:
+    cmp ax, si
+    jle .below
+    mov ax, si
+.below:
+    ret
+
+absolute:
+    test ax, ax
+    jns .done
+    neg ax
+.done:
+    ret
+
+take_marks:
+    mov si, n_marks
+    mov di, m_marks
+    mov cx, MARK_WORDS
+.next:
+    lodsw
+    mov [di], ax
+    add di, 2
+    loop .next
+    ret
+
+; XOR the marks (m_marks) onto the picture (ES)
+xor_marks:
+    mov bl, [m_marks + 6]           ; the pad's square
+    mov cx, [m_marks + 0]
+    mov dx, [m_marks + 2]
+    mov ax, [m_marks + 4]
+    mov [box_w], ax
+    mov [box_h], ax
+    call xor_box
+    mov bl, BRIGHT
+    mov cx, [m_marks + 8]           ; yaw, along the bottom
+    dec cx
+    mov dx, YAW_Y - 2
+    mov si, 3
+    mov bp, 5
+    call xor_fill
+    mov cx, [m_marks + 10]          ; roll, along the top
+    dec cx
+    mov dx, ROLL_Y - 2
+    mov si, 3
+    mov bp, 5
+    call xor_fill
+    mov cx, PITCH_X - 2             ; pitch, up the left
+    mov dx, [m_marks + 12]
+    dec dx
+    mov si, 5
+    mov bp, 3
+    call xor_fill
+    mov cx, HEIGHT_X - 3            ; the height, up the right
+    mov dx, [m_marks + 14]
+    dec dx
+    mov si, 7
+    mov bp, 3
+    jmp xor_fill
+
+; What stays drawn (ES): the frame and its scale, the ship, the bars and
+; their ticks, the clamps
+background:
+    xor di, di
+    mov cx, [g_words]
+    xor ax, ax
+    rep stosw
+    mov bl, DIM                     ; the frame
+    mov cx, PLAN_X0
+    mov dx, PLAN_Y0
+    mov word [box_w], PLAN_X1 - PLAN_X0
+    mov word [box_h], PLAN_Y1 - PLAN_Y0
+    call xor_box
+    mov bl, [g_scale]               ; the scale's ticks: 1 m, 10 m, 100 m
+    xor bh, bh
+    mov bl, [tick_steps + bx]
+    mov [tick_step], bl
+    mov bl, HALF
+    mov ax, 0
+.across:
+    mov cx, MID_X
+    add cx, ax
+    mov dx, PLAN_Y0 + 1
+    mov bp, 3
+    call xor_vspan
+    test ax, ax
+    jz .across_next
+    mov cx, MID_X
+    sub cx, ax
+    mov bp, 3
+    call xor_vspan
+.across_next:
+    mov ah, 0
+    add al, [tick_step]
+    cmp ax, MID_X - PLAN_X0 - 1
+    jb .across
+    mov ax, 0
+.up:
+    mov cx, PLAN_X0 + 1
+    mov dx, MID_Y
+    add dx, ax
+    mov bp, 3
+    call xor_hspan
+    test ax, ax
+    jz .up_next
+    mov dx, MID_Y
+    sub dx, ax
+    mov bp, 3
+    call xor_hspan
+.up_next:
+    mov ah, 0
+    add al, [tick_step]
+    cmp ax, MID_Y - PLAN_Y0 - 1
+    jb .up
+    mov bl, BRIGHT                  ; the ship, nose up
+    mov cx, MID_X
+    mov dx, MID_Y - 5
+    mov bp, 11
+    call xor_vspan
+    mov cx, MID_X - 5
+    mov dx, MID_Y + 1
+    mov bp, 5
+    call xor_hspan
+    mov cx, MID_X + 1
+    mov bp, 5
+    call xor_hspan
+    mov ax, [pad + 16]              ; the leeway in heading, pixels
+    call angle_px
+    mov dx, 1
+    mov si, 52
+    call clamp
+    mov [tick_lee], ax
+    mov bl, DIM                     ; the bars
+    mov cx, PLAN_X0
+    mov dx, ROLL_Y
+    mov bp, PLAN_X1 - PLAN_X0 + 1
+    call xor_hspan
+    mov dx, YAW_Y
+    mov bp, PLAN_X1 - PLAN_X0 + 1
+    call xor_hspan
+    mov cx, PITCH_X
+    mov dx, PLAN_Y0
+    mov bp, PLAN_Y1 - PLAN_Y0 + 1
+    call xor_vspan
+    mov cx, HEIGHT_X
+    mov bp, PLAN_Y1 - PLAN_Y0 + 1
+    call xor_vspan
+    mov bl, HALF                    ; their ticks
+    mov dx, ROLL_Y
+    call across_ticks
+    mov dx, YAW_Y
+    call across_ticks
+    mov cx, PITCH_X - 3             ; pitch: none, and the leeway
+    mov dx, MID_Y
+    mov bp, 7
+    call xor_hspan
+    mov cx, PITCH_X - 2
+    add dx, [tick_lee]
+    mov bp, 5
+    call xor_hspan
+    mov dx, MID_Y
+    sub dx, [tick_lee]
+    mov bp, 5
+    call xor_hspan
+    mov cx, HEIGHT_X - 4            ; the height: its place, the clamps'
+    mov dx, PLAN_Y1 - 1
+    mov bp, 9
+    call xor_hspan
+    mov dx, PLAN_Y1 - CLAMP_TICK
+    mov bp, 9
+    call xor_hspan
+    test byte [g_state], 8          ; held: the clamps round the ship
+    jz .free
+    mov bl, HALF
+    mov cx, MID_X - 8
+    mov dx, MID_Y - 8
+    mov word [box_w], 16
+    mov word [box_h], 16
+    call xor_box
+.free:
+    test byte [g_state], 10h        ; docked
+    jz .done
+    mov bl, BRIGHT
+    mov cx, MID_X - 10
+    mov dx, MID_Y - 10
+    mov word [box_w], 20
+    mov word [box_h], 20
+    call xor_box
+.done:
+    ret
+
+; Row DX: the middle tick and the leeway's either side
+across_ticks:
+    mov cx, MID_X
+    sub dx, 3
+    mov bp, 7
+    call xor_vspan
+    add dx, 4
+    mov cx, MID_X
+    add cx, [tick_lee]
+    mov bp, 5
+    sub dx, 3
+    call xor_vspan
+    mov cx, MID_X
+    sub cx, [tick_lee]
+    mov bp, 5
+    call xor_vspan
+    add dx, 2
+    ret
+
+; CX x, DX y: DI the byte, AL the pixel's bits in it (CX, DX kept)
+locate:
+    push dx
+    push cx
+    mov ax, dx
+    mul word [g_pitch]
+    mov di, cx
+    shr di, 1
+    shr di, 1
+    add di, ax
+    and cl, 3
+    shl cl, 1
+    mov al, 0C0h
+    shr al, cl
+    pop cx
+    pop dx
+    ret
+
+; From (CX, DX), BP pixels across, BL the value (in every pixel of the byte): XOR
+xor_hspan:
+    push ax
+    call locate
+.pixel:
+    mov ah, bl
+    and ah, al
+    xor [es:di], ah
+    ror al, 1
+    ror al, 1
+    jnc .same
+    inc di
+.same:
+    dec bp
+    jnz .pixel
+    pop ax
+    ret
+
+; From (CX, DX), BP pixels down, BL the value: XOR
+xor_vspan:
+    push ax
+    call locate
+    and al, bl
+.pixel:
+    xor [es:di], al
+    add di, [g_pitch]
+    dec bp
+    jnz .pixel
+    pop ax
+    ret
+
+; From (CX, DX), SI pixels across and BP down, BL the value: XOR
+xor_fill:
+    push bp
+    mov bp, si
+    call xor_hspan
+    pop bp
+    inc dx
+    dec bp
+    jnz xor_fill
+    ret
+
+; A frame from (CX, DX), [box_w] across and [box_h] down to its far corner, BL the value: XOR
+xor_box:
+    mov bp, [box_w]
+    inc bp
+    call xor_hspan
+    push dx
+    add dx, [box_h]
+    mov bp, [box_w]
+    inc bp
+    call xor_hspan
+    pop dx
+    mov bp, [box_h]
+    dec bp
+    jle .done
+    inc dx
+    push bp
+    call xor_vspan
+    pop bp
+    push cx
+    add cx, [box_w]
+    call xor_vspan
+    pop cx
+    dec dx
+.done:
+    ret
+
 ; ---------- the page on the FLIGHT screen ----------
 
 draw_values:
@@ -766,6 +1286,22 @@ buttons         db 0
 buttons2        db 0
 screen_wait     db 1
 screen_seg      dw 0                ; the FLIGHT screen's segment (0: none)
+g_seg           dw 0                ; the RADAR screen's segment, for the pad (0: none)
+g_entry         dw 0, 0             ; its entry in the screen table
+g_pitch         dw 0                ; bytes a row
+g_words         dw 0                ; words in all
+g_lent          db 0                ; it is ours now
+g_state         db 0                ; what stays drawn, as it was drawn
+g_shift         db 0
+g_scale         db 0
+tick_step       db 0
+tick_steps      db 4, 10, 12        ; pixels between the scale's ticks
+tick_lee        dw 0
+box_w           dw 0
+box_h           dw 0
+pad             times PAD_WORDS dw 0    ; the guidance, as the radio has it
+n_marks         times MARK_WORDS dw 0   ; the square (x, y, size, value), yaw, roll, pitch, height
+m_marks         times MARK_WORDS dw 0   ; the same, as drawn
 t_start         dw 0
 busy            dw 0, 0
 controls        times 6 dw 0        ; pitch, roll, yaw, right, up, throttle
@@ -830,6 +1366,32 @@ install:
     cmp al, TYPE_RADIO
     jne .no_radio
     mov byte [has_radio], 1
+    mov dx, RADIO + 1               ; a radio that hears landing pads
+    in al, dx
+    cmp al, 3
+    jb .no_radio
+    mov si, n_radar                 ; and a RADAR screen to show them on
+    call find_screen
+    jc .no_radio
+    cmp word [es:bx + 10], 160
+    jb .no_radio
+    cmp word [es:bx + 12], 128
+    jb .no_radio
+    mov [g_entry], bx
+    mov [g_entry + 2], es
+    mov ax, [es:bx + 10]
+    shr ax, 1
+    shr ax, 1
+    mov [g_pitch], ax
+    mul word [es:bx + 12]
+    shr ax, 1
+    mov [g_words], ax
+    mov ax, [es:bx + 14]
+    mov cl, 4
+    shr ax, cl
+    mov cx, es
+    add ax, cx
+    mov [g_seg], ax
 .no_radio:
 
     mov si, n_flight                ; its page, if the ship has the screen
@@ -887,6 +1449,13 @@ remove:
     jmp quit_message
 .found:
     call unlink                     ; out of the IRQ 5 chain, wherever it is
+    cmp byte [es:g_lent], 0         ; a screen it took, given back
+    je .not_lent
+    push es
+    les bx, [es:g_entry]
+    mov byte [es:bx + 9], 0
+    pop es
+.not_lent:
     cmp word [es:screen_seg], 0
     je .no_page
     push es                         ; the page says so
@@ -988,6 +1557,7 @@ find_screen:
     ret
 
 n_flight        db 'FLIGHT'
+n_radar         db 'RADAR '
 
 ; The device at port DX must be of type BL
 check_device:
@@ -1031,7 +1601,7 @@ draw_labels:
 ; Screen offset, attribute, text (0); 0FFFFh ends
 labels:
     dw (0 * COLS + 0) * 2
-    db ATTR_TITLE, ' FLIGHT CONTROL 1.6            CUCSICORP', 0
+    db ATTR_TITLE, ' FLIGHT CONTROL 1.7            CUCSICORP', 0
     dw (2 * COLS + 1) * 2
     db ATTR_LABEL, 'ASSIST', 0
     dw (3 * COLS + 1) * 2

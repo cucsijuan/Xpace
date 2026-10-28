@@ -1,4 +1,4 @@
-; comms.asm - Radio Contacts 1.1 (COMMS.COM)
+; comms.asm - Radio Contacts 1.2 (COMMS.COM)
 ;
 ;   COMMS       stays resident and works the radio from the ship's COMMS
 ;               screen (32 x 12 text) and its keys
@@ -9,7 +9,8 @@
 ; (DOCK if it cleared the ship to a dock). The screen's keys move a cursor
 ; along the list (UP, DOWN) and choose the contact under it (SELECT): its
 ; options come up, and SELECT on one sends it (BACK goes back to the list).
-; A station can be asked for a dock or for its laws; a ship, nothing yet.
+; A station can be asked for a dock, for its laws, or (docked in one of
+; its hangars) to let the ship launch; a ship, nothing yet.
 ; The keys of the screen of interest (zoom in, zoom out, sound) work as UP,
 ; DOWN and SELECT.
 ;
@@ -34,7 +35,7 @@
 ;                            holds a station's laws, bit 1 inside their
 ;                            speed limit, bit 3 off, bit 4 inside their
 ;                            zone, bit 5 cleared to a dock)  +5 write: a
-;                            request (1 laws, 2 docking) to the contact in
+;                            request (1 laws, 2 docking, 3 launch) to the contact in
 ;                            +6  +8 segment  +10 the contacts' table
 ;                            +12 the laws  +14 the messages (offsets).
 ;                            A contact (16 bytes): +0 callsign (8
@@ -42,7 +43,8 @@
 ;                            +9 flags (bit 0 the laws held are its, bit 3 it
 ;                            cleared the ship to a dock)  +10 range (10 m).
 ;                            The laws: +0 the station's callsign  +8 speed
-;                            limit (1/8 m/s)  +15 the dock cleared to.
+;                            limit (1/8 m/s)  +15 the dock cleared to
+;                            +18 the pad in it.
 ;                            A message (128 bytes, the newest first): +0
 ;                            who sent it  +8 the words (120 characters)
 
@@ -65,7 +67,7 @@ WRAP        equ 30                  ; the words' columns
 LAWS_ROW    equ 11
 MSG_SIZE    equ 128
 DRAW_EVERY  equ 15                  ; steps between redraws (4 a second)
-OPTIONS     equ 2                   ; a station's: docking, laws
+OPTIONS     equ 3                   ; a station's: docking, laws, launch
 KEY_UP      equ 4
 KEY_DOWN    equ 5
 KEY_SELECT  equ 6
@@ -86,7 +88,7 @@ ATTR_CURSOR equ 70h
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPCM11'             ; 103h
+signature   db 'XPCM12'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -202,8 +204,9 @@ press:
     mov al, [cursor]
     out dx, al
     dec dx
-    mov al, ASK_DOCKING             ; option 0 docking, 1 laws
-    sub al, [option]
+    mov bl, [option]                ; what the option asks
+    xor bh, bh
+    mov al, [asks + bx]
     out dx, al
 .to_list:
     mov byte [mode], 0
@@ -417,6 +420,10 @@ draw_options:
     mov si, s_option1
     mov dl, 1
     call put_option
+    mov di, ((FIRST_ROW + 3) * COLS + 1) * 2
+    mov si, s_option2
+    mov dl, 2
+    call put_option
 .hint:
     mov di, ((FIRST_ROW + 4) * COLS + 1) * 2
     mov si, s_hint
@@ -508,11 +515,22 @@ draw_laws:
     in ax, dx
     mov si, ax
     call fetch
-    mov di, (MSG_ROW * COLS + 20) * 2
+    mov di, (MSG_ROW * COLS + 17) * 2
     mov si, s_hangar
     mov ah, ATTR_STATION
     call put_text
     mov al, [entry + 15]
+    xor ah, ah
+    call put_uint
+    mov al, [entry + 18]            ; and the pad in it
+    test al, al
+    jz .no_dock
+    push ax
+    add di, 2
+    mov si, s_pad
+    mov ah, ATTR_STATION
+    call put_text
+    pop ax
     xor ah, ah
     call put_uint
 .no_dock:
@@ -573,7 +591,7 @@ fetch:
     pop es
     mov di, entry
     mov ds, [table_seg]
-    mov cx, 8
+    mov cx, 10
     rep movsw
     pop cx
     pop di
@@ -654,6 +672,7 @@ s_ship      db 'SHIP', 0
 s_laws      db 'LAWS', 0
 s_dock      db 'DOCK', 0
 s_hangar    db 'HANGAR ', 0
+s_pad       db 'PAD ', 0
 s_limit     db 'SPEED LIMIT ', 0
 s_ms        db ' m/s  ', 0
 s_zone      db 'PROTECTED ZONE  ', 0
@@ -662,6 +681,8 @@ s_no_laws   db 'NO LAWS RECEIVED', 0
 s_off       db 'RADIO OFF', 0
 s_option0   db ' REQUEST DOCKING              ', 0
 s_option1   db ' REQUEST LAWS                 ', 0
+s_option2   db ' REQUEST LAUNCH               ', 0
+asks        db 2, 1, 3              ; what each option asks: docking, laws, launch
 s_no_options db 'NO OPTIONS FOR SHIPS', 0
 s_hint      db 'SELECT: SEND   BACK: LIST', 0
 
@@ -678,7 +699,7 @@ screen_seg  dw 0
 table_seg   dw 0
 sel_name    times 8 db ' '          ; the contact under the cursor
 sel_kind    db 0                    ; (right after its callsign)
-entry       times 16 db 0
+entry       times 20 db 0
 msg         times MSG_SIZE db 0
 
 resident_end:
@@ -904,7 +925,7 @@ quit_message:
     mov ax, 4C01h
     int 21h
 
-s_title         db 'RADIO 1.1', 0
+s_title         db 'RADIO 1.2', 0
 s_header        db 'CALLSIGN  KIND       KM', 0
 s_removed       db 'COMMS REMOVED', 0
 msg_installed   db 'Radio resident: contacts on the COMMS screen.', 13, 10, '$'

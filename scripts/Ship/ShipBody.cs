@@ -69,6 +69,19 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     /// <summary>Blown up (its <see cref="ShipHull"/> says so): no computer, no devices, no thrust; it only drifts.</summary>
     public bool Wrecked { get; set; }
 
+    /// <summary>
+    /// What holds the ship (a landing pad's clamps), or null: held, the ship
+    /// goes where the holder puts it, whatever the thrusters ask; its
+    /// computer and devices run on.
+    /// </summary>
+    public IShipHold Holder { get; set; }
+
+    /// <summary>Held by a landing pad's clamps (see <see cref="Holder"/>).</summary>
+    public bool Held => Holder != null;
+
+    /// <summary>The box round the ship's hitboxes, in its own frame (how much room it needs).</summary>
+    public Aabb Bounds { get; private set; }
+
     /// <summary>The ship hit a rock this step: the kinetic energy the crash took (joules).</summary>
     public event Action<float> Impact;
 
@@ -115,6 +128,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         if (_hitboxes.Length == 0)
             _hitboxes = new[] { new Hitbox(Vector3.Zero, new Vector3(5, 3, 10)) };
         _bound = ShipContact.Bound(_hitboxes);
+        Bounds = Hitbox.Bounds(_hitboxes);
     }
 
     public T Device<T>() where T : class, IShipDevice
@@ -180,6 +194,12 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         {
             for (int i = 0; i < 6; i++)
                 Commands[i] = bus.Word(SlotThrusters, 2 + i * 2) / 32767f;
+        }
+        if (Holder != null)
+        {
+            System.Array.Clear(Commands);
+            State = Holder.Hold(this, delta);
+            return;
         }
         if (_engine != null)
         {

@@ -47,6 +47,25 @@ public struct Hitbox
         return boxes.ToArray();
     }
 
+    /// <summary>The box round them all, in their frame (empty: none).</summary>
+    public static Aabb Bounds(Hitbox[] boxes)
+    {
+        Aabb all = default;
+        bool first = true;
+        foreach (Hitbox b in boxes)
+        {
+            Basis turn = b.ToBox == default ? Basis.Identity : b.ToBox.Inverse();
+            for (int i = 0; i < 8; i++)
+            {
+                var corner = new Vector3((i & 1) != 0 ? 1 : -1, (i & 2) != 0 ? 1 : -1, (i & 4) != 0 ? 1 : -1);
+                Vector3 p = b.Centre + turn * (corner * b.HalfSize);
+                all = first ? new Aabb(p, Vector3.Zero) : all.Expand(p);
+                first = false;
+            }
+        }
+        return all;
+    }
+
     private static bool OtherUse(Node shape, Node root)
     {
         for (Node p = shape.GetParent(); p != null && p != root; p = p.GetParent())

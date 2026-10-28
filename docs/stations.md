@@ -16,7 +16,8 @@ A station is a scene of **modules** and **parts**, each a scene of its own. Put 
 | `scenes/stations/props/spacewalk_tube.tscn` | Spacewalk tube (SM_Prop_SpaceWalk_Tube_01; scaled 4.8) |
 | `scenes/stations/modules/station_01_ring_hangar.tscn` | The big ring with the hangar's room cut out of its outer band |
 | `scenes/stations/props/hangar_big.tscn` | The big hangar: a room for every ship short of a capital one, made out of Synty's SM_Bld_Hangar_01 |
-| `scenes/stations/props/landing_pad.tscn` | Landing pad (SM_Bld_Landing_Platform_01, 13.2 m) |
+| `scenes/stations/props/landing_pad.tscn` | Landing platform, looks and solid only (SM_Bld_Landing_Platform_01, 13.2 m) |
+| `scenes/stations/props/landing_pad_small.tscn` | A working landing pad for small ships (fighters): the platform at twice its size, clamps, glow and beacon (see Landing pads) |
 | `scenes/stations/props/hull_panel_a.tscn`, `_b`, `_c` | Hull panels, 30 x 30 m, cut from the ring's own skin and flattened |
 | `scenes/stations/props/hull_trim.tscn` | A 1 m beam, to scale over panels' edges and joints |
 | `scenes/stations/props/hangar_casing.tscn` | The hull round a big hangar's back, made of panels and trims |
@@ -39,6 +40,59 @@ The station modules use `assets/materials/synty_station.tres`, Synty's `PolygonS
 In the demo station four hangars go through the big ring's outer band (226.5 to 279.5 m from the axis, -50 to -140 m high), midway between the ring's arms: 45 degrees either side of the spacewalk tubes and opposite them. Each one's door is in the band's outer face, its back stands clear in the ring's hollow (clad, see below); the missile turrets on the band stand well above them. `tools/station_bay/cut_station.py` cuts their rooms out of the ring (and the ring's collision mesh) and prints their transforms: the `HangarBig1` to `HangarBig4` nodes in `synty_station.tscn` must have the same ones (`ANGLES` in the script).
 
 Where a hangar stands out of the ring, `hangar_casing.tscn` (instanced in `hangar_big.tscn`, so all four have it) clads it in the station's own hull: `Panels` and `Trims`, every one an instance to move, scale, add or delete in the editor (to make room for a corridor or a lift later). The raised door slides up into a pocket cut in the ring above the door, lined with plates, so the band's plates that stand out don't go through it.
+
+## Landing pads
+
+A hangar's door lets ships in; a **landing pad** inside takes them. `scenes/stations/props/landing_pad_small.tscn` is the one for small ships: its root node has the `LandingPad` script, everything else in the scene is looks (the platform, its solid, the glow). A pad for big ships is the same script with other numbers and other looks.
+
+### How docking goes
+
+1. The pilot asks the station for a dock (COMMS: REQUEST DOCKING). Traffic control clears a hangar and **one pad in it** that the ship fits on and that no other ship has. COMMS shows both (`HANGAR 1 PAD 2`). The door opens and the beacon lights.
+2. Only that pad glows **red**, and only that pad takes the ship: over any other pad nothing happens. The radio hears the pad's beacon, and FLIGHT takes the RADAR screen to show the pad from above: the pad's square, the ship in the middle, and bars for yaw (bottom), roll (top), pitch (left) and height (right).
+3. Over the pad, within its leeway, turned as it is and level, the glow turns **green**. All that is left is to come down.
+4. Low enough (within `CaptureHeight` of its resting place) and slow, the clamps take the ship: the game moves it slowly (`SettleSeconds`) to its exact place. Docked, the thrusters no longer move it. The glow turns **blue**. The station shuts the door once every ship it cleared to that hangar is docked.
+5. To leave, the pilot asks the station (COMMS: REQUEST LAUNCH). The door opens, the glow turns **amber**, the clamps lift the ship `LaunchHeight` and let it go. Once the ship is out of the hangar, the door shuts and the clearance is over.
+
+A hangar can have several pads, and so hold several ships, one to a pad. The door is open while any ship cleared to the hangar is on its way in or out. A hangar with no pads works as before: it takes one ship at a time, the door opens, and the ship can come in and out, but nothing holds it.
+
+### Putting a pad in a hangar
+
+1. Open the hangar's scene (`scenes/stations/props/hangar_big.tscn`) and instance the pad scene into it, once per pad. It can go anywhere under the hangar's root, or under any node inside it. The pad finds the hangar's `HangarDock` (the `Dock` node) by itself. Pads are numbered in the order they are in the scene tree, from 1, unless you set `Number`.
+2. Place it on the floor. The pad's origin is the **top of the platform**, its +Y is up, and its **-Z is where a docked ship's nose points**. The `Nose` marker in the scene shows that way. Turn the pad about Y to choose whether ships park facing the door or facing in.
+3. Leave room. A ship's middle comes down over the pad's origin, so the whole ship must fit there: the pad's `MaxFootprint` plus some margin to the walls, and the hangar's door must let it through.
+4. Run the game (or `tests/landing_pad_test.tscn`, which puts a pad in a hangar in code) and dock.
+
+The station must be one whose hangars have a `HangarDock` node, as `hangar_big.tscn` has. Every station that uses the hangar scene gets the pad: the four hangars of the Synty station all share `hangar_big.tscn`.
+
+### The pad's fields
+
+| Field | Meaning |
+|---|---|
+| `Number` | Its number in the hangar, as the radio and COMMS give it (0: by its order in the scene) |
+| `MaxFootprint` | The biggest ship it takes, width (x) by length (z), metres. Ships are measured by their hitboxes |
+| `MaxHeight` | And its height |
+| `Clearance` | The gap between the platform's top and a docked ship's lowest point, metres |
+| `Leeway` | How far across from the pad's middle the ship's middle may be to count as over it, metres |
+| `HeadingLeeway`, `TiltLeeway` | How far the nose may be turned from the pad's heading, and the ship tilted from level, degrees |
+| `CaptureHeight` | How far above its resting place a lined-up ship must come down for the clamps |
+| `CaptureSpeed`, `CaptureSpin` | The most it may be moving (m/s) and turning (degrees/s) for the clamps |
+| `SettleSeconds` | How long the clamps take to bring it down to its place |
+| `LaunchHeight`, `LaunchSeconds` | How high the clamps lift it before letting go, and how long that takes |
+| `GuidanceRange` | How far the beacon's guidance reaches, metres |
+| `GlowNode` | The name of the pad's child that holds the glow (`Glow`). Every light below it takes the state's colour, and every mesh gets it as the instance shader parameter `glow_color` (`assets/materials/pad_glow.gdshader` has it). All are hidden while the pad waits for nobody. It is a name, not a node path, on purpose: Godot rewrites node paths when you duplicate a node, and a duplicated pad then lit the first pad's glow |
+| `WaitingColor`, `AlignedColor`, `HoldingColor`, `DockedColor`, `LaunchingColor` | The glow's colour in each state |
+
+### Making a pad for big ships
+
+Make a new scene the way `landing_pad_small.tscn` is made, rather than scaling the small one: its numbers are in metres and do not follow the node's scale.
+
+1. A `Node3D` root with `scripts/Space/LandingPad.cs`. Set `MaxFootprint` and `MaxHeight` to the ships it is for (Synty's cruisers are 23 to 37 m wide and 50 to 52 m long). Give it a larger `Leeway` and `CaptureHeight`, and longer `SettleSeconds` and `LaunchSeconds`, to suit them.
+2. The platform: any model, with a `Solid` (its collision mesh, or `BoxShape3D` children) so ships bump into it. Put its top at the root's origin.
+3. The glow: a `Glow` child holding meshes that use `pad_glow.gdshader` (a cylinder rising from the pad, a ring round it) and a light. The shader's `height` should be the mesh's height. Make the column about as wide as the `Leeway`.
+4. A `Marker3D` along -Z helps to see which way ships will park.
+5. Put it in a hangar big enough for those ships. The station only clears a hangar for a ship if one of its pads fits the ship.
+
+Pads only work inside a hangar with a `HangarDock`. Pads out in the open are not supported yet.
 
 ## Hull panels
 

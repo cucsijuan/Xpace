@@ -406,11 +406,11 @@ public partial class SessionNode : Node
     }
 
     /// <summary>The host's station cleared a ship of this machine to a dock: its radio has the clearance.</summary>
-    private void DockCleared(INetEntity ship, string station, int dock)
+    private void DockCleared(INetEntity ship, string station, int dock, int pad)
     {
         if (StationRadio.Called(station) is StationRadio s && NodeOf(ship.NetId) is Node3D node &&
             node.FindChildren("*", "", true, false).OfType<IRadioReceiver>().FirstOrDefault() is IRadioReceiver radio)
-            radio.Cleared(s, dock);
+            radio.Cleared(s, dock, pad);
     }
 
     /// <summary>The host: a dock here opened or shut; every machine shows it.</summary>

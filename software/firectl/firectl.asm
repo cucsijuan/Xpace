@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.12 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.13 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -46,7 +46,9 @@
 ; the top left corner, a dotted line every quarter; the locked target in
 ; brackets; a jammer's noise as a dim line up the scope at its bearing,
 ; a strobe, which cannot be locked; with RADAR the screen of interest, its
-; zoom keys step the range) and
+; zoom keys step the range; while another program has the screen lent
+; (its entry's +9 not 0, as FLIGHT takes it to show a landing pad) the
+; scope is left alone, and drawn afresh when the screen comes back) and
 ; a page on WEAPON (text, 14 x 10 or more: the target, the turret and its
 ; heat). Without them it works the same, unseen.
 ;
@@ -71,8 +73,9 @@
 ;                            +8 keys pressed so far  +9 the last key (1 zoom
 ;                            in, 2 zoom out)  +10 its screen
 ;           a screen (16 bytes): +0 name  +6 mode (0 text, 1 graphics)
-;                            +7 columns  +8 rows  +10 width  +12 height
-;                            +14 memory (offset)
+;                            +7 columns  +8 rows  +9 lent (version 4: 0, or
+;                            the mark of a program that has taken it)
+;                            +10 width  +12 height  +14 memory (offset)
 ;   160h  missile launcher   +0 type 7  +2 radar missiles left  +3 in flight
 ;                            +4 status (bit 0 radar missile ready, 2 heat
 ;                            seeker ready, 3 its head sees heat, 4 locked on)
@@ -139,7 +142,7 @@ HEAT_CELLS  equ 11
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPFC12'             ; 103h
+signature   db 'XPFC13'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -870,12 +873,161 @@ timer_read:
 draw:
     cmp word [r_seg], 0
     je .no_scope
+    call scope_lent
+    jc .no_scope
     call draw_scope
 .no_scope:
     cmp word [w_seg], 0
     je .no_page
     call draw_page
 .no_page:
+    ret
+
+; The RADAR screen lent to another program (its entry's +9 marked): CF
+; set, and the scope is left alone. Given back, it is drawn afresh.
+scope_lent:
+    push es
+    les bx, [r_entry]
+    cmp byte [es:bx + 9], 0
+    je .ours
+    mov byte [r_lent], 1
+    pop es
+    stc
+    ret
+.ours:
+    cmp byte [r_lent], 0
+    je .done
+    mov byte [r_lent], 0
+    mov byte [es:bx + 6], 1         ; graphics again
+    mov byte [mark_count], 0        ; the marks went with the picture
+    call draw_grid
+    mov es, [r_seg]
+    call scope_label
+.done:
+    pop es
+    clc
+    ret
+
+; The scope's grid: the frame, a dotted line every 2 km and dead ahead,
+; ticks at 30 degrees either side
+draw_grid:
+    push es
+    mov es, [r_seg]
+    xor di, di
+    mov cx, [r_words]
+    xor ax, ax
+    rep stosw
+    mov bl, 2                       ; the frame
+    mov bp, 1
+    xor dx, dx
+    call hline
+    mov dx, [r_h]
+    dec dx
+    call hline
+    xor cx, cx
+    call vline
+    mov cx, [r_w]
+    dec cx
+    call vline
+    mov bl, 1                       ; the ranges, dotted
+    mov bp, 4
+    mov si, 1
+.range:
+    mov ax, [r_h]
+    dec ax
+    mul si
+    shr ax, 1
+    shr ax, 1
+    mov dx, [r_h]
+    dec dx
+    sub dx, ax
+    call hline
+    inc si
+    cmp si, 4
+    jb .range
+    mov cx, [r_w]                   ; dead ahead, dotted
+    dec cx
+    shr cx, 1
+    call vline
+    mov bl, 2                       ; 30 degrees either side
+    mov cx, [r_w]
+    dec cx
+    shr cx, 1
+    shr cx, 1
+    call ticks
+    mov ax, [r_w]
+    dec ax
+    mov cx, ax
+    shr ax, 1
+    shr ax, 1
+    sub cx, ax
+    call ticks
+    pop es
+    ret
+
+; Row DX, every BP-th pixel, value BL
+hline:
+    xor cx, cx
+.next:
+    call plot
+    add cx, bp
+    cmp cx, [r_w]
+    jb .next
+    ret
+
+; Column CX, every BP-th pixel, value BL
+vline:
+    xor dx, dx
+.next:
+    call plot
+    add dx, bp
+    cmp dx, [r_h]
+    jb .next
+    ret
+
+; Column CX: 4 pixels down from the top and up from the bottom
+ticks:
+    mov si, 4
+    mov dx, 1
+.top:
+    call plot
+    inc dx
+    dec si
+    jnz .top
+    mov si, 4
+    mov dx, [r_h]
+    sub dx, 2
+.bottom:
+    call plot
+    dec dx
+    dec si
+    jnz .bottom
+    ret
+
+; OR value BL into the pixel at (CX, DX)
+plot:
+    push ax
+    push cx
+    push dx
+    push di
+    mov ax, dx
+    mul word [r_pitch]
+    mov di, cx
+    shr di, 1
+    shr di, 1
+    add di, ax
+    and cl, 3
+    mov ch, 3
+    sub ch, cl
+    mov cl, ch
+    shl cl, 1
+    mov al, bl
+    shl al, cl
+    or [es:di], al
+    pop di
+    pop dx
+    pop cx
+    pop ax
     ret
 
 ; The scope on the RADAR screen, a B-scope: bearing across, range up. The
@@ -1044,6 +1196,8 @@ xor_strobe:
 scope_key:
     cmp word [r_seg], 0
     je .done
+    cmp byte [r_lent], 0            ; not while another program has it
+    jne .done
     mov bl, [r_scale]
     cmp al, KEY_IN
     jne .out
@@ -1684,6 +1838,8 @@ glyphs:
             dw 03F00h, 0C0C0h, 03FC0h, 000C0h, 03F00h    ; 9
                 dw 0C0C0h, 0C300h, 0FC00h, 0C300h, 0C0C0h    ; K
 r_seg           dw 0                ; the RADAR screen's segment (0: none)
+r_entry         dw 0, 0             ; its entry in the screen table
+r_lent          db 0                ; another program has it
 r_w             dw 0                ; its size in pixels
 r_h             dw 0
 r_pitch         dw 0                ; bytes a row
@@ -1803,6 +1959,8 @@ install:
     mov cl, 4
     shr ax, cl
     mov [r_screen], al
+    mov [r_entry], bx
+    mov [r_entry + 2], es
     mov dx, DISPLAYS + 8
     in al, dx
     mov [keys_seen], al
@@ -2027,128 +2185,6 @@ screen_segment:
     shr ax, cl
     mov cx, es
     add ax, cx
-    ret
-
-; The scope's grid: the frame, a dotted line every 2 km and dead ahead,
-; ticks at 30 degrees either side
-draw_grid:
-    push es
-    mov es, [r_seg]
-    xor di, di
-    mov cx, [r_words]
-    xor ax, ax
-    rep stosw
-    mov bl, 2                       ; the frame
-    mov bp, 1
-    xor dx, dx
-    call hline
-    mov dx, [r_h]
-    dec dx
-    call hline
-    xor cx, cx
-    call vline
-    mov cx, [r_w]
-    dec cx
-    call vline
-    mov bl, 1                       ; the ranges, dotted
-    mov bp, 4
-    mov si, 1
-.range:
-    mov ax, [r_h]
-    dec ax
-    mul si
-    shr ax, 1
-    shr ax, 1
-    mov dx, [r_h]
-    dec dx
-    sub dx, ax
-    call hline
-    inc si
-    cmp si, 4
-    jb .range
-    mov cx, [r_w]                   ; dead ahead, dotted
-    dec cx
-    shr cx, 1
-    call vline
-    mov bl, 2                       ; 30 degrees either side
-    mov cx, [r_w]
-    dec cx
-    shr cx, 1
-    shr cx, 1
-    call ticks
-    mov ax, [r_w]
-    dec ax
-    mov cx, ax
-    shr ax, 1
-    shr ax, 1
-    sub cx, ax
-    call ticks
-    pop es
-    ret
-
-; Row DX, every BP-th pixel, value BL
-hline:
-    xor cx, cx
-.next:
-    call plot
-    add cx, bp
-    cmp cx, [r_w]
-    jb .next
-    ret
-
-; Column CX, every BP-th pixel, value BL
-vline:
-    xor dx, dx
-.next:
-    call plot
-    add dx, bp
-    cmp dx, [r_h]
-    jb .next
-    ret
-
-; Column CX: 4 pixels down from the top and up from the bottom
-ticks:
-    mov si, 4
-    mov dx, 1
-.top:
-    call plot
-    inc dx
-    dec si
-    jnz .top
-    mov si, 4
-    mov dx, [r_h]
-    sub dx, 2
-.bottom:
-    call plot
-    dec dx
-    dec si
-    jnz .bottom
-    ret
-
-; OR value BL into the pixel at (CX, DX)
-plot:
-    push ax
-    push cx
-    push dx
-    push di
-    mov ax, dx
-    mul word [r_pitch]
-    mov di, cx
-    shr di, 1
-    shr di, 1
-    add di, ax
-    and cl, 3
-    mov ch, 3
-    sub ch, cl
-    mov cl, ch
-    shl cl, 1
-    mov al, bl
-    shl al, cl
-    or [es:di], al
-    pop di
-    pop dx
-    pop cx
-    pop ax
     ret
 
 n_radar         db 'RADAR '

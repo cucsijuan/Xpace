@@ -5,7 +5,7 @@ radar's noise is small; far out, the stock filter. Each "replace" block
 must be found once in the stock source.
 
 @@@ replace
-signature   db 'XPFC12'             ; 103h
+signature   db 'XPFC13'             ; 103h
 @@@ with
 signature   db 'XPFCG1'             ; 103h
 @@@ end

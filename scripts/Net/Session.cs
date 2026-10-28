@@ -140,7 +140,7 @@ public sealed class Session
     public event Action<ushort, string, byte> Requested;
 
     /// <summary>The host's station cleared a ship of this machine to a dock (the ship, the station, the dock; 0: over).</summary>
-    public event Action<INetEntity, string, int> DockCleared;
+    public event Action<INetEntity, string, int, int> DockCleared;
 
     /// <summary>The host opened or shut a station's dock (the station, the dock, open).</summary>
     public event Action<string, int, bool> DockChanged;
@@ -359,8 +359,8 @@ public sealed class Session
         Send(HostPeer, KindRequest, body.ToArray(), reliable: true);
     }
 
-    /// <summary>The host: a station cleared another machine's ship to a dock (0: the clearance is over).</summary>
-    public void Cleared(ushort ship, string station, int dock)
+    /// <summary>The host: a station cleared another machine's ship to a dock and a pad in it (dock 0: the clearance is over).</summary>
+    public void Cleared(ushort ship, string station, int dock, int pad = 0)
     {
         byte owner = NetIds.Owner(ship);
         if (!IsHost || owner == LocalPeer)
@@ -368,6 +368,7 @@ public sealed class Session
         var body = new List<byte>(BitConverter.GetBytes(ship));
         body.AddRange(Sign(station));
         body.Add((byte)Math.Clamp(dock, 0, 255));
+        body.Add((byte)Math.Clamp(pad, 0, 255));
         Send(owner, KindCleared, body.ToArray(), reliable: true);
     }
 
@@ -709,9 +710,9 @@ public sealed class Session
                 break;
 
             case KindCleared:
-                if (!IsHost && peer == HostPeer && body.Length == 3 + Radio.CallsignLength &&
+                if (!IsHost && peer == HostPeer && body.Length == 4 + Radio.CallsignLength &&
                     _entities.GetValueOrDefault(BitConverter.ToUInt16(body, 0)) is INetEntity { IsLocal: true } cleared)
-                    DockCleared?.Invoke(cleared, Text(body, 2, 2 + Radio.CallsignLength).TrimEnd(), body[^1]);
+                    DockCleared?.Invoke(cleared, Text(body, 2, 2 + Radio.CallsignLength).TrimEnd(), body[^2], body[^1]);
                 break;
 
             case KindDock:

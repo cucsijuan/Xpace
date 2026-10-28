@@ -82,6 +82,8 @@ public partial class NetMissileTest : Node
         await AsGuest();
         await AsHost();
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
         GetTree().Quit(_failures == 0 ? 0 : 1);
     }
 
