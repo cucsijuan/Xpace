@@ -26,6 +26,9 @@
 [ext_resource type="PackedScene" uid="uid://dsjj3na2gbg0c" path="res://assets/synty/SM_Prop_Detail_Wirebox_01.fbx" id="p11"]
 [ext_resource type="PackedScene" uid="uid://b6s1uquijhxle" path="res://assets/synty/SM_Prop_Detail_Machine_01.fbx" id="p15"]
 [ext_resource type="PackedScene" uid="uid://dcssx2y1o5u1t" path="res://assets/synty/SM_Prop_Antenna_01.fbx" id="p16"]
+[ext_resource type="Script" path="res://scripts/Space/HangarMark.cs" id="30_mark"]
+[ext_resource type="Material" path="res://assets/materials/hangar_number.tres" id="31_number"]
+[ext_resource type="Resource" path="res://assets/fonts/synty_signs.tres" id="32_font"]
 
 [sub_resource type="BoxShape3D" id="Shape_door"]
 size = Vector3(54, 22, 1)
@@ -264,3 +267,11 @@ transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 0, 0
 
 [node name="LockerKiosk" parent="." instance=ExtResource("25_locker")]
 transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 3, 0, -48)
+
+[node name="Number" type="Node3D" parent="." node_paths=PackedStringArray("Door")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -16, 11, 15.3)
+script = ExtResource("30_mark")
+Font = ExtResource("32_font")
+Height = 10.0
+Material = ExtResource("31_number")
+Door = NodePath("Model/Doors")

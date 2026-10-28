@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="GlyphFont" format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/GlyphFont.cs" id="1_font"]
+[ext_resource type="Texture2D" path="res://assets/synty/PolygonSciFiSpace_Signs_Texture_01_A.png" id="2_atlas"]
+
+[resource]
+script = ExtResource("1_font")
+Atlas = ExtResource("2_atlas")
+Cells = Array[Rect2]([Rect2(20, 25, 47, 68), Rect2(66, 25, 26, 68), Rect2(160, 25, 45, 68), Rect2(273, 25, 47, 68), Rect2(387, 25, 51, 68), Rect2(505, 25, 47, 68), Rect2(620, 25, 46, 68), Rect2(734, 25, 47, 68), Rect2(848, 25, 47, 68), Rect2(963, 25, 46, 68)])
+Spacing = 0.06

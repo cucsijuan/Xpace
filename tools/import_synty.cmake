@@ -77,6 +77,7 @@ set(TEXTURES
   PolygonSciFiSpace_Emissive_01
   Alts/PolygonSciFiSpace_Texture_01_B
   PolygonSciFiSpace_Ship_Mask_Station_01
+  PolygonSciFiSpace_Signs_Texture_01_A
   FX_Textures/Gradient_Boost
   FX_Textures/Explosion
   FX_Textures/ExplosionCloud

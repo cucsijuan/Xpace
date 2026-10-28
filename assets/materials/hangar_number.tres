@@ -1,0 +1,9 @@
+[gd_resource type="ShaderMaterial" format=3]
+
+[ext_resource type="Shader" path="res://assets/materials/sign_paint.gdshader" id="1_shader"]
+
+[resource]
+shader = ExtResource("1_shader")
+shader_parameter/paint = Color(1, 0.78, 0.05, 1)
+shader_parameter/roughness = 0.65
+shader_parameter/cutoff = 0.5
