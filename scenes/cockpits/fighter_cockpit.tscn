@@ -21,7 +21,7 @@ albedo_color = Color(0.1, 0.5, 0.35, 1)
 texture_filter = 1
 
 [sub_resource type="QuadMesh" id="QuadMesh_t0lbf"]
-size = Vector2(0.2, 0.15)
+size = Vector2(0.228, 0.161)
 
 [node name="FighterCockpit" type="Node3D" unique_id=106818159]
 
@@ -56,11 +56,11 @@ Meshes = PackedStringArray("SM_Veh_POV_Cockpit_Frame_Glass_02")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.8, 0)
 
 [node name="MainScreen" type="MeshInstance3D" parent="." unique_id=2143636349]
-transform = Transform3D(0, -0.54024, 0.841511, 0, 0.841511, 0.54024, -1, 0, 0, -0.5515, 0.4186, 0.057)
+transform = Transform3D(0, -0.54024, 0.841511, 0, 0.841511, 0.54024, -1, 0, 0, -0.55123, 0.41818, 0.057)
 material_override = SubResource("StandardMaterial3D_16ts0")
 mesh = SubResource("QuadMesh_t0lbf")
 script = ExtResource("5_screen")
-Size = Vector2(0.2, 0.15)
+Size = Vector2(0.228, 0.161)
 
 [node name="CommsPanel" parent="." instance=ExtResource("11_comms_panel")]
 transform = Transform3D(-0.0077, 0.5306, -0.8478, -0.0159, 0.8482, 0.5304, 0.9998, 0.0175, 0.0019, 0.5512, 0.4307, 0.0635)

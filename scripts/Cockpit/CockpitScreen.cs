@@ -41,6 +41,9 @@ public partial class CockpitScreen : MeshInstance3D, IInteractive
     }
     private Vector2 _size = new(0.32f, 0.24f);
 
+    /// <summary>The tube behind it; none is a colour monitor for the computer and a monochrome one for the display card.</summary>
+    [Export] public CrtMonitor Monitor;
+
     [Export] public Color FrameColor = new(1f, 0.85f, 0.2f);
     /// <summary>The frame's width and its gap from the picture, metres.</summary>
     [Export] public float FrameWidth = 0.0012f;
@@ -55,22 +58,28 @@ public partial class CockpitScreen : MeshInstance3D, IInteractive
         set { _selected = value; ShowFrame(); }
     }
 
-    private StandardMaterial3D _material, _frameMaterial;
+    private static readonly Shader Tube = GD.Load<Shader>("res://assets/materials/crt_screen.gdshader");
+
+    private ShaderMaterial _material;
+    private StandardMaterial3D _frameMaterial;
     private Node3D _frame;
     private bool _bound, _selected, _hovered;
 
     public override void _Ready()
     {
         Mesh = new QuadMesh { Size = _size };
-        _material = new StandardMaterial3D
-        {
-            ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-            TextureFilter = BaseMaterial3D.TextureFilterEnum.Linear,
-            AlbedoColor = Engine.IsEditorHint() ? new Color(0.1f, 0.5f, 0.35f) : Colors.White,
-        };
-        MaterialOverride = _material;
         if (Engine.IsEditorHint())
+        {
+            MaterialOverride = new StandardMaterial3D
+            {
+                ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
+                AlbedoColor = new Color(0.1f, 0.5f, 0.35f),
+            };
             return;
+        }
+        _material = new ShaderMaterial { Shader = Tube };
+        (Monitor ?? new CrtMonitor { Mask = Source == ScreenSource.Computer ? 0.2f : 0f }).Apply(_material);
+        MaterialOverride = _material;
         // An area, not a body: it rides along with the ship and only answers clicks
         var area = new Area3D { Monitoring = false };
         area.AddChild(new CollisionShape3D { Shape = new BoxShape3D { Size = new Vector3(_size.X, _size.Y, 0.01f) } });
@@ -135,7 +144,7 @@ public partial class CockpitScreen : MeshInstance3D, IInteractive
             : ship.Device<DisplayDevice>()?.Screen(DisplayName);
         if (picture == null)
             return;
-        _material.AlbedoTexture = picture;
+        _material.SetShaderParameter("picture", picture);
         _bound = true;
     }
 

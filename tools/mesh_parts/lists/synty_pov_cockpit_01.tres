@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="MeshPartList" load_steps=15 format=3]
+[gd_resource type="Resource" script_class="MeshPartList" load_steps=17 format=3]
 
 [ext_resource type="Script" path="res://scripts/Tools/MeshPartList.cs" id="1_list"]
 [ext_resource type="Script" path="res://scripts/Tools/MeshPart.cs" id="2_part"]
@@ -74,6 +74,18 @@ Name = "comms_tablet"
 Mode = 2
 Box = AABB(0.4824, 0.3062, -0.0795, 0.159, 0.2381, 0.286)
 
+[sub_resource type="Resource" id="Part_cos_tab_left"]
+script = ExtResource("2_part")
+Name = "cos_tab_left"
+Mode = 2
+Box = AABB(-0.5809, 0.3787, 0.1565, 0.0615, 0.085, 0.018)
+
+[sub_resource type="Resource" id="Part_cos_tab_right"]
+script = ExtResource("2_part")
+Name = "cos_tab_right"
+Mode = 2
+Box = AABB(-0.5799, 0.377, -0.0595, 0.0598, 0.0839, 0.018)
+
 [resource]
 script = ExtResource("1_list")
 Source = ExtResource("3_model")
@@ -81,5 +93,5 @@ SourceMesh = NodePath("SM_Veh_POV_Cockpit_01")
 Placement = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 OutputFolder = "res://assets/synty/parts/pov_cockpit_01"
 RemainderName = "cockpit_body"
-Parts = Array[ExtResource("2_part")]([SubResource("Part_slider_knob"), SubResource("Part_slider_track"), SubResource("Part_slider2_knob"), SubResource("Part_slider2_track"), SubResource("Part_slider3_knob"), SubResource("Part_slider3_track"), SubResource("Part_toggle_lever"), SubResource("Part_toggle_base"), SubResource("Part_toggle2_lever"), SubResource("Part_toggle2_base"), SubResource("Part_comms_tablet")])
+Parts = Array[ExtResource("2_part")]([SubResource("Part_slider_knob"), SubResource("Part_slider_track"), SubResource("Part_slider2_knob"), SubResource("Part_slider2_track"), SubResource("Part_slider3_knob"), SubResource("Part_slider3_track"), SubResource("Part_toggle_lever"), SubResource("Part_toggle_base"), SubResource("Part_toggle2_lever"), SubResource("Part_toggle2_base"), SubResource("Part_comms_tablet"), SubResource("Part_cos_tab_left"), SubResource("Part_cos_tab_right")])
 SurveyBox = AABB(-0.32, 0.34, -0.95, 0.66, 0.18, 0.25)
