@@ -10,6 +10,8 @@ namespace Xpace.Tests;
 /// program writes is kept when the drive stops; the next game's computer
 /// boots it; the insurer's new ship boots the factory diskette with no
 /// backup, and the last backup sent with one (not what was written after).
+/// A new factory diskette (or copies kept before they were marked with
+/// theirs) sets both aside, and the ship starts from the new one.
 /// Run: Godot --headless --path . res://tests/disk_test.tscn
 /// Exits with 0 if every check passed.
 /// </summary>
@@ -20,8 +22,7 @@ public partial class DiskTest : Node
 
     public override async void _Ready()
     {
-        DirAccess.RemoveAbsolute(Kept);
-        DirAccess.RemoveAbsolute(Backup);
+        Clean();
 
         ShipComputer a = Computer("A");
         Check("COS boots", RunUntil(a, () => a.ScreenText().Contains("A:\\>"), 30));
@@ -60,12 +61,41 @@ public partial class DiskTest : Node
         ShipComputer c = Computer("C");
         RunUntil(c, () => c.ScreenText().Contains("A:\\>"), 30);
         Check("and that is what is kept for the next game", Dir(c).Contains("SAVED    ASM") && !Dir(c).Contains("LATER    ASM"));
+        c.QueueFree();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
 
-        DirAccess.RemoveAbsolute(Kept);
-        DirAccess.RemoveAbsolute(Backup);
+        // A game with another factory diskette; the backup as an older game left it, unmarked
+        using (var mark = Godot.FileAccess.Open(Kept + ".factory", Godot.FileAccess.ModeFlags.Write))
+            mark.StoreString("0123456789ABCDEF");
+        DirAccess.RemoveAbsolute(Backup + ".factory");
+        ShipComputer d = Computer("D");
+        RunUntil(d, () => d.ScreenText().Contains("A:\\>"), 30);
+        Check("a new factory diskette replaces the kept one", !Dir(d).Contains("SAVED    ASM"));
+        Check("which is set aside, not lost", Godot.FileAccess.FileExists("user://test/ship.old.img")
+              && !Godot.FileAccess.FileExists(Kept));
+        Check("an unmarked backup is set aside too", !d.HasBackup && Godot.FileAccess.FileExists("user://test/insurer.old.img"));
+        Check("a backup sent now is marked", d.SendBackup()
+              && Godot.FileAccess.FileExists(Backup + ".factory"));
+        d.QueueFree();
+        await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+        ShipComputer e = Computer("E");
+        Check("a marked backup from this factory diskette stays", e.HasBackup);
+        e.QueueFree();
+
+        Clean();
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
         GetTree().Quit(_failures == 0 ? 0 : 1);
+    }
+
+    private static void Clean()
+    {
+        foreach (string path in new[] { Kept, Backup, "user://test/ship.old.img", "user://test/insurer.old.img" })
+        {
+            DirAccess.RemoveAbsolute(path);
+            DirAccess.RemoveAbsolute(path + ".factory");
+        }
     }
 
     private ShipComputer Computer(string name)

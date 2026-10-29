@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Security.Cryptography;
 using Godot;
 using Xpace.Native;
 using Xpace.Ship;
@@ -17,6 +18,12 @@ namespace Xpace.Computer;
 /// the insurer's new ship (<see cref="Rearm"/>) is a new computer, booting
 /// the last backup the pilot sent the insurer (<see cref="SendBackup"/>),
 /// or the factory diskette if there is none.
+///
+/// Both remember which factory diskette they started from (a ".factory"
+/// file beside them, the factory image's hash). When the game comes with a
+/// new factory diskette, or one of them has no such mark (kept before the
+/// game wrote it), it is set aside beside it (ship.old.img) and the ship
+/// starts from the new one: the pilot's own programs are in the old copy.
 /// </summary>
 public partial class ShipComputer : Node, IRearmable
 {
@@ -62,6 +69,7 @@ public partial class ShipComputer : Node, IRearmable
 
     private IntPtr _pc, _vga, _fdc, _monitor, _keyboard, _drive, _disk;
     private byte[] _kept = Array.Empty<byte>();
+    private string _factory = "";
     private bool _driveWas;
     private byte[] _pixels;
     private Image _image;
@@ -96,6 +104,9 @@ public partial class ShipComputer : Node, IRearmable
         }
         if (KeptDiskPath != "")
             Kept = this;
+        _factory = Convert.ToHexString(SHA256.HashData(Factory()))[..16];
+        SetAsideIfOld(KeptDiskPath);
+        SetAsideIfOld(BackupDiskPath);
         byte[] image = Read(KeptDiskPath);
         if (image.Length == 0 || !InsertDisk(image))
             InsertDisk(Factory());
@@ -233,12 +244,14 @@ public partial class ShipComputer : Node, IRearmable
         byte[] image = DiskImage();
         if (image.Length == 0 || image.AsSpan().SequenceEqual(_kept))
             return;
-        if (Write(KeptDiskPath, image))
+        if (Write(KeptDiskPath, image) && Write(KeptDiskPath + ".factory", System.Text.Encoding.ASCII.GetBytes(_factory)))
             _kept = image;
     }
 
     /// <summary>Sends the insurer a copy of the diskette as it is now. False if this computer has no insurer's copy or it could not be written.</summary>
-    public bool SendBackup() => BackupDiskPath != "" && Write(BackupDiskPath, DiskImage());
+    public bool SendBackup() =>
+        BackupDiskPath != "" && Write(BackupDiskPath, DiskImage())
+        && Write(BackupDiskPath + ".factory", System.Text.Encoding.ASCII.GetBytes(_factory));
 
     /// <summary>Whether the insurer holds a copy.</summary>
     public bool HasBackup => BackupDiskPath != "" && Godot.FileAccess.FileExists(BackupDiskPath);
@@ -264,6 +277,25 @@ public partial class ShipComputer : Node, IRearmable
         if (image.Length == 0)
             GD.PushError($"ShipComputer: cannot read {DiskPath} (build it: see native/CMakeLists.txt)");
         return image;
+    }
+
+    /// <summary>
+    /// Moves a diskette made from another factory diskette (or kept before
+    /// they were marked) out of the way, to ship.old.img (ship.old2.img...).
+    /// </summary>
+    private void SetAsideIfOld(string path)
+    {
+        if (path == "" || !Godot.FileAccess.FileExists(path))
+            return;
+        string mark = Godot.FileAccess.FileExists(path + ".factory") ? Godot.FileAccess.GetFileAsString(path + ".factory").Trim() : "";
+        if (mark == _factory)
+            return;
+        string stem = path.GetBaseName(), aside = stem + ".old.img";
+        for (int n = 2; Godot.FileAccess.FileExists(aside); n++)
+            aside = $"{stem}.old{n}.img";
+        DirAccess.RenameAbsolute(path, aside);
+        DirAccess.RemoveAbsolute(path + ".factory");
+        GD.Print($"ShipComputer: {path} came from another factory diskette; set aside as {aside}");
     }
 
     private static byte[] Read(string path) =>
