@@ -141,9 +141,19 @@ jobs:
 
       - name: Export
         run: |
-          mkdir -p build/linux build/windows
-          "$GODOT" --headless --path . --export-release "Linux" build/linux/Xpace.x86_64
-          "$GODOT" --headless --path . --export-release "Windows Desktop" build/windows/Xpace.exe
+          # The .NET editor now and then crashes while exporting or closing
+          # (SIGSEGV/SIGABRT, never twice in a row so far): each export is tried
+          # again from scratch, up to three times
+          export_to() {
+            for try in 1 2 3; do
+              rm -rf "$(dirname "$2")"; mkdir -p "$(dirname "$2")"
+              "$GODOT" --headless --path . --export-release "$1" "$2" && return 0
+              echo "::warning::Export $1 failed (try $try)"
+            done
+            return 1
+          }
+          export_to "Linux" build/linux/Xpace.x86_64
+          export_to "Windows Desktop" build/windows/Xpace.exe
           linux=build/linux/data_Xpace_linuxbsd_x86_64
           windows=build/windows/data_Xpace_windows_x86_64
           test -x build/linux/Xpace.x86_64
