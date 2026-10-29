@@ -16,9 +16,9 @@ public partial class CombatDemo : Node
 
     public override void _Ready()
     {
-        var game = GD.Load<PackedScene>("res://scenes/main.tscn").Instantiate();
+        var game = GD.Load<PackedScene>("res://scenes/main.tscn").Instantiate<Xpace.Space.SectorHost>();
         AddChild(game);
-        _ship = game.GetNode<ShipBody>("Ship");
+        _ship = game.Ship;
         _ship.ControlsSource = () => _controls;
     }
 

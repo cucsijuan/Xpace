@@ -143,7 +143,7 @@ public partial class RockTest : Node
         for (int i = 0; i < 200; i++)
         {
             Vector3 from = new Vector3(rng.RandfRange(-3000, 3000), rng.RandfRange(-700, 700), -15_000);
-            if (RockField.Blocked(from, from + new Vector3(rng.RandfRange(-2000, 2000), 0, -10_000)))
+            if (RockField.Blocked(Sectors.WorldOf(this), from, from + new Vector3(rng.RandfRange(-2000, 2000), 0, -10_000)))
                 blocked++;
         }
         double segmentUs = watch.Elapsed.TotalMilliseconds * 1000 / 200;
@@ -152,7 +152,7 @@ public partial class RockTest : Node
         {
             Vector3 radarAt = new Vector3(rng.RandfRange(-3000, 3000), rng.RandfRange(-700, 700), -15_000);
             Vector3 echoAt = new Vector3(rng.RandfRange(-3000, 3000), rng.RandfRange(-700, 700), rng.RandfRange(-23_000, -17_000));
-            RockField.ClutterAll(radarAt, new Vector3(0, 0, -200), echoAt, Vector3.Zero, Mathf.DegToRad(2.5f), 15, 8);
+            RockField.ClutterAll(Sectors.WorldOf(this), radarAt, new Vector3(0, 0, -200), echoAt, Vector3.Zero, Mathf.DegToRad(2.5f), 15, 8);
         }
         double clutterUs = watch.Elapsed.TotalMilliseconds;
         GD.Print($"cost: a ship's overlap {overlapUs:0.0} us, a 10 km line of sight across the field {segmentUs:0} us ({blocked} of 200 blocked), a target's clutter {clutterUs:0.0} us");
@@ -231,9 +231,9 @@ public partial class RockTest : Node
 
             // Radars and seekers see nothing through it
             Vector3 beyond = rock + (rock - start);
-            Check("a line of sight through the rock is blocked", RockField.Blocked(start, beyond));
+            Check("a line of sight through the rock is blocked", RockField.Blocked(Sectors.WorldOf(this), start, beyond));
             Vector3 side = (rock - start).Cross(Vector3.Up).Normalized() * 2000;
-            Check("one well clear of it is not", !RockField.Blocked(start + side, beyond + side));
+            Check("one well clear of it is not", !RockField.Blocked(Sectors.WorldOf(this), start + side, beyond + side));
 
             // Clutter: a radar 3 km out loses a target sitting still by the
             // rock's face in the rock's echo, but not one moving along its
@@ -245,7 +245,7 @@ public partial class RockTest : Node
             var target = new TestEcho { Name = "Echo", Position = rock + out_ * 20 };
             world.AddChild(target);
             await Frames(1);
-            bool inView = !RockField.Blocked(radar.GlobalPosition, target.GlobalPosition);
+            bool inView = !RockField.Blocked(Sectors.WorldOf(this), radar.GlobalPosition, target.GlobalPosition);
             float still = radar.Snr(target);
             target.Velocity = out_ * 40;
             await Frames(1);

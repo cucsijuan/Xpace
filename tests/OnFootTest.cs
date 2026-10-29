@@ -30,13 +30,13 @@ public partial class OnFootTest : Node
 
     public override async void _Ready()
     {
-        var main = GD.Load<PackedScene>("res://scenes/main.tscn").Instantiate<Node3D>();
+        var main = GD.Load<PackedScene>("res://scenes/main.tscn").Instantiate<SectorHost>();
         AddChild(main);
-        _ship = main.GetNode<ShipBody>("Ship");
+        _ship = main.Ship;
         var seat = _ship.GetNode<ShipSeat>("Seat");
         var pilot = _ship.GetNode<Pilot>("Pilot");
         var radio = _ship.GetNode<RadioDevice>("Radio");
-        Node3D station = main.GetNode<Node3D>("Station");
+        Node3D station = main.Sector.GetNode<Node3D>("Station");
         HangarDock dock = station.GetNode("HangarBig1").GetNode<HangarDock>("Dock");
 
         Check("the computer boots", await Until(() => _ship.Computer.ScreenText().Contains("Radio resident"), 90));
@@ -172,9 +172,9 @@ public partial class OnFootTest : Node
         // Radar: the station between two points, and a line beside it
         Vector3 c = station.GlobalPosition;
         Vector3 across = station.GlobalBasis.X.Normalized() * 2000;
-        Check("the station hides what is behind it", Obstacles.Blocked(c - across, c + across));
+        Check("the station hides what is behind it", Obstacles.Blocked(station.GetWorld3D(), c - across, c + across));
         Vector3 above = station.GlobalBasis.Y.Normalized() * 1200;
-        Check("a line clear of it is not hidden", !Obstacles.Blocked(c - across + above, c + across + above));
+        Check("a line clear of it is not hidden", !Obstacles.Blocked(station.GetWorld3D(), c - across + above, c + across + above));
 
         // Back to the ship and board
         walker.GlobalPosition = seat.ExitPoint;

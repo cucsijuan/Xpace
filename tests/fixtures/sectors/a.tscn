@@ -1,0 +1,13 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/FloatingOrigin.cs" id="1_origin"]
+[ext_resource type="Script" path="res://scripts/Space/Projectiles.cs" id="2_rounds"]
+
+[node name="Sector" type="Node3D"]
+script = ExtResource("1_origin")
+
+[node name="PlayerStart" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="Projectiles" type="MultiMeshInstance3D" parent="."]
+script = ExtResource("2_rounds")

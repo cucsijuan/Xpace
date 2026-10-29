@@ -368,7 +368,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         // Cargo is spread through the hull: it weighs on turning as on going
         float load = Mass / s.Mass;
         ShipState after = ShipMotion.Step(before, force, torque, Mass, s.Inertia * load, dt, s.VeilAxes, s.VeilSpin);
-        float crash = ShipContact.Collide(ref after, before.Position, _hitboxes, _bound, s, _near, load);
+        float crash = ShipContact.Collide(GetWorld3D(), ref after, before.Position, _hitboxes, _bound, s, _near, load);
         State = after;
         if (crash > 0)
             Impact?.Invoke(crash);

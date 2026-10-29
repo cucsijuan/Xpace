@@ -81,8 +81,8 @@ public partial class RockSensor : Node3D
         for (i = 0; i < count; i++)
         {
             Vector3 to = from + Rays[i] * Range;
-            float rock = RockField.SegmentAll(from, to, out float t, out _, Clearance) ? t : 1;
-            if (AvoidCapsule.SegmentAll(from, to, out float c, Clearance, Entering))
+            float rock = RockField.SegmentAll(GetWorld3D(), from, to, out float t, out _, Clearance) ? t : 1;
+            if (AvoidCapsule.SegmentAll(GetWorld3D(), from, to, out float c, Clearance, Entering))
                 rock = MathF.Min(rock, c);
             Clear[i] = rock * Range;
         }

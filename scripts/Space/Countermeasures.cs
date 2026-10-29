@@ -20,7 +20,7 @@ public static class Countermeasures
     {
         Node3D made = Make(world, scene, position, velocity, 0);
         if (SessionNode.Instance is SessionNode { Active: true } session)
-            session.Drop(scene, position, velocity);
+            session.Drop(world, scene, position, velocity);
         return made;
     }
 

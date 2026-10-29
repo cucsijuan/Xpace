@@ -5,9 +5,18 @@ using Xpace.Space;
 namespace Xpace.Net;
 
 /// <summary>
-/// Joins a <see cref="Session"/> to the game. Place it under the floating
-/// origin; nothing changes until <see cref="Start"/> (alone, the game
-/// plays as before).
+/// Joins a <see cref="Session"/> to the game. Place it in the game's shell,
+/// beside the <see cref="SectorHost"/>, or under a sector's floating origin
+/// (one sector, as tests do); nothing changes until <see cref="Start"/>
+/// (alone, the game plays as before).
+///
+/// With a sector host, everything is in a sector (its number in the map,
+/// the session's place). The host runs every sector a player is in: one a
+/// guest goes to is loaded beside the host's own, with nothing drawn, and
+/// let go when nobody is left in it; its floating origin follows a player
+/// there, so their ships and what is near them keep their precision. A
+/// guest runs only its own sector. Sectors loaded during a session lose
+/// their scene ships as the first one did (<see cref="KeepSceneShips"/>).
 ///
 /// Every ship with a <see cref="NetBody"/> under the origin takes part,
 /// whatever kind of ship it is:
@@ -71,6 +80,13 @@ public partial class SessionNode : Node
     /// </summary>
     [Export] public bool KeepSceneShips = true;
 
+    /// <summary>
+    /// The host keeps the origin of each sector it runs for guests near a player
+    /// there, so what flies near them keeps its precision. Off only to measure
+    /// what that is worth.
+    /// </summary>
+    [Export] public bool FollowsPlayers = true;
+
     /// <summary>A ship that blows up this soon after a hit was destroyed by whoever hit it.</summary>
     [Export] public float BlameSeconds = 10f;
 
@@ -101,7 +117,8 @@ public partial class SessionNode : Node
     public Session Session { get; private set; }
     public bool Active => Session != null;
 
-    private FloatingOrigin _origin;
+    private FloatingOrigin _origin;                 // the sector this node is in, without a sector host
+    private SectorHost _sectors;
     private readonly System.Collections.Generic.Dictionary<ushort, (ushort By, uint At)> _lastHit = new();
     private readonly System.Collections.Generic.HashSet<ushort> _down = new();
     private readonly System.Collections.Generic.Dictionary<ushort, (IRadio Radio, string Sign, bool On)> _radios = new();
@@ -123,6 +140,12 @@ public partial class SessionNode : Node
         if (Instance == this)
             Instance = null;
         HangarDock.Changed -= DockChanged;
+        if (_sectors != null)
+        {
+            _sectors.Loaded -= Prepare;
+            _sectors.Jumped -= Jumped;
+            _sectors.Keep = null;
+        }
         foreach (Xpace.OnFoot.RemoteWalker walker in _walkers.Values)
             if (IsInstanceValid(walker))
                 walker.QueueFree();
@@ -135,11 +158,20 @@ public partial class SessionNode : Node
     {
         for (Node n = GetParent(); n != null && _origin == null; n = n.GetParent())
             _origin = n as FloatingOrigin;
+        if (_origin == null)
+            _sectors = SectorHost.Current;
         if (SectorClock.Instance == null)
             GetParent().CallDeferred(Node.MethodName.AddChild, new SectorClock { Name = "SectorClock" });
     }
 
-    private Node World => (Node)_origin ?? GetParent();
+    /// <summary>The sector a node is in (its number in the map; 0 with one sector).</summary>
+    public byte PlaceOf(Node node) => _sectors?.PlaceOf(node) ?? 0;
+
+    /// <summary>The root of a sector running here, or null.</summary>
+    public FloatingOrigin OriginAt(byte place) => _sectors != null ? _sectors.RootAt(place) : _origin;
+
+    // Where puppets of that sector go
+    private Node WorldAt(byte place) => _sectors != null ? _sectors.RootAt(place) : (Node)_origin ?? GetParent();
 
     private uint Now => SectorClock.Instance?.Tick ?? 0;
 
@@ -149,11 +181,20 @@ public partial class SessionNode : Node
         Session = new Session(peer, transport) { TickSeconds = 1f / Engine.PhysicsTicksPerSecond };
         Xpace.World.Universe.Current?.Attach(Session);
         if (Session.Judge != null)
-            Session.Judge.Solid = (a, b) => Obstacles.Blocked(Scene(a), Scene(b));
+            Session.Judge.Solid = (place, a, b) =>
+                OriginAt(place) is FloatingOrigin o && Obstacles.Blocked(o.GetWorld3D(), Scene(a, place), Scene(b, place));
+        if (_sectors != null)
+        {
+            Session.Move(PlaceOf(_sectors.Sector));
+            _sectors.Keep = id => Active && Session.IsHost && Session.Occupied.Contains(_sectors.PlaceOf(id));
+            _sectors.Loaded += Prepare;
+            _sectors.Jumped += Jumped;
+            Session.Moved += Moved;
+        }
         Session.SpawnRemote = Spawn;
         Session.SpawnDynamic = SpawnPuppet;
         Session.RoundFired += Show;
-        Session.RoundFired += e => Combat.Fire(NodeOf(e.Ship), Scene(e.Origin));
+        Session.RoundFired += e => Combat.Fire(NodeOf(e.Ship), Scene(e.Origin, Session.PlaceOf(e.Ship)));
         Session.HitConfirmed += Confirmed;
         Session.RadioHeard += Heard;
         Session.RadioChanged += RadioChanged;
@@ -172,20 +213,15 @@ public partial class SessionNode : Node
         Session.Dropped += Dropped;
         Session.WalkerMoved += Walked;
         Session.WalkerGone += WalkerGone;
-        Session.Forgotten += e =>
-        {
-            if (e is RemoteShip ship)
-                ship.QueueFree();
-            else if (e is NetBody body && IsInstanceValid(body.Ship))
-                body.Ship.QueueFree();
-        };
+        Session.Forgotten += Unshow;
+        Session.Left += Unshow;
         Session.AdjustClock = ticks =>
         {
             if (SectorClock.Instance is SectorClock clock)
                 clock.Tick = (uint)(clock.Tick + ticks);
         };
 
-        Node root = World;
+        Node root = _sectors?.Sector ?? WorldAt(0);
         var all = root.FindChildren("*", nameof(Node), true, false).OfType<NetBody>().ToList();
         if (!KeepSceneShips)
         {
@@ -214,10 +250,69 @@ public partial class SessionNode : Node
             Made(body);                     // brought in before the session: the host's join now, a guest's go
     }
 
+    // What showed something here goes (its owner left, or it is in another sector now)
+    private static void Unshow(INetEntity e)
+    {
+        if (e is RemoteShip ship && IsInstanceValid(ship))
+            ship.QueueFree();
+        else if (e is NetBody body && IsInstanceValid(body.Ship))
+            body.Ship.QueueFree();
+    }
+
+    // A sector loaded during the session: its scene ships go as the first sector's did, what it brought in joins
+    private void Prepare(FloatingOrigin root)
+    {
+        if (!Active)
+            return;
+        var all = root.FindChildren("*", nameof(Node), true, false).OfType<NetBody>().ToList();
+        foreach (NetBody body in all.Where(b => b.OwnedBy == NetOwner.Host && !b.Spawned))
+            if (!KeepSceneShips || !Session.IsHost)
+                body.Ship.QueueFree();
+        foreach (NetBody body in all.Where(b => b.Spawned && !b.Puppet))
+            Made(body);
+    }
+
+    // This machine's player went to another sector
+    private void Jumped(Sector from, Sector to)
+    {
+        if (Active)
+            Session.Move(PlaceOf(_sectors.Sector));
+    }
+
+    // The host: a player is in another sector now: it runs that one, and lets go of those nobody is in
+    private void Moved(ushort id, byte place)
+    {
+        if (!Session.IsHost || _sectors == null)
+            return;
+        var occupied = Session.Occupied.ToHashSet();
+        foreach (byte p in occupied)
+            if (_sectors.RootAt(p) == null)
+                _sectors.Hold(p);
+        foreach (byte p in _sectors.LoadedPlaces.ToList())
+            if (!occupied.Contains(p))
+                _sectors.Release(p);
+    }
+
+    // The host: the origin of each sector it runs for guests follows a player there
+    private void FollowPlayers()
+    {
+        if (_sectors == null || !Session.IsHost || !FollowsPlayers)
+            return;
+        foreach (byte p in _sectors.LoadedPlaces)
+        {
+            FloatingOrigin root = _sectors.RootAt(p);
+            if (root == _sectors.Sector || root.Ship is Node3D followed && IsInstanceValid(followed) && root.IsAncestorOf(followed))
+                continue;
+            root.Ship = Session.Entities.Where(e => NetIds.IsPlayerShip(e.NetId) && Session.PlaceOf(e.NetId) == p)
+                .Select(e => NodeOf(e.NetId)).FirstOrDefault(n => n != null && root.IsAncestorOf(n));
+        }
+    }
+
     public override void _PhysicsProcess(double delta)
     {
         if (!Active || SectorClock.Instance is not SectorClock clock)
             return;
+        FollowPlayers();
         Session.Walk(Xpace.OnFoot.Walker.Local is { } walker && IsInstanceValid(walker) ? walker.State() : null);
         Session.Tick(clock.Tick);
 
@@ -291,10 +386,10 @@ public partial class SessionNode : Node
     }
 
     /// <summary>A round leaves a muzzle of <paramref name="shooter"/> here (scene position and velocity).</summary>
-    public void Fire(Vector3 origin, Vector3 velocity, float damage, Node shooter = null, byte kind = 0)
+    public void Fire(Vector3 origin, Vector3 velocity, float damage, Node shooter = null, byte kind = 0, Node where = null)
     {
         ushort ship = IdOf(shooter) ?? NetIds.PlayerShip(Session.LocalPeer);
-        Show(Session.Fire(Now, ship, Sector(origin), velocity, damage, kind));
+        Show(Session.Fire(Now, ship, Sector(origin, PlaceOf(shooter ?? where ?? NodeOf(ship))), velocity, damage, kind));
     }
 
     /// <summary>The warhead of a missile flown here went off (scene position, and when in the tick).</summary>
@@ -302,15 +397,16 @@ public partial class SessionNode : Node
     {
         ushort id = IdOf(missile) ?? NetIds.PlayerShip(Session.LocalPeer);
         ushort ship = IdOf((missile as Missile)?.Shooter) ?? NetIds.PlayerShip(Session.LocalPeer);
-        Session.Blast(Now, fraction, id, Sector(at), damage, lethalRadius, blastRadius, ship);
+        Session.Blast(Now, fraction, id, Sector(at, PlaceOf(missile)), damage, lethalRadius, blastRadius, ship);
     }
 
     /// <summary>Something thrown out here (a <see cref="Spawnables"/> scene) is made on the other machines too.</summary>
-    public void Drop(PackedScene scene, Vector3 at, Vector3 velocity)
+    public void Drop(Node world, PackedScene scene, Vector3 at, Vector3 velocity)
     {
         int index = Index(scene);
+        byte place = PlaceOf(world);
         if (index >= 0)
-            Session.Drop(Now, (byte)index, Sector(at), velocity);
+            Session.Drop(Now, (byte)index, Sector(at, place), velocity, place);
         else
             GD.PushWarning($"session: {scene?.ResourcePath} is not in the spawnables; the others will not see it");
     }
@@ -332,8 +428,12 @@ public partial class SessionNode : Node
             return;
         }
         body.Join(Session.NewDynamicId(), true, Session.TickSeconds);
-        Session.Spawn(body, (byte)index);
-        body.Ship.TreeExiting += () => Instance?.Gone(body, body.Exploded);
+        Session.Spawn(body, (byte)index, PlaceOf(body.Ship));
+        body.Ship.TreeExiting += () =>
+        {
+            if (!Sectors.Moving)
+                Instance?.Gone(body, body.Exploded);
+        };
     }
 
     /// <summary>A ship made here leaves (its NetBody calls this).</summary>
@@ -343,9 +443,11 @@ public partial class SessionNode : Node
             Session.Despawn(body.NetId, Now, exploded);
     }
 
-    public SectorPoint Sector(Vector3 scene) => (_origin?.Origin ?? default) + scene;
+    /// <summary>A scene point of a sector as a point of the sector (its origin added).</summary>
+    public SectorPoint Sector(Vector3 scene, byte place) => (OriginAt(place)?.Origin ?? default) + scene;
 
-    public Vector3 Scene(SectorPoint p) => (_origin?.Origin ?? default).To(p);
+    /// <summary>A point of a sector in that sector's scene here.</summary>
+    public Vector3 Scene(SectorPoint p, byte place) => (OriginAt(place)?.Origin ?? default).To(p);
 
     /// <summary>The session id of the ship a node is on (its NetBody's, or a remote player's), if any.</summary>
     public ushort? IdOf(Node node)
@@ -380,11 +482,15 @@ public partial class SessionNode : Node
 
     private INetEntity Spawn(ushort id)
     {
+        byte place = Session.PlaceOf(id);
+        Node world = WorldAt(place) ?? (Session.IsHost ? _sectors?.Hold(place) : null);
+        if (world == null)
+            return null;                        // in a sector not run here
         RemoteShip ship = RemoteShipScene?.Instantiate<RemoteShip>() ?? PlainShip();
         ship.Name = $"Player{NetIds.Owner(id)}";
         ship.NetId = id;
         ship.Driven = true;
-        World.AddChild(ship);
+        world.AddChild(ship);
         if (_theirRadios.TryGetValue(id, out var radio))
             ship.GetNodeOrNull<RemoteRadio>("Radio")?.Follow(radio.Sign, radio.On);
         return ship;
@@ -393,7 +499,8 @@ public partial class SessionNode : Node
     /// <summary>Another machine made something: its scene here, as a puppet.</summary>
     private INetEntity SpawnPuppet(ushort id, byte scene)
     {
-        if (scene >= Spawnables.Count || Spawnables[scene]?.Instantiate() is not Node3D ship)
+        Node world = WorldAt(Session.PlaceOf(id));
+        if (world == null || scene >= Spawnables.Count || Spawnables[scene]?.Instantiate() is not Node3D ship)
             return null;
         if (ship.GetChildren().OfType<NetBody>().FirstOrDefault() is not NetBody body)
         {
@@ -402,7 +509,7 @@ public partial class SessionNode : Node
         }
         body.Puppet = true;
         ship.Visible = false;                   // until its first snapshot
-        World.AddChild(ship);
+        world.AddChild(ship);
         body.Join(id, false, Session.TickSeconds);
         if (_theirRadios.TryGetValue(id, out var radio))
             foreach (Xpace.Ship.RadioDevice device in ship.FindChildren("*", "", true, false).OfType<Xpace.Ship.RadioDevice>())
@@ -430,18 +537,22 @@ public partial class SessionNode : Node
     {
         uint now = SectorClock.Instance?.Tick ?? e.Tick;
         float age = (now - e.Tick) * Session.TickSeconds;
-        Projectiles.Instance?.Show(Scene(e.At(now - e.Tick, Session.TickSeconds)), e.Velocity, age, e.Shooter, e.Sequence, e.Kind);
+        byte place = Session.PlaceOf(e.Ship);
+        Rounds(place)?.Show(Scene(e.At(now - e.Tick, Session.TickSeconds), place), e.Velocity, age, e.Shooter, e.Sequence, e.Kind);
     }
 
     private void Confirmed(HitEvent hit)
     {
-        Projectiles.Instance?.Remove(hit.Shooter, hit.Sequence);
+        Rounds(Session.PlaceOf(hit.Ship))?.Remove(hit.Shooter, hit.Sequence);
         if (Session.Entity(hit.Target) is INetEntity { IsLocal: false } victim)
         {
             _lastHit[victim.NetId] = (hit.Ship, Now);
             Combat.Struck(NodeOf(victim.NetId), NodeOf(hit.Ship));     // the owner takes it (and Combat hears of it there)
         }
     }
+
+    // The rounds of a sector running here
+    private Projectiles Rounds(byte place) => _sectors == null ? Projectiles.Instance : OriginAt(place) is Node root ? Projectiles.In(root) : null;
 
     /// <summary>A guest's ship asks a station: the host's station of that callsign answers.</summary>
     public void Request(IRadioReceiver from, StationRadio station, RadioRequest what)
@@ -495,7 +606,7 @@ public partial class SessionNode : Node
         if (NodeOf(ship.NetId) is not Node3D node ||
             node.FindChildren("*", "", true, false).OfType<IRadioReceiver>().FirstOrDefault() is not IRadioReceiver radio)
             return;
-        IRadio speaker = Radio.All(GetTree()).FirstOrDefault(r => r.Callsign == from) ?? new Speaker(from, node.GlobalPosition);
+        IRadio speaker = Radio.All(node).FirstOrDefault(r => r.Callsign == from) ?? new Speaker(from, node.GlobalPosition);
         radio.Hear(speaker, text, speech);
     }
 
@@ -510,9 +621,9 @@ public partial class SessionNode : Node
     /// <summary>Someone else dropped something: it is made here, already as old as it is by now.</summary>
     private void Dropped(DropEvent d)
     {
-        if (d.Scene >= Spawnables.Count || Spawnables[d.Scene] is not PackedScene scene)
+        if (d.Scene >= Spawnables.Count || Spawnables[d.Scene] is not PackedScene scene || WorldAt(d.Place) is not Node world)
             return;
         float age = System.Math.Max(0, (int)(Now - d.Tick)) * Session.TickSeconds;
-        Countermeasures.Make(World, scene, Scene(d.Position + d.Velocity * age), d.Velocity, age);
+        Countermeasures.Make(world, scene, Scene(d.Position + d.Velocity * age, d.Place), d.Velocity, age);
     }
 }

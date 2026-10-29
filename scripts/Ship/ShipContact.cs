@@ -42,7 +42,7 @@ public static class ShipContact
     /// <param name="boxes">The ship's hitboxes, in its frame.</param>
     /// <param name="bound">The radius about the ship's origin that holds every box.</param>
     /// <param name="load">The ship's mass over its hull's: cargo puts more energy in the same motion.</param>
-    public static float Collide(ref ShipState s, Vector3 previous, Hitbox[] boxes, float bound, ShipSpec spec, List<RockSphere> spheres,
+    public static float Collide(World3D world, ref ShipState s, Vector3 previous, Hitbox[] boxes, float bound, ShipSpec spec, List<RockSphere> spheres,
                                 float load = 1)
     {
         if (RockField.All.Count == 0 && Solid.All.Count == 0 || boxes.Length == 0)
@@ -52,8 +52,8 @@ public static class ShipContact
         spheres.Clear();
         Vector3 middle = previous + move * 0.5f;
         float reach = bound + travel * 0.5f;
-        RockField.OverlapAll(middle, reach, spheres);
-        List<Solid> solids = NearSolids(middle, reach);
+        RockField.OverlapAll(world, middle, reach, spheres);
+        List<Solid> solids = NearSolids(world, middle, reach);
         if (spheres.Count == 0 && solids.Count == 0)
             return 0;
 
@@ -96,11 +96,11 @@ public static class ShipContact
     private static readonly List<Solid> _solids = new();
     private static readonly List<int> _triangles = new();
 
-    private static List<Solid> NearSolids(Vector3 centre, float radius)
+    private static List<Solid> NearSolids(World3D world, Vector3 centre, float radius)
     {
         _solids.Clear();
         foreach (Solid solid in Solid.All)
-            if (solid.A.Length > 0 && centre.DistanceTo(solid.GlobalPosition) < solid.Reach + radius)
+            if (solid.World == world && solid.A.Length > 0 && centre.DistanceTo(solid.GlobalPosition) < solid.Reach + radius)
                 _solids.Add(solid);
         return _solids;
     }

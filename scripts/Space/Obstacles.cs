@@ -9,10 +9,10 @@ public static class Obstacles
     /// Where a step's segment first meets a rock or a solid: the share of
     /// the way along it and the normal there.
     /// </summary>
-    public static bool Segment(Vector3 from, Vector3 to, out float along, out Vector3 normal)
+    public static bool Segment(World3D world, Vector3 from, Vector3 to, out float along, out Vector3 normal)
     {
-        bool rock = RockField.SegmentAll(from, to, out along, out normal);
-        if (Solid.SegmentAll(from, to, out float t, out Vector3 n) && t < along)
+        bool rock = RockField.SegmentAll(world, from, to, out along, out normal);
+        if (Solid.SegmentAll(world, from, to, out float t, out Vector3 n) && t < along)
         {
             along = t;
             normal = n;
@@ -22,5 +22,5 @@ public static class Obstacles
     }
 
     /// <summary>Whether a rock or a solid stands between two scene points: radar, radio and heat do not go through them.</summary>
-    public static bool Blocked(Vector3 from, Vector3 to) => RockField.Blocked(from, to) || Solid.Blocked(from, to);
+    public static bool Blocked(World3D world, Vector3 from, Vector3 to) => RockField.Blocked(world, from, to) || Solid.Blocked(world, from, to);
 }

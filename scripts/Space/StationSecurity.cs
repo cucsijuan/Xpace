@@ -298,7 +298,7 @@ public partial class StationSecurity : Node
     private void Speeding(double dt)
     {
         StationLaws laws = Radio.Laws;
-        foreach (Node node in GetTree().GetNodesInGroup(Space.Radio.Group))
+        foreach (Node node in Sectors.InGroup(this, Space.Radio.Group))
         {
             if (Combat.ShipOf(node) is not Node3D ship || !Combat.IsAlive(ship) || IsPolice(ship) || Velocity(ship) is not Vector3 velocity)
                 continue;
@@ -334,7 +334,7 @@ public partial class StationSecurity : Node
     // Notorious pilots it can tell, in the zone: attacked on sight
     private void OnSight()
     {
-        foreach (Node node in GetTree().GetNodesInGroup(Space.Radio.Group))
+        foreach (Node node in Sectors.InGroup(this, Space.Radio.Group))
             if (Combat.ShipOf(node) is Node3D ship && Combat.IsAlive(ship) && !IsPolice(ship) &&
                 Radio.Protects(ship.GlobalPosition) && StandingOf(ship) != Standing.Hostile && Notorious(ship))
                 Engage(ship, NotoriousText, EngageSpeech);

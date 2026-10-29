@@ -1,0 +1,394 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://c2vctpjj0ce8" path="res://scripts/Computer/ShipComputer.cs" id="1_computer"]
+
+[ext_resource type="PackedScene" uid="uid://ho2rnp52wjg6" path="res://scenes/cockpits/fighter_cockpit.tscn" id="2_cockpit"]
+
+[ext_resource type="Script" uid="uid://cgkl0vftvxi6k" path="res://scripts/Cockpit/Pilot.cs" id="4_pilot"]
+
+[ext_resource type="Script" uid="uid://bhbpgfgybh0nt" path="res://scripts/Ship/ShipBody.cs" id="6_ship"]
+
+[ext_resource type="Script" uid="uid://c2sx2rsqw81y1" path="res://scripts/Cockpit/MouseWidget.cs" id="7_widget"]
+
+[ext_resource type="Script" uid="uid://dmloccduosk8w" path="res://scripts/Space/SpaceDust.cs" id="9_dust"]
+
+[ext_resource type="Script" uid="uid://ddb4d5eq3ibf1" path="res://scripts/Ship/DisplayDevice.cs" id="12_display"]
+
+[ext_resource type="Script" uid="uid://c4xgxkaeap2pe" path="res://scripts/Ship/RadarDevice.cs" id="13_radar"]
+
+[ext_resource type="Script" uid="uid://hnoum77bd66n" path="res://scripts/Ship/TurretDevice.cs" id="14_turret"]
+
+[ext_resource type="Script" uid="uid://donqkx4277rct" path="res://scripts/Cockpit/TargetBracket.cs" id="17_bracket"]
+
+[ext_resource type="Script" uid="uid://b4gjqqy4j5n51" path="res://scripts/Ship/DisplayScreen.cs" id="19_screen"]
+
+[ext_resource type="Resource" path="res://assets/ship/displays/radar.tres" id="20_radar"]
+
+[ext_resource type="Resource" path="res://assets/ship/displays/weapon.tres" id="21_weapon"]
+
+[ext_resource type="Script" uid="uid://b6skib0xpkite" path="res://scripts/Ship/LauncherDevice.cs" id="22_launcher"]
+
+[ext_resource type="PackedScene" path="res://scenes/weapons/missile.tscn" id="23_missile"]
+
+[ext_resource type="PackedScene" path="res://scenes/weapons/ir_missile.tscn" id="24_ir_missile"]
+
+[ext_resource type="Script" uid="uid://4wjv7ww48u5f" path="res://scripts/Cockpit/SeekerTone.cs" id="26_growl"]
+
+[ext_resource type="Resource" path="res://assets/ship/displays/rwr.tres" id="27_rwr"]
+
+[ext_resource type="Script" uid="uid://kq8v2hcv8sm8" path="res://scripts/Ship/RwrDevice.cs" id="28_rwr"]
+
+[ext_resource type="Script" uid="uid://co14mxnlyoaws" path="res://scripts/Space/RadarEmitter.cs" id="29_emitter"]
+
+[ext_resource type="Script" uid="uid://dnpkqqauajrlf" path="res://scripts/Ship/ShipSignature.cs" id="30_signature"]
+
+[ext_resource type="Script" uid="uid://cxdb8imy7mdxh" path="res://scripts/Cockpit/RwrTone.cs" id="31_rwr_tone"]
+
+[ext_resource type="Script" uid="uid://bvfe68lfj5yss" path="res://scripts/Net/NetBody.cs" id="32_netbody"]
+
+[ext_resource type="PackedScene" path="res://scenes/weapons/chaff.tscn" id="35_chaff"]
+
+[ext_resource type="PackedScene" path="res://scenes/weapons/flare.tscn" id="36_flare"]
+
+[ext_resource type="Script" uid="uid://bj6hcfjy152o8" path="res://scripts/Ship/DispenserDevice.cs" id="37_dispenser"]
+
+[ext_resource type="PackedScene" path="res://scenes/ships/fighter_03_hitboxes.tscn" id="39_hitboxes"]
+
+[ext_resource type="Script" uid="uid://bam7yggql8h27" path="res://scripts/Ship/ShipHull.cs" id="40_hull"]
+
+[ext_resource type="Script" uid="uid://ohp60d4evcwd" path="res://scripts/Ship/LaserDevice.cs" id="44_laser"]
+
+[ext_resource type="Script" uid="uid://unvbg5xdlch2" path="res://scripts/Cockpit/LeadSight.cs" id="45_sight"]
+
+[ext_resource type="Script" uid="uid://douaeiqguordu" path="res://scripts/Cockpit/LookDot.cs" id="49_dot"]
+
+[ext_resource type="Script" uid="uid://blxnsma603sad" path="res://scripts/Ship/PowerDevice.cs" id="60_power"]
+
+[ext_resource type="Script" uid="uid://bifvl4mngdr1m" path="res://scripts/Ship/ShieldDevice.cs" id="61_shield"]
+
+[ext_resource type="Script" uid="uid://c8vqm3o1kn1iq" path="res://scripts/Ship/HeatDevice.cs" id="62_heat"]
+
+[ext_resource type="Material" path="res://assets/materials/shield_bubble.tres" id="63_bubble"]
+
+[ext_resource type="Script" uid="uid://81e1fdeshehe" path="res://scripts/Cockpit/PowerGauge.cs" id="64_gauge"]
+
+[ext_resource type="Script" uid="uid://c5g43l35p3ad2" path="res://scripts/Ship/JammerDevice.cs" id="65_jammer"]
+
+[ext_resource type="Resource" path="res://assets/ship/jammers/jammer_dj3.tres" id="68_dj3"]
+
+[ext_resource type="Script" uid="uid://k7l05n085cd0" path="res://scripts/Ship/EngineDevice.cs" id="70_engine"]
+
+[ext_resource type="Resource" uid="uid://bwtxobljaprw5" path="res://assets/ship/engines/engine_d50.tres" id="71_d50"]
+
+[ext_resource type="Resource" uid="uid://tj7my2jw072j" path="res://assets/ship/hulls/hull_fighter.tres" id="72_hull"]
+
+[ext_resource type="Script" uid="uid://whqlxvr3qa25" path="res://scripts/Ship/RadioDevice.cs" id="80_radio"]
+
+[ext_resource type="Resource" path="res://assets/ship/displays/comms.tres" id="81_comms"]
+
+[ext_resource type="Script" uid="uid://b0vtpw12oa5nr" path="res://scripts/Cockpit/RadioVoice.cs" id="82_voice"]
+
+[ext_resource type="Script" path="res://scripts/OnFoot/ShipSeat.cs" id="seat_script"]
+
+[ext_resource type="PackedScene" path="res://scenes/characters/walker.tscn" id="walker_scene"]
+
+[ext_resource type="Script" path="res://scripts/OnFoot/WalkSurface.cs" id="walk_surface"]
+
+[ext_resource type="PackedScene" uid="uid://c24bvglq01n2e" path="res://assets/synty/SM_Ship_Fighter_03.fbx" id="fighter_model"]
+
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="atlas_paint"]
+
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="model_paint"]
+
+[ext_resource type="Script" path="res://scripts/Ship/CargoHold.cs" id="cargo_hold"]
+
+[ext_resource type="Script" path="res://scripts/Ship/PilotShip.cs" id="pilot_ship"]
+
+[sub_resource type="SphereMesh" id="ShieldSphere"]
+radius = 1.0
+height = 2.0
+radial_segments = 32
+rings = 16
+
+
+[node name="Ship" type="AnimatableBody3D"]
+script = ExtResource("6_ship")
+Spec = ExtResource("72_hull")
+
+
+[node name="NetBody" type="Node" parent="." unique_id=773789896]
+script = ExtResource("32_netbody")
+OwnedBy = 0
+
+
+[node name="Hitboxes" parent="." unique_id=1890982627 instance=ExtResource("39_hitboxes")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+
+[node name="Walk" type="Node3D" parent="Hitboxes"]
+script = ExtResource("walk_surface")
+
+
+[node name="Exterior" parent="." instance=ExtResource("fighter_model")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+visible = false
+
+
+[node name="Paint" type="Node" parent="Exterior"]
+script = ExtResource("model_paint")
+Material = ExtResource("atlas_paint")
+
+
+[node name="Seat" type="Node" parent="." node_paths=PackedStringArray("Pilot", "Inside", "Outside")]
+script = ExtResource("seat_script")
+Pilot = NodePath("../Pilot")
+WalkerScene = ExtResource("walker_scene")
+Inside = [NodePath("../Cockpit")]
+Outside = [NodePath("../Exterior")]
+
+
+[node name="Hull" type="Node" parent="." unique_id=2022416047]
+script = ExtResource("40_hull")
+
+
+[node name="ShipComputer" type="Node" parent="." unique_id=327885703]
+script = ExtResource("1_computer")
+KeptDiskPath = "user://disks/ship.img"
+BackupDiskPath = "user://disks/insurer.img"
+
+
+[node name="Display" type="Node" parent="." unique_id=1227318872]
+script = ExtResource("12_display")
+Screens = Array[ExtResource("19_screen")]([ExtResource("20_radar"), ExtResource("21_weapon"), ExtResource("27_rwr"), ExtResource("81_comms")])
+
+
+[node name="Turret" type="Node3D" parent="." unique_id=1909061706]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.6, 0.5, -6.5)
+script = ExtResource("14_turret")
+
+
+[node name="Radar" type="Node3D" parent="." unique_id=720871894]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -5)
+script = ExtResource("13_radar")
+TrackOriginPath = NodePath("../Turret")
+EmitterPath = NodePath("Emitter")
+
+
+[node name="Emitter" type="Node3D" parent="Radar" unique_id=644734609]
+script = ExtResource("29_emitter")
+Signature = "F"
+PowerAt1Km = 40000.0
+
+
+[node name="Launcher" type="Node3D" parent="." unique_id=938738450]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.2, -3)
+script = ExtResource("22_launcher")
+MissileScene = ExtResource("23_missile")
+HeatSeekerScene = ExtResource("24_ir_missile")
+
+
+[node name="SeekerTone" type="AudioStreamPlayer" parent="Launcher" unique_id=1115448228]
+script = ExtResource("26_growl")
+
+
+[node name="Laser" type="Node3D" parent="." unique_id=1669483343]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, -5.5)
+script = ExtResource("44_laser")
+
+
+[node name="Left" type="Marker3D" parent="Laser" unique_id=640810761]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 0)
+
+
+[node name="Right" type="Marker3D" parent="Laser" unique_id=638946943]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
+
+
+[node name="Dispenser" type="Node3D" parent="." unique_id=841199006]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 4)
+script = ExtResource("37_dispenser")
+ChaffScene = ExtResource("35_chaff")
+FlareScene = ExtResource("36_flare")
+
+
+[node name="Engine" type="Node" parent="." unique_id=2142055484]
+script = ExtResource("70_engine")
+Spec = ExtResource("71_d50")
+
+
+[node name="Jammer" type="Node3D" parent="." unique_id=2090665327]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -1)
+script = ExtResource("65_jammer")
+Spec = ExtResource("68_dj3")
+
+
+[node name="Rwr" type="Node3D" parent="." unique_id=1738774826]
+script = ExtResource("28_rwr")
+
+
+[node name="RwrTone" type="AudioStreamPlayer" parent="Rwr" unique_id=727146807]
+script = ExtResource("31_rwr_tone")
+
+
+[node name="Radio" type="Node3D" parent="." unique_id=586291882]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 1)
+script = ExtResource("80_radio")
+PilotsName = true
+
+
+[node name="RadioVoice" type="AudioStreamPlayer" parent="Radio" unique_id=152962600]
+script = ExtResource("82_voice")
+
+
+[node name="Hold" type="Node" parent="."]
+script = ExtResource("cargo_hold")
+
+
+[node name="Fit" type="Node" parent="."]
+script = ExtResource("pilot_ship")
+
+
+[node name="Power" type="Node" parent="." unique_id=1962482993]
+script = ExtResource("60_power")
+
+
+[node name="Shield" type="Node" parent="." unique_id=449058895]
+script = ExtResource("61_shield")
+Bubble = NodePath("../ShieldBubble")
+
+
+[node name="ShieldBubble" type="MeshInstance3D" parent="." unique_id=153458227]
+transform = Transform3D(12, 0, 0, 0, 4.5, 0, 0, 0, 9, 0, 0, 0)
+visible = false
+cast_shadow = 0
+mesh = SubResource("ShieldSphere")
+surface_material_override/0 = ExtResource("63_bubble")
+
+
+[node name="Heat" type="Node" parent="." unique_id=1680080457]
+script = ExtResource("62_heat")
+
+
+[node name="Signature" type="Node3D" parent="." unique_id=1823601226]
+script = ExtResource("30_signature")
+
+
+[node name="Cockpit" parent="." unique_id=2034381439 instance=ExtResource("2_cockpit")]
+
+
+[node name="Dust" type="GPUParticles3D" parent="." unique_id=650690288]
+script = ExtResource("9_dust")
+
+
+[node name="Pilot" type="Node3D" parent="." unique_id=777180979 node_paths=PackedStringArray("Eye")]
+script = ExtResource("4_pilot")
+Eye = NodePath("../Cockpit/Eye")
+
+
+[node name="Camera3D" type="Camera3D" parent="Pilot" unique_id=481021367]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
+fov = 70.0
+near = 0.02
+far = 120000.0
+
+
+[node name="Hud" type="CanvasLayer" parent="Pilot" unique_id=1174691002]
+
+
+[node name="Label" type="Label" parent="Pilot/Hud" unique_id=626323394]
+offset_left = 12.0
+offset_top = 8.0
+offset_right = 1400.0
+offset_bottom = 80.0
+theme_override_colors/font_color = Color(0.75, 0.9, 0.8, 1)
+theme_override_font_sizes/font_size = 14
+
+
+[node name="TargetBracket" type="Control" parent="Pilot/Hud" unique_id=2095934135]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("17_bracket")
+RadarPath = NodePath("../../../Radar")
+
+
+[node name="LeadSight" type="Control" parent="Pilot/Hud" unique_id=579687940]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("45_sight")
+LaserPath = NodePath("../../../Laser")
+
+
+[node name="LookDot" type="Control" parent="Pilot/Hud" unique_id=1765825077]
+visible = false
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("49_dot")
+
+
+[node name="ModeBar" type="Label" parent="Pilot/Hud" unique_id=1693411532]
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -500.0
+offset_top = -40.0
+offset_right = 500.0
+offset_bottom = -12.0
+grow_horizontal = 2
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.85, 0.95, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 0.8)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 15
+horizontal_alignment = 1
+
+
+[node name="PowerGauge" type="Control" parent="Pilot/Hud" unique_id=608983890]
+layout_mode = 3
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -250.0
+offset_top = -100.0
+offset_right = -20.0
+offset_bottom = -20.0
+grow_horizontal = 0
+grow_vertical = 0
+mouse_filter = 2
+script = ExtResource("64_gauge")
+
+
+[node name="MouseWidget" type="Control" parent="Pilot/Hud" unique_id=567139452]
+layout_mode = 3
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -60.0
+offset_top = -60.0
+offset_right = 60.0
+offset_bottom = 60.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("7_widget")
+

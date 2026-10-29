@@ -50,6 +50,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     [Export] public float TurnRate = 0.5f;              // rad/s
     [Export] public float Health = 100f;
     [Export] public bool Straight;                      // no turning: a test target
+    [Export] public float Circling;                     // with Straight: turning left at this rate (rad/s), a test target
     [Export] public float WanderRadius = 2500f;
     [Export] public float RespawnSeconds = 4f;
     [Export] public NodePath AnchorPath;                // what it flies around
@@ -223,6 +224,8 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
             else
                 Attacking = true;
         }
+        if (Straight && Circling != 0)
+            Velocity = Velocity.Rotated(Vector3.Up, Circling * dt);
         if (!Straight)
         {
             if (!Attacking && GlobalPosition.DistanceTo(_waypoint) < 300)
@@ -245,7 +248,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
             Velocity = heading * Speed;
         }
         // What it did not dodge it flies into, and that is the end of it
-        if (Obstacles.Segment(GlobalPosition, GlobalPosition + Velocity * dt, out float rock, out _))
+        if (Obstacles.Segment(GetWorld3D(), GlobalPosition, GlobalPosition + Velocity * dt, out float rock, out _))
         {
             GlobalPosition += Velocity * (rock * dt);
             Explode();
@@ -301,7 +304,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     }
 
     private bool Protected(Vector3 point) =>
-        RespectsZones && (StationRadio.ProtectingAt(point) != null || StationRadio.ProtectingAt(GlobalPosition) != null);
+        RespectsZones && (StationRadio.ProtectingAt(GetWorld3D(), point) != null || StationRadio.ProtectingAt(GetWorld3D(), GlobalPosition) != null);
 
     private void See(Node3D echo)
     {
@@ -330,7 +333,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
         if (_head.Look.AngleTo(nose) > Mathf.DegToRad(_head.GimbalLimitDegrees))
             _head.Look = nose;                      // against the stops: it rests caged on the nose
         Vector3 to = _radar.Locked ? quarry.GlobalPosition - GlobalPosition : nose;
-        _head.Point(GetTree(), GlobalPosition, nose, to, dt);
+        _head.Point(this, GlobalPosition, nose, to, dt);
         _toneFor = _radar.Locked && _head.Tone ? _toneFor + dt : 0;
         float range = GlobalPosition.DistanceTo(quarry.GlobalPosition);
         if (_toneFor < ToneSeconds || MissilesLeft <= 0 || _missileWait > 0 || range > MissileRange || range < MinMissileRange)
@@ -401,7 +404,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     {
         Missile soonest = null;
         float best = BreakSeconds;
-        foreach (Node node in GetTree().GetNodesInGroup("missiles"))
+        foreach (Node node in Sectors.InGroup(this, "missiles"))
         {
             if (node is not Missile m || !m.Burning)
                 continue;
@@ -486,7 +489,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     {
         var direction = new Vector3(_rng.RandfRange(-1, 1), _rng.RandfRange(-0.4f, 0.4f), _rng.RandfRange(-1, 1)).Normalized();
         Vector3 point = Centre + direction * _rng.RandfRange(0.4f, 1f) * WanderRadius;
-        return RespectsZones ? StationRadio.Outside(point) : point;
+        return RespectsZones ? StationRadio.Outside(GetWorld3D(), point) : point;
     }
 
     /// <summary>A round or a blast hit it.</summary>

@@ -63,8 +63,12 @@ public partial class Solid : Node3D
     }
     private bool _blocks = true;
 
+    /// <summary>The sector it is in.</summary>
+    public World3D World { get; private set; }
+
     public override void _EnterTree()
     {
+        World = GetWorld3D();
         if (_blocks)
             All.Add(this);
     }
@@ -252,22 +256,22 @@ public partial class Solid : Node3D
     }
 
     /// <summary>Whether any solid stands between two scene points (a radar's or a seeker's line of sight).</summary>
-    public static bool Blocked(Vector3 from, Vector3 to)
+    public static bool Blocked(World3D world, Vector3 from, Vector3 to)
     {
         foreach (Solid s in All)
-            if (s.Crosses(from, to))
+            if (s.World == world && s.Crosses(from, to))
                 return true;
         return false;
     }
 
     /// <summary>The nearest of every solid's <see cref="Segment"/>.</summary>
-    public static bool SegmentAll(Vector3 from, Vector3 to, out float along, out Vector3 normal)
+    public static bool SegmentAll(World3D world, Vector3 from, Vector3 to, out float along, out Vector3 normal)
     {
         along = 1;
         normal = Vector3.Zero;
         bool hit = false;
         foreach (Solid s in All)
-            if (s.Segment(from, to, out float t, out Vector3 n) && t < along)
+            if (s.World == world && s.Segment(from, to, out float t, out Vector3 n) && t < along)
             {
                 along = t;
                 normal = n;

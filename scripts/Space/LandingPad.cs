@@ -247,7 +247,7 @@ public partial class LandingPad : Node3D, IShipHold
     private Node3D Waiting(out ShipBody local)
     {
         local = null;
-        foreach (Node n in GetTree().GetNodesInGroup(Radio.Group))
+        foreach (Node n in Sectors.InGroup(this, Radio.Group))
             if (n is RadioDevice { Dock: > 0 } r && r.Dock == Dock.Number && r.Pad == Number && r.DockFrom == Dock.Station &&
                 Combat.ShipOf(r) is ShipBody ship && !ship.Wrecked && !NetBody.IsPuppet(ship))
             {

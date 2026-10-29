@@ -209,16 +209,16 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
         }
         if (_rocks.TryGetValue(t, out Rocks rocks))
             return rocks;
-        rocks.Hidden = Obstacles.Blocked(GlobalPosition, t.GlobalPosition);
+        rocks.Hidden = Obstacles.Blocked(GetWorld3D(), GlobalPosition, t.GlobalPosition);
         if (!rocks.Hidden)
-            rocks.Clutter = RockField.ClutterAll(GlobalPosition, _ship?.LinearVelocity ?? Vector3.Zero, t.GlobalPosition, t.Velocity,
+            rocks.Clutter = RockField.ClutterAll(GetWorld3D(), GlobalPosition, _ship?.LinearVelocity ?? Vector3.Zero, t.GlobalPosition, t.Velocity,
                                                  Mathf.DegToRad(BeamwidthDegrees), RangeResolution, VelocityResolution);
         return _rocks[t] = rocks;
     }
 
     /// <summary>Jamming-to-noise ratio while looking along a direction.</summary>
     public float Jamming(Vector3 lookingAt) =>
-        Space.Jamming.Noise(GetTree(), GlobalPosition, lookingAt, Mathf.DegToRad(BeamwidthDegrees), SidelobeLevel, _own);
+        Space.Jamming.Noise(this, GlobalPosition, lookingAt, Mathf.DegToRad(BeamwidthDegrees), SidelobeLevel, _own);
 
     private float AngleError(float snr) => Mathf.DegToRad(BeamwidthDegrees) / (1.6f * MathF.Sqrt(2 * snr));
     private float RangeError(float snr) => RangeResolution / MathF.Sqrt(2 * snr);
@@ -333,7 +333,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
         float beam = Mathf.DegToRad(BeamwidthDegrees);
         float total = 0, strongest = 0;
         Vector3 sum = Vector3.Zero, sumVelocity = Vector3.Zero;
-        foreach (Node node in GetTree().GetNodesInGroup("radar_targets"))
+        foreach (Node node in Sectors.InGroup(this, "radar_targets"))
         {
             if (node is not IRadarTarget t || !InCone(t))
                 continue;
@@ -355,7 +355,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
                 Locked = t;
             }
         }
-        foreach (Node node in GetTree().GetNodesInGroup("jammers"))
+        foreach (Node node in Sectors.InGroup(this, "jammers"))
         {
             if (node is not IDeceiver d || d.Carrier == null || d.Carrier == _own)
                 continue;
@@ -411,7 +411,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     {
         _contacts.Clear();
         _echoes.Clear();
-        foreach (Node node in GetTree().GetNodesInGroup("radar_targets"))
+        foreach (Node node in Sectors.InGroup(this, "radar_targets"))
         {
             if (node is not IRadarTarget t || !InCone(t) || _contacts.Count >= MaxContacts)
                 continue;
@@ -447,7 +447,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     private unsafe void Strobes(ShipBody ship, byte* table)
     {
         _strobes.Clear();
-        foreach (Node node in GetTree().GetNodesInGroup("jammers"))
+        foreach (Node node in Sectors.InGroup(this, "jammers"))
         {
             if (node is not IJammer j || j.Carrier == _own || _contacts.Count + _strobes.Count >= MaxContacts)
                 continue;
@@ -456,7 +456,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
             float jn = j.NoiseToward(GlobalPosition) / (km * km);
             Vector3 local = GlobalBasis.Inverse() * to;
             if (jn < StrobeJnr || local.Length() < 1 || Vector3.Forward.AngleTo(local) > Mathf.DegToRad(ConeDegrees) ||
-                node is Node3D { Visible: false } || Obstacles.Blocked(GlobalPosition, j.GlobalPosition))
+                node is Node3D { Visible: false } || Obstacles.Blocked(GetWorld3D(), GlobalPosition, j.GlobalPosition))
                 continue;
             local = Measure(j.GlobalPosition, jn, GlobalPosition, GlobalBasis);
             byte* e = table + (_contacts.Count + _strobes.Count) * 16;

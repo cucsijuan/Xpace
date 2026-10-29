@@ -64,10 +64,18 @@ There are two ways to jump, and they coexist:
 
 Jump computation is a good example of the CPU as a mechanic: a better navigation program, or a faster CPU, computes the jump sooner or with less error. A badly computed jump leaves you far from the destination, or somewhere dangerous.
 
+### 4.2.1 Sectors and gates in the game (M5 plan)
+
+- **A sector is a scene** (`scenes/sectors/`) with its star, stations, gates and rocks, and a `Sector` resource (id, name, scene, its gates and where they lead). The sector map is the graph of those resources, edited like any other data.
+- **Each sector is its own world** (a `World3D` with its own physics space). The game's shell (menus, session, universe) loads sectors under it. Nothing in a sector sees another sector: radars, heat, radios, solids and rounds look only at the world they are in.
+- **The session's host keeps every sector that has a player in it running**, so players of one session go where they like; a guest runs only the sector it is in. Snapshots and events say which sector they belong to. A sector nobody is in is not simulated, only brought up to date when it is next loaded (as markets are now). A sector the host runs only for its guests is the data and the logic, with nothing to show: no rendering, and its meshes, particles, lights and sounds left out (the level-of-detail rule); collisions come from the solids' own shapes, never from what is drawn. When the host's own player goes there, the visible part is added.
+- **Gates first, the jump drive later.** A gate is a structure with an owner, a radio and laws, like a station: the pilot asks for clearance, pays the toll and flies through the ring; the ship comes out of the destination's gate with the same velocity. The passage is a few seconds of tunnel that hide the loading of the other sector; the ship, its computer and its programs run on through it.
+- **The ship moves between worlds whole**: it is moved from one sector to the other without being rebuilt, so its computer, engine controller, missiles in the rails and hull carry on as they were.
+
 ### 4.3 Travel inside a system: real time
 
 - **Normal flight:** Newtonian, six degrees of freedom, for combat and manoeuvring.
-- **Cruise:** a high-speed mode to cross the system. It drops out near large masses and can be interdicted.
+- **Cruise:** a high-speed mode to cross the system. It drops out near large masses and can be interdicted. Wanted in M5 already (decided 2026-10-29), with sectors large enough to need it.
 - X4-style space highways are ruled out; gates and cruise cover that role.
 
 ## 5. The onboard computer
@@ -208,6 +216,11 @@ Engines are products: a manufacturer can close a flaw in a newer firmware, so an
 - The economy is simulated: prices from supply and demand, and trading ships that really exist and can be attacked.
 - **Nothing comes from nowhere.** Every good, part and ship is made from materials someone mined and refined. A ship is not taken off a shelf: it is ordered at a shipyard, which builds it from what it has in stock, as in X4. The same goes for missiles, rounds, modules and anything else the game sells: each has a recipe and a place that makes it.
 - **Built so far (M5):** station markets whose stock moves with universe time and whose prices move with stock; two stations with complementary markets; cargo racks in hull compartments, cargo with weight; a character inventory and a locker at each station. See docs/universe.md.
+- **The universe goes on out of sight, and nothing in it is decided by dice.** Two levels of detail, one model:
+  - *Abstract, always:* production by recipe from the inputs a station has, mining at the rate its hardware gives, ships travelling their routes in the time their hull's real acceleration and top speed take, trades made on arrival, fleets moving on their plans. These are deterministic flows kept in the universe's records (the host's), not in scenes, so they go on in sectors nobody has loaded.
+  - *Physical, whenever ships fight:* when ships meet to fight with no player near, the host raises a bubble (a world of its own with nothing to show, as a sector run for a guest is) with those ships in it, and they fight with their real radars, weapons, missiles and countermeasures; the outcome (who is left, the damage, the cargo lost) goes back to the records and the bubble goes. Fights out of sight end as they would have in sight. (X4 resolves fights out of sight with a separate simplified calculation, which is why they can end differently from fights seen; we do not.)
+  - When a player arrives, what was abstract becomes real ships where the records say they are, as they are (cargo, damage, ammunition).
+  - To build in M6; M5 only keeps the way open: sectors and bubbles are worlds of their own, and the records are the truth that scenes show.
 - **Players can steer the economy, with consequences.** Supplying, starving or blockading a chain changes what stations can make and what things cost downstream: cutting off a shipyard's metal stops its ships, flooding a market sinks its prices.
 
 ### 8.2 Corporations
@@ -321,7 +334,7 @@ Missiles, blasts and countermeasures (`tests/net_missile_test.tscn`, from both s
 
 **Latency is a physical cause.** Missiles run on the host; a player's radar datalink reaches them across the network, so network latency becomes datalink latency. Likewise the radar and FIRECTL's filter see remote ships slightly late, which is sensor error, not dice: better hardware and software still make a measurable difference.
 
-**Frames of reference.** Positions travel as sector-absolute doubles; the floating origin stays a local matter of each machine.
+**Frames of reference.** Positions travel as sector-absolute doubles; the floating origin stays a local matter of each machine. On the wire a position is a fixed 1/1024 m to ±2,097 km from the sector's centre, as precise far out as near: a sector must fit in that. What loses precision far from a world's origin is single-precision physics, so the host keeps the origin of every sector it runs near the players there (its own player's in its own sector, a guest's in a sector it runs for guests), and a test must show that ships near a guest far out in a sector do not look jittery on that guest.
 
 **Cheating.** With owner authority a player could lie about their ship. For co-op and invasions a plausibility check on the host is enough: speeds and accelerations the engine, the veil and the hull allow (an overclocked engine is allowed, its heat and damage are part of the ship's state), rates of fire the turret allows. Only lobby members are accepted as P2P peers. There is no host migration: if the host leaves, the session ends.
 
@@ -388,6 +401,7 @@ Missiles, blasts and countermeasures (`tests/net_missile_test.tscn`, from both s
 | Death | No permadeath; Elite-style insurance. |
 | Software and insurance | The ship's diskette is lost with the ship. The pilot keeps backup copies (at a station, once there are stations); the insurer's new ship comes with the last backup. |
 | Travel between sectors | Jumps: owned gates and the ship's own jump drive. |
+| Sectors in a session | The host runs every sector a player of the session is in; each player goes where they like. Gates come before the jump drive; going through one is a tunnel of a few seconds. |
 | Propulsion | Missiles are rockets (propellant, a delta-v budget). Ships fly on their generator: the engines push against the veil, which sets the top speed; each engine's embedded controller limits stress and heat, and can be overclocked through its flaws, at a physical cost (6.5). |
 | Cargo | Only in ships, in tonnes: cargo racks in the hull's internal compartments (2^size tonnes), Elite style. It weighs, and is lost with the ship. |
 | Inventory | The character carries a few things (diskettes, later weapons); each station has a locker of its own for each pilot. |

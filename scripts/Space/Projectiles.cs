@@ -22,6 +22,20 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
 
     public static Projectiles Instance { get; private set; }
 
+    private static readonly List<Projectiles> _all = new();
+
+    /// <summary>The rounds of the sector <paramref name="node"/> is in.</summary>
+    public static Projectiles In(Node node)
+    {
+        World3D world = Sectors.WorldOf(node);
+        foreach (Projectiles p in _all)
+            if (p.GetWorld3D() == world)
+                return p;
+        return null;
+    }
+
+    public override void _EnterTree() => _all.Add(this);
+
     private struct Round
     {
         public Vector3 Position, Velocity;
@@ -81,6 +95,7 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
 
     public override void _ExitTree()
     {
+        _all.Remove(this);
         if (Instance == this)
             Instance = null;
     }
@@ -100,7 +115,7 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
     {
         Combat.Fire(shooter, origin);
         if (SessionNode.Instance is SessionNode session && session.Active)
-            session.Fire(origin, velocity, damage, shooter, kind);
+            session.Fire(origin, velocity, damage, shooter, kind, this);
         else if (_rounds.Count < MaxRounds)
             _rounds.Add(new Round { Position = origin, Velocity = velocity, Damage = damage, Kind = kind, Own = Areas(shooter), From = shooter });
     }
@@ -130,7 +145,7 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
             r.Age += dt;
             // Rocks and solids stop every round, judged or for show
             float clear = 1;
-            if (Obstacles.Segment(r.Position, next, out float rock, out _))
+            if (Obstacles.Segment(GetWorld3D(), r.Position, next, out float rock, out _))
                 clear = rock;
             if (r.Harmless)
             {

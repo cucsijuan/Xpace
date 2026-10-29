@@ -28,9 +28,9 @@ public partial class PilotModesTest : Node
 
     public override async void _Ready()
     {
-        var main = GD.Load<PackedScene>("res://scenes/main.tscn").Instantiate();
+        var main = GD.Load<PackedScene>("res://scenes/main.tscn").Instantiate<Xpace.Space.SectorHost>();
         AddChild(main);
-        _pilot = main.GetNode<Pilot>("Ship/Pilot");
+        _pilot = main.Ship.GetNode<Pilot>("Pilot");
         _camera = _pilot.GetNode<Camera3D>("Camera3D");
         await Frames(10);
         Check("the pilot starts flying", _pilot.Mode == Pilot.MouseUse.Flying);

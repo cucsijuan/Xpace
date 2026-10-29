@@ -156,7 +156,7 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
     /// <summary>The echoes the beam crossed this step, inside the reach their size gives.</summary>
     private void Search()
     {
-        foreach (Node node in GetTree().GetNodesInGroup("radar_targets"))
+        foreach (Node node in Sectors.InGroup(this, "radar_targets"))
         {
             if (node is not IRadarTarget t || t == _owner || !t.Alive || node is not Node3D n || !n.IsVisibleInTree())
                 continue;
@@ -181,14 +181,14 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
     private bool Seen(Node3D target, float range, float referenceRange, float margin)
     {
         float signal = MathF.Pow(Reach(target, referenceRange) / range, 4);     // 1 at the threshold
-        if (signal < margin || Obstacles.Blocked(GlobalPosition, target.GlobalPosition))
+        if (signal < margin || Obstacles.Blocked(GetWorld3D(), GlobalPosition, target.GlobalPosition))
             return false;
-        float jamming = Jamming.Noise(GetTree(), GlobalPosition, target.GlobalPosition - GlobalPosition,
+        float jamming = Jamming.Noise(this, GlobalPosition, target.GlobalPosition - GlobalPosition,
                                       Mathf.DegToRad(BeamwidthDegrees), SidelobeLevel, _owner);
         if (RockField.All.Count == 0)
             return signal >= margin * (1 + jamming);
         Vector3 velocity = target is IRadarTarget t ? t.Velocity : Vector3.Zero;
-        float clutter = RockField.ClutterAll(GlobalPosition, _owner?.Velocity ?? Vector3.Zero, target.GlobalPosition, velocity,
+        float clutter = RockField.ClutterAll(GetWorld3D(), GlobalPosition, _owner?.Velocity ?? Vector3.Zero, target.GlobalPosition, velocity,
                                              Mathf.DegToRad(BeamwidthDegrees), RangeResolution, VelocityResolution);
         float clutterSignal = MathF.Pow(referenceRange / range, 4) * clutter / ReferenceRcs;
         return signal >= margin * (1 + jamming + DetectSnr * clutterSignal);
@@ -199,7 +199,7 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
         if (!Transmitting)
             return false;
         Vector3 local = GlobalBasis.Inverse() * (point - GlobalPosition);
-        if (local.LengthSquared() < 1 || Obstacles.Blocked(GlobalPosition, point))
+        if (local.LengthSquared() < 1 || Obstacles.Blocked(GetWorld3D(), GlobalPosition, point))
             return false;                       // too close to tell, or rock in the way
         float half = Mathf.DegToRad(BeamwidthDegrees) / 2;
         if (Locked)

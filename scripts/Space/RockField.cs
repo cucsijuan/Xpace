@@ -128,7 +128,14 @@ public partial class RockField : Node3D, IOriginShift
     public int CachedCells => _cells.Count;
     public int ChunksShown => _chunks.Count;
 
-    public override void _EnterTree() => All.Add(this);
+    /// <summary>The sector it is in.</summary>
+    public World3D World { get; private set; }
+
+    public override void _EnterTree()
+    {
+        World = GetWorld3D();
+        All.Add(this);
+    }
     public override void _ExitTree()
     {
         All.Remove(this);
@@ -529,20 +536,21 @@ public partial class RockField : Node3D, IOriginShift
     // ---------- every field ----------
 
     /// <summary>The solid spheres of every field near a scene point.</summary>
-    public static void OverlapAll(Vector3 point, float radius, List<RockSphere> into)
+    public static void OverlapAll(World3D world, Vector3 point, float radius, List<RockSphere> into)
     {
         foreach (RockField f in All)
-            f.Overlap(point, radius, into);
+            if (f.World == world)
+                f.Overlap(point, radius, into);
     }
 
     /// <summary>The first rock of any field a segment runs into.</summary>
-    public static bool SegmentAll(Vector3 from, Vector3 to, out float along, out Vector3 normal, float thickness = 0)
+    public static bool SegmentAll(World3D world, Vector3 from, Vector3 to, out float along, out Vector3 normal, float thickness = 0)
     {
         along = 1;
         normal = Vector3.Zero;
         bool hit = false;
         foreach (RockField f in All)
-            if (f.Segment(from, to, out float t, out Vector3 n, out _, thickness) && t < along)
+            if (f.World == world && f.Segment(from, to, out float t, out Vector3 n, out _, thickness) && t < along)
             {
                 along = t;
                 normal = n;
@@ -552,20 +560,21 @@ public partial class RockField : Node3D, IOriginShift
     }
 
     /// <summary>Every field's rock echo in a radar's resolution cell around a target (see <see cref="Clutter"/>).</summary>
-    public static float ClutterAll(Vector3 radar, Vector3 radarVelocity, Vector3 target, Vector3 targetVelocity,
+    public static float ClutterAll(World3D world, Vector3 radar, Vector3 radarVelocity, Vector3 target, Vector3 targetVelocity,
                                    float beam, float rangeCell, float speedCell)
     {
         float sum = 0;
         foreach (RockField f in All)
-            sum += f.Clutter(radar, radarVelocity, target, targetVelocity, beam, rangeCell, speedCell);
+            if (f.World == world)
+                sum += f.Clutter(radar, radarVelocity, target, targetVelocity, beam, rangeCell, speedCell);
         return sum;
     }
 
     /// <summary>Whether a rock stands between two scene points (a radar's or a seeker's line of sight).</summary>
-    public static bool Blocked(Vector3 from, Vector3 to)
+    public static bool Blocked(World3D world, Vector3 from, Vector3 to)
     {
         foreach (RockField f in All)
-            if (f.Segment(from, to, out _, out _, out _))
+            if (f.World == world && f.Segment(from, to, out _, out _, out _))
                 return true;
         return false;
     }

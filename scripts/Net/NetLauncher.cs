@@ -27,7 +27,10 @@ public partial class NetLauncher : Node
     private SessionNode _session;
     private string _title;
 
-    public override void _Ready()
+    // Once the whole sector is ready: the session starts with every ship in it
+    public override void _Ready() => CallDeferred(MethodName.Launch);
+
+    private void Launch()
     {
         _session = GetNodeOrNull<SessionNode>(SessionPath);
         _title = GetWindow().Title;

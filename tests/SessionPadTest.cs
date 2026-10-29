@@ -212,7 +212,7 @@ public partial class SessionPadTest : Node
 
     private static void Put(Thing ship, SessionNode node, Transform3D at)
     {
-        ship.Position = node.Sector(at.Origin);
+        ship.Position = node.Sector(at.Origin, 0);
         ship.Orientation = at.Basis.Orthonormalized().GetRotationQuaternion();
     }
 

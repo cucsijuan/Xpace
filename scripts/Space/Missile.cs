@@ -220,7 +220,7 @@ public partial class Missile : Node3D, INetShip
     private bool Fuse(float dt)
     {
         float best = float.MaxValue, bestT = 0;
-        foreach (Node node in GetTree().GetNodesInGroup("radar_targets"))
+        foreach (Node node in Sectors.InGroup(this, "radar_targets"))
         {
             if (node is not IRadarTarget t || !t.Alive || node is not IDamageable)
                 continue;
@@ -234,7 +234,7 @@ public partial class Missile : Node3D, INetShip
             }
         }
         // Rock or solid in the way: it goes off against it, before anything farther on
-        if (Obstacles.Segment(GlobalPosition, GlobalPosition + Velocity * dt, out float rock, out _) && rock * dt < (best <= FuseRadius ? bestT : dt))
+        if (Obstacles.Segment(GetWorld3D(), GlobalPosition, GlobalPosition + Velocity * dt, out float rock, out _) && rock * dt < (best <= FuseRadius ? bestT : dt))
         {
             Burst(GlobalPosition + Velocity * (rock * dt), rock, Outcome.Missed);
             return true;
@@ -255,7 +255,7 @@ public partial class Missile : Node3D, INetShip
         bool judged = session && NetBody.Of(this) is NetBody { Joined: true };
         if (judged)
             SessionNode.Instance.Blast(this, burst, fraction, Damage, LethalRadius, BlastRadius);
-        foreach (Node node in GetTree().GetNodesInGroup("radar_targets"))
+        foreach (Node node in Sectors.InGroup(this, "radar_targets"))
         {
             if (node is not IRadarTarget t || !t.Alive || node is not IDamageable victim)
                 continue;
@@ -286,7 +286,7 @@ public partial class Missile : Node3D, INetShip
     /// <summary>The head follows the heat; the firmware reads where it points, and a new word when it sees something.</summary>
     private void Seek(float dt)
     {
-        bool tracking = _head.Track(GetTree(), GlobalPosition, -GlobalBasis.Z, dt);
+        bool tracking = _head.Track(this, GlobalPosition, -GlobalBasis.Z, dt);
         Vector3 look = _head.Look * DirectionScale;     // the gimbal's angles, always there
         _mcu.SetWord(2, (int)MathF.Round(look.X));
         _mcu.SetWord(4, (int)MathF.Round(look.Y));

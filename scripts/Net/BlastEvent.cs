@@ -78,12 +78,13 @@ public struct BlastEvent
 /// the host; every machine makes it from this and it flies the same
 /// everywhere (no air, no guidance).
 ///
-///   dropper 8, what 8 (a session's spawnable scene), tick 32,
+///   dropper 8, sector 8 (its number in the map), what 8 (a session's spawnable scene), tick 32,
 ///   position 3 x 32 (1/1024 m), velocity 3 x 17 (±4,096 m/s)
 /// </summary>
 public struct DropEvent
 {
     public byte Dropper;
+    public byte Place;
     public byte Scene;
     public uint Tick;
     public SectorPoint Position;
@@ -93,6 +94,7 @@ public struct DropEvent
     {
         var w = new BitWriter();
         w.Write(Dropper, 8);
+        w.Write(Place, 8);
         w.Write(Scene, 8);
         w.Write(Tick, 32);
         Events.WritePoint(w, Position);
@@ -103,6 +105,7 @@ public struct DropEvent
     public static DropEvent Read(BitReader r) => new()
     {
         Dropper = (byte)r.Read(8),
+        Place = (byte)r.Read(8),
         Scene = (byte)r.Read(8),
         Tick = r.Read(32),
         Position = Events.ReadPoint(r),

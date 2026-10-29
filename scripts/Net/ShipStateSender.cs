@@ -20,6 +20,9 @@ public partial class ShipStateSender : Node
     private ShipBody _ship;
     private FloatingOrigin _origin;
 
+    // Again when its ship moves to another sector: positions are that sector's
+    public override void _EnterTree() => _origin = FloatingOrigin.Of(GetParent());
+
     public override void _Ready()
     {
         _ship = GetParent<ShipBody>();

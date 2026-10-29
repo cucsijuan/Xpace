@@ -199,7 +199,7 @@ public partial class SessionSecurityTest : Node
 
         // Within the grace, its round destroys a clean ship
         Vector3 muzzle = player.GlobalPosition + new Vector3(10, 0, 0);
-        _guest.Fire(SectorClock.Instance.Tick, GuestShipId, hostNode.Sector(muzzle), (victor.GlobalPosition - muzzle).Normalized() * 1200, 20);
+        _guest.Fire(SectorClock.Instance.Tick, GuestShipId, hostNode.Sector(muzzle, 0), (victor.GlobalPosition - muzzle).Normalized() * 1200, 20);
         Check("the guest's round destroys the host's ship", await Until(() => victor.Wrecked, 2));
         await Frames(20);
         Check($"the guest is hostile at once, told why ({LastHeard})",

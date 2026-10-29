@@ -53,11 +53,28 @@ public partial class ShipHull : Node, IDamageable
         _ship = GetParent<ShipBody>();
         Spawn = _ship.GlobalTransform;
         _ship.Impact += Crash;
+        _subscribed = true;
         foreach (Node n in _ship.GetChildren())
             _shield ??= n as ShieldDevice;
     }
 
-    public override void _ExitTree() => _ship.Impact -= Crash;
+    private bool _subscribed;
+
+    // Moved to another sector: it leaves the tree and enters again
+    public override void _EnterTree()
+    {
+        if (_ship != null && !_subscribed)
+        {
+            _ship.Impact += Crash;
+            _subscribed = true;
+        }
+    }
+
+    public override void _ExitTree()
+    {
+        _ship.Impact -= Crash;
+        _subscribed = false;
+    }
 
     /// <summary>A crash into a rock: what the ship's motion lost is what crushed it.</summary>
     private void Crash(float joules)

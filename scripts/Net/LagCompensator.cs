@@ -23,6 +23,8 @@ namespace Xpace.Net;
 /// needs; until then it waits (the targets' snapshots are late too). The
 /// rewind is capped at <see cref="MaxRewindTicks"/>: a shooter on a worse
 /// line has to lead its targets more, as with a real sensor's lag.
+///
+/// Rounds and blasts only meet ships of their own sector (<see cref="PlaceOf"/>).
 /// </summary>
 public sealed class LagCompensator
 {
@@ -36,8 +38,11 @@ public sealed class LagCompensator
 
     public event Action<HitEvent> Hit;
 
-    /// <summary>Whether something solid that never moves (rock) lies between two points: a round stops there. Null: nothing.</summary>
-    public Func<SectorPoint, SectorPoint, bool> Solid;
+    /// <summary>Whether something solid that never moves (rock) lies between two points of a sector: a round stops there. Null: nothing.</summary>
+    public Func<byte, SectorPoint, SectorPoint, bool> Solid;
+
+    /// <summary>The sector each ship is in (its number in the map); null: all in one.</summary>
+    public Func<ushort, byte> PlaceOf;
 
     private sealed class Target
     {
@@ -49,6 +54,7 @@ public sealed class LagCompensator
     private sealed class Round
     {
         public FireEvent Event;
+        public byte Place;
         public int Step;                    // the next step to test
         public Dictionary<ushort, double> Rewind;   // per target, ticks into the past
     }
@@ -56,6 +62,7 @@ public sealed class LagCompensator
     private sealed class Burst
     {
         public BlastEvent Event;
+        public byte Place;
         public Dictionary<ushort, double> Rewind;
     }
 
@@ -70,9 +77,11 @@ public sealed class LagCompensator
 
     public int Flying => _rounds.Count;
 
-    public void Fire(FireEvent e) => _rounds.Add(new Round { Event = e, Rewind = Rewinds(e.Views) });
+    public void Fire(FireEvent e, byte place = 0) => _rounds.Add(new Round { Event = e, Place = place, Rewind = Rewinds(e.Views) });
 
-    public void Blast(BlastEvent e) => _bursts.Add(new Burst { Event = e, Rewind = Rewinds(e.Views) });
+    public void Blast(BlastEvent e, byte place = 0) => _bursts.Add(new Burst { Event = e, Place = place, Rewind = Rewinds(e.Views) });
+
+    private bool Elsewhere(Target t, byte place) => PlaceOf != null && PlaceOf(t.Id) != place;
 
     private Dictionary<ushort, double> Rewinds(List<FireEvent.View> views)
     {
@@ -106,7 +115,7 @@ public sealed class LagCompensator
             int n = round.Step;
             foreach (Target t in _targets)
             {
-                if (t.Id == e.Ship || t.Boxes.Length == 0)
+                if (t.Id == e.Ship || t.Boxes.Length == 0 || Elsewhere(t, round.Place))
                     continue;
                 double after = e.Tick + n + 1 - round.Rewind.GetValueOrDefault(t.Id);
                 if (t.History.NewestTick is not uint newest || after > newest)
@@ -116,7 +125,7 @@ public sealed class LagCompensator
             SectorPoint from = e.At(n, TickSeconds), to = e.At(n + 1, TickSeconds);
             foreach (Target t in _targets)
             {
-                if (t.Id == e.Ship)
+                if (t.Id == e.Ship || Elsewhere(t, round.Place))
                     continue;
                 double after = e.Tick + n + 1 - round.Rewind.GetValueOrDefault(t.Id);
                 RemoteTrack.Pose p0 = t.History.Sample(after - 1), p1 = t.History.Sample(after);
@@ -133,7 +142,7 @@ public sealed class LagCompensator
                         return true;
                     }
             }
-            if (Solid != null && Solid(from, to))
+            if (Solid != null && Solid(round.Place, from, to))
                 return true;                // into rock
             round.Step++;
         }
@@ -151,11 +160,11 @@ public sealed class LagCompensator
         double At(Target t) => e.Tick + e.TickFraction - burst.Rewind.GetValueOrDefault(t.Id);
         if (!late)
             foreach (Target t in _targets)
-                if (t.Id != e.Missile && t.Boxes.Length > 0 && (t.History.NewestTick is not uint newest || At(t) > newest))
+                if (t.Id != e.Missile && t.Boxes.Length > 0 && !Elsewhere(t, burst.Place) && (t.History.NewestTick is not uint newest || At(t) > newest))
                     return false;
         foreach (Target t in _targets)
         {
-            if (t.Id == e.Missile || t.Boxes.Length == 0 || t.History.NewestTick is not uint newest || At(t) > newest)
+            if (t.Id == e.Missile || t.Boxes.Length == 0 || Elsewhere(t, burst.Place) || t.History.NewestTick is not uint newest || At(t) > newest)
                 continue;
             RemoteTrack.Pose p = t.History.Sample(At(t));
             if (p.Destroyed)

@@ -1,0 +1,16 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/Drone.cs" id="1_drone"]
+[ext_resource type="Script" path="res://scripts/Net/NetBody.cs" id="2_body"]
+
+[node name="TurningDrone" type="Node3D"]
+script = ExtResource("1_drone")
+Speed = 200.0
+Straight = true
+Circling = 0.0981
+Evades = false
+Defends = false
+RespectsZones = false
+
+[node name="NetBody" type="Node" parent="."]
+script = ExtResource("2_body")

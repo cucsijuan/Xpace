@@ -41,13 +41,13 @@ public partial class MarketTest : Node
 
         Universe universe = Universe.Current;
         universe.Forget();
-        var main = GD.Load<PackedScene>("res://scenes/main.tscn").Instantiate<Node3D>();
+        var main = GD.Load<PackedScene>("res://scenes/main.tscn").Instantiate<SectorHost>();
         AddChild(main);
-        _ship = main.GetNode<ShipBody>("Ship");
+        _ship = main.Ship;
         var seat = _ship.GetNode<ShipSeat>("Seat");
         var radio = _ship.GetNode<RadioDevice>("Radio");
         var hold = _ship.GetNode<CargoHold>("Hold");
-        Node3D station = main.GetNode<Node3D>("Station");
+        Node3D station = main.Sector.GetNode<Node3D>("Station");
         StationMarket market = station.GetNode<StationMarket>("Market");
         HangarDock dock = station.GetNode("HangarBig1").GetNode<HangarDock>("Dock");
         var kiosk = dock.GetParent().GetNode<StationKiosk>("MarketKiosk");

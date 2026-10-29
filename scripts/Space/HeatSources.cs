@@ -37,13 +37,13 @@ public static class Heat
     /// (radians): the heat in all, the way to its centre (each source
     /// weighed by how bright it is) and the brightest source in view.
     /// </summary>
-    public static float Scan(SceneTree tree, Vector3 from, Vector3 look, float halfAngle,
+    public static float Scan(Node where, Vector3 from, Vector3 look, float halfAngle,
                              out Vector3 centre, out IHeatSource brightest)
     {
         float cos = Mathf.Cos(halfAngle), total = 0, best = 0;
         Vector3 sum = Vector3.Zero;
         brightest = null;
-        foreach (Node node in tree.GetNodesInGroup("heat_sources"))
+        foreach (Node node in Sectors.InGroup(where, "heat_sources"))
         {
             if (node is not IHeatSource source || node is Node3D n && !n.IsVisibleInTree())
                 continue;
@@ -70,6 +70,6 @@ public static class Heat
         Vector3 to = n.GlobalPosition - from;
         if (to.LengthSquared() > 1e10f)
             to = to.Normalized() * 100_000f;
-        return Obstacles.Blocked(from, from + to);
+        return Obstacles.Blocked(n.GetWorld3D(), from, from + to);
     }
 }

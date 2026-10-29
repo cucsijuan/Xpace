@@ -128,7 +128,7 @@ public partial class LaserDevice : Node3D, IShipDevice
         float spread = DispersionMrad / 1000f;
         Basis bore = emitter.GlobalBasis.Orthonormalized();
         Vector3 direction = (-bore.Z + bore.X * _rng.Randfn(0, spread) + bore.Y * _rng.Randfn(0, spread)).Normalized();
-        Projectiles.Instance?.Fire(emitter.GlobalPosition, ship.LinearVelocity + direction * BoltSpeed, Damage, ship, RoundKind);
+        Projectiles.In(this)?.Fire(emitter.GlobalPosition, ship.LinearVelocity + direction * BoltSpeed, Damage, ship, RoundKind);
     }
 
     /// <summary>The lead circle and the pipper, from what the program wrote this step.</summary>

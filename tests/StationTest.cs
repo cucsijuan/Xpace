@@ -43,7 +43,7 @@ public partial class StationTest : Node
         Vector3 centre = station.ToGlobal(new Vector3(0, -72, 0));
         Vector3 outward = station.GlobalBasis * Vector3.Right;
         Vector3 start = centre + outward * 800;
-        bool hit = Solid.SegmentAll(start, centre, out float along, out Vector3 normal);
+        bool hit = Solid.SegmentAll(Sectors.WorldOf(this), start, centre, out float along, out Vector3 normal);
         Vector3 wall = start + (centre - start) * along;
         float radius = (wall - centre).Length();
         Check($"a segment stops on the ring's outer wall ({radius:0} m from the axis, normal {normal.Dot(outward):0.00} outward)",
@@ -63,7 +63,7 @@ public partial class StationTest : Node
         // Into the outer wall head on, and down onto the ring's top
         Vector3 top = station.ToGlobal(new Vector3(200, 200, 0));
         Vector3 down = -station.GlobalBasis.Y;
-        Solid.SegmentAll(top, top + down * 400, out float t, out _);
+        Solid.SegmentAll(Sectors.WorldOf(this), top, top + down * 400, out float t, out _);
         Vector3 deck = top + down * 400 * t;
         foreach ((string what, Vector3 from, Vector3 to) in new[] { ("the ring's outer wall", start, wall), ("the ring's top", top, deck) })
             foreach (float speed in new[] { 20f, 150f, 400f })

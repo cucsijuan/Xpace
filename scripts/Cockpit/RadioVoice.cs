@@ -84,9 +84,9 @@ public partial class RadioVoice : AudioStreamPlayer
         _playback = GetStreamPlayback() as AudioStreamGeneratorPlayback;
     }
 
-    public override void _ExitTree()
+    public override void _Notification(int what)
     {
-        if (_radio != null)
+        if (what == NotificationPredelete && _radio != null)
             _radio.MessageHeard -= OnMessage;
     }
 

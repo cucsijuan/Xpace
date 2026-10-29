@@ -54,7 +54,7 @@ public partial class DockingTest : Node3D
         Check($"the station has its docks numbered ({docks.Length})", docks.Length == 4 && docks.Select(d => d.Number).SequenceEqual(new[] { 1, 2, 3, 4 }));
         Check("the doors start shut and dark", docks.All(d => d.Door.At == 0 && !d.Beacon.Visible));
         HangarDock any = docks[0];
-        Check("shut, a door stops the way in", Obstacles.Segment(any.ApproachPoint, any.InsidePoint, out _, out _));
+        Check("shut, a door stops the way in", Obstacles.Segment(Sectors.WorldOf(this), any.ApproachPoint, any.InsidePoint, out _, out _));
 
         Check("COMMS.COM is resident", await Until(() => _ship.Computer.ScreenText().Contains("Radio resident"), 60));
         await Seconds(0.5);
@@ -73,9 +73,9 @@ public partial class DockingTest : Node3D
               dock.Beacon.Visible && dock.Door.Open == 1 && docks.Where(d => d != dock).All(d => d.Door.Open == 0 && !d.Beacon.Visible));
         await Seconds(4);
         Check($"slowly ({dock.Door.At:0.00} open after 4 s), and still in the way", dock.Door.At > 0.2f && dock.Door.At < 0.5f
-              && Obstacles.Segment(dock.ApproachPoint, dock.InsidePoint, out _, out _));
+              && Obstacles.Segment(Sectors.WorldOf(this), dock.ApproachPoint, dock.InsidePoint, out _, out _));
         await Seconds(10);
-        bool blocked = Obstacles.Segment(dock.ApproachPoint, dock.InsidePoint, out float along, out _);
+        bool blocked = Obstacles.Segment(Sectors.WorldOf(this), dock.ApproachPoint, dock.InsidePoint, out float along, out _);
         Check($"open, the way in is clear{(blocked ? $" (blocked at {along:0.00})" : "")}", dock.Door.At == 1 && !blocked);
 
         await Key(DisplayKey.Select);

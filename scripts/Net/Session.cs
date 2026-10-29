@@ -85,7 +85,14 @@ public static class NetIds
 ///   recent answers says it is two ticks or more off (at once on the first
 ///   answer: until then a guest sends and takes no snapshots);
 /// - something made for another machine's player ship or spawned thing and
-///   silent for <see cref="ForgetSeconds"/> is gone (its owner left).
+///   silent for <see cref="ForgetSeconds"/> is gone (its owner left);
+/// - everything is in a sector (its place: the sector's number in the map).
+///   A machine says where its player goes (<see cref="Move"/>), and the host
+///   tells everyone. The host runs every sector a player is in and shows
+///   everything; a guest shows only what is in its player's sector (it keeps
+///   what was spawned elsewhere, for when it goes there). Snapshots, rounds,
+///   blasts and drops go only to the machines whose player is in their sector,
+///   and the host's judge only lets rounds and blasts meet ships of theirs.
 ///
 /// The host takes from a guest only what that guest owns.
 /// Plain code, no nodes: <see cref="SessionNode"/> joins it to the game.
@@ -96,7 +103,7 @@ public sealed class Session
     private const byte KindSnapshot = 1, KindFire = 2, KindHit = 3, KindPing = 4, KindPong = 5,
                        KindSpawn = 6, KindDespawn = 7, KindBlast = 8, KindDrop = 9, KindDelta = 10, KindAck = 11, KindRadio = 12,
                        KindRadioState = 13, KindRequest = 14, KindCleared = 15, KindDock = 16, KindPilot = 17, KindDocument = 18,
-                       KindAsk = 19, KindWalker = 20;
+                       KindAsk = 19, KindWalker = 20, KindPlace = 21;
 
     /// <summary>A document for a guest goes in parts of at most this many bytes (EOS carries 1170 a packet).</summary>
     public const int PartBytes = 1000;
@@ -113,6 +120,15 @@ public sealed class Session
 
     /// <summary>This machine's tick is the host's (always, on the host).</summary>
     public bool Synced { get; private set; }
+
+    /// <summary>The sector this machine's player is in (its number in the map).</summary>
+    public byte Place { get; private set; }
+
+    /// <summary>Something went to another sector (its id, its sector), this machine's player included.</summary>
+    public event Action<ushort, byte> Moved;
+
+    /// <summary>Something shown here is in another sector now (or, on a guest, this machine's player is): take what shows it away.</summary>
+    public event Action<INetEntity> Left;
 
     /// <summary>The last ping's round trip, in ticks (guests).</summary>
     public uint RoundTrip { get; private set; }
@@ -186,7 +202,8 @@ public sealed class Session
     private readonly Dictionary<ushort, INetEntity> _entities = new();
     private readonly Dictionary<ushort, RemoteTrack> _histories = new();   // the host's past of its own entities
     private readonly Dictionary<ushort, uint> _heard = new();              // made for others' things: the tick last heard
-    private readonly Dictionary<ushort, byte> _spawned = new();            // the host: what flies that was spawned, and its scene
+    private readonly Dictionary<ushort, byte> _spawned = new();            // what flies that was spawned, and its scene (a guest: others' too, shown or not)
+    private readonly Dictionary<ushort, byte> _places = new();             // where everything heard of is
     private readonly HashSet<byte> _known = new();                         // the host: peers already told of it
     private readonly List<(uint Trip, int Offset)> _pings = new();
     private readonly Dictionary<ushort, List<ShipSnapshot.Wire>> _sent = new();       // what goes out of each, newest last
@@ -202,6 +219,7 @@ public sealed class Session
     private WalkerState? _walking;
     private bool _walked;
     private ushort _sequence, _documents;
+    private uint _now;                                                      // the last tick
     private ushort _nextDynamic = NetIds.FirstDynamic;
 
     public Session(byte localPeer, INetTransport transport)
@@ -211,9 +229,93 @@ public sealed class Session
         Synced = IsHost;
         if (IsHost)
         {
-            Judge = new LagCompensator();
+            Judge = new LagCompensator { PlaceOf = PlaceOf };
             Judge.Hit += Verdict;
         }
+    }
+
+    /// <summary>The sector something is in (unheard of: the first).</summary>
+    public byte PlaceOf(ushort id) => _places.GetValueOrDefault(id);
+
+    /// <summary>The sectors a player is in (this machine's and those heard of).</summary>
+    public IEnumerable<byte> Occupied
+    {
+        get
+        {
+            var places = new HashSet<byte> { Place };
+            foreach (byte peer in _transport.Peers)
+                places.Add(PlaceOf(NetIds.PlayerShip(peer)));
+            return places;
+        }
+    }
+
+    // The machines whose player is in that sector (the host's peers; a guest's only peer is the host)
+    private IEnumerable<byte> PeersIn(byte place)
+    {
+        foreach (byte peer in _transport.Peers)
+            if (!IsHost || PlaceOf(NetIds.PlayerShip(peer)) == place)
+                yield return peer;
+    }
+
+    /// <summary>
+    /// This machine's player is in that sector now (and says so at the start).
+    /// A guest stops showing what is not there and shows what was spawned there.
+    /// </summary>
+    public void Move(byte place)
+    {
+        Place = place;
+        ushort me = NetIds.PlayerShip(LocalPeer);
+        _places[me] = place;
+        byte[] body = PlaceBody(me, place);
+        if (IsHost)
+            Broadcast(KindPlace, body, reliable: true, except: null);
+        else
+        {
+            Send(HostPeer, KindPlace, body, reliable: true);
+            foreach (INetEntity e in new List<INetEntity>(_entities.Values))
+                if (!e.IsLocal && PlaceOf(e.NetId) != place)
+                    Hide(e);
+            foreach ((ushort id, byte scene) in new List<KeyValuePair<ushort, byte>>(_spawned).ConvertAll(k => (k.Key, k.Value)))
+                if (PlaceOf(id) == place)
+                    Show(id, scene, _now);
+        }
+        Moved?.Invoke(me, place);
+    }
+
+    /// <summary>Something of this machine's other than its player's ship (a ship the host flies) is in that sector now.</summary>
+    public void Move(ushort id, byte place)
+    {
+        if (id == NetIds.PlayerShip(LocalPeer))
+        {
+            Move(place);
+            return;
+        }
+        _places[id] = place;
+        if (IsHost)
+            Broadcast(KindPlace, PlaceBody(id, place), reliable: true, except: null);
+        else
+            Send(HostPeer, KindPlace, PlaceBody(id, place), reliable: true);
+        Moved?.Invoke(id, place);
+    }
+
+    // Something shown here is not shown any more (it is in another sector), but still known
+    private void Hide(INetEntity e)
+    {
+        ushort id = e.NetId;
+        _entities.Remove(id);
+        _heard.Remove(id);
+        _got.Remove(id);
+        Judge?.Unregister(id);
+        Left?.Invoke(e);
+    }
+
+    // A guest: something spawned elsewhere is shown, now that it is here
+    private void Show(ushort id, byte scene, uint now)
+    {
+        if (_entities.ContainsKey(id) || SpawnDynamic?.Invoke(id, scene) is not INetEntity made)
+            return;
+        Add(made);
+        _heard[id] = now;
     }
 
     public IEnumerable<INetEntity> Entities => _entities.Values;
@@ -223,8 +325,12 @@ public sealed class Session
 
     public INetEntity Entity(ushort id) => _entities.GetValueOrDefault(id);
 
-    public void Add(INetEntity e)
+    public void Add(INetEntity e) => Add(e, e.IsLocal && !_places.ContainsKey(e.NetId) ? Place : PlaceOf(e.NetId));
+
+    /// <summary>Something joins in a sector (a ship the host flies in a sector it runs for a guest).</summary>
+    public void Add(INetEntity e, byte place)
     {
+        _places[e.NetId] = place;
         _entities[e.NetId] = e;
         if (!IsHost)
             return;
@@ -237,6 +343,7 @@ public sealed class Session
     public void Remove(ushort id)
     {
         _entities.Remove(id);
+        _places.Remove(id);
         _radios.Remove(id);
         _histories.Remove(id);
         _heard.Remove(id);
@@ -263,10 +370,13 @@ public sealed class Session
     }
 
     /// <summary>Something made here joins the session (its id from <see cref="NewDynamicId"/>); the others make <paramref name="scene"/> to show it.</summary>
-    public void Spawn(INetEntity e, byte scene)
+    public void Spawn(INetEntity e, byte scene) => Spawn(e, scene, Place);
+
+    /// <summary>The same, in a sector (the host makes ships in every sector it runs).</summary>
+    public void Spawn(INetEntity e, byte scene, byte place)
     {
-        Add(e);
-        byte[] body = SpawnBody(e.NetId, scene);
+        Add(e, place);
+        byte[] body = SpawnBody(e.NetId, scene, place);
         if (IsHost)
         {
             _spawned[e.NetId] = scene;
@@ -290,12 +400,12 @@ public sealed class Session
             Send(HostPeer, KindDespawn, body, reliable: true);
     }
 
-    /// <summary>The views this machine has of everything that can be hit: how late it shows each.</summary>
-    private List<FireEvent.View> Views(uint now)
+    /// <summary>The views this machine has of everything in a sector that can be hit: how late it shows each.</summary>
+    private List<FireEvent.View> Views(uint now, byte place)
     {
         var views = new List<FireEvent.View>();
         foreach (INetEntity e in _entities.Values)
-            if (!e.IsLocal && e.Hitboxes.Length > 0 && e.Track.ShownTick is double shown && views.Count < FireEvent.MaxViews)
+            if (!e.IsLocal && PlaceOf(e.NetId) == place && e.Hitboxes.Length > 0 && e.Track.ShownTick is double shown && views.Count < FireEvent.MaxViews)
                 views.Add(new FireEvent.View { Ship = e.NetId, DelayTicks = Math.Max(0, now - shown) });
         return views;
     }
@@ -310,14 +420,14 @@ public sealed class Session
         var fired = new FireEvent
         {
             Shooter = LocalPeer, Ship = ship, Sequence = _sequence++, Tick = now,
-            Origin = origin, Velocity = velocity, Damage = damage, Kind = kind, Views = Views(now),
+            Origin = origin, Velocity = velocity, Damage = damage, Kind = kind, Views = Views(now, PlaceOf(ship)),
         };
         byte[] bytes = fired.ToBytes();
         FireEvent sent = FireEvent.Read(new BitReader(bytes));
         if (IsHost)
         {
-            Judge.Fire(sent);
-            Broadcast(KindFire, bytes, reliable: true, except: null);
+            Judge.Fire(sent, PlaceOf(ship));
+            Relay(PlaceOf(ship), KindFire, bytes, except: null);
         }
         else
             Send(HostPeer, KindFire, bytes, reliable: true);
@@ -336,11 +446,11 @@ public sealed class Session
         {
             Shooter = LocalPeer, Sequence = _sequence++, Tick = now, TickFraction = fraction, Position = at,
             Damage = damage, LethalRadius = lethalRadius, BlastRadius = blastRadius, Missile = missile,
-            Ship = ship ?? NetIds.PlayerShip(LocalPeer), Views = Views(now),
+            Ship = ship ?? NetIds.PlayerShip(LocalPeer), Views = Views(now, PlaceOf(missile)),
         };
         byte[] bytes = blast.ToBytes();
         if (IsHost)
-            Judge.Blast(BlastEvent.Read(new BitReader(bytes)));
+            Judge.Blast(BlastEvent.Read(new BitReader(bytes)), PlaceOf(missile));
         else
             Send(HostPeer, KindBlast, bytes, reliable: true);
     }
@@ -510,11 +620,14 @@ public sealed class Session
     }
 
     /// <summary>A ship here threw out something that flies on its own (<paramref name="scene"/>); everyone else makes it.</summary>
-    public void Drop(uint now, byte scene, SectorPoint at, Vector3 velocity)
+    public void Drop(uint now, byte scene, SectorPoint at, Vector3 velocity) => Drop(now, scene, at, velocity, Place);
+
+    /// <summary>The same, in a sector (the host's ships throw things in every sector it runs).</summary>
+    public void Drop(uint now, byte scene, SectorPoint at, Vector3 velocity, byte place)
     {
-        byte[] bytes = new DropEvent { Dropper = LocalPeer, Scene = scene, Tick = now, Position = at, Velocity = velocity }.ToBytes();
+        byte[] bytes = new DropEvent { Dropper = LocalPeer, Place = place, Scene = scene, Tick = now, Position = at, Velocity = velocity }.ToBytes();
         if (IsHost)
-            Broadcast(KindDrop, bytes, reliable: true, except: null);
+            Relay(place, KindDrop, bytes, except: null);
         else
             Send(HostPeer, KindDrop, bytes, reliable: true);
     }
@@ -522,6 +635,7 @@ public sealed class Session
     /// <summary>One sector tick: what arrived, the snapshots out, the rounds judged.</summary>
     public void Tick(uint now)
     {
+        _now = now;
         while (_transport.Poll(out byte peer, out byte[] packet))
             if (packet.Length > 0)
                 try
@@ -552,7 +666,7 @@ public sealed class Session
                 ShipSnapshot.Wire wire = s.Encode();
                 Keep(_sent, e.NetId, wire);
                 if (IsHost)
-                    foreach (byte peer in _transport.Peers)
+                    foreach (byte peer in PeersIn(PlaceOf(e.NetId)))
                         SendSnapshot(peer, e.NetId, wire);
                 else
                     SendSnapshot(HostPeer, e.NetId, wire);
@@ -613,9 +727,12 @@ public sealed class Session
                 foreach ((byte Peer, ushort) key in new List<(byte, ushort)>(_acked.Keys))
                     if (key.Peer == peer)
                         _acked.Remove(key);         // a new guest with an old one's number has none of it
+                foreach ((ushort id, byte place) in _places)
+                    if (NetIds.IsPlayerShip(id) && NetIds.Owner(id) != peer)
+                        Send(peer, KindPlace, PlaceBody(id, place), reliable: true);
                 foreach ((ushort id, byte scene) in _spawned)
                     if (NetIds.Owner(id) != peer)
-                        Send(peer, KindSpawn, SpawnBody(id, scene), reliable: true);
+                        Send(peer, KindSpawn, SpawnBody(id, scene, PlaceOf(id)), reliable: true);
                 foreach ((ushort id, byte[] radio) in _radios)
                     if (NetIds.Owner(id) != peer)
                         Send(peer, KindRadioState, radio, reliable: true);
@@ -707,7 +824,7 @@ public sealed class Session
                     Ack(peer, id, wire.Tick);
                 ShipSnapshot s = wire.Decode();
                 INetEntity e = _entities.GetValueOrDefault(id);
-                if (e == null && NetIds.IsPlayerShip(id) && SpawnRemote?.Invoke(id) is INetEntity spawned)
+                if (e == null && NetIds.IsPlayerShip(id) && (IsHost || PlaceOf(id) == Place) && SpawnRemote?.Invoke(id) is INetEntity spawned)
                 {
                     Add(e = spawned);
                     _heard[id] = now;
@@ -720,7 +837,7 @@ public sealed class Session
                 if (IsHost)
                 {
                     Keep(_sent, id, wire);
-                    foreach (byte other in _transport.Peers)
+                    foreach (byte other in PeersIn(PlaceOf(id)))
                         if (other != peer)
                             SendSnapshot(other, id, wire);
                 }
@@ -746,8 +863,8 @@ public sealed class Session
                 {
                     if (fired.Shooter != peer || !theirs(fired.Ship))
                         return;                     // a guest only fires its own rounds
-                    Judge.Fire(fired);
-                    Broadcast(KindFire, body, reliable: true, except: peer);
+                    Judge.Fire(fired, PlaceOf(fired.Ship));
+                    Relay(PlaceOf(fired.Ship), KindFire, body, except: peer);
                 }
                 if (fired.Shooter != LocalPeer)
                     RoundFired?.Invoke(fired);
@@ -784,22 +901,18 @@ public sealed class Session
 
             case KindSpawn:
             {
-                if (body.Length != 3)
+                if (body.Length != 4)
                     return;
                 ushort id = BitConverter.ToUInt16(body, 0);
-                byte scene = body[2];
+                byte scene = body[2], place = body[3];
                 if (!theirs(id) || !NetIds.IsDynamic(id) || NetIds.Owner(id) == LocalPeer || _entities.ContainsKey(id))
                     return;
+                _spawned[id] = scene;
+                _places[id] = place;
                 if (IsHost)
-                {
-                    _spawned[id] = scene;
                     Broadcast(KindSpawn, body, reliable: true, except: peer);
-                }
-                if (SpawnDynamic?.Invoke(id, scene) is INetEntity made)
-                {
-                    Add(made);
-                    _heard[id] = now;
-                }
+                if (IsHost || place == Place)
+                    Show(id, scene, now);
                 break;
             }
 
@@ -810,11 +923,11 @@ public sealed class Session
                 ushort id = BitConverter.ToUInt16(body, 0);
                 if (!theirs(id) || NetIds.Owner(id) == LocalPeer)
                     return;
+                _spawned.Remove(id);
                 if (IsHost)
-                {
-                    _spawned.Remove(id);
                     Broadcast(KindDespawn, body, reliable: true, except: peer);
-                }
+                else if (!_entities.ContainsKey(id))
+                    _places.Remove(id);             // spawned and ended elsewhere: never shown here
                 if (_entities.GetValueOrDefault(id) is INetEntity e)
                 {
                     _heard.Remove(id);              // it said goodbye: not forgotten, ended
@@ -828,7 +941,7 @@ public sealed class Session
                 {
                     BlastEvent blast = BlastEvent.Read(new BitReader(body));
                     if (blast.Shooter == peer && theirs(blast.Missile) && theirs(blast.Ship))
-                        Judge.Blast(blast);
+                        Judge.Blast(blast, PlaceOf(blast.Missile));
                 }
                 break;
 
@@ -955,10 +1068,34 @@ public sealed class Session
                 {
                     if (drop.Dropper != peer)
                         return;
-                    Broadcast(KindDrop, body, reliable: true, except: peer);
+                    Relay(drop.Place, KindDrop, body, except: peer);
                 }
-                if (drop.Dropper != LocalPeer)
+                if (drop.Dropper != LocalPeer && (IsHost || drop.Place == Place))
                     Dropped?.Invoke(drop);
+                break;
+            }
+
+            case KindPlace:
+            {
+                if (body.Length != 3)
+                    return;
+                ushort id = BitConverter.ToUInt16(body, 0);
+                byte place = body[2];
+                if (!theirs(id) || NetIds.Owner(id) == LocalPeer)
+                    return;
+                bool moved = !_places.TryGetValue(id, out byte was) || was != place;
+                _places[id] = place;
+                if (IsHost)
+                    Broadcast(KindPlace, body, reliable: true, except: peer);
+                if (!moved)
+                    return;
+                // What showed it is in the sector it left: the host makes it again in the new one (a player's ship with
+                // its next snapshot), a guest only if that is its player's
+                if (_entities.GetValueOrDefault(id) is INetEntity shown && !shown.IsLocal)
+                    Hide(shown);
+                if ((IsHost || place == Place) && _spawned.TryGetValue(id, out byte scene))
+                    Show(id, scene, now);
+                Moved?.Invoke(id, place);
                 break;
             }
         }
@@ -1051,11 +1188,20 @@ public sealed class Session
         }
     }
 
-    private static byte[] SpawnBody(ushort id, byte scene)
+    private static byte[] SpawnBody(ushort id, byte scene, byte place)
+    {
+        var body = new byte[4];
+        BitConverter.GetBytes(id).CopyTo(body, 0);
+        body[2] = scene;
+        body[3] = place;
+        return body;
+    }
+
+    private static byte[] PlaceBody(ushort id, byte place)
     {
         var body = new byte[3];
         BitConverter.GetBytes(id).CopyTo(body, 0);
-        body[2] = scene;
+        body[2] = place;
         return body;
     }
 
@@ -1074,6 +1220,14 @@ public sealed class Session
         packet[0] = kind;
         body.CopyTo(packet, 1);
         _transport.Send(peer, packet, reliable);
+    }
+
+    // To the machines whose player is in that sector, reliably
+    private void Relay(byte place, byte kind, byte[] body, byte? except)
+    {
+        foreach (byte peer in PeersIn(place))
+            if (peer != except)
+                Send(peer, kind, body, reliable: true);
     }
 
     private void Broadcast(byte kind, byte[] body, bool reliable, byte? except)

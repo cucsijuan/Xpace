@@ -145,7 +145,14 @@ public partial class ShipComputer : Node, IRearmable
         _driveWas = light;
     }
 
-    public override void _ExitTree()
+    // Torn down when freed, not when it leaves the tree: a ship moved to another sector leaves and enters again, whole
+    public override void _Notification(int what)
+    {
+        if (what == NotificationPredelete)
+            Destroy();
+    }
+
+    private void Destroy()
     {
         if (_pc == IntPtr.Zero)
             return;

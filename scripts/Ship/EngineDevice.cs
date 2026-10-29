@@ -92,8 +92,10 @@ public partial class EngineDevice : Node, IShipDevice, IRearmable
         Rearm();
     }
 
-    public override void _ExitTree()
+    public override void _Notification(int what)
     {
+        if (what != NotificationPredelete)
+            return;
         _mcu?.Dispose();
         _mcu = null;
     }

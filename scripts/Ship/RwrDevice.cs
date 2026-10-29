@@ -146,10 +146,10 @@ public partial class RwrDevice : Node3D, IShipDevice
             _contacts.Clear();
         else
         {
-            foreach (Node node in GetTree().GetNodesInGroup("radar_emitters"))
+            foreach (Node node in Sectors.InGroup(this, "radar_emitters"))
                 if (node is IRadarEmitter e && !ship.IsAncestorOf(node))
                     Listen(ship, e, (float)delta);
-            foreach (Node node in GetTree().GetNodesInGroup("missiles"))
+            foreach (Node node in Sectors.InGroup(this, "missiles"))
                 if (node is Missile m && m.Shooter != ship)
                     Watch(ship, m, (float)delta);
         }

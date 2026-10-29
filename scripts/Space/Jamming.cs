@@ -55,10 +55,10 @@ public static class Jamming
     /// (<paramref name="own"/> carries it) is not counted: the radar is
     /// blanked while it sends.
     /// </summary>
-    public static float Noise(SceneTree tree, Vector3 radar, Vector3 lookingAt, float beam, float sidelobe, IRadarTarget own)
+    public static float Noise(Node where, Vector3 radar, Vector3 lookingAt, float beam, float sidelobe, IRadarTarget own)
     {
         float jn = 0;
-        foreach (Node node in tree.GetNodesInGroup("jammers"))
+        foreach (Node node in Sectors.InGroup(where, "jammers"))
         {
             if (node is not IJammer j || (own != null && j.Carrier == own) || node is Node3D { Visible: false })
                 continue;

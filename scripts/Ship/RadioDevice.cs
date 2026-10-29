@@ -214,7 +214,7 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
 
         _contacts.Clear();
         if (On)
-            foreach (IRadio r in Radio.All(GetTree()))
+            foreach (IRadio r in Radio.All(this))
                 if (!ReferenceEquals(r, this) && Radio.Hears(this, r))
                     _contacts.Add(r);
         _contacts.Sort((a, b) => Distance(a).CompareTo(Distance(b)));

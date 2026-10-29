@@ -55,9 +55,9 @@ public static class Radio
     public const string Group = "radios";
     public const int CallsignLength = 8;
 
-    public static IEnumerable<IRadio> All(SceneTree tree)
+    public static IEnumerable<IRadio> All(Node where)
     {
-        foreach (Node node in tree.GetNodesInGroup(Group))
+        foreach (Node node in Sectors.InGroup(where, Group))
             if (node is IRadio radio && node is Node3D n && n.IsVisibleInTree())
                 yield return radio;
     }

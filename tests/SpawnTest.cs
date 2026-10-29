@@ -46,6 +46,8 @@ public partial class SpawnTest : Node
         await AsHost();
         await AsGuest();
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
+        System.GC.Collect();
+        System.GC.WaitForPendingFinalizers();
         GetTree().Quit(_failures == 0 ? 0 : 1);
     }
 

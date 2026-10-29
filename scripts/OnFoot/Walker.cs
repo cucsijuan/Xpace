@@ -255,7 +255,7 @@ public partial class Walker : CharacterBody3D
         float dt = (float)delta;
         Offered = null;
         Prompt = "";
-        foreach (Node n in Busy ? new Godot.Collections.Array<Node>() : GetTree().GetNodesInGroup(UsesGroup))
+        foreach (Node n in Busy ? new Godot.Collections.Array<Node>() : Space.Sectors.InGroup(this, UsesGroup))
             if (n is IWalkerUse use && use.Offer(this) is string offer)
             {
                 Offered = use;

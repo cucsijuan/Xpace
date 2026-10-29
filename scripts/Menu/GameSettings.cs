@@ -139,20 +139,27 @@ public partial class GameSettings : Node
                     break;
             }
             DisplayServer.WindowSetVsyncMode(VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
-            Viewport root = GetTree().Root;
-            root.Scaling3DScale = Window == WindowKind.Windowed ? 1 : Mathf.Clamp((float)Resolution.Y / screen.Y, 0.25f, 2f);
-            root.Msaa3D = Antialiasing switch
-            {
-                Antialiasing.Msaa2 => Viewport.Msaa.Msaa2X,
-                Antialiasing.Msaa4 => Viewport.Msaa.Msaa4X,
-                Antialiasing.Msaa8 => Viewport.Msaa.Msaa8X,
-                _ => Viewport.Msaa.Disabled,
-            };
-            root.ScreenSpaceAA = Antialiasing == Antialiasing.Fxaa ? Viewport.ScreenSpaceAAEnum.Fxaa : Viewport.ScreenSpaceAAEnum.Disabled;
-            root.UseTaa = Antialiasing == Antialiasing.Taa;
+            ApplyTo(GetTree().Root);
             ApplyEffects();
         }
         Changed?.Invoke();
+    }
+
+    /// <summary>The 3D picture's settings on a viewport: the window's, or a sector's (<see cref="Space.SectorHost"/>).</summary>
+    public void ApplyTo(Viewport view)
+    {
+        if (Headless)
+            return;
+        view.Scaling3DScale = Window == WindowKind.Windowed ? 1 : Mathf.Clamp((float)Resolution.Y / Screen.Y, 0.25f, 2f);
+        view.Msaa3D = Antialiasing switch
+        {
+            Antialiasing.Msaa2 => Viewport.Msaa.Msaa2X,
+            Antialiasing.Msaa4 => Viewport.Msaa.Msaa4X,
+            Antialiasing.Msaa8 => Viewport.Msaa.Msaa8X,
+            _ => Viewport.Msaa.Disabled,
+        };
+        view.ScreenSpaceAA = Antialiasing == Antialiasing.Fxaa ? Viewport.ScreenSpaceAAEnum.Fxaa : Viewport.ScreenSpaceAAEnum.Disabled;
+        view.UseTaa = Antialiasing == Antialiasing.Taa;
     }
 
     /// <summary>The effects' quality, for every scene (turning them on and off is each scene's QualityEnvironment).</summary>

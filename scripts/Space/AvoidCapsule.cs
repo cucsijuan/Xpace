@@ -23,7 +23,14 @@ public partial class AvoidCapsule : Node3D
 
     public static readonly List<AvoidCapsule> All = new();
 
-    public override void _EnterTree() => All.Add(this);
+    /// <summary>The sector it is in.</summary>
+    public World3D World { get; private set; }
+
+    public override void _EnterTree()
+    {
+        World = GetWorld3D();
+        All.Add(this);
+    }
     public override void _ExitTree() => All.Remove(this);
 
     /// <summary>
@@ -91,12 +98,12 @@ public partial class AvoidCapsule : Node3D
     }
 
     /// <summary>The nearest any capsule meets a segment, leaving out the capsules below <paramref name="entering"/>.</summary>
-    public static bool SegmentAll(Vector3 from, Vector3 to, out float along, float thickness, Node entering)
+    public static bool SegmentAll(World3D world, Vector3 from, Vector3 to, out float along, float thickness, Node entering)
     {
         along = 1;
         bool hit = false;
         foreach (AvoidCapsule c in All)
-            if (!(entering != null && IsInstanceValid(entering) && entering.IsAncestorOf(c)) && c.Segment(from, to, out float t, thickness) && t < along)
+            if (c.World == world && !(entering != null && IsInstanceValid(entering) && entering.IsAncestorOf(c)) && c.Segment(from, to, out float t, thickness) && t < along)
             {
                 along = t;
                 hit = true;

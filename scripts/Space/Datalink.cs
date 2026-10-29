@@ -36,7 +36,7 @@ public partial class Datalink : Node
 
     /// <summary>The others on this link's channel that are talking (not this ship).</summary>
     public IEnumerable<Datalink> Others() =>
-        GetTree().GetNodesInGroup("datalinks").OfType<Datalink>().Where(d => d != this && d.Channel == Channel && d.Alive);
+        Sectors.InGroup(this, "datalinks").OfType<Datalink>().Where(d => d != this && d.Channel == Channel && d.Alive);
 
     /// <summary>Whether a ship is on this link's channel (it says so: a friend's missile is one it says it fired).</summary>
     public bool Knows(Node ship) =>

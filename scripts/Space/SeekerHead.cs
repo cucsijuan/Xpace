@@ -28,9 +28,9 @@ public sealed class SeekerHead
     public bool Tone => HeatSeen >= Sensitivity;
 
     /// <summary>Looks, and turns toward the centre of the heat it sees. False if it sees nothing to follow.</summary>
-    public bool Track(SceneTree tree, Vector3 from, Vector3 nose, float dt)
+    public bool Track(Node where, Vector3 from, Vector3 nose, float dt)
     {
-        Vector3 centre = Scan(tree, from);
+        Vector3 centre = Scan(where, from);
         if (!Tone)
             return false;
         Vector3 look = Turned(centre, dt);
@@ -41,17 +41,17 @@ public sealed class SeekerHead
     }
 
     /// <summary>Turns toward a direction it is told (caged, or cued), as far as the stops allow, then looks.</summary>
-    public void Point(SceneTree tree, Vector3 from, Vector3 nose, Vector3 to, float dt)
+    public void Point(Node where, Vector3 from, Vector3 nose, Vector3 to, float dt)
     {
         Vector3 look = Turned(to, dt);
         if (look.AngleTo(nose) <= Mathf.DegToRad(GimbalLimitDegrees))
             Look = look;
-        Scan(tree, from);
+        Scan(where, from);
     }
 
-    private Vector3 Scan(SceneTree tree, Vector3 from)
+    private Vector3 Scan(Node where, Vector3 from)
     {
-        HeatSeen = Heat.Scan(tree, from, Look, Mathf.DegToRad(FieldDegrees) / 2, out Vector3 centre, out IHeatSource brightest);
+        HeatSeen = Heat.Scan(where, from, Look, Mathf.DegToRad(FieldDegrees) / 2, out Vector3 centre, out IHeatSource brightest);
         Sees = HeatSeen >= Sensitivity ? brightest : null;
         return centre;
     }

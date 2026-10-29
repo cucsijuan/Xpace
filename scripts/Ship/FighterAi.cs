@@ -273,7 +273,7 @@ public partial class FighterAi : Node
     {
         if (Police != null)
             return Police.Hostiles.Any(h => h.GlobalPosition.DistanceTo(point) < FriendGate);
-        return !RespectsZones || (StationRadio.ProtectingAt(point) == null && StationRadio.ProtectingAt(_ship.GlobalPosition) == null);
+        return !RespectsZones || (StationRadio.ProtectingAt(_ship.GetWorld3D(), point) == null && StationRadio.ProtectingAt(_ship.GetWorld3D(), _ship.GlobalPosition) == null);
     }
 
     /// <summary>Through the route's points in turn, slowing for the last.</summary>
@@ -371,7 +371,7 @@ public partial class FighterAi : Node
             var way = new Vector3(_rng.RandfRange(-1, 1), _rng.RandfRange(-0.3f, 0.3f), _rng.RandfRange(-1, 1)).Normalized();
             _waypoint = _anchor + way * _rng.RandfRange(0.4f, 1f) * PatrolRadius;
             if (RespectsZones && Police == null)
-                _waypoint = StationRadio.Outside(_waypoint);
+                _waypoint = StationRadio.Outside(_ship.GetWorld3D(), _waypoint);
             _hasWaypoint = true;
         }
         Steer(ref c, _ship.GlobalBasis.Inverse() * (_waypoint - _ship.GlobalPosition));

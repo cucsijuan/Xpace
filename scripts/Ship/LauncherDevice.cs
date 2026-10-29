@@ -91,7 +91,11 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
         _head.Look = -GlobalBasis.Z;
     }
 
-    public override void _ExitTree() => _railHead?.Free();
+    public override void _Notification(int what)
+    {
+        if (what == NotificationPredelete)
+            _railHead?.Free();
+    }
 
     /// <summary>A full load again (a new ship, a resupply).</summary>
     public void Rearm()
@@ -175,9 +179,9 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
         if (!HeadPowered)
             _head.Look = nose;
         else if (_radar?.Locked != null)
-            _head.Point(GetTree(), GlobalPosition, nose, ToTrack, dt);
-        else if (!_head.Track(GetTree(), GlobalPosition, nose, dt))
-            _head.Point(GetTree(), GlobalPosition, nose, nose, dt);
+            _head.Point(this, GlobalPosition, nose, ToTrack, dt);
+        else if (!_head.Track(this, GlobalPosition, nose, dt))
+            _head.Point(this, GlobalPosition, nose, nose, dt);
         _toneFor = HeatTone ? _toneFor + delta : 0;
     }
 

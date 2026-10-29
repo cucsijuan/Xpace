@@ -130,6 +130,9 @@ public partial class NetBody : Node, INetEntity
     private bool _endExploded;
     private int _endWait;
 
+    // Again when its ship moves to another sector: positions are that sector's
+    public override void _EnterTree() => _origin = FloatingOrigin.Of(GetParent());
+
     public override void _Ready()
     {
         Ship = GetParent<Node3D>();
@@ -141,9 +144,9 @@ public partial class NetBody : Node, INetEntity
             World.Universe.Current?.Board(Ship);
     }
 
-    public override void _ExitTree()
+    public override void _Notification(int what)
     {
-        if (OwnedBy == NetOwner.Pilot && Ship != null)
+        if (what == NotificationPredelete && OwnedBy == NetOwner.Pilot && Ship != null)
             World.Universe.Current?.Leave(Ship);
     }
 

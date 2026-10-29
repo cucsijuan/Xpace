@@ -118,7 +118,14 @@ public partial class StationRadio : Node3D, IRadio
     private List<HangarDock> _docks = new();
     private double _now;
 
-    public override void _EnterTree() => All.Add(this);
+    /// <summary>The sector it is in.</summary>
+    public World3D World { get; private set; }
+
+    public override void _EnterTree()
+    {
+        World = GetWorld3D();
+        All.Add(this);
+    }
     public override void _ExitTree() => All.Remove(this);
 
     public override void _Ready()
@@ -137,20 +144,20 @@ public partial class StationRadio : Node3D, IRadio
     }
 
     /// <summary>The station whose protected zone holds the point, or null.</summary>
-    public static StationRadio ProtectingAt(Vector3 point)
+    public static StationRadio ProtectingAt(World3D world, Vector3 point)
     {
         foreach (StationRadio s in All)
-            if (s.Protects(point))
+            if (s.World == world && s.Protects(point))
                 return s;
         return null;
     }
 
     /// <summary>The point, or the nearest one outside every protected zone (with a margin) if it is in one.</summary>
-    public static Vector3 Outside(Vector3 point, float margin = 500f)
+    public static Vector3 Outside(World3D world, Vector3 point, float margin = 500f)
     {
         for (int pass = 0; pass < 3; pass++)
         {
-            StationRadio s = ProtectingAt(point);
+            StationRadio s = ProtectingAt(world, point);
             if (s == null)
                 break;
             Vector3 away = point - s.GlobalPosition;
@@ -202,7 +209,7 @@ public partial class StationRadio : Node3D, IRadio
         _now += delta;
         if (Laws == null)
             return;
-        foreach (Node node in GetTree().GetNodesInGroup(Radio.Group))
+        foreach (Node node in Sectors.InGroup(this, Radio.Group))
         {
             if (node is not IRadioReceiver ship || ship.Relayed || !IsInstanceValid(node))
                 continue;

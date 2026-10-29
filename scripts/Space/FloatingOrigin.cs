@@ -27,9 +27,16 @@ public partial class FloatingOrigin : Node3D
 
     private Node3D _ship;
 
+    /// <summary>The ship it keeps near the origin (null: none, as in a sector the player is not in).</summary>
+    public Node3D Ship
+    {
+        get => _ship;
+        set => _ship = value;
+    }
+
     public override void _Ready()
     {
-        _ship = GetNodeOrNull<Node3D>(ShipPath);
+        _ship ??= ShipPath == null || ShipPath.IsEmpty ? null : GetNodeOrNull<Node3D>(ShipPath);
         ProcessPhysicsPriority = 100;           // after everything has moved this step
     }
 
@@ -38,6 +45,15 @@ public partial class FloatingOrigin : Node3D
         if (_ship == null || _ship.GlobalPosition.Length() < Threshold)
             return;
         Shift(_ship.GlobalPosition);
+    }
+
+    /// <summary>The floating origin a node is under (its sector's root), or null.</summary>
+    public static FloatingOrigin Of(Node node)
+    {
+        for (Node n = node; n != null; n = n.GetParent())
+            if (n is FloatingOrigin origin)
+                return origin;
+        return null;
     }
 
     public void Shift(Vector3 offset)
