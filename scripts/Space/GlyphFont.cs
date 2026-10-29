@@ -10,7 +10,7 @@ namespace Xpace.Space;
 /// digit's cell in pixels (<see cref="Cells"/>, as the "01" ... "09" row of
 /// Synty's sign texture). Used by <see cref="HangarMark"/>.
 /// </summary>
-[GlobalClass]
+[GlobalClass, Tool]
 public partial class GlyphFont : Resource
 {
     /// <summary>A picture per digit, 0 to 9.</summary>
