@@ -10,7 +10,7 @@ namespace Xpace.Space;
 /// digit's cell in pixels (<see cref="Cells"/>, as the "01" ... "09" row of
 /// Synty's sign texture). Used by <see cref="HangarMark"/>.
 /// </summary>
-[GlobalClass, Tool]
+[GlobalClass]
 public partial class GlyphFont : Resource
 {
     /// <summary>A picture per digit, 0 to 9.</summary>
@@ -28,25 +28,37 @@ public partial class GlyphFont : Resource
     /// <summary>Gap between characters, a share of their height.</summary>
     [Export] public float Spacing = 0.08f;
 
-    /// <summary>The picture holding a digit and its cell there in UV.</summary>
-    public (Texture2D Texture, Rect2 Uv) Glyph(int digit)
+    // Read through Get, not the fields: in the editor (where HangarMark runs
+    // to show the number) a resource whose script is not a tool's is a
+    // placeholder keeping only these values. A tool resource instead made the
+    // editor crash on exit after exporting the game.
+
+    /// <summary>The picture holding a digit of <paramref name="font"/> and its cell there in UV.</summary>
+    public static (Texture2D Texture, Rect2 Uv) Glyph(Resource font, int digit)
     {
-        if (digit >= 0 && digit < Digits.Length && Digits[digit] != null)
-            return (Digits[digit], new Rect2(0, 0, 1, 1));
-        if (Atlas == null || digit < 0 || digit >= Cells.Count)
+        var digits = font.Get(PropertyName.Digits).AsGodotArray();
+        if (digit >= 0 && digit < digits.Count && digits[digit].As<Texture2D>() is Texture2D picture)
+            return (picture, new Rect2(0, 0, 1, 1));
+        var atlas = font.Get(PropertyName.Atlas).As<Texture2D>();
+        var cells = font.Get(PropertyName.Cells).AsGodotArray();
+        if (atlas == null || digit < 0 || digit >= cells.Count)
             return (null, default);
-        Vector2 size = Atlas.GetSize();
-        Rect2 cell = Cells[digit];
-        return (Atlas, new Rect2(cell.Position / size, cell.Size / size));
+        Vector2 size = atlas.GetSize();
+        Rect2 cell = cells[digit].AsRect2();
+        return (atlas, new Rect2(cell.Position / size, cell.Size / size));
     }
 
     /// <summary>A digit's width over its height.</summary>
-    public float Aspect(int digit)
+    public static float Aspect(Resource font, int digit)
     {
-        var (texture, uv) = Glyph(digit);
+        var (texture, uv) = Glyph(font, digit);
         if (texture == null)
             return 0.6f;
         Vector2 pixels = uv.Size * texture.GetSize();
         return pixels.X / pixels.Y;
     }
+
+    public static bool CoversFromAlpha(Resource font) => font.Get(PropertyName.CoverFromAlpha).AsBool();
+
+    public static float SpacingOf(Resource font) => font.Get(PropertyName.Spacing).AsSingle();
 }

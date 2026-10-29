@@ -17,13 +17,14 @@ namespace Xpace.Space;
 [Tool]
 public partial class HangarMark : Node3D
 {
-    private GlyphFont _font;
+    private Resource _font;
     private int _preview = 1;
     private int _digits = 2;
     private float _height = 9;
     private ShaderMaterial _material;
 
-    [Export] public GlyphFont Font { get => _font; set { _font = value; Build(); } }
+    /// <summary>A <see cref="GlyphFont"/>.</summary>
+    [Export(PropertyHint.ResourceType, nameof(GlyphFont))] public Resource Font { get => _font; set { _font = value; Build(); } }
     [Export] public int Preview { get => _preview; set { _preview = value; Build(); } }
     [Export] public int Digits { get => _digits; set { _digits = value; Build(); } }
     /// <summary>Height of the digits, metres.</summary>
@@ -73,8 +74,8 @@ public partial class HangarMark : Node3D
         }
         string text = Mathf.Max(_shown, 0).ToString().PadLeft(Mathf.Max(_digits, 1), '0');
         int[] digits = text.Select(c => c - '0').ToArray();
-        float gap = _font.Spacing * _height;
-        float width = digits.Sum(d => _font.Aspect(d) * _height) + gap * (digits.Length - 1);
+        float gap = GlyphFont.SpacingOf(_font) * _height;
+        float width = digits.Sum(d => GlyphFont.Aspect(_font, d) * _height) + gap * (digits.Length - 1);
 
         // A surface per picture the digits come from, each with the paint
         // reading that picture.
@@ -82,8 +83,8 @@ public partial class HangarMark : Node3D
         float x = -width / 2;
         foreach (int d in digits)
         {
-            var (texture, uv) = _font.Glyph(d);
-            float w = _font.Aspect(d) * _height;
+            var (texture, uv) = GlyphFont.Glyph(_font, d);
+            float w = GlyphFont.Aspect(_font, d) * _height;
             if (texture != null)
             {
                 if (!surfaces.TryGetValue(texture, out var st))
@@ -103,7 +104,7 @@ public partial class HangarMark : Node3D
             st.Commit(mesh);
             var paint = (ShaderMaterial)_material.Duplicate();
             paint.SetShaderParameter("glyphs", texture);
-            paint.SetShaderParameter("cover_from_alpha", _font.CoverFromAlpha);
+            paint.SetShaderParameter("cover_from_alpha", GlyphFont.CoversFromAlpha(_font));
             mesh.SurfaceSetMaterial(mesh.GetSurfaceCount() - 1, paint);
         }
         _mesh.Mesh = mesh;
