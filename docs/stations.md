@@ -100,6 +100,22 @@ Pads only work inside a hangar with a `HangarDock`. Pads out in the open are not
 
 `tools/station_bay/hangar_preview.tscn` (the hangar alone, with a cruiser and a fighter for scale) and `preview.tscn` (the station) take pictures with a `ViewShots` node into `user://` (they need a window).
 
+## DetailRange
+
+What is not worth drawing from afar. `DetailRange` is a plain node: everything under its parent goes, picture and shadows, past `Range` metres from the camera, except the nodes named in `Keep` and what is under them. Lights fade out over the last 100 m.
+
+`hangar_big.tscn` has one ("Detail", 1000 m): a hangar's inside is most of a station's triangles (over 400,000 of 637,000 for the four) and shows only through an open door. It keeps the doors, the casing, the dock's beacon and the number. New things put in the hangar are covered without further ado; add to `Keep` anything that must show from outside. `FarPlug` is a dark quad in the mouth that starts where the inside ends, so an open door is not a hole through the ring.
+
+Meshes whose names end in `_small` go much sooner (`SmallRange`, 60 m) and cast no shadows. `tools/station_bay/lods.py` makes them, for the loose parts under 50 cm of the hangar's meshes, when `build_hangar.py` runs.
+
+## Levels of detail in a big mesh
+
+The engine picks a mesh's level of detail by the camera's distance to the whole mesh, so a single mesh for a room you stand in is always at its finest. That is why `build_hangar.py` cuts the room into columns 20 m wide (`lods.cut`), each with levels of its own. Keep moving parts whole (`lods.split_small` takes only their small parts). Small props need nothing: their imported levels already work.
+
+## Occluders
+
+`hangar_big.tscn`'s `Occluders` are invisible planes on the room's outer bounds: from inside, what is behind them is not drawn (the other hangars, most of the station); from outside, neither is the room. `Mouth` is on only while the door is quite shut (`HangarDock.DoorOccluder`). An occluder must stand outside everything that can be seen from its side, so anything built past those bounds needs them moved. Occlusion culling is on in each sector's viewport (`GameSettings.ApplyTo`; the project setting is not needed for it); it hides things from the picture, not from shadows.
+
 ## Solid
 
 Every module and part has a `Solid` node: what ships bump into, and what stops rounds, missiles and drones. Its surface is made of triangles, taken from:

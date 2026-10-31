@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ShadowReach" format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/ShadowReach.cs" id="1"]
+
+[resource]
+script = ExtResource("1")
+Near = 8.0
+Middle = 40.0
+Far = 200.0
+Max = 1000.0
+Blur = 1.0

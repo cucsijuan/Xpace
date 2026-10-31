@@ -71,6 +71,10 @@ set(MODELS
   SM_Prop_Wires_05
   SM_Chr_Attach_Crew_Male_Hair_01
   SM_Prop_Stairs_01
+  SM_Veh_WarpGate_Outer_01
+  SM_Veh_WarpGate_Inner_01
+  SM_Veh_WarpGate_Glow_01
+  FX_Meshes/SM_Tunnel_Mesh
 )
 set(TEXTURES
   PolygonSciFiSpace_Texture_01_A
@@ -83,6 +87,7 @@ set(TEXTURES
   FX_Textures/ExplosionCloud
   FX_Textures/SphereGlow
   FX_Textures/Transparent_Line
+  FX_Textures/WindTrail
   FX_Textures/PolygonSciFiSpace_Skybox_04_Front
   FX_Textures/PolygonSciFiSpace_Skybox_04_Back
   FX_Textures/PolygonSciFiSpace_Skybox_04_Left
@@ -100,6 +105,8 @@ set(COLLISIONS
   SM_Ship_Station_06_Collision
   SM_Bld_Hanger_01_Collision
   SM_Bld_HangerFloor_01_Collision
+  SM_Veh_WarpGate_Outer_01_Collision
+  SM_Veh_WarpGate_Inner_01_Collision
 )
 # Out of the Unity package's Models, renamed: every character (bodies, heads,
 # helmets) on one skeleton, which the source files only have one by one

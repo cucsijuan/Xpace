@@ -179,13 +179,19 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     {
         if (t is FalseEcho copy)
             return copy.Snr;
-        Rocks rocks = RocksAround(t);
-        if (rocks.Hidden)
-            return 0;
         Vector3 toTarget = t.GlobalPosition - GlobalPosition;
         float range = MathF.Max(toTarget.Length(), 1f);
         float perSquareMetre = DetectSnr * MathF.Pow(DetectionRange / range, 4) / ReferenceRcs;
-        return perSquareMetre * t.RadarCrossSection / (1 + Jamming(toTarget) + perSquareMetre * rocks.Clutter);
+        float jamming = Jamming(toTarget);
+        float clean = perSquareMetre * t.RadarCrossSection / (1 + jamming);
+        // Too faint to be seen or held even without rocks: what they would take off does not matter (and far out the
+        // beam's cell round the target is kilometres across, thousands of the rock field's cells)
+        if (clean < MathF.Min(DetectSnr, LockSnr) * 0.5f)
+            return clean;
+        Rocks rocks = RocksAround(t);
+        if (rocks.Hidden)
+            return 0;
+        return perSquareMetre * t.RadarCrossSection / (1 + jamming + perSquareMetre * rocks.Clutter);
     }
 
     private struct Rocks

@@ -1,0 +1,68 @@
+[gd_scene load_steps=16 format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/JumpGate.cs" id="1_gate"]
+[ext_resource type="PackedScene" path="res://scenes/fx/transit_tunnel.tscn" id="2_transit"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Veh_WarpGate_Outer_01.fbx" id="3_outer"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Veh_WarpGate_Inner_01.fbx" id="4_inner"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Veh_WarpGate_Glow_01.fbx" id="5_glow"]
+[ext_resource type="Material" path="res://assets/materials/synty_station.tres" id="6_station_paint"]
+[ext_resource type="Material" path="res://assets/materials/warp_gate_glow.tres" id="7_glow_paint"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="8_paint"]
+[ext_resource type="Script" path="res://scripts/Space/WarpTunnel.cs" id="9_tunnel"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Tunnel_Mesh.fbx" id="10_tunnel_mesh"]
+[ext_resource type="Texture2D" path="res://assets/synty/WindTrail.png" id="11_tunnel_texture"]
+[ext_resource type="Script" path="res://scripts/Space/Solid.cs" id="12_solid"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Veh_WarpGate_Outer_01_Collision.fbx" id="13_outer_collision"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Veh_WarpGate_Inner_01_Collision.fbx" id="14_inner_collision"]
+[ext_resource type="Script" path="res://scripts/Space/StationRadio.cs" id="15_radio"]
+[ext_resource type="Resource" path="res://assets/stations/laws/laws_gate.tres" id="16_laws"]
+[ext_resource type="Script" path="res://scripts/Space/StationSecurity.cs" id="17_security"]
+
+[node name="JumpGate" type="Node3D"]
+script = ExtResource("1_gate")
+TunnelScene = ExtResource("2_transit")
+
+[node name="Model" type="Node3D" parent="."]
+transform = Transform3D(0.325, 0, 0, 0, 0, 0.325, 0, -0.325, 0, 0, 0, 0)
+
+[node name="Outer" parent="Model" instance=ExtResource("3_outer")]
+
+[node name="Paint" type="Node" parent="Model/Outer"]
+script = ExtResource("8_paint")
+Material = ExtResource("6_station_paint")
+
+[node name="Inner" parent="Model" instance=ExtResource("4_inner")]
+
+[node name="Paint" type="Node" parent="Model/Inner"]
+script = ExtResource("8_paint")
+Material = ExtResource("6_station_paint")
+
+[node name="Glow" parent="Model" instance=ExtResource("5_glow")]
+
+[node name="Paint" type="Node" parent="Model/Glow"]
+script = ExtResource("8_paint")
+Material = ExtResource("7_glow_paint")
+
+[node name="Tunnel" type="Node3D" parent="."]
+script = ExtResource("9_tunnel")
+Size = 215.0
+Tint = Color(0.22, 0.62, 0.9, 1)
+TunnelModel = ExtResource("10_tunnel_mesh")
+TunnelTexture = ExtResource("11_tunnel_texture")
+
+[node name="OuterSolid" type="Node3D" parent="Model"]
+script = ExtResource("12_solid")
+Shape = ExtResource("13_outer_collision")
+
+[node name="InnerSolid" type="Node3D" parent="Model"]
+script = ExtResource("12_solid")
+Shape = ExtResource("14_inner_collision")
+
+[node name="Radio" type="Node3D" parent="."]
+script = ExtResource("15_radio")
+Laws = ExtResource("16_laws")
+WelcomeText = "Gate control. No weapons within {0} km. Ask for transit before you go through."
+DeniedText = "This is a gate: no docking here."
+
+[node name="Security" type="Node" parent="."]
+script = ExtResource("17_security")

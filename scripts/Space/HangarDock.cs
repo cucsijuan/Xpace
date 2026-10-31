@@ -31,6 +31,8 @@ public partial class HangarDock : Node3D
     [Export] public MeshSlide Door;
     /// <summary>What blocks the doorway while the door is not open.</summary>
     [Export] public Solid DoorSolid;
+    /// <summary>Hides what is behind the mouth while the door is shut, and only then.</summary>
+    [Export] public Node3D DoorOccluder;
     [Export] public Node3D Beacon;
     /// <summary>How open the door must be for ships to pass.</summary>
     [Export(PropertyHint.Range, "0,1")] public float PassableAt = 0.9f;
@@ -104,6 +106,8 @@ public partial class HangarDock : Node3D
 
     public override void _PhysicsProcess(double delta)
     {
+        if (DoorOccluder != null && Door != null)
+            DoorOccluder.Visible = !IsOpen && Door.At <= 0.001f;
         if (DoorSolid != null)
             DoorSolid.Blocks = Door == null || Door.At < PassableAt;
     }

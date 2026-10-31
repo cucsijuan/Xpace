@@ -66,6 +66,11 @@ public partial class OnFootTest : Node
         var exterior = _ship.GetNode<Node3D>("Exterior");
         Check("its camera is the view; the cockpit hidden, the hull shown; the pilot stopped",
               walker.Camera.Current && !cockpit.Visible && exterior.Visible && !pilot.Seated && pilot.ProcessMode == ProcessModeEnum.Disabled);
+        var sun = main.Sector.GetNode<DirectionalLight3D>("Sun");
+        var reach = sun.GetNode<SunShadows>("Shadows");
+        await Seconds(0.1);
+        Check($"the sun's shadows are the fine ones of someone on foot (to {sun.DirectionalShadowMaxDistance:0} m)",
+              Mathf.IsEqualApprox(sun.DirectionalShadowMaxDistance, reach.OnFoot.Max));
         Check("it stands on the pad", await Until(() => walker.IsOnFloor(), 2));
         float padTop = (pad.GlobalTransform.AffineInverse() * walker.GlobalPosition).Y;
         Check($"at the pad's top ({padTop:0.00} m above the pad's frame)", Mathf.Abs(padTop) < 0.6f);
@@ -155,7 +160,8 @@ public partial class OnFootTest : Node
         Check($"off the pad's edge it falls to the floor ({drop:0.0} m below the pad's top)", drop < -1.5f && walker.IsOnFloor());
 
         // Up the pad's stairs, from the floor
-        walker.GlobalPosition = pad.ToGlobal(new Vector3(-4, -3.0f, -19.5f));
+        float rampX = pad.ToLocal(pad.GetNode<Node3D>("Stairs/Ramp").GlobalPosition).X;   // wherever the stairs are placed
+        walker.GlobalPosition = pad.ToGlobal(new Vector3(rampX, -3.0f, -19.5f));
         await Seconds(0.3);
         Vector3 inward = walker.GlobalBasis.Inverse() * pad.GlobalBasis.Z;
         walker.LookYaw = Mathf.Atan2(-inward.X, -inward.Z);
@@ -185,6 +191,8 @@ public partial class OnFootTest : Node
         await Seconds(0.2);
         Check("boarded: the pilot's camera and HUD, the cockpit shown, the hull hidden",
               seat.Walker == null && pilot.Seated && pilot.GetNode<Camera3D>("Camera3D").Current && cockpit.Visible && !exterior.Visible);
+        Check($"and the sun's a pilot's again (to {sun.DirectionalShadowMaxDistance:0} m)",
+              Mathf.IsEqualApprox(sun.DirectionalShadowMaxDistance, reach.Flying.Max));
         Check("still docked", pad.State == LandingPad.PadState.Docked);
         Finish();
     }

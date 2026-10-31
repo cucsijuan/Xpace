@@ -1,186 +1,68 @@
 [gd_scene format=3]
 
-
 [ext_resource type="Script" uid="uid://ckiwalmif04k4" path="res://scripts/Space/RockKind.cs" id="8_kind"]
-
 
 [ext_resource type="Script" uid="uid://cjgdfrbao84c3" path="res://scripts/Space/RockBox.cs" id="8_region"]
 
-
 [ext_resource type="Script" uid="uid://cupiki1xrg00r" path="res://scripts/Space/RockField.cs" id="8_rocks"]
-
 
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_01.tres" id="8_rock_01"]
 
-
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_02.tres" id="8_rock_02"]
-
 
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_03.tres" id="8_rock_03"]
 
-
 [ext_resource type="Resource" uid="uid://dcgyine8s4uye" path="res://assets/space/rocks/rock_04.tres" id="8_rock_04"]
-
 
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_05.tres" id="8_rock_05"]
 
-
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_holes_03.tres" id="8_rock_holes_03"]
-
 
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_large_01.tres" id="8_rock_large_01"]
 
-
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_large_02.tres" id="8_rock_large_02"]
-
 
 [ext_resource type="Resource" path="res://assets/space/rocks/rock_large_holes_02.tres" id="8_rock_large_holes_02"]
 
-
 [ext_resource type="PackedScene" path="res://scenes/stations/synty_station.tscn" id="10_station"]
-
 
 [ext_resource type="Script" uid="uid://fx37j1uvmpsi" path="res://scripts/Space/Projectiles.cs" id="15_rounds"]
 
-
 [ext_resource type="Script" uid="uid://cvjc8qbq1xqql" path="res://scripts/Space/Drone.cs" id="16_drone"]
-
 
 [ext_resource type="Script" uid="uid://1so3qsj34bt" path="res://scripts/Space/FloatingOrigin.cs" id="18_origin"]
 
-
 [ext_resource type="PackedScene" path="res://scenes/weapons/ir_missile.tscn" id="24_ir_missile"]
-
 
 [ext_resource type="Script" uid="uid://migam7qb2ubp" path="res://scripts/Space/HeatSun.cs" id="25_heat"]
 
-
 [ext_resource type="Script" uid="uid://co14mxnlyoaws" path="res://scripts/Space/RadarEmitter.cs" id="29_emitter"]
-
 
 [ext_resource type="Script" uid="uid://bvfe68lfj5yss" path="res://scripts/Net/NetBody.cs" id="32_netbody"]
 
-
 [ext_resource type="PackedScene" path="res://scenes/ships/ai_fighter.tscn" id="41_ai_fighter"]
-
 
 [ext_resource type="Script" uid="uid://c8eu8l13opeim" path="res://scripts/Space/Datalink.cs" id="42_datalink"]
 
-
 [ext_resource type="Material" path="res://assets/materials/synty_skybox_04.tres" id="43_skybox"]
-
 
 [ext_resource type="Resource" path="res://assets/weapons/round_cannon.tres" id="46_cannon_look"]
 
-
 [ext_resource type="Resource" path="res://assets/weapons/round_laser.tres" id="47_laser_look"]
-
 
 [ext_resource type="Script" uid="uid://bol2jhb7ha2rk" path="res://scripts/Space/RoundLook.cs" id="48_look"]
 
-
 [ext_resource type="Script" uid="uid://mvae8f7nlqu7" path="res://scripts/Space/RockSensor.cs" id="51_rock_sensor"]
-
 
 [ext_resource type="Script" path="res://scripts/Menu/QualityEnvironment.cs" id="q_env"]
 
+[ext_resource type="PackedScene" path="res://scenes/gates/jump_gate.tscn" id="gate_scene"]
 
-[ext_resource type="Script" path="res://scripts/World/MarketGood.cs" id="kestrel_market_good"]
-
-
-[ext_resource type="Resource" path="res://assets/goods/water.tres" id="good_water"]
-
-
-[ext_resource type="Resource" path="res://assets/goods/food.tres" id="good_food"]
-
-
-[ext_resource type="Resource" path="res://assets/goods/iron_ore.tres" id="good_iron_ore"]
-
-
-[ext_resource type="Resource" path="res://assets/goods/medicines.tres" id="good_medicines"]
-
-
-[ext_resource type="Resource" path="res://assets/goods/metals.tres" id="good_metals"]
-
-
-[ext_resource type="Resource" path="res://assets/goods/machinery.tres" id="good_machinery"]
-
-
-[ext_resource type="Resource" path="res://assets/goods/electronics.tres" id="good_electronics"]
-
-
-[ext_resource type="Resource" path="res://assets/goods/hydrogen.tres" id="good_hydrogen"]
-
-
-
-[sub_resource type="Resource" id="Kestrel_water"]
-script = ExtResource("kestrel_market_good")
-Good = ExtResource("good_water")
-Stock = 500
-Rate = 80.0
-
-
-
-[sub_resource type="Resource" id="Kestrel_food"]
-script = ExtResource("kestrel_market_good")
-Good = ExtResource("good_food")
-Stock = 400
-Rate = 50.0
-
-
-
-[sub_resource type="Resource" id="Kestrel_iron_ore"]
-script = ExtResource("kestrel_market_good")
-Good = ExtResource("good_iron_ore")
-Stock = 600
-Rate = 100.0
-
-
-
-[sub_resource type="Resource" id="Kestrel_medicines"]
-script = ExtResource("kestrel_market_good")
-Good = ExtResource("good_medicines")
-Stock = 80
-Rate = 8.0
-
-
-
-[sub_resource type="Resource" id="Kestrel_metals"]
-script = ExtResource("kestrel_market_good")
-Good = ExtResource("good_metals")
-Stock = 200
-Rate = -40.0
-
-
-
-[sub_resource type="Resource" id="Kestrel_machinery"]
-script = ExtResource("kestrel_market_good")
-Good = ExtResource("good_machinery")
-Stock = 100
-Rate = -12.0
-
-
-
-[sub_resource type="Resource" id="Kestrel_electronics"]
-script = ExtResource("kestrel_market_good")
-Good = ExtResource("good_electronics")
-Stock = 60
-Rate = -6.0
-
-
-
-[sub_resource type="Resource" id="Kestrel_hydrogen"]
-script = ExtResource("kestrel_market_good")
-Good = ExtResource("good_hydrogen")
-Stock = 200
-Rate = -30.0
-
-
-
+[ext_resource type="Script" path="res://scripts/Space/SunShadows.cs" id="sun_shadows"]
+[ext_resource type="Resource" path="res://assets/lighting/shadows_flying.tres" id="shadows_flying"]
+[ext_resource type="Resource" path="res://assets/lighting/shadows_on_foot.tres" id="shadows_on_foot"]
 [sub_resource type="Sky" id="Sky_space"]
 sky_material = ExtResource("43_skybox")
-
-
 
 [sub_resource type="Environment" id="Environment_space"]
 background_mode = 2
@@ -200,12 +82,8 @@ ssil_enabled = true
 ssil_radius = 8.0
 glow_enabled = true
 
-
-
 [sub_resource type="StandardMaterial3D" id="Material_planet"]
 albedo_color = Color(0.32, 0.45, 0.62, 1)
-
-
 
 [sub_resource type="SphereMesh" id="Mesh_planet"]
 material = SubResource("Material_planet")
@@ -214,46 +92,35 @@ height = 40000.0
 radial_segments = 128
 rings = 64
 
-
-
 [sub_resource type="Resource" id="Region_rocks"]
 script = ExtResource("8_region")
 Size = Vector3(7000, 2000, 7000)
 Falloff = 1200.0
 
-
-
 [node name="Sector" type="Node3D"]
 script = ExtResource("18_origin")
 
-
 [node name="PlayerStart" type="Marker3D" parent="."]
-
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1286936831]
 environment = SubResource("Environment_space")
 script = ExtResource("q_env")
 
-
-
 [node name="Sun" type="DirectionalLight3D" parent="." unique_id=2053005665]
 transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 0, 0, 0)
 light_energy = 1.4
 shadow_enabled = true
-directional_shadow_split_1 = 0.05
-directional_shadow_split_2 = 0.15
-directional_shadow_split_3 = 0.4
 directional_shadow_blend_splits = true
-directional_shadow_max_distance = 1500.0
 script = ExtResource("25_heat")
 
-
+[node name="Shadows" type="Node" parent="Sun"]
+script = ExtResource("sun_shadows")
+Flying = ExtResource("shadows_flying")
+OnFoot = ExtResource("shadows_on_foot")
 
 [node name="Planet" type="MeshInstance3D" parent="." unique_id=2084746623]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26000, -9000, -60000)
 mesh = SubResource("Mesh_planet")
-
-
 
 [node name="Asteroids" type="Node3D" parent="." unique_id=51359718]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7500, 0, -3000)
@@ -263,29 +130,12 @@ Kinds = Array[ExtResource("8_kind")]([ExtResource("8_rock_01"), ExtResource("8_r
 CellSize = 400.0
 RocksPerCell = 10
 
-
-
 [node name="Station" parent="." unique_id=1661568946 instance=ExtResource("10_station")]
 transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 450, 60, -1200)
-
-
-
-[node name="Kestrel" parent="." instance=ExtResource("10_station")]
-transform = Transform3D(-0.5, 0, -0.866025, 0, 1, 0, 0.866025, 0, -0.5, -18000, 400, -16000)
-
-
-
-[node name="Market" parent="Kestrel"]
-Goods = Array[ExtResource("kestrel_market_good")]([SubResource("Kestrel_water"), SubResource("Kestrel_food"), SubResource("Kestrel_iron_ore"), SubResource("Kestrel_medicines"), SubResource("Kestrel_metals"), SubResource("Kestrel_machinery"), SubResource("Kestrel_electronics"), SubResource("Kestrel_hydrogen")])
-Factor = true
-
-
 
 [node name="Projectiles" type="MultiMeshInstance3D" parent="." unique_id=1887929994]
 script = ExtResource("15_rounds")
 Looks = Array[ExtResource("48_look")]([ExtResource("46_cannon_look"), ExtResource("47_laser_look")])
-
-
 
 [node name="Drone1" type="Node3D" parent="." unique_id=1201583421]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 400, 80, 2200)
@@ -293,28 +143,18 @@ script = ExtResource("16_drone")
 Attacks = true
 MissileScene = ExtResource("24_ir_missile")
 
-
-
 [node name="NetBody" type="Node" parent="Drone1" unique_id=1816900666]
 script = ExtResource("32_netbody")
-
-
 
 [node name="Datalink" type="Node" parent="Drone1" unique_id=1506709942]
 script = ExtResource("42_datalink")
 Channel = "raiders"
 
-
-
 [node name="Radar" type="Node3D" parent="Drone1" unique_id=440645909]
 script = ExtResource("29_emitter")
 
-
-
 [node name="RockSensor" type="Node3D" parent="Drone1" unique_id=1573951677]
 script = ExtResource("51_rock_sensor")
-
-
 
 [node name="Drone2" type="Node3D" parent="." unique_id=933921391]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -900, -60, 3000)
@@ -323,30 +163,23 @@ Speed = 100.0
 Attacks = true
 MissileScene = ExtResource("24_ir_missile")
 
-
-
 [node name="NetBody" type="Node" parent="Drone2" unique_id=489336509]
 script = ExtResource("32_netbody")
-
-
 
 [node name="Datalink" type="Node" parent="Drone2" unique_id=479276076]
 script = ExtResource("42_datalink")
 Channel = "raiders"
 
-
-
 [node name="Radar" type="Node3D" parent="Drone2" unique_id=1396506718]
 script = ExtResource("29_emitter")
-
-
 
 [node name="RockSensor" type="Node3D" parent="Drone2" unique_id=169482245]
 script = ExtResource("51_rock_sensor")
 
-
-
 [node name="Raider" parent="." unique_id=1007152421 instance=ExtResource("41_ai_fighter")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -600, 150, 4000)
 
-
+[node name="Gate2" parent="." instance=ExtResource("gate_scene")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2500, 150, -6000)
+Destination = "sector_02"
+ExitGate = "Gate1"

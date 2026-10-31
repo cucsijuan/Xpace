@@ -72,6 +72,12 @@ public partial class StationRadio : Node3D, IRadio
     [Export] public string DepartedText = "Hangar {0} closing. Fly safe.";
     /// <summary>{0} the dock's number.</summary>
     [Export] public string ExpiredText = "Your clearance for hangar {0} has expired.";
+    /// <summary>A gate's: {0} where it leads, {1} the toll taken.</summary>
+    [Export] public string TransitText = "Cleared for transit to {0}. Toll of {1} credits paid. The ring is yours.";
+    /// <summary>A gate's: {0} the toll.</summary>
+    [Export] public string TollText = "Transit denied: the toll is {0} credits.";
+    [Export] public string TransitDeniedText = "Transit denied.";
+    [Export] public string NoGateText = "This is no gate.";
 
     [ExportGroup("Speech")]
     [Export] public string WelcomeSpeech = "welcome";
@@ -101,13 +107,16 @@ public partial class StationRadio : Node3D, IRadio
     /// <summary>Its security, if the station has one (beside it in the station's scene).</summary>
     public StationSecurity Security { get; private set; }
 
+    /// <summary>The gate this radio speaks for (its parent), or null: a station's.</summary>
+    public JumpGate Gate { get; private set; }
+
     /// <summary>Its callsign, as radios send it.</summary>
     public string Sign => Radio.Callsign(Callsign, GetParent() ?? this);
 
     public IReadOnlyList<HangarDock> Docks => _docks;
 
     string IRadio.Callsign => Sign;
-    char IRadio.Kind => 'S';
+    char IRadio.Kind => Gate != null ? 'G' : 'S';
     Vector3 IRadio.RadioPosition => GlobalPosition;
     float IRadio.RadioRange => Range;
     bool IRadio.RadioOn => On;
@@ -141,6 +150,7 @@ public partial class StationRadio : Node3D, IRadio
             d.Station = this;
         foreach (Node n in station.GetChildren())
             Security ??= n as StationSecurity;
+        Gate = station as JumpGate;
     }
 
     /// <summary>The station whose protected zone holds the point, or null.</summary>
@@ -175,7 +185,7 @@ public partial class StationRadio : Node3D, IRadio
     {
         if (!On || what == RadioRequest.None || !from.RadioOn || from.RadioPosition.DistanceTo(GlobalPosition) > from.RadioRange)
             return;
-        if (what is (RadioRequest.Docking or RadioRequest.Launch) && Net.SessionNode.Instance is { Active: true } session && !session.Session.IsHost)
+        if (what is (RadioRequest.Docking or RadioRequest.Launch or RadioRequest.Transit) && Net.SessionNode.Instance is { Active: true } session && !session.Session.IsHost)
             session.Request(from, this, what);      // the host's station answers
         else
             _replies.Add((from, what, _now + ReplySeconds));
@@ -234,6 +244,8 @@ public partial class StationRadio : Node3D, IRadio
                 Dock(to);
             else if (what == RadioRequest.Launch)
                 Launch(to);
+            else if (what == RadioRequest.Transit)
+                Transit(to);
         }
         Clearances();
     }
@@ -296,6 +308,38 @@ public partial class StationRadio : Node3D, IRadio
             return true;
         pad = dock.Pads.FirstOrDefault(p => p.Fits(ship) && _cleared.All(c => c.Pad != p));
         return pad != null;
+    }
+
+    // A gate clears a ship to go through, the toll taken from its pilot then (a ship flown by the game pays none)
+    private void Transit(IRadioReceiver ship)
+    {
+        if (Gate == null)
+        {
+            Say(ship, NoGateText);
+            return;
+        }
+        Node3D body = ShipOf(ship);
+        if (Security?.Refuses(body) == true)
+        {
+            Say(ship, TransitDeniedText);
+            return;
+        }
+        long toll = Laws?.Toll ?? 0;
+        if (toll > 0 && Xpace.World.Universe.Current is Xpace.World.Universe universe && !universe.IsGuest &&
+            universe.PilotOf(body) is Xpace.World.PilotRecord pilot)
+        {
+            if (pilot.Credits < toll)
+            {
+                Say(ship, string.Format(TollText, toll));
+                return;
+            }
+            pilot.Credits -= toll;
+            universe.Touch(pilot);
+        }
+        else
+            toll = 0;
+        Gate.Clear(body, ClearanceSeconds);
+        Say(ship, string.Format(TransitText, Gate.Leads, toll));
     }
 
     private void Launch(IRadioReceiver ship)

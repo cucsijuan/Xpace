@@ -82,6 +82,9 @@ public partial class StationSecurity : Node
     /// <summary>The bounty for destroying one, and the infamy it brings (<see cref="Justice.Notorious"/> is 1).</summary>
     [Export] public long KillBounty = 5000;
     [Export] public double KillInfamy = 2;
+    /// <summary>A gate's: going through it without clearance; again while still owing fines here, a bounty.</summary>
+    [Export] public long UnpaidTransitFine = 1000;
+    [Export] public long UnpaidTransitBounty = 3000;
 
     [ExportGroup("Police")]
     [Export] public PackedScene PoliceScene;
@@ -93,6 +96,10 @@ public partial class StationSecurity : Node
 
     [ExportGroup("Texts")]
     [Export] public string WarningText = "Weapons fire in the protected zone. Cease fire or you will be engaged.";
+    /// <summary>{0} the fine.</summary>
+    [Export] public string UnpaidTransitText = "Transit without clearance. You have been fined {0} credits.";
+    /// <summary>{0} the bounty.</summary>
+    [Export] public string UnpaidAgainText = "Transit without clearance again. A bounty of {0} credits is on you.";
     /// <summary>{0} the fine.</summary>
     [Export] public string EngageText = "You were warned. You have been fined {0} credits. Police are engaging you.";
     /// <summary>{0} the ship attacked, {1} the bounty.</summary>
@@ -317,6 +324,26 @@ public partial class StationSecurity : Node
         }
         foreach (Node3D ship in _speeding.Keys.Where(s => !Valid(s)).ToList())
             _speeding.Remove(ship);
+    }
+
+    /// <summary>
+    /// A ship went through the gate without clearance: a fine; again while its pilot still owes
+    /// fines here, a bounty and its police after it.
+    /// </summary>
+    public void UnpaidTransit(Node3D ship)
+    {
+        if (!Acts || ship == null)
+            return;
+        if (Jurisdiction(ship) is (_, CrimeRecord record) && record.Fines > 0)
+        {
+            Owe(ship, 0, UnpaidTransitBounty, 0);
+            Engage(ship, string.Format(UnpaidAgainText, UnpaidTransitBounty), "", force: true);
+        }
+        else
+        {
+            Owe(ship, UnpaidTransitFine, 0, 0);
+            Say(ship, string.Format(UnpaidTransitText, UnpaidTransitFine), "");
+        }
     }
 
     /// <summary>The player flying <paramref name="ship"/> (if it can be told) owes the station more, or is more infamous here.</summary>

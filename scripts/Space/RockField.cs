@@ -71,7 +71,8 @@ public partial class RockField : Node3D, IOriginShift
     [Export] public int ChunkCells = 4;
     /// <summary>Chunks made at most each frame (more would stutter).</summary>
     [Export] public int ChunksPerFrame = 6;
-    [Export] public bool CastShadows = false;
+    /// <summary>Rocks less than <see cref="SmallSize"/> across cast none: they are many, and their shadows hardly show.</summary>
+    [Export] public bool CastShadows = true;
 
     /// <summary>Every field in the scene, for queries that do not care which.</summary>
     public static readonly List<RockField> All = new();
@@ -701,7 +702,7 @@ public partial class RockField : Node3D, IOriginShift
             RenderingServer.InstanceGeometrySetVisibilityRange(instance, 0, range, 0, range * 0.1f,
                 RenderingServer.VisibilityRangeFadeMode.Self);
             RenderingServer.InstanceGeometrySetCastShadowsSetting(instance,
-                CastShadows ? RenderingServer.ShadowCastingSetting.On : RenderingServer.ShadowCastingSetting.Off);
+                CastShadows && band % 2 == 0 ? RenderingServer.ShadowCastingSetting.On : RenderingServer.ShadowCastingSetting.Off);
             chunk.Multimeshes.Add(mm);
             chunk.Instances.Add(instance);
         }

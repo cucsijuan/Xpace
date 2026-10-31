@@ -24,6 +24,7 @@ from mathutils import Vector
 
 sys.path.insert(0, os.path.dirname(__file__))
 from atlas import SYNTY, CUT, BAY, Builder, export
+import lods
 
 ALONG = (-7.44, -3.69, 18)   # a side walls' bay (y from, to) and how many more: 98.5 m long
 ACROSS = (-8.4, -4.5, 7)     # a length of the door wall through the door (x from, to) and how many more: 67 m wide, a 54 m door
@@ -40,6 +41,8 @@ SMALL = 3.0                  # loose parts shorter than this (rails, pipes) are 
 SMALL_UP = 12.1              # and moved up only if they stand above this (the rail on the control room's roof
                              # reaches over UP's seam; its handrail is a part of its own)
 WELD = 0.002
+COLUMN = 20.0                # the room's mesh is cut into columns this wide, each with its own level of detail
+SMALL_PART = 0.5             # loose parts narrower than this go to meshes the game drops from afar
 # The pocket the raised door slides into, above the door (Godot frame: half
 # width, top, back; it opens out of the hull, see cut_station.py)
 POCKET = (27.6, 45.2, 14.3)
@@ -208,6 +211,17 @@ def main():
 
     for o in room:
         o.name = o.name.replace("Hanger", "Hangar")
+    # Fit for levels of detail: the door moves, so it stays whole
+    parts = []
+    for o in room:
+        if "HangarDoor" in o.name:
+            parts += lods.split_small(o, SMALL_PART)
+        elif "Hangar_01" in o.name:
+            parts += lods.cut(o, COLUMN, SMALL_PART)
+        else:
+            parts.append(o)
+    room = parts
+    print("%d meshes" % len(room))
     export(room, os.path.join(CUT, "SM_Bld_Hangar_Big.glb"))
     export(walls, os.path.join(CUT, "SM_Bld_Hangar_Big_Collision.glb"))
 

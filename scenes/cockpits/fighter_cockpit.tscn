@@ -14,6 +14,7 @@
 [ext_resource type="Script" path="res://scripts/Space/SmoothNormals.cs" id="12_smooth"]
 [ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="13_paint"]
 [ext_resource type="Script" path="res://scripts/Space/ModelMeshes.cs" id="14_meshes"]
+[ext_resource type="Script" path="res://scripts/Cockpit/CockpitSun.cs" id="cockpit_sun"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_16ts0"]
 shading_mode = 0
@@ -97,3 +98,9 @@ PressOffset = Vector3(0.0032, -0.0003, -0.0023)
 
 [editable path="Body"]
 [editable path="Frame"]
+
+[node name="CockpitSun" type="SpotLight3D" parent="."]
+shadow_enabled = true
+shadow_bias = 0.03
+shadow_normal_bias = 0.6
+script = ExtResource("cockpit_sun")

@@ -24,4 +24,7 @@ public partial class StationLaws : Resource
 
     /// <summary>The fastest a ship may fly inside <see cref="SpeedRadius"/>, m/s.</summary>
     [Export] public float SpeedLimit = 50f;
+
+    /// <summary>What going through costs (a gate's), credits; taken when the gate clears the ship.</summary>
+    [Export] public long Toll;
 }

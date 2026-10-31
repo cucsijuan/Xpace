@@ -160,6 +160,11 @@ public partial class GameSettings : Node
         };
         view.ScreenSpaceAA = Antialiasing == Antialiasing.Fxaa ? Viewport.ScreenSpaceAAEnum.Fxaa : Viewport.ScreenSpaceAAEnum.Disabled;
         view.UseTaa = Antialiasing == Antialiasing.Taa;
+        // Spotlights' and omni lights' shadows are each viewport's own (a sector's has its own): the light largest on
+        // screen, as the cockpit's own sun is, gets half the atlas
+        view.UseOcclusionCulling = true;
+        view.PositionalShadowAtlasSize = Shadows switch { Quality.Off => 0, Quality.High => 8192, Quality.Medium => 4096, _ => 2048 };
+        view.SetPositionalShadowAtlasQuadrantSubdiv(0, Viewport.PositionalShadowAtlasQuadrantSubdiv.Subdiv1);
     }
 
     /// <summary>The effects' quality, for every scene (turning them on and off is each scene's QualityEnvironment).</summary>
@@ -168,8 +173,14 @@ public partial class GameSettings : Node
         RenderingServer.DirectionalShadowAtlasSetSize(Shadows switch { Quality.High => 8192, Quality.Medium => 4096, _ => 2048 }, true);
         RenderingServer.DirectionalSoftShadowFilterSetQuality(Shadows switch
         {
-            Quality.High => RenderingServer.ShadowQuality.SoftMedium,
-            Quality.Medium => RenderingServer.ShadowQuality.SoftLow,
+            Quality.High => RenderingServer.ShadowQuality.SoftHigh,
+            Quality.Medium => RenderingServer.ShadowQuality.SoftMedium,
+            _ => RenderingServer.ShadowQuality.Hard,
+        });
+        RenderingServer.PositionalSoftShadowFilterSetQuality(Shadows switch
+        {
+            Quality.High => RenderingServer.ShadowQuality.SoftHigh,
+            Quality.Medium => RenderingServer.ShadowQuality.SoftMedium,
             _ => RenderingServer.ShadowQuality.Hard,
         });
         // Ships and stations are tens to hundreds of metres: the occlusion fades out far beyond Godot's 300 m.

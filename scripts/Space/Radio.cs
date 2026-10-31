@@ -13,7 +13,7 @@ public interface IRadio
 {
     /// <summary>Up to 8 characters, as the other radios list it.</summary>
     string Callsign { get; }
-    /// <summary>'S' a station, 'V' a vessel.</summary>
+    /// <summary>'S' a station, 'G' a gate, 'V' a vessel.</summary>
     char Kind { get; }
     Vector3 RadioPosition { get; }
     /// <summary>How far a plain receiver hears it, metres.</summary>
@@ -29,6 +29,8 @@ public enum RadioRequest
     Docking,
     /// <summary>A docked ship asks to leave: the hangar's door opens and its pad lets it go.</summary>
     Launch,
+    /// <summary>A ship asks a gate to go through it: cleared for a while, the toll paid.</summary>
+    Transit,
 }
 
 /// <summary>A radio that takes what stations send (a ship's). Off, it hears nothing.</summary>

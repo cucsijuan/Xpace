@@ -121,6 +121,16 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
     private ShipBody _ship;
     private byte _updates, _messages;
     private double _asking;
+    private string _askedOf;                        // who was asked, until it answers
+
+    // The radio itself, saying a request got no answer
+    private sealed record Itself(string Callsign) : IRadio
+    {
+        public char Kind => 'R';
+        public Vector3 RadioPosition => Vector3.Zero;
+        public float RadioRange => 0;
+        public bool RadioOn => true;
+    }
 
     public override void _Ready()
     {
@@ -135,6 +145,8 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
         Laws = laws;
         LawsFrom = from;
         _asking = 0;
+        if (from.Sign == _askedOf)
+            _askedOf = null;
     }
 
     public void Cleared(StationRadio from, int dock, int pad)
@@ -147,12 +159,16 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
         Pad = dock == 0 ? 0 : pad;
         DockFrom = dock == 0 ? null : from;
         _asking = 0;
+        if (from?.Sign == _askedOf)
+            _askedOf = null;
     }
 
     public void Hear(IRadio from, string text, string speech)
     {
         if (!On)
             return;
+        if (from.Callsign == _askedOf)
+            _askedOf = null;
         _heard.Add((from.Callsign, text, speech ?? ""));
         if (_heard.Count > Messages)
             _heard.RemoveAt(0);
@@ -168,6 +184,7 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
             return;
         station.Request(this, what);
         _asking = AskSeconds;
+        _askedOf = station.Sign;
         if (what == RadioRequest.Launch && Dock != 0 && station == DockFrom)
             Launching = true;
     }
@@ -181,10 +198,14 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
     /// <summary>Asks the station whose dock the ship is in to let it go.</summary>
     public void AskLaunch() => Ask(RadioRequest.Launch, DockFrom);
 
-    private StationRadio Nearest()
+    /// <summary>Asks the nearest gate to let the ship through.</summary>
+    public void AskTransit() => Ask(RadioRequest.Transit, Nearest(gate: true));
+
+    // The nearest station heard (contacts are nearest first), or the nearest gate
+    private StationRadio Nearest(bool gate = false)
     {
         foreach (IRadio r in _contacts)
-            if (r is StationRadio s)
+            if (r is StationRadio s && IsInstanceValid(s) && (s.Gate != null) == gate)
                 return s;
         return null;
     }
@@ -200,6 +221,13 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
         bus.SetWord(Slot, 12, ShipMemory.Laws);
         bus.SetWord(Slot, 14, ShipMemory.Messages);
         _asking = Math.Max(0, _asking - delta);
+        if (_asking == 0 && _askedOf != null)
+        {
+            // Asked out of the station's hearing (this radio reaches less far than a station's), or the station is off
+            string asked = _askedOf;
+            _askedOf = null;
+            Hear(new Itself("RADIO"), $"No answer from {asked}.", "");
+        }
         if (LawsFrom != null && !IsInstanceValid(LawsFrom))
         {
             Laws = null;
@@ -282,11 +310,13 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
         if (!bus.TakeWritten(Slot, 5))
             return;
         var what = (RadioRequest)bus[Slot, 5];
-        if (what is not (RadioRequest.Laws or RadioRequest.Docking or RadioRequest.Launch))
+        if (what is not (RadioRequest.Laws or RadioRequest.Docking or RadioRequest.Launch or RadioRequest.Transit))
             return;
         int which = bus[Slot, 6];
         if (what == RadioRequest.Launch && which == NearestStation)
             AskLaunch();
+        else if (what == RadioRequest.Transit && which == NearestStation)
+            AskTransit();
         else if (which == NearestStation)
             Ask(what);
         else if (which < _contacts.Count && _contacts[which] is StationRadio station)

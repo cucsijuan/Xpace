@@ -30,8 +30,25 @@
 [ext_resource type="Material" path="res://assets/materials/hangar_number.tres" id="31_number"]
 [ext_resource type="Resource" path="res://assets/fonts/synty_signs.tres" id="32_font"]
 
+[ext_resource type="Script" path="res://scripts/Space/DetailRange.cs" id="detail_range"]
 [sub_resource type="BoxShape3D" id="Shape_door"]
 size = Vector3(54, 22, 1)
+
+[sub_resource type="QuadMesh" id="plug_mesh"]
+size = Vector2(54, 22)
+
+[sub_resource type="StandardMaterial3D" id="plug_paint"]
+shading_mode = 0
+albedo_color = Color(0.05, 0.05, 0.055, 1)
+
+[sub_resource type="QuadOccluder3D" id="occ_sides"]
+size = Vector2(98.1, 27.2)
+
+[sub_resource type="QuadOccluder3D" id="occ_flat"]
+size = Vector2(67.6, 98.1)
+
+[sub_resource type="QuadOccluder3D" id="occ_end"]
+size = Vector2(67.6, 27.2)
 
 [node name="HangarBig" type="Node3D" unique_id=647301019]
 
@@ -46,7 +63,7 @@ ByMesh = Dictionary[String, Material]({
 
 [node name="Doors" type="Node" parent="Model" unique_id=1702899077]
 script = ExtResource("8_slide")
-Meshes = PackedStringArray("SM_Bld_HangarDoor_01", "SM_Bld_HangarDoor_02")
+Meshes = PackedStringArray("SM_Bld_HangarDoor_01", "SM_Bld_HangarDoor_02", "SM_Bld_HangarDoor_01_small", "SM_Bld_HangarDoor_02_small")
 Travel = Vector3(0, 22.5, 0)
 Open = 0.0
 Seconds = 12.0
@@ -238,12 +255,13 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -5.6, 10.55, -80.6)
 [node name="Antenna1" parent="Dressing" unique_id=484006536 instance=ExtResource("p16")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 9.9, -80.8)
 
-[node name="Dock" type="Node3D" parent="." unique_id=1760917701 node_paths=PackedStringArray("Door", "DoorSolid", "Beacon")]
+[node name="Dock" type="Node3D" parent="." unique_id=1760917701 node_paths=PackedStringArray("Door", "DoorSolid", "Beacon", "DoorOccluder")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11, 15)
 script = ExtResource("11_dock")
 Door = NodePath("../Model/Doors")
 DoorSolid = NodePath("DoorSolid")
 Beacon = NodePath("Beacon")
+DoorOccluder = NodePath("../Occluders/Mouth")
 
 [node name="DoorSolid" type="Node3D" parent="Dock" unique_id=197883161]
 script = ExtResource("9_solid")
@@ -274,4 +292,42 @@ script = ExtResource("30_mark")
 Font = ExtResource("32_font")
 Height = 10.0
 Material = ExtResource("31_number")
-Door = NodePath("Model/Doors")
+Door = NodePath("../Model/Doors")
+
+[node name="FarPlug" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 11, 13)
+cast_shadow = 0
+visibility_range_begin = 1000.0
+mesh = SubResource("plug_mesh")
+surface_material_override/0 = SubResource("plug_paint")
+
+[node name="Detail" type="Node" parent="."]
+script = ExtResource("detail_range")
+Range = 1000.0
+Keep = PackedStringArray("SM_Bld_HangarDoor_01", "SM_Bld_HangarDoor_02", "Casing", "Dock", "Number", "FarPlug", "Occluders")
+
+[node name="Occluders" type="Node3D" parent="."]
+
+[node name="Left" type="OccluderInstance3D" parent="Occluders"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, -33.8, 12.50, -34.05)
+occluder = SubResource("occ_sides")
+
+[node name="Right" type="OccluderInstance3D" parent="Occluders"]
+transform = Transform3D(0, 0, 1, 0, 1, 0, -1, 0, 0, 33.8, 12.50, -34.05)
+occluder = SubResource("occ_sides")
+
+[node name="Bottom" type="OccluderInstance3D" parent="Occluders"]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, -1.1, -34.05)
+occluder = SubResource("occ_flat")
+
+[node name="Top" type="OccluderInstance3D" parent="Occluders"]
+transform = Transform3D(1, 0, 0, 0, 0, 1, 0, -1, 0, 0, 26.1, -34.05)
+occluder = SubResource("occ_flat")
+
+[node name="Back" type="OccluderInstance3D" parent="Occluders"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.50, -83.1)
+occluder = SubResource("occ_end")
+
+[node name="Mouth" type="OccluderInstance3D" parent="Occluders"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.50, 15.0)
+occluder = SubResource("occ_end")

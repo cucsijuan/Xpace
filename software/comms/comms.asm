@@ -1,4 +1,4 @@
-; comms.asm - Radio Contacts 1.2 (COMMS.COM)
+; comms.asm - Radio Contacts 1.3 (COMMS.COM)
 ;
 ;   COMMS       stays resident and works the radio from the ship's COMMS
 ;               screen (32 x 12 text) and its keys
@@ -10,7 +10,8 @@
 ; along the list (UP, DOWN) and choose the contact under it (SELECT): its
 ; options come up, and SELECT on one sends it (BACK goes back to the list).
 ; A station can be asked for a dock, for its laws, or (docked in one of
-; its hangars) to let the ship launch; a ship, nothing yet.
+; its hangars) to let the ship launch; a gate to let the ship through (its
+; toll paid then) or for its laws; a ship, nothing yet.
 ; The keys of the screen of interest (zoom in, zoom out, sound) work as UP,
 ; DOWN and SELECT.
 ;
@@ -35,11 +36,11 @@
 ;                            holds a station's laws, bit 1 inside their
 ;                            speed limit, bit 3 off, bit 4 inside their
 ;                            zone, bit 5 cleared to a dock)  +5 write: a
-;                            request (1 laws, 2 docking, 3 launch) to the contact in
+;                            request (1 laws, 2 docking, 3 launch, 4 transit) to the contact in
 ;                            +6  +8 segment  +10 the contacts' table
 ;                            +12 the laws  +14 the messages (offsets).
 ;                            A contact (16 bytes): +0 callsign (8
-;                            characters)  +8 kind ('S' station, 'V' vessel)
+;                            characters)  +8 kind ('S' station, 'G' gate, 'V' vessel)
 ;                            +9 flags (bit 0 the laws held are its, bit 3 it
 ;                            cleared the ship to a dock)  +10 range (10 m).
 ;                            The laws: +0 the station's callsign  +8 speed
@@ -68,6 +69,7 @@ LAWS_ROW    equ 11
 MSG_SIZE    equ 128
 DRAW_EVERY  equ 15                  ; steps between redraws (4 a second)
 OPTIONS     equ 3                   ; a station's: docking, laws, launch
+GATE_OPTIONS equ 2                  ; a gate's: transit, laws
 KEY_UP      equ 4
 KEY_DOWN    equ 5
 KEY_SELECT  equ 6
@@ -88,7 +90,7 @@ ATTR_CURSOR equ 70h
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPCM12'             ; 103h
+signature   db 'XPCM13'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -158,7 +160,7 @@ press:
     cmp al, KEY_UP                  ; the list
     jne .list_down
     cmp byte [cursor], 0
-    je .done
+    je near .done
     dec byte [cursor]
     jmp remember
 .list_down:
@@ -167,17 +169,25 @@ press:
     mov ah, [cursor]
     inc ah
     cmp ah, [count]
-    jae .done
+    jae near .done
     mov [cursor], ah
     jmp remember
 .list_select:
     cmp al, KEY_SELECT
-    jne .done
+    jne near .done
     cmp byte [count], 0
-    je .done
+    je near .done
     call remember
     mov byte [mode], 1
     mov byte [option], 0
+    mov byte [options], OPTIONS
+    cmp byte [sel_kind], 'S'
+    je .counted
+    mov byte [options], GATE_OPTIONS
+    cmp byte [sel_kind], 'G'
+    je .counted
+    mov byte [options], 0
+.counted:
     ret
 .options:
     cmp al, KEY_BACK
@@ -191,15 +201,17 @@ press:
 .option_down:
     cmp al, KEY_DOWN
     jne .option_select
-    cmp byte [option], OPTIONS - 1
+    mov ah, [option]
+    inc ah
+    cmp ah, [options]
     jae .done
-    inc byte [option]
+    mov [option], ah
     ret
 .option_select:
     cmp al, KEY_SELECT
     jne .done
-    cmp byte [sel_kind], 'S'        ; a ship: nothing to send yet
-    jne .to_list
+    cmp byte [options], 0           ; a ship: nothing to send yet
+    je .to_list
     mov dx, RADIO + 6               ; to the contact under the cursor
     mov al, [cursor]
     out dx, al
@@ -207,6 +219,10 @@ press:
     mov bl, [option]                ; what the option asks
     xor bh, bh
     mov al, [asks + bx]
+    cmp byte [sel_kind], 'G'
+    jne .send
+    mov al, [gate_asks + bx]
+.send:
     out dx, al
 .to_list:
     mov byte [mode], 0
@@ -357,16 +373,14 @@ draw_list:
 show_contact:
     lea di, [bx + 1 * 2]
     mov ah, ATTR_VALUE
-    cmp byte [entry + 8], 'S'
-    jne .name
+    cmp byte [entry + 8], 'V'
+    je .name
     mov ah, ATTR_STATION
 .name:
     call put_name
     lea di, [bx + 11 * 2]
-    mov si, s_ship
-    cmp byte [entry + 8], 'S'
-    jne .kind
-    mov si, s_station
+    mov al, [entry + 8]
+    call kind_name
 .kind:
     mov ah, ATTR_LABEL
     call put_text
@@ -397,19 +411,28 @@ draw_options:
     stosw
     loop .name
     add di, 2 * 2
-    mov si, s_ship
-    cmp byte [sel_kind], 'S'
-    jne .kind
-    mov si, s_station
-.kind:
+    mov al, [sel_kind]
+    call kind_name
     mov ah, ATTR_LABEL
     call put_text
     cmp byte [sel_kind], 'S'
     je .station
+    cmp byte [sel_kind], 'G'
+    je .gate
     mov di, ((FIRST_ROW + 2) * COLS + 1) * 2
     mov si, s_no_options
     mov ah, ATTR_LABEL
     call put_text
+    jmp .hint
+.gate:
+    mov di, ((FIRST_ROW + 1) * COLS + 1) * 2
+    mov si, s_transit
+    xor dl, dl
+    call put_option
+    mov di, ((FIRST_ROW + 2) * COLS + 1) * 2
+    mov si, s_option1
+    mov dl, 1
+    call put_option
     jmp .hint
 .station:
     mov di, ((FIRST_ROW + 1) * COLS + 1) * 2
@@ -429,6 +452,18 @@ draw_options:
     mov si, s_hint
     mov ah, ATTR_LABEL
     jmp put_text
+
+; AL a contact's kind: SI the word for it
+kind_name:
+    mov si, s_station
+    cmp al, 'S'
+    je .done
+    mov si, s_gate
+    cmp al, 'G'
+    je .done
+    mov si, s_ship
+.done:
+    ret
 
 ; DS:SI an option's words, DL its number, at ES:DI
 put_option:
@@ -669,6 +704,7 @@ put_text:
     ret
 
 s_station   db 'STATION', 0
+s_gate      db 'GATE', 0
 s_ship      db 'SHIP', 0
 s_laws      db 'LAWS', 0
 s_dock      db 'DOCK', 0
@@ -684,6 +720,8 @@ s_option0   db ' REQUEST DOCKING              ', 0
 s_option1   db ' REQUEST LAWS                 ', 0
 s_option2   db ' REQUEST LAUNCH               ', 0
 asks        db 2, 1, 3              ; what each option asks: docking, laws, launch
+s_transit   db ' REQUEST TRANSIT              ', 0
+gate_asks   db 4, 1                 ; a gate's: transit, laws
 s_no_options db 'NO OPTIONS FOR SHIPS', 0
 s_hint      db 'SELECT: SEND   BACK: LIST', 0
 
@@ -693,6 +731,7 @@ my_screen   db 0FFh
 mode        db 0                    ; 0 the list, 1 the chosen contact's options
 cursor      db 0
 option      db 0
+options     db 0                    ; how many the chosen contact has
 count       db 0
 shown       db 0
 status      db 0
@@ -926,7 +965,7 @@ quit_message:
     mov ax, 4C01h
     int 21h
 
-s_title         db 'RADIO 1.2', 0
+s_title         db 'RADIO 1.3', 0
 s_header        db 'CALLSIGN  KIND       KM', 0
 s_removed       db 'COMMS REMOVED', 0
 msg_installed   db 'Radio resident: contacts on the COMMS screen.', 13, 10, '$'
