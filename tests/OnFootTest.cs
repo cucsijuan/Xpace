@@ -161,7 +161,7 @@ public partial class OnFootTest : Node
 
         // Up the pad's stairs, from the floor
         float rampX = pad.ToLocal(pad.GetNode<Node3D>("Stairs/Ramp").GlobalPosition).X;   // wherever the stairs are placed
-        walker.GlobalPosition = pad.ToGlobal(new Vector3(rampX, -3.0f, -19.5f));
+        walker.GlobalPosition = pad.ToGlobal(new Vector3(rampX, 0.3f - pad.Position.Y, -19.5f));
         await Seconds(0.3);
         Vector3 inward = walker.GlobalBasis.Inverse() * pad.GlobalBasis.Z;
         walker.LookYaw = Mathf.Atan2(-inward.X, -inward.Z);

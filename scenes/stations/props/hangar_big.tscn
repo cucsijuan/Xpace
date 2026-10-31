@@ -275,10 +275,10 @@ script = ExtResource("24_walk")
 [node name="Beacon" parent="Dock" unique_id=711391917 instance=ExtResource("12_beacon")]
 
 [node name="LandingPadSmall" parent="." unique_id=938403270 instance=ExtResource("23_m503l")]
-transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 14.868665, 3.3364172, -58.435562)
+transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 14.868665, 2.4444172, -58.435562)
 
 [node name="LandingPadSmall2" parent="." unique_id=1877192837 instance=ExtResource("23_m503l")]
-transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, -14.643392, 3.3364847, -58.4354)
+transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, -14.643392, 2.4444847, -58.4354)
 
 [node name="MarketKiosk" parent="." instance=ExtResource("24_kiosk")]
 transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 0, 0, -48)

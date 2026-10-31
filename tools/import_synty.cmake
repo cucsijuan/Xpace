@@ -203,7 +203,7 @@ endforeach()
 message(STATUS "Synty files copied to ${DEST}")
 
 if(BLENDER)
-  foreach(step build_hangar cut_station hull_panels)
+  foreach(step build_hangar build_pad cut_station hull_panels)
     execute_process(COMMAND "${BLENDER}" -b -P "${ROOT}/tools/station_bay/${step}.py"
                     RESULT_VARIABLE made)
     if(NOT made EQUAL 0)

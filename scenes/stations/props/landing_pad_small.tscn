@@ -46,9 +46,10 @@ cap_bottom = false
 script = ExtResource("1_pad")
 
 [node name="Platform" parent="." unique_id=1516197991 instance=ExtResource("2_platform")]
-transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, -0.892, 0)
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
 
 [node name="Glow" type="Node3D" parent="." unique_id=2074202788]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.892, 0)
 
 [node name="Column" type="MeshInstance3D" parent="Glow" unique_id=724215067]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, 0)
@@ -66,8 +67,8 @@ light_energy = 3.0
 omni_range = 30.0
 
 [node name="Nose" type="Marker3D" parent="." unique_id=661217661]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -10)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.392, -10)
 gizmo_extents = 2.0
 
 [node name="Stairs" parent="." unique_id=1497490293 instance=ExtResource("4_stairs")]
-transform = Transform3D(-0.5754, 0, 0, 0, 0.5754, 0, 0, 0, -0.5754, -3.9769263, -3.3926306, -12.151442)
+transform = Transform3D(-0.5754, 0, 0, 0, 0.5754, 0, 0, 0, -0.5754, -3.9769263, -2.5006306, -12.151442)

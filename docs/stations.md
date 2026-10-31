@@ -16,7 +16,7 @@ A station is a scene of **modules** and **parts**, each a scene of its own. Put 
 | `scenes/stations/props/spacewalk_tube.tscn` | Spacewalk tube (SM_Prop_SpaceWalk_Tube_01; scaled 4.8) |
 | `scenes/stations/modules/station_01_ring_hangar.tscn` | The big ring with the hangar's room cut out of its outer band |
 | `scenes/stations/props/hangar_big.tscn` | The big hangar: a room for every ship short of a capital one, made out of Synty's SM_Bld_Hangar_01 |
-| `scenes/stations/props/landing_pad.tscn` | Landing platform, looks and solid only (SM_Bld_Landing_Platform_01, 13.2 m) |
+| `scenes/stations/props/landing_pad.tscn` | Landing platform, looks and solid only (SM_Bld_Landing_Platform_01, 13.2 m, deck on `assets/surfaces`, joints and dimples in normal maps: `tools/station_bay/build_pad.py`, `pad_maps.py`) |
 | `scenes/stations/props/landing_pad_small.tscn` | A working landing pad for small ships (fighters): the platform at twice its size, clamps, glow and beacon (see Landing pads) |
 | `scenes/stations/props/hull_panel_a.tscn`, `_b`, `_c` | Hull panels, 30 x 30 m, cut from the ring's own skin and flattened |
 | `scenes/stations/props/hull_trim.tscn` | A 1 m beam, to scale over panels' edges and joints |
@@ -58,7 +58,7 @@ A hangar can have several pads, and so hold several ships, one to a pad. The doo
 ### Putting a pad in a hangar
 
 1. Open the hangar's scene (`scenes/stations/props/hangar_big.tscn`) and instance the pad scene into it, once per pad. It can go anywhere under the hangar's root, or under any node inside it. The pad finds the hangar's `HangarDock` (the `Dock` node) by itself. Pads are numbered in the order they are in the scene tree, from 1, unless you set `Number`.
-2. Place it on the floor. The pad's origin is the **top of the platform**, its +Y is up, and its **-Z is where a docked ship's nose points**. The `Nose` marker in the scene shows that way. Turn the pad about Y to choose whether ships park facing the door or facing in.
+2. Place it on the floor. The pad's origin is the **deck, where people and ships stand** (not the top of what stands round it), its +Y is up, and its **-Z is where a docked ship's nose points**. The `Nose` marker in the scene shows that way. Turn the pad about Y to choose whether ships park facing the door or facing in.
 3. Leave room. A ship's middle comes down over the pad's origin, so the whole ship must fit there: the pad's `MaxFootprint` plus some margin to the walls, and the hangar's door must let it through.
 4. Run the game (or `tests/landing_pad_test.tscn`, which puts a pad in a hangar in code) and dock.
 
@@ -87,7 +87,7 @@ The station must be one whose hangars have a `HangarDock` node, as `hangar_big.t
 Make a new scene the way `landing_pad_small.tscn` is made, rather than scaling the small one: its numbers are in metres and do not follow the node's scale.
 
 1. A `Node3D` root with `scripts/Space/LandingPad.cs`. Set `MaxFootprint` and `MaxHeight` to the ships it is for (Synty's cruisers are 23 to 37 m wide and 50 to 52 m long). Give it a larger `Leeway` and `CaptureHeight`, and longer `SettleSeconds` and `LaunchSeconds`, to suit them.
-2. The platform: any model, with a `Solid` (its collision mesh, or `BoxShape3D` children) so ships bump into it. Put its top at the root's origin.
+2. The platform: any model, with a `Solid` (its collision mesh, or `BoxShape3D` children) so ships bump into it. Put its deck at the root's origin.
 3. The glow: a `Glow` child holding meshes that use `pad_glow.gdshader` (a cylinder rising from the pad, a ring round it) and a light. The shader's `height` should be the mesh's height. Make the column about as wide as the `Leeway`.
 4. A `Marker3D` along -Z helps to see which way ships will park.
 5. Put it in a hangar big enough for those ships. The station only clears a hangar for a ship if one of its pads fits the ship.
@@ -139,3 +139,7 @@ Every module has an `AvoidCapsule`: a rough shape round it that AI pilots' lidar
 Make the capsule hold the whole module. A pilot already inside one does not see it, so a ship that starts there is not trapped.
 
 A ship that means to go inside the station (to dock) sets its sensor's `Entering` to the station's root node. The capsules below that node are then not seen, and only the solid walls are in its way.
+
+## Surfaces
+
+`assets/surfaces/<name>/` holds tiling materials anything can use: `brushed_metal`, `floor_paint`. Each is a plain `StandardMaterial3D` with its albedo, roughness and normal maps, made by `tools/surfaces/make_surfaces.py`. A surface needs a mesh with real UVs: Synty's models point their faces at single texels of an atlas, where a tiling map shows nothing. `build_pad.py` shows how: it splits the faces into meshes of their own (`Pad_Paint`, `Pad_Plate`), maps them flat from above, one unit of UV to the metre of the model, and `ModelPaint`'s `ByMesh` gives each its material. To change how a surface tiles, set `uv1_scale` on its material.

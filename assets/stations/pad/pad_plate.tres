@@ -1,0 +1,25 @@
+[gd_resource type="StandardMaterial3D" load_steps=6 format=3]
+
+[ext_resource type="Texture2D" path="res://assets/surfaces/brushed_metal/albedo.png" id="1_albedo"]
+[ext_resource type="Texture2D" path="res://assets/surfaces/brushed_metal/roughness.png" id="2_roughness"]
+[ext_resource type="Texture2D" path="res://assets/surfaces/brushed_metal/normal.png" id="3_normal"]
+[ext_resource type="Texture2D" path="res://assets/stations/pad/dimples_albedo.png" id="4_dimples"]
+[ext_resource type="Texture2D" path="res://assets/stations/pad/dimples_normal.png" id="5_dimples_normal"]
+
+[resource]
+resource_name = "PadPlate"
+albedo_color = Color(0.55, 0.55, 0.57, 1)
+albedo_texture = ExtResource("1_albedo")
+metallic = 0.7
+roughness_texture = ExtResource("2_roughness")
+normal_enabled = true
+normal_scale = 0.5
+normal_texture = ExtResource("3_normal")
+anisotropy_enabled = true
+anisotropy = 0.4
+detail_enabled = true
+detail_blend_mode = 3
+detail_uv_layer = 1
+detail_albedo = ExtResource("4_dimples")
+detail_normal = ExtResource("5_dimples_normal")
+uv1_scale = Vector3(2, 2, 1)
