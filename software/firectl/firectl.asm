@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.13 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.14 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -49,8 +49,9 @@
 ; zoom keys step the range; while another program has the screen lent
 ; (its entry's +9 not 0, as FLIGHT takes it to show a landing pad) the
 ; scope is left alone, and drawn afresh when the screen comes back) and
-; a page on WEAPON (text, 14 x 10 or more: the target, the turret and its
-; heat). Without them it works the same, unseen.
+; a page on WEAPON (graphics, 112 x 160 or more, to be read at a glance: the
+; weapon's name, its rounds or its heat, the distance to the target, a word
+; on what is going on). Without them it works the same, unseen.
 ;
 ; The devices (16 ports each, words little-endian):
 ;
@@ -124,17 +125,29 @@ KEY_IN      equ 1                   ; the screen keys
 KEY_OUT     equ 2
 
 SCREEN_EVERY equ 6
-ATTR_LABEL  equ 03h
-ATTR_VALUE  equ 0Fh
-ATTR_TITLE  equ 1Fh
-ATTR_SCOPE  equ 08h
-ATTR_CONTACT equ 0Ah
-ATTR_LOCKED equ 0Eh
-ATTR_WARN   equ 0Ch
 MAX_MARKS   equ 16                  ; contacts drawn on the scope
-VALUE_COL   equ 4                   ; the page: values in columns 4-8
-HEAT_COL    equ 3                   ; the heat bar in columns 3-13
-HEAT_CELLS  equ 11
+PAGE_MIN_W  equ 112                 ; the page, in the WEAPON screen's pixels
+PAGE_MIN_H  equ 160
+PAGE_LEFT   equ 2
+PAGE_WIDTH  equ 108
+NAME_Y      equ 1
+RULE_1      equ 60
+SLOT_LABEL_Y equ 62
+SLOT_Y      equ 76
+SLOT_HEIGHT equ 24
+RULE_2      equ 101
+DIST_LABEL_Y equ 103
+DIST_Y      equ 117
+RULE_3      equ 142
+STATUS_Y    equ 145
+SMALL_HEIGHT equ 13
+BAR_LEFT    equ 4                   ; the heat bar inside the slot
+BAR_WIDTH   equ 104
+MID_CELL    equ 14                  ; a digit's width
+VALUE_LEFT  equ 32                  ; five of them and their gaps, to the right
+INK_DIM     equ 55h                 ; the screen's three colours, four pixels of each
+INK_BRIGHT  equ 0AAh
+INK_RED     equ 0FFh
 
     jmp start
 
@@ -142,8 +155,11 @@ HEAT_CELLS  equ 11
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPFC13'             ; 103h
+signature   db 'XPFC14'             ; 103h
 old_irq     dw 0, 0                 ; 109h
+weapon      db 0                    ; 10Dh  0 the cannon, 1 radar missiles, 2 heat seekers, 3 the laser
+cpu_load    db 0                    ; 10Eh  % of the processor it took, last time it drew
+page_status dw 0                    ; 10Fh  the word on the page (0: none)
 
 on_irq:
     pushf
@@ -439,7 +455,7 @@ next_weapon:
     out dx, al
     cmp word [w_seg], 0
     je .done
-    call draw_labels                ; the other weapon's page
+    call draw_frame                 ; the other weapon's page
     mov byte [screen_wait], 1
 .done:
     ret
@@ -1287,90 +1303,12 @@ xor_rows:
     jnz .row
     ret
 
-; The page on the WEAPON screen
+; The page on the WEAPON screen: the weapon's name, large; under it its
+; rounds, or the heat of what has no rounds to count; the distance to the
+; target; a word on what is going on. Only what has changed is drawn.
 draw_page:
     mov es, [w_seg]
-    cmp byte [weapon], 0
-    je .gun
-    cmp byte [weapon], WEAPON_LASER
-    je .laser
-    jmp draw_missile_page
-.laser:
-    mov dx, LASER + 2               ; its status: bit 2 too hot, as the turret's
-    in al, dx
-    and al, 4
-    mov [turret_status], al
-    mov word [heat_port], LASER + 3
-    jmp .status
-.gun:
-    mov dx, TURRET + 13
-    in al, dx
-    mov [turret_status], al
-    mov word [heat_port], TURRET + 14
-.status:
-
-    mov di, (VALUE_COL << 8) | 2    ; the target
-    call at
-    xor ax, ax
-    cmp byte [locked], 0
-    je .no_target
-    mov ax, [track]
-.no_target:
-    call put_number
-    mov di, (VALUE_COL << 8) | 3
-    call at
-    xor ax, ax
-    cmp byte [locked], 0
-    je .no_range
-    mov ax, [range]
-.no_range:
-    call put_unsigned
-    mov di, (VALUE_COL << 8) | 4    ; lead time, ms (1/1024 s, near enough)
-    call at
-    xor ax, ax
-    cmp byte [locked], 0
-    je .no_lead
-    mov ax, [lead]
-.no_lead:
-    call put_unsigned
-    mov di, (VALUE_COL << 8) | 5    ; how clearly the radar sees it
-    call at
-    xor ax, ax
-    cmp byte [locked], 0
-    je .no_snr
-    mov ax, [snr]
-.no_snr:
-    call put_unsigned
-
-    mov ax, [turret_az]             ; the turret, degrees; for the laser,
-    mov bx, [turret_el]             ; the lead point off the nose
-    cmp byte [weapon], WEAPON_LASER
-    jne .angles
-    mov ax, [aim_az]
-    mov bx, [aim_el]
-.angles:
-    push bx
-    mov di, (VALUE_COL << 8) | 6
-    call at
-    mov cx, 360
-    imul cx
-    mov ax, dx
-    call put_number
-    mov di, (VALUE_COL << 8) | 7
-    call at
-    pop ax
-    mov cx, 360
-    imul cx
-    mov ax, dx
-    call put_number
-
-    call put_heat
-    call put_status
-
-put_load:
-    mov di, (VALUE_COL << 8) | 9    ; CPU load
-    call at
-    mov ax, [busy]
+    mov ax, [busy]                  ; the processor's load, for whoever looks
     mov dx, [busy + 2]
     mov cx, 1193
     cmp dx, cx
@@ -1378,56 +1316,275 @@ put_load:
     div cx
     jmp .load
 .full:
-    mov ax, 100
+    mov al, 100
 .load:
-    jmp put_unsigned
+    mov [cpu_load], al
+    call put_slot
+    call put_distance
+    jmp put_status
 
-; The missile page: the target, the missiles, the newest one's flight
-draw_missile_page:
-    mov di, (VALUE_COL << 8) | 2
-    call at
-    mov ax, [track]
-    call if_locked
-    call put_number
-    mov di, (VALUE_COL << 8) | 3
-    call at
-    mov ax, [range]
-    call if_locked
-    call put_unsigned
-    mov di, (VALUE_COL << 8) | 4
-    call at
-    mov ax, [snr]
-    call if_locked
-    call put_unsigned
-    mov di, (VALUE_COL << 8) | 5    ; missiles left
-    call at
+; The page anew, for the weapon selected
+draw_frame:
+    push es
+    mov es, [w_seg]
+    xor di, di
+    xor ax, ax
+    mov cx, [w_words]
+    rep stosw
+
+    mov al, [weapon]                ; its name
+    xor ah, ah
+    shl ax, 1
+    shl ax, 1
+    mov bx, ax
+    mov si, [bx + names]
+    mov cx, [bx + names + 2]
+    mov dx, NAME_Y
+    mov bx, big_font
+    mov al, INK_BRIGHT
+    call draw_string
+
+    mov al, INK_DIM                 ; the rules between the parts
+    mov cx, PAGE_LEFT
+    mov si, PAGE_WIDTH
+    mov bp, 1
+    mov dx, RULE_1
+    call fill_rect
+    mov dx, RULE_2
+    call fill_rect
+    mov dx, RULE_3
+    call fill_rect
+
+    mov si, s_ammo                  ; what the slot under the name shows
+    cmp byte [weapon], 0
+    je .bar
+    cmp byte [weapon], WEAPON_LASER
+    jne .slot
+.bar:
+    mov al, INK_DIM                 ; the heat bar's frame
+    mov cx, PAGE_LEFT
+    mov si, PAGE_WIDTH
+    mov bp, 1
+    mov dx, SLOT_Y
+    call fill_rect
+    mov dx, SLOT_Y + SLOT_HEIGHT - 1
+    call fill_rect
+    mov si, 1
+    mov bp, SLOT_HEIGHT
+    mov dx, SLOT_Y
+    call fill_rect
+    mov cx, PAGE_LEFT + PAGE_WIDTH - 1
+    call fill_rect
+    mov si, s_heat
+.slot:
+    mov cx, PAGE_LEFT
+    mov dx, SLOT_LABEL_Y
+    mov bx, small_font
+    mov al, INK_DIM
+    call draw_string
+    mov si, s_dist
+    mov cx, PAGE_LEFT
+    mov dx, DIST_LABEL_Y
+    mov al, INK_DIM
+    call draw_string
+
+    mov word [shown_slot], 0FFFFh   ; nothing of what comes is on the page yet
+    mov word [page_status], 0
+    mov ax, 2020h
+    mov [shown_ammo], ax
+    mov [shown_ammo + 2], ax
+    mov [shown_ammo + 4], al
+    mov [shown_dist], ax
+    mov [shown_dist + 2], ax
+    mov [shown_dist + 4], al
+    pop es
+    ret
+
+; The slot under the name: a missile's rounds, or the heat of the rest
+put_slot:
+    cmp byte [weapon], 0
+    je .gun
+    cmp byte [weapon], WEAPON_LASER
+    je .laser
+
     call missiles_left
     xor ah, ah
-    call put_unsigned
-    mov di, (VALUE_COL << 8) | 6    ; in flight
-    call at
-    mov dx, LAUNCHER + 3
+    cmp ax, [shown_slot]
+    je .done
+    cmp word [shown_slot], 0        ; 'NO AMMO' is wider than the numbers' place
+    mov [shown_slot], ax
+    jne .not_from_none
+    push ax
+    call clear_slot
+    pop ax
+.not_from_none:
+    test ax, ax
+    jz .none
+    mov bx, shown_ammo
+    mov dx, SLOT_Y
+    jmp put_value
+.none:
+    call clear_slot
+    mov si, s_no_ammo
+    mov cx, PAGE_LEFT - 1
+    mov dx, SLOT_Y
+    mov bx, mid_font
+    mov al, INK_RED
+    call draw_string
+    mov al, 0FFh                    ; the numbers' place has to be drawn afresh
+    mov di, shown_ammo
+    push es
+    push ds
+    pop es
+    mov cx, 5
+    rep stosb
+    pop es
+.done:
+    ret
+
+.laser:
+    mov dx, LASER + 2               ; its status: bit 2 too hot, as the turret's
     in al, dx
-    xor ah, ah
-    call put_unsigned
-    mov di, (VALUE_COL << 8) | 7    ; time to go, seconds
-    call at
-    mov dx, LAUNCHER + 8
-    in ax, dx
+    mov [turret_status], al
+    mov dx, LASER + 3
+    jmp .heat
+.gun:
+    mov dx, TURRET + 13
+    in al, dx
+    mov [turret_status], al
+    mov dx, TURRET + 14
+.heat:
+    in al, dx
+    mov cl, BAR_WIDTH
+    mul cl                          ; AH = the pixels lit: heat * width / 256
+    mov al, [turret_status]
+    and al, 4                       ; and too hot or not
+    cmp ax, [shown_slot]
+    je .done
+    mov [shown_slot], ax
+    mov bl, ah
+    xor bh, bh
+    mov ah, INK_BRIGHT
+    test al, al
+    jz .ink
+    mov ah, INK_RED
+.ink:
+    mov al, ah
+    mov si, bx
+    mov cx, BAR_LEFT
+    mov dx, SLOT_Y + 2
+    mov bp, SLOT_HEIGHT - 4
+    call fill_rect
+    add cx, si
+    mov ax, BAR_WIDTH
+    sub ax, si
+    mov si, ax
+    xor al, al
+    jmp fill_rect
+
+clear_slot:
+    mov cx, PAGE_LEFT - 1
+    mov dx, SLOT_Y
+    mov si, PAGE_WIDTH + 2
+    mov bp, SLOT_HEIGHT
+    xor al, al
+    jmp fill_rect
+
+; The distance to the target, to 10 m: what the eye can use, and the last
+; digit needs no drawing
+put_distance:
+    mov ax, 0FFFFh
+    cmp byte [locked], 0
+    je .show
+    mov ax, [range]
+    cmp ax, 65530
+    jbe .round
+    mov ax, 65530
+.round:
+    add ax, 5
+    xor dx, dx
+    mov cx, 10
+    div cx
+    mul cx
+.show:
+    mov bx, shown_dist
+    mov dx, DIST_Y
+    jmp put_value
+
+; AX on the row DX, on the right of the page, in the digits that have
+; changed since the ones at BX; 0FFFFh is a row of dashes
+put_value:
+    push bx
+    mov di, digits
+    mov cx, 5
+.blank:
+    mov byte [di], ' '
+    inc di
+    loop .blank
     cmp ax, 0FFFFh
-    jne .tgo
-    xor ax, ax
-.tgo:
-    mov cl, 3
-    shr ax, cl
-    call put_unsigned
-    mov di, (VALUE_COL << 8) | 8    ; its fuel
-    call at
-    mov dx, LAUNCHER + 12
-    in ax, dx
-    call put_unsigned
-    call put_missile_status
-    jmp put_load
+    jne .number
+    mov byte [digits + 2], '-'
+    mov byte [digits + 3], '-'
+    mov byte [digits + 4], '-'
+    jmp .shown
+.number:
+    mov di, digits + 4
+    mov cx, 10
+    mov bx, dx                      ; the row, while dividing
+.digit:
+    xor dx, dx
+    div cx
+    add dl, '0'
+    mov [di], dl
+    dec di
+    test ax, ax
+    jnz .digit
+    mov dx, bx
+.shown:
+    pop bx
+    mov si, digits
+    mov cx, VALUE_LEFT
+    mov di, 5
+.cell:
+    lodsb
+    cmp al, [bx]
+    je .same
+    mov [bx], al
+    push si
+    push di
+    push bx
+    push cx
+    push dx
+    push ax
+    mov si, MID_CELL
+    mov bp, SLOT_HEIGHT
+    xor al, al
+    call fill_rect
+    pop ax
+    mov bx, mid_font
+    mov [font], bx
+    mov [pen_x], cx
+    mov [pen_y], dx
+    mov byte [pen_ink], INK_BRIGHT
+    cmp al, '-'
+    jne .ink
+    mov byte [pen_ink], INK_DIM
+.ink:
+    cmp al, ' '
+    je .drawn
+    call draw_char
+.drawn:
+    pop dx
+    pop cx
+    pop bx
+    pop di
+    pop si
+.same:
+    add cx, MID_CELL + 2
+    inc bx
+    dec di
+    jnz .cell
+    ret
 
 ; AL = how many of the weapon selected are left
 missiles_left:
@@ -1439,21 +1596,74 @@ missiles_left:
     in al, dx
     ret
 
-; AX, or 0 with nothing locked
-if_locked:
+; The word at the bottom, when there is something to say
+put_status:
+    cmp byte [weapon], 0
+    je .gun
+    cmp byte [weapon], WEAPON_LASER
+    je .gun
+    call missile_status
+    jmp .say
+.gun:
+    xor si, si
+    mov ah, INK_BRIGHT
+    mov al, [turret_status]
+    test al, 4
+    jz .not_hot
+    mov si, s_too_hot
+    mov ah, INK_RED
+    jmp .say
+.not_hot:
+    test al, 2                      ; the target is where the turret cannot go
+    jz .say
     cmp byte [locked], 0
-    jne .yes
-    xor ax, ax
-.yes:
+    je .say
+    mov si, s_out_of_arc
+    mov ah, INK_RED
+.say:
+    cmp si, [page_status]
+    je .done
+    mov [page_status], si
+    push ax
+    push si
+    mov cx, PAGE_LEFT
+    mov dx, STATUS_Y
+    mov si, PAGE_WIDTH
+    mov bp, SMALL_HEIGHT
+    xor al, al
+    call fill_rect
+    pop si
+    pop ax
+    test si, si
+    jz .done
+    mov al, ah
+    mov cx, PAGE_LEFT
+    mov dx, STATUS_Y
+    mov bx, small_font
+    jmp draw_string
+.done:
     ret
 
-put_missile_status:
+; SI, AH = what the missile is doing, and the ink
+missile_status:
     mov si, s_launch
-    mov ah, ATTR_WARN
+    mov ah, INK_RED
     cmp word [launch_wait], 0
     je .no_launch
-    jmp .put
+    ret
 .no_launch:
+    mov dx, LAUNCHER + 15           ; news only of the kind selected: a heat
+    in al, dx                       ; seeker's pilot wants to see its head
+    cmp al, 2
+    je .news_heat
+    cmp byte [weapon], 2
+    jne .news
+    jmp .idle
+.news_heat:
+    cmp byte [weapon], 2
+    jne .idle
+.news:
+    mov ah, INK_RED
     mov dx, LAUNCHER + 11
     in al, dx
     cmp al, 1
@@ -1462,344 +1672,464 @@ put_missile_status:
     in al, dx
     mov si, s_lost
     test al, 4
-    jnz .put
+    jnz .done
     test al, 2
     jz .heard
     mov si, s_no_link
     mov dx, LAUNCHER + 15
     in al, dx
     cmp al, 2
-    jne .put
+    jne .done
     mov si, s_no_heat               ; a heat seeker's head sees nothing
-    jmp .put
+    ret
 .heard:
     mov si, s_guiding
-    mov ah, ATTR_LOCKED
+    mov ah, INK_BRIGHT
     test al, 1
-    jnz .put
+    jnz .done
     mov si, s_search                ; a heat seeker that has seen nothing yet
-    mov ah, ATTR_LABEL
-    jmp .put
+    mov ah, INK_DIM
+    ret
 .not_flying:
     cmp word [result_wait], 0
     je .idle
     mov si, s_missed
     cmp al, 2
-    jne .put
+    jne .done
     mov si, s_hit
-    mov ah, ATTR_LOCKED
-    jmp .put
+    mov ah, INK_BRIGHT
+    ret
 .idle:
     call missiles_left
-    mov si, s_empty
+    xor si, si                      ; none left: the slot says it
     test al, al
-    jz .put
+    jz .done
     cmp byte [weapon], 2
     je .head
     mov si, s_no_target
-    mov ah, ATTR_LABEL
+    mov ah, INK_DIM
     cmp byte [locked], 0
-    je .put
+    je .done
     mov si, s_msl_ready
-    mov ah, ATTR_LOCKED
-    jmp .put
+    mov ah, INK_BRIGHT
+    ret
 .head:
-    call head_status
-.put:
-    mov di, 1
-    call at
-    jmp put_text
+    jmp head_status
+.done:
+    ret
 
 ; SI, AH = what the heat seeker's head is doing: off, searching, a tone, locked
 head_status:
     mov si, s_head_off
-    mov ah, ATTR_LABEL
+    mov ah, INK_DIM
     cmp byte [head_on], 0
     je .done
     mov dx, LAUNCHER + 4
     in al, dx
     mov si, s_ir_lock
-    mov ah, ATTR_LOCKED
+    mov ah, INK_BRIGHT
     test al, 16
     jnz .done
     mov si, s_ir_tone
     test al, 8
     jnz .done
     mov si, s_search
-    mov ah, ATTR_LABEL
+    mov ah, INK_DIM
 .done:
     ret
 
-; The barrel's heat as a bar, green, yellow from half way, red too hot
-put_heat:
-    mov dx, [heat_port]
-    in al, dx
-    mov bh, ATTR_CONTACT
-    cmp al, 128
-    jb .colour
-    mov bh, ATTR_LOCKED
-.colour:
-    test byte [turret_status], 4
-    jz .cool
-    mov bh, ATTR_WARN
-.cool:
-    mov cl, HEAT_CELLS
-    mul cl
-    add ax, 255
-    mov bl, ah                      ; cells lit: heat * cells / 256, rounded up
-    mov di, (HEAT_COL << 8) | 8
-    call at
-    mov cx, HEAT_CELLS
-.cell:
-    mov ax, (ATTR_SCOPE << 8) | 0FAh
-    test bl, bl
-    jz .put
-    dec bl
-    mov al, 0DBh
-    mov ah, bh
-.put:
-    stosw
-    loop .cell
-    ret
-
-; What it is doing
-put_status:
-    mov si, s_no_target
-    mov ah, ATTR_LABEL
-    mov al, [turret_status]
-    test al, 4
-    jz .not_hot
-    mov si, s_too_hot
-    cmp byte [weapon], WEAPON_LASER
-    jne .hot
-    mov si, s_laser_hot
-.hot:
-    mov ah, ATTR_WARN
-    jmp .put
-.not_hot:
-    test al, 2                      ; the target is where the turret cannot go
-    jz .in_arc
-    cmp byte [locked], 0
-    je .in_arc
-    mov si, s_out_of_arc
-    mov ah, ATTR_WARN
-    jmp .put
-.in_arc:
-    cmp byte [firing], 0
-    je .not_firing
-    mov si, s_firing
-    mov ah, ATTR_WARN
-    jmp .put
-.not_firing:
-    cmp byte [locked], 0
-    je .put
-    mov si, s_tracking
-    mov ah, ATTR_LOCKED
-.put:
-    mov di, 1                       ; column 0, row 1
-    call at
-    jmp put_text
-
-; DI = column << 8 | row  ->  DI = its cell's offset on the WEAPON screen
-at:
-    push ax
-    push dx
-    mov ax, di
-    mov dl, [w_cols]
-    mul dl
-    mov dx, di
-    mov dl, dh
-    xor dh, dh
-    add ax, dx
-    shl ax, 1
-    mov di, ax
-    pop dx
-    pop ax
-    ret
-
-; AX signed or unsigned, ES:DI: right-aligned in 5 columns
-put_number:
-    mov bl, '+'
-    test ax, ax
-    jns put_digits
-    neg ax
-    mov bl, '-'
-    jmp put_digits
-put_unsigned:
-    mov bl, ' '
-put_digits:
-    push ax
-    mov ax, (ATTR_VALUE << 8) | ' '
-    mov cx, 5
-    push di
-    rep stosw
-    pop di
-    pop ax
-    add di, 8
-    mov cx, 10
-.digit:
-    xor dx, dx
-    div cx
-    add dl, '0'
-    mov [es:di], dl
-    mov byte [es:di + 1], ATTR_VALUE
-    sub di, 2
-    test ax, ax
-    jnz .digit
-    mov [es:di], bl
-    mov byte [es:di + 1], ATTR_VALUE
-    ret
-
-; DS:SI ASCIIZ with attribute AH, at ES:DI
-put_text:
+; DS:SI ASCIIZ in the font at BX, ink AL, from (CX, DX), on ES
+draw_string:
+    mov [font], bx
+    mov [pen_x], cx
+    mov [pen_y], dx
+    mov [pen_ink], al
+.next:
     lodsb
     test al, al
     jz .done
-    stosw
-    jmp put_text
+    call draw_char
+    jmp .next
 .done:
     ret
 
-; The page's labels, for the weapon selected
-draw_labels:
-    push es
-    mov es, [w_seg]
-    xor di, di
-    mov ax, (ATTR_LABEL << 8) | ' '
-    mov cx, [w_cells]
-    rep stosw
-    mov si, labels
-    cmp byte [weapon], 0
-    je .next
-    mov si, laser_labels
-    cmp byte [weapon], WEAPON_LASER
-    je .next
-    mov si, m_labels
-    cmp byte [weapon], 2
-    jne .next
-    mov si, ir_labels
-.next:
-    lodsw
-    cmp ax, 0FFFFh
-    je .done
-    cmp ax, 0FFFEh
-    jne .gun_rest
-    mov si, m_body
-    jmp .next
-.gun_rest:
-    cmp ax, 0FFFDh
-    jne .label
-    mov si, gun_body
-    jmp .next
-.label:
-    mov di, ax
-    call at
-    lodsb
+; AL a character, at the pen, which moves on; SI stays as it was
+draw_char:
+    mov bx, [font]
+    cmp al, ' '
+    jne .find
+    mov al, [bx + 5]                ; a space, half a letter wide
+    shr al, 1
+    add al, [bx + 4]
+    xor ah, ah
+    add [pen_x], ax
+    ret
+.find:
+    push si
+    mov si, [bx + 2]
+    xor cx, cx
     mov ah, al
-.char:
+.look:
     lodsb
     test al, al
-    jz .next
-    stosw
-    jmp .char
-.done:
-    pop es
+    jz .none
+    cmp al, ah
+    je .found
+    inc cx
+    jmp .look
+.none:
+    pop si
+    ret
+.found:
+    mov si, [bx]
+    add si, cx
+    add si, cx
+    mov si, [si]
+    lodsb                           ; its width
+    xor ah, ah
+    push ax
+    mov dx, [pen_y]
+.run:
+    lodsb                           ; so many rows
+    test al, al
+    jz .end
+    xor ah, ah
+    mov bp, ax
+    lodsb                           ; with so many spans
+    mov bl, al
+.span:
+    test bl, bl
+    jz .spans_done
+    lodsb                           ; where each starts, and its length
+    xor ah, ah
+    add ax, [pen_x]
+    mov cx, ax
+    lodsb
+    xor ah, ah
+    push si
+    mov si, ax
+    mov al, [pen_ink]
+    call fill_rect
+    pop si
+    dec bl
+    jmp .span
+.spans_done:
+    add dx, bp
+    jmp .run
+.end:
+    pop ax
+    mov bx, [font]
+    add al, [bx + 4]
+    adc ah, 0
+    add [pen_x], ax
+    pop si
     ret
 
-; column << 8 | row, attribute, text
-laser_labels:
-    dw 0
-    db ATTR_TITLE, ' FIRECTL  LSR ', 0
-    dw 0FFFDh                       ; the rest as the gun page
-labels:
-    dw 0
-    db ATTR_TITLE, ' FIRECTL  GUN ', 0
-gun_body:
-    dw 2
-    db ATTR_LABEL, 'TGT', 0
-    dw 3
-    db ATTR_LABEL, 'RNG', 0
-    dw (10 << 8) | 3
-    db ATTR_LABEL, 'm', 0
-    dw 4
-    db ATTR_LABEL, 'LEAD', 0
-    dw (10 << 8) | 4
-    db ATTR_LABEL, 'ms', 0
-    dw 5
-    db ATTR_LABEL, 'SNR', 0
-    dw (10 << 8) | 5
-    db ATTR_LABEL, 'dB', 0
-    dw 6
-    db ATTR_LABEL, 'AZ', 0
-    dw (10 << 8) | 6
-    db ATTR_LABEL, 'deg', 0
-    dw 7
-    db ATTR_LABEL, 'EL', 0
-    dw (10 << 8) | 7
-    db ATTR_LABEL, 'deg', 0
-    dw 8
-    db ATTR_LABEL, 'HT', 0
-    dw 9
-    db ATTR_LABEL, 'CPU', 0
-    dw (10 << 8) | 9
-    db ATTR_LABEL, '%', 0
-    dw 0FFFFh
+; From (CX, DX), SI wide and BP high, in the ink AL (four pixels of it),
+; on ES. Every register stays as it was.
+fill_rect:
+    test si, si
+    jz .nothing
+    push ax
+    push bx
+    push cx
+    push dx
+    push si
+    push di
+    push bp
+    mov bl, al
+    mov ax, dx
+    mul word [w_pitch]
+    mov di, cx
+    shr di, 1
+    shr di, 1
+    mov dx, di                      ; its first byte in the row
+    add di, ax
+    add si, cx
+    dec si                          ; its last pixel
+    and cl, 3
+    shl cl, 1
+    mov ch, 0FFh
+    shr ch, cl
+    mov [rect_left], ch
+    mov cx, si
+    and cl, 3
+    mov ch, 3
+    sub ch, cl
+    mov cl, ch
+    shl cl, 1
+    mov ch, 0FFh
+    shl ch, cl
+    mov [rect_right], ch
+    shr si, 1
+    shr si, 1
+    sub si, dx                      ; bytes from the first to the last
+.row:
+    push di
+    mov bh, [rect_left]
+    mov cx, si
+    test cx, cx
+    jz .last
+    call .masked
+    inc di
+    dec cx
+    mov al, bl
+    rep stosb
+    mov bh, 0FFh
+.last:
+    and bh, [rect_right]
+    call .masked
+    pop di
+    add di, [w_pitch]
+    dec bp
+    jnz .row
+    pop bp
+    pop di
+    pop si
+    pop dx
+    pop cx
+    pop bx
+    pop ax
+.nothing:
+    ret
+.masked:
+    mov al, bl
+    and al, bh
+    not bh
+    and bh, [es:di]
+    or al, bh
+    mov [es:di], al
+    ret
 
-ir_labels:
-    dw 0
-    db ATTR_TITLE, ' FIRECTL  IR  ', 0
-    dw 0FFFEh                       ; the rest as the missile page
-m_labels:
-    dw 0
-    db ATTR_TITLE, ' FIRECTL  MSL ', 0
-m_body:
-    dw 2
-    db ATTR_LABEL, 'TGT', 0
-    dw 3
-    db ATTR_LABEL, 'RNG', 0
-    dw (10 << 8) | 3
-    db ATTR_LABEL, 'm', 0
-    dw 4
-    db ATTR_LABEL, 'SNR', 0
-    dw (10 << 8) | 4
-    db ATTR_LABEL, 'dB', 0
-    dw 5
-    db ATTR_LABEL, 'LFT', 0
-    dw 6
-    db ATTR_LABEL, 'FLY', 0
-    dw 7
-    db ATTR_LABEL, 'TGO', 0
-    dw (10 << 8) | 7
-    db ATTR_LABEL, 's', 0
-    dw 8
-    db ATTR_LABEL, 'DV', 0
-    dw (10 << 8) | 8
-    db ATTR_LABEL, 'm/s', 0
-    dw 9
-    db ATTR_LABEL, 'CPU', 0
-    dw (10 << 8) | 9
-    db ATTR_LABEL, '%', 0
-    dw 0FFFFh
+names           dw name_gun, 3, name_msl, 3, name_ir, 31, name_lsr, 3
+name_gun        db 'GUN', 0
+name_msl        db 'MSL', 0
+name_ir         db 'IR', 0
+name_lsr        db 'LSR', 0
+s_ammo          db 'AMMO', 0
+s_heat          db 'HEAT', 0
+s_dist          db 'DIST', 0
+s_no_ammo       db 'NO AMMO', 0
+s_no_target     db 'NO TARGET', 0
+s_too_hot       db 'TOO HOT', 0
+s_out_of_arc    db 'OUT OF ARC', 0
+s_msl_ready     db 'READY', 0
+s_launch        db 'LAUNCH', 0
+s_guiding       db 'GUIDING', 0
+s_no_link       db 'NO LINK', 0
+s_lost          db 'MSL LOST', 0
+s_hit           db 'HIT', 0
+s_missed        db 'MISSED', 0
+s_ir_tone       db 'IR TONE', 0
+s_no_heat       db 'NO HEAT', 0
+s_ir_lock       db 'IR LOCK', 0
+s_search        db 'SEARCH', 0
+s_head_off      db 'SEEKER OFF', 0
 
-s_no_target     db 'NO TARGET  ', 0
-s_tracking      db 'TRACKING   ', 0
-s_firing        db 'FIRING     ', 0
-s_too_hot       db 'GUN TOO HOT', 0
-s_laser_hot     db 'LSR TOO HOT', 0
-s_out_of_arc    db 'OUT OF ARC ', 0
-s_msl_ready     db 'MSL READY  ', 0
-s_launch        db 'LAUNCH     ', 0
-s_guiding       db 'GUIDING    ', 0
-s_no_link       db 'NO LINK    ', 0
-s_lost          db 'MSL LOST   ', 0
-s_hit           db 'HIT        ', 0
-s_missed        db 'MISSED     ', 0
-s_empty         db 'NO MISSILES', 0
-s_ir_tone       db 'IR TONE    ', 0
-s_no_heat       db 'NO HEAT    ', 0
-s_ir_lock       db 'IR LOCK    ', 0
-s_search        db 'SEARCH     ', 0
-s_head_off      db 'SEEKER OFF ', 0
+; ---- font tables (tools/firectl_font.py) ----
+; big: 58 rows, a gap of 2; a glyph: its width, then runs: rows, spans, x and length of each
+big_font dw big_glyphs, big_chars
+    db 2, 34
+big_glyphs:
+    dw big_G
+    dw big_U
+    dw big_N
+    dw big_M
+    dw big_S
+    dw big_L
+    dw big_I
+    dw big_R
+big_chars db 'GUNMSLIR', 0
+big_G:
+    db 34, 1, 1, 3, 28, 1, 1, 2, 30, 1, 1, 1, 32, 7, 1, 0, 34, 1, 1, 0, 33, 1, 1, 0
+    db 32, 1, 1, 0, 31, 12, 1, 0, 13, 1, 2, 0, 13, 20, 11, 1, 2, 0, 13, 19, 13, 1, 2, 0
+    db 13, 18, 15, 7, 2, 0, 13, 17, 17, 1, 2, 0, 13, 18, 16, 1, 2, 0, 13, 19, 15, 1, 2, 0
+    db 13, 20, 14, 7, 2, 0, 13, 21, 13, 10, 1, 0, 34, 1, 1, 1, 32, 1, 1, 2, 30, 1, 1, 3
+    db 28, 0
+big_U:
+    db 34, 1, 2, 3, 7, 24, 7, 1, 2, 2, 9, 23, 9, 1, 2, 1, 11, 22, 11, 42, 2, 0, 13, 21
+    db 13, 10, 1, 0, 34, 1, 1, 1, 32, 1, 1, 2, 30, 1, 1, 3, 28, 0
+big_N:
+    db 34, 1, 2, 3, 7, 24, 7, 1, 2, 2, 9, 23, 9, 1, 2, 1, 11, 22, 11, 2, 2, 0, 13, 21
+    db 13, 2, 2, 0, 14, 21, 13, 2, 2, 0, 15, 21, 13, 2, 2, 0, 16, 21, 13, 2, 2, 0, 17, 21
+    db 13, 2, 2, 0, 18, 21, 13, 2, 2, 0, 19, 21, 13, 3, 2, 0, 20, 21, 13, 18, 1, 0, 34, 3
+    db 2, 0, 13, 14, 20, 2, 2, 0, 13, 15, 19, 2, 2, 0, 13, 16, 18, 2, 2, 0, 13, 17, 17, 2
+    db 2, 0, 13, 18, 16, 2, 2, 0, 13, 19, 15, 2, 2, 0, 13, 20, 14, 2, 2, 0, 13, 21, 13, 1
+    db 2, 1, 11, 22, 11, 1, 2, 2, 9, 23, 9, 1, 2, 3, 7, 24, 7, 0
+big_M:
+    db 34, 1, 2, 3, 7, 24, 7, 1, 2, 2, 9, 23, 9, 1, 2, 1, 11, 22, 11, 1, 2, 0, 13, 21
+    db 13, 2, 2, 0, 14, 20, 14, 2, 2, 0, 15, 19, 15, 2, 2, 0, 16, 18, 16, 21, 1, 0, 34, 1
+    db 2, 0, 20, 21, 13, 23, 2, 0, 13, 21, 13, 1, 2, 1, 11, 22, 11, 1, 2, 2, 9, 23, 9, 1
+    db 2, 3, 7, 24, 7, 0
+big_S:
+    db 34, 1, 1, 3, 28, 1, 1, 2, 30, 1, 1, 1, 32, 7, 1, 0, 34, 1, 1, 0, 33, 1, 1, 0
+    db 32, 1, 1, 0, 31, 9, 1, 0, 13, 1, 1, 0, 31, 1, 1, 0, 32, 1, 1, 0, 33, 7, 1, 0
+    db 34, 1, 1, 1, 33, 1, 1, 2, 32, 1, 1, 3, 31, 10, 1, 21, 13, 1, 1, 3, 31, 1, 1, 2
+    db 32, 1, 1, 1, 33, 7, 1, 0, 34, 1, 1, 1, 32, 1, 1, 2, 30, 1, 1, 3, 28, 0
+big_L:
+    db 34, 1, 1, 3, 7, 1, 1, 2, 9, 1, 1, 1, 11, 42, 1, 0, 13, 1, 1, 0, 31, 1, 1, 0
+    db 32, 1, 1, 0, 33, 7, 1, 0, 34, 1, 1, 1, 32, 1, 1, 2, 30, 1, 1, 3, 28, 0
+big_I:
+    db 13, 1, 1, 3, 7, 1, 1, 2, 9, 1, 1, 1, 11, 52, 1, 0, 13, 1, 1, 1, 11, 1, 1, 2
+    db 9, 1, 1, 3, 7, 0
+big_R:
+    db 34, 1, 1, 3, 28, 1, 1, 2, 30, 1, 1, 1, 32, 10, 1, 0, 34, 10, 2, 0, 13, 21, 13, 10
+    db 1, 0, 34, 1, 1, 0, 33, 1, 1, 0, 32, 1, 1, 0, 31, 1, 1, 0, 27, 2, 1, 0, 28, 2
+    db 1, 0, 29, 1, 1, 0, 30, 1, 2, 0, 13, 14, 16, 1, 2, 0, 13, 15, 16, 1, 2, 0, 13, 15
+    db 17, 1, 2, 0, 13, 16, 16, 1, 2, 0, 13, 16, 17, 1, 2, 0, 13, 17, 16, 1, 2, 0, 13, 17
+    db 17, 1, 2, 0, 13, 18, 16, 2, 2, 0, 13, 19, 15, 2, 2, 0, 13, 20, 14, 1, 2, 0, 13, 21
+    db 13, 1, 2, 1, 11, 22, 11, 1, 2, 2, 9, 23, 9, 1, 2, 3, 7, 24, 7, 0
+; mid: 24 rows, a gap of 2; a glyph: its width, then runs: rows, spans, x and length of each
+mid_font dw mid_glyphs, mid_chars
+    db 2, 14
+mid_glyphs:
+    dw mid_0
+    dw mid_1
+    dw mid_2
+    dw mid_3
+    dw mid_4
+    dw mid_5
+    dw mid_6
+    dw mid_7
+    dw mid_8
+    dw mid_9
+    dw mid_minus
+    dw mid_N
+    dw mid_O
+    dw mid_A
+    dw mid_M
+mid_chars db '0123456789-NOAM', 0
+mid_0:
+    db 14, 1, 1, 1, 12, 4, 1, 0, 14, 14, 2, 0, 5, 9, 5, 4, 1, 0, 14, 1, 1, 1, 12, 0
+mid_1:
+    db 14, 1, 1, 6, 3, 1, 1, 4, 6, 1, 1, 3, 7, 1, 1, 2, 8, 3, 1, 1, 9, 1, 1, 2
+    db 8, 15, 1, 5, 5, 1, 1, 6, 3, 0
+mid_2:
+    db 14, 1, 1, 1, 12, 4, 1, 0, 14, 2, 2, 0, 5, 9, 5, 1, 2, 1, 3, 9, 5, 1, 1, 9
+    db 5, 1, 1, 1, 13, 3, 1, 0, 14, 1, 1, 0, 13, 5, 1, 0, 5, 1, 1, 0, 13, 3, 1, 0
+    db 14, 1, 1, 1, 12, 0
+mid_3:
+    db 14, 1, 1, 1, 12, 3, 1, 0, 14, 1, 1, 1, 13, 4, 1, 9, 5, 1, 1, 4, 10, 3, 1, 3
+    db 11, 1, 1, 4, 10, 5, 1, 9, 5, 1, 1, 1, 13, 3, 1, 0, 14, 1, 1, 1, 12, 0
+mid_4:
+    db 14, 1, 2, 1, 3, 10, 3, 10, 2, 0, 5, 9, 5, 4, 1, 0, 14, 1, 1, 1, 13, 7, 1, 9
+    db 5, 1, 1, 10, 3, 0
+mid_5:
+    db 14, 1, 1, 1, 12, 3, 1, 0, 14, 1, 1, 0, 13, 4, 1, 0, 5, 1, 1, 0, 13, 3, 1, 0
+    db 14, 1, 1, 1, 13, 5, 1, 9, 5, 1, 1, 1, 13, 3, 1, 0, 14, 1, 1, 1, 12, 0
+mid_6:
+    db 14, 1, 1, 1, 12, 3, 1, 0, 14, 1, 1, 0, 13, 4, 1, 0, 5, 1, 1, 0, 13, 4, 1, 0
+    db 14, 5, 2, 0, 5, 9, 5, 4, 1, 0, 14, 1, 1, 1, 12, 0
+mid_7:
+    db 14, 1, 1, 1, 12, 3, 1, 0, 14, 1, 1, 1, 13, 2, 1, 8, 5, 2, 1, 7, 6, 2, 1, 7
+    db 5, 2, 1, 6, 6, 2, 1, 6, 5, 2, 1, 5, 6, 2, 1, 5, 5, 2, 1, 4, 6, 2, 1, 4
+    db 5, 1, 1, 5, 3, 0
+mid_8:
+    db 14, 1, 1, 1, 12, 4, 1, 0, 14, 4, 2, 0, 5, 9, 5, 5, 1, 0, 14, 5, 2, 0, 5, 9
+    db 5, 4, 1, 0, 14, 1, 1, 1, 12, 0
+mid_9:
+    db 14, 1, 1, 1, 12, 4, 1, 0, 14, 5, 2, 0, 5, 9, 5, 4, 1, 0, 14, 1, 1, 1, 13, 4
+    db 1, 9, 5, 1, 1, 1, 13, 3, 1, 0, 14, 1, 1, 1, 12, 0
+mid_minus:
+    db 14, 10, 0, 1, 1, 2, 10, 3, 1, 1, 12, 1, 1, 2, 10, 9, 0, 0
+mid_N:
+    db 14, 1, 2, 1, 3, 10, 3, 2, 2, 0, 5, 9, 5, 2, 2, 0, 6, 9, 5, 2, 2, 0, 7, 9
+    db 5, 2, 2, 0, 8, 9, 5, 6, 1, 0, 14, 2, 2, 0, 5, 6, 8, 2, 2, 0, 5, 7, 7, 2
+    db 2, 0, 5, 8, 6, 2, 2, 0, 5, 9, 5, 1, 2, 1, 3, 10, 3, 0
+mid_O:
+    db 14, 1, 1, 1, 12, 4, 1, 0, 14, 14, 2, 0, 5, 9, 5, 4, 1, 0, 14, 1, 1, 1, 12, 0
+mid_A:
+    db 14, 1, 1, 1, 12, 4, 1, 0, 14, 5, 2, 0, 5, 9, 5, 5, 1, 0, 14, 8, 2, 0, 5, 9
+    db 5, 1, 2, 1, 3, 10, 3, 0
+mid_M:
+    db 14, 1, 2, 1, 3, 10, 3, 1, 2, 0, 5, 9, 5, 2, 2, 0, 6, 8, 6, 8, 1, 0, 14, 1
+    db 2, 0, 8, 9, 5, 10, 2, 0, 5, 9, 5, 1, 2, 1, 3, 10, 3, 0
+; small: 13 rows, a gap of 1; a glyph: its width, then runs: rows, spans, x and length of each
+small_font dw small_glyphs, small_chars
+    db 1, 9
+small_glyphs:
+    dw small_A
+    dw small_C
+    dw small_D
+    dw small_E
+    dw small_F
+    dw small_G
+    dw small_H
+    dw small_I
+    dw small_K
+    dw small_L
+    dw small_M
+    dw small_N
+    dw small_O
+    dw small_R
+    dw small_S
+    dw small_T
+    dw small_U
+    dw small_Y
+small_chars db 'ACDEFGHIKLMNORSTUY', 0
+small_A:
+    db 9, 1, 1, 1, 7, 2, 1, 0, 9, 2, 2, 0, 3, 6, 3, 3, 1, 0, 9, 4, 2, 0, 3, 6
+    db 3, 1, 2, 1, 1, 7, 1, 0
+small_C:
+    db 9, 1, 1, 1, 7, 2, 1, 0, 9, 1, 2, 0, 3, 6, 3, 1, 2, 0, 3, 7, 1, 3, 1, 0
+    db 3, 1, 2, 0, 3, 7, 1, 1, 2, 0, 3, 6, 3, 2, 1, 0, 9, 1, 1, 1, 7, 0
+small_D:
+    db 9, 1, 1, 1, 5, 1, 1, 0, 7, 1, 1, 0, 8, 1, 2, 0, 3, 5, 3, 5, 2, 0, 3, 6
+    db 3, 1, 2, 0, 3, 5, 3, 1, 1, 0, 8, 1, 1, 0, 7, 1, 1, 1, 5, 0
+small_E:
+    db 9, 1, 1, 1, 7, 1, 1, 0, 9, 1, 1, 0, 8, 2, 1, 0, 3, 1, 1, 0, 7, 1, 1, 0
+    db 8, 1, 1, 0, 7, 2, 1, 0, 3, 1, 1, 0, 8, 1, 1, 0, 9, 1, 1, 1, 7, 0
+small_F:
+    db 9, 1, 1, 1, 7, 1, 1, 0, 9, 1, 1, 0, 8, 2, 1, 0, 3, 1, 1, 0, 7, 1, 1, 0
+    db 8, 1, 1, 0, 7, 4, 1, 0, 3, 1, 1, 1, 1, 0
+small_G:
+    db 9, 1, 1, 1, 7, 1, 1, 0, 9, 1, 1, 0, 8, 2, 1, 0, 3, 1, 2, 0, 3, 6, 2, 1
+    db 2, 0, 3, 5, 4, 3, 2, 0, 3, 6, 3, 2, 1, 0, 9, 1, 1, 1, 7, 0
+small_H:
+    db 9, 1, 2, 1, 1, 7, 1, 4, 2, 0, 3, 6, 3, 3, 1, 0, 9, 4, 2, 0, 3, 6, 3, 1
+    db 2, 1, 1, 7, 1, 0
+small_I:
+    db 3, 1, 1, 1, 1, 11, 1, 0, 3, 1, 1, 1, 1, 0
+small_K:
+    db 9, 1, 2, 1, 1, 7, 1, 1, 2, 0, 3, 6, 3, 1, 2, 0, 3, 5, 3, 1, 1, 0, 7, 1
+    db 1, 0, 6, 1, 1, 0, 5, 2, 1, 0, 6, 1, 2, 0, 3, 4, 3, 2, 2, 0, 3, 5, 3, 1
+    db 2, 0, 3, 6, 3, 1, 2, 1, 1, 7, 1, 0
+small_L:
+    db 9, 1, 1, 1, 1, 9, 1, 0, 3, 1, 1, 0, 8, 1, 1, 0, 9, 1, 1, 1, 7, 0
+small_M:
+    db 9, 1, 2, 1, 1, 7, 1, 1, 2, 0, 3, 6, 3, 1, 2, 0, 4, 5, 4, 3, 1, 0, 9, 1
+    db 3, 0, 3, 4, 1, 6, 3, 5, 2, 0, 3, 6, 3, 1, 2, 1, 1, 7, 1, 0
+small_N:
+    db 9, 1, 2, 1, 1, 7, 1, 1, 2, 0, 3, 6, 3, 2, 2, 0, 4, 6, 3, 2, 2, 0, 5, 6
+    db 3, 1, 1, 0, 9, 2, 2, 0, 3, 4, 5, 2, 2, 0, 3, 5, 4, 1, 2, 0, 3, 6, 3, 1
+    db 2, 1, 1, 7, 1, 0
+small_O:
+    db 9, 1, 1, 1, 7, 2, 1, 0, 9, 7, 2, 0, 3, 6, 3, 2, 1, 0, 9, 1, 1, 1, 7, 0
+small_R:
+    db 9, 1, 1, 1, 7, 2, 1, 0, 9, 2, 2, 0, 3, 6, 3, 2, 1, 0, 9, 1, 1, 0, 8, 2
+    db 2, 0, 3, 4, 3, 1, 2, 0, 3, 5, 3, 1, 2, 0, 3, 6, 3, 1, 2, 1, 1, 7, 1, 0
+small_S:
+    db 9, 1, 1, 1, 7, 1, 1, 0, 9, 1, 1, 0, 8, 2, 1, 0, 3, 1, 1, 0, 8, 1, 1, 0
+    db 9, 1, 1, 1, 8, 2, 1, 6, 3, 1, 1, 1, 8, 1, 1, 0, 9, 1, 1, 1, 7, 0
+small_T:
+    db 9, 1, 1, 1, 7, 1, 1, 0, 9, 1, 1, 1, 7, 9, 1, 3, 3, 1, 1, 4, 1, 0
+small_U:
+    db 9, 1, 2, 1, 1, 7, 1, 9, 2, 0, 3, 6, 3, 2, 1, 0, 9, 1, 1, 1, 7, 0
+small_Y:
+    db 9, 1, 2, 1, 1, 7, 1, 1, 2, 0, 3, 6, 3, 2, 2, 1, 3, 5, 3, 2, 1, 2, 5, 6
+    db 1, 3, 3, 1, 1, 4, 1, 0
+; ---- end of the font tables ----
+
+font            dw 0                ; the pen: the font, where, its ink
+pen_x           dw 0
+pen_y           dw 0
+pen_ink         db 0
+rect_left       db 0                ; the masks of a rectangle's ends
+rect_right      db 0
+digits          db 0, 0, 0, 0, 0
+shown_ammo      db 0, 0, 0, 0, 0    ; what the page shows now
+shown_dist      db 0, 0, 0, 0, 0
+shown_slot      dw 0
 
 buttons         db 0
 pressed         db 0
@@ -1808,7 +2138,6 @@ firing          db 0
 rounds_left     db 0
 screen_wait     db 1
 turret_status   db 0
-weapon          db 0                ; 0 the cannon, 1 radar missiles, 2 heat seekers, 3 the laser
 has_launcher    db 0
 has_laser       db 0
 has_turret      db 0
@@ -1845,8 +2174,8 @@ r_h             dw 0
 r_pitch         dw 0                ; bytes a row
 r_words         dw 0                ; words in all
 w_seg           dw 0                ; the WEAPON screen's segment (0: none)
-w_cells         dw 0
-w_cols          db 0
+w_pitch         dw 0                ; bytes a row
+w_words         dw 0                ; words in all
 marks           times MAX_MARKS * 3 dw 0    ; x, y, 1 if locked
 radar_seg       dw 0
 table_off       dw 0
@@ -1858,7 +2187,6 @@ aim_az          dw 0
 aim_el          dw 0
 lead            dw 0
 muzzle          dw 0                ; m/s: the speed of what the solution is for
-heat_port       dw TURRET + 14      ; the page's heat bar
 range           dw 0
 t_start         dw 0
 busy            dw 0, 0
@@ -1987,18 +2315,22 @@ install:
     mov si, n_weapon
     call find_screen
     jc .no_page
-    cmp byte [es:bx + 7], 14
+    cmp word [es:bx + 10], PAGE_MIN_W
     jb .no_page
-    cmp byte [es:bx + 8], 10
+    cmp word [es:bx + 12], PAGE_MIN_H
     jb .no_page
-    mov byte [es:bx + 6], 0         ; text
-    mov al, [es:bx + 7]
-    mov [w_cols], al
-    mul byte [es:bx + 8]
-    mov [w_cells], ax
+    mov byte [es:bx + 6], 1         ; graphics
+    mov ax, [es:bx + 10]
+    shr ax, 1
+    shr ax, 1
+    mov [w_pitch], ax
+    mul word [es:bx + 12]
+    inc ax
+    shr ax, 1
+    mov [w_words], ax
     call screen_segment
     mov [w_seg], ax
-    call draw_labels
+    call draw_frame
 .no_page:
 
     mov al, 1                       ; radar on
@@ -2050,8 +2382,10 @@ remove:
     out dx, al
     mov ax, [es:w_seg]              ; the resident copy's screens
     mov [w_seg], ax
-    mov al, [es:w_cols]
-    mov [w_cols], al
+    mov ax, [es:w_pitch]
+    mov [w_pitch], ax
+    mov ax, [es:w_words]
+    mov [w_words], ax
     mov ax, [es:r_seg]
     mov [r_seg], ax
     mov ax, [es:r_words]
@@ -2060,11 +2394,16 @@ remove:
     cmp word [w_seg], 0
     je .no_page
     mov es, [w_seg]
+    xor di, di
+    xor ax, ax
+    mov cx, [w_words]
+    rep stosw
     mov si, s_removed
-    mov di, 1
-    call at
-    mov ah, ATTR_WARN
-    call put_text
+    mov cx, PAGE_LEFT
+    mov dx, STATUS_Y
+    mov bx, small_font
+    mov al, INK_DIM
+    call draw_string
 .no_page:
     cmp word [r_seg], 0             ; the scope goes dark
     je .no_scope
@@ -2190,7 +2529,7 @@ screen_segment:
 n_radar         db 'RADAR '
 n_weapon        db 'WEAPON'
 
-s_removed       db 'REMOVED    ', 0
+s_removed       db 'FIRECTL OFF', 0
 msg_installed   db 'Fire control resident: scope on RADAR, page on WEAPON.', 13, 10
                 db 'FIRECTL OFF removes it.', 13, 10, '$'
 msg_already     db 'Fire control is already resident.', 13, 10, '$'

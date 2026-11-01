@@ -53,9 +53,9 @@ public partial class LaserTest : Node3D
         AddChild(_drone);
         Place();
 
-        Check("the ship's software is running", await Until(() => _display.Text("WEAPON").Contains("FIRECTL"), 40));
+        Check("the ship's software is running", await Until(() => FireControl.Running(_ship), 40));
         await Press(() => _controls.NextWeapon = true, () => _controls.NextWeapon = false);
-        Check("next weapon selects the laser", await Until(() => _display.Text("WEAPON").Contains("LSR"), 1));
+        Check("next weapon selects the laser", await Until(() => FireControl.Weapon(_ship) == "LSR", 1));
         Check("with nothing locked there is no lead circle", _laser.LeadPoint == null);
 
         // The lead point the program writes, against the truth
@@ -95,7 +95,7 @@ public partial class LaserTest : Node3D
 
         // Held down: too hot, it stops; then it cools
         _controls.Trigger = true;
-        bool hot = await Until(() => _laser.TooHot && _display.Text("WEAPON").Contains("LSR TOO HOT"), 15);
+        bool hot = await Until(() => _laser.TooHot && FireControl.Status(_ship) == "TOO HOT", 15);
         int pulses = _laser.PulsesFired;
         await Seconds(1);
         Check($"held down it overheats and stops ({hot}, {_laser.PulsesFired - pulses} pulses in the next second)", hot && _laser.PulsesFired == pulses);
@@ -107,7 +107,7 @@ public partial class LaserTest : Node3D
         Check("a pulse's kind travels with the round fired", FireEvent.Read(new BitReader(e.ToBytes())).Kind == 1);
 
         await Press(() => _controls.NextWeapon = true, () => _controls.NextWeapon = false);
-        Check("next weapon goes back to the gun", await Until(() => _display.Text("WEAPON").Contains("GUN"), 1));
+        Check("next weapon goes back to the gun", await Until(() => FireControl.Weapon(_ship) == "GUN", 1));
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);

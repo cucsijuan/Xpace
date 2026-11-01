@@ -45,7 +45,7 @@ public partial class ManeuverTest : FloatingOrigin
         AddChild(_drone);
         _drone.Fly(Vector3.Back * 100);
 
-        Check("the ship's software is running", await Until(() => _display.Text("WEAPON").Contains("FIRECTL"), 40));
+        Check("the ship's software is running", await Until(() => FireControl.Running(_ship), 40));
         await Seconds(1.2);
         _controls.TargetAhead = true;
         await Seconds(0.1);
@@ -111,7 +111,7 @@ public partial class ManeuverTest : FloatingOrigin
                 return true;
             await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
         }
-        GD.Print(_display.Text("WEAPON"));
+        GD.Print($"fire control: {FireControl.Weapon(_ship)}, {FireControl.Status(_ship)}");
         return false;
     }
 

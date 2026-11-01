@@ -26,6 +26,12 @@ public partial class DisplayScreen : Resource
     /// <summary>The phosphor's colour in graphics mode.</summary>
     [Export] public Color Phosphor = new(0.35f, 1f, 0.4f);
 
+    /// <summary>
+    /// What the pixel values 1, 2 and 3 light in graphics mode, on a tube of several colours. Empty: the phosphor's
+    /// colour at 30%, 60% and 100%.
+    /// </summary>
+    [Export] public Color[] Palette = System.Array.Empty<Color>();
+
     /// <summary>Seconds the phosphor takes to fade to a tenth after the beam leaves.</summary>
     [Export(PropertyHint.Range, "0.01,3,0.01")] public float Persistence = 0.3f;
 

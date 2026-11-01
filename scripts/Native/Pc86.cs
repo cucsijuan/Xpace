@@ -138,7 +138,7 @@ public static unsafe class Pc86
     [DllImport(XbusLib)] public static extern byte* xbus_written_flags(IntPtr bus);
     [DllImport(XbusLib)] public static extern void xbus_raise_irq(IntPtr bus);
     [DllImport(XbusLib)] public static extern void xbus_render_text(byte* cells, int cols, int rows, byte* rgb);
-    [DllImport(XbusLib)] public static extern void xbus_render_graphics(byte* pixels, int width, int height, float* glow, float fade, float* colour, byte* rgb);
+    [DllImport(XbusLib)] public static extern void xbus_render_graphics(byte* pixels, int width, int height, float* glow, float fade, float* palette, byte* rgb);
 
     // ---------- the microcontroller (xpace_native, native/mcu.c) ----------
     [DllImport(XbusLib)] public static extern IntPtr mcu_create(byte* firmware, nuint len, ushort basePort);

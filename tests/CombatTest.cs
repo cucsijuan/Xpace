@@ -45,7 +45,7 @@ public partial class CombatTest : Node3D
         AddChild(_other);
         _other.LookAt(_other.GlobalPosition + Vector3.Back, Vector3.Up);
 
-        Check("FIRECTL.COM goes resident from AUTOEXEC.BAT", await Until(() => _display.Text("WEAPON").Contains("FIRECTL"), 40));
+        Check("FIRECTL.COM goes resident from AUTOEXEC.BAT", await Until(() => FireControl.Running(_ship), 40));
         Check("the radar is on and sees both drones", await Until(() => _ship.Computer.Bus[RadarDevice.Slot, 3] == 2, 3));
 
         await Press(() => _controls.TargetAhead = true, () => _controls.TargetAhead = false);
@@ -83,7 +83,7 @@ public partial class CombatTest : Node3D
         await Press(() => _controls.TargetAhead = true, () => _controls.TargetAhead = false);
         Check("T again lets it go", await Until(() => _radar.Locked == null, 1));
 
-        GD.Print($"     {Line(_display.Text("FLIGHT"), "CPU LOAD").Trim()} (flight), {Line(_display.Text("WEAPON"), "CPU").Trim()} (fire control)");
+        GD.Print($"     {Line(_display.Text("FLIGHT"), "CPU LOAD").Trim()} (flight), CPU {FireControl.Load(_ship)}% (fire control)");
 
         await Type("FIRECTL OFF\n");
         Check("FIRECTL OFF turns the radar off", await Until(() => !_radar.On && _radar.Locked == null, 5));
@@ -144,7 +144,7 @@ public partial class CombatTest : Node3D
             await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
         }
         GD.Print(_ship.Computer.ScreenText());
-        GD.Print(_display.Text("WEAPON"));
+        GD.Print($"fire control: {FireControl.Weapon(_ship)}, {FireControl.Status(_ship)}");
         return false;
     }
 

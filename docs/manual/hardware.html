@@ -749,7 +749,7 @@ COOL resident.
 <tr><td>+12 word</td><td>Height (graphics, pixels)</td></tr>
 <tr><td>+14 word</td><td>The offset of the screen's memory (a multiple of 16)</td></tr>
 </table>
-<p>In text mode the memory holds a character and an attribute for each cell, as the video card's colour text mode does. In graphics mode it holds two bits a pixel (off, dim, half, bright), four pixels to a byte with the leftmost in the top bits, width/4 bytes a row. The screens' phosphor glows on for a moment after a pixel goes off.</p>
+<p>In text mode the memory holds a character and an attribute for each cell, as the video card's colour text mode does. In graphics mode it holds two bits a pixel (off, dim, half, bright, or on a tube of several colours its three: WEAPON has dim green, bright green and red), four pixels to a byte with the leftmost in the top bits, width/4 bytes a row. The screens' phosphor glows on for a moment after a pixel goes off.</p>
 <p>A program may take another's screen for a while, as FLIGHT takes RADAR while docking: it writes its mark in +9 and draws, and writes 0 when it is done. The screen's own program leaves the screen alone while +9 is not 0, and draws it afresh when it comes back.</p>
 </section>
 
@@ -764,7 +764,7 @@ COOL resident.
 <p>Buttons: flight assist, safe turns, parking, boost (the main engine's cooling boost).</p>
 
 <h2 class="cmd">FIRECTL<span>Fire control</span></h2>
-<p>Works the radar, the turret, the laser and the missile launcher. Target ahead locks the contact nearest the middle of the view, or lets the target go; next target locks the next one. With a target locked it smooths the radar's positions with an alpha-beta filter, which gives the target's velocity, and works out where a round fired now meets the target if it flies on straight; it points the turret there, or writes the laser's lead point. Next weapon steps through the cannon, the radar missiles, the heat seekers and the laser, as the ship has them. Its radar scope is on RADAR (left alone while another program has the screen), its page on WEAPON. About a third of the processor.</p>
+<p>Works the radar, the turret, the laser and the missile launcher. Target ahead locks the contact nearest the middle of the view, or lets the target go; next target locks the next one. With a target locked it smooths the radar's positions with an alpha-beta filter, which gives the target's velocity, and works out where a round fired now meets the target if it flies on straight; it points the turret there, or writes the laser's lead point. Next weapon steps through the cannon, the radar missiles, the heat seekers and the laser, as the ship has them. Its radar scope is on RADAR (left alone while another program has the screen). Its page on WEAPON, in graphics, is made to be read at a glance: the weapon's name in large letters; the rounds left, NO AMMO in red with none, or for the cannon and the laser a bar of their heat, red when too hot; the distance to the target; and a word on what is going on. About a third of the processor.</p>
 <p>Buttons: target ahead, next target, fire, next weapon.</p>
 
 <h2 class="cmd">RWR<span>Threat warning</span></h2>

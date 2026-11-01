@@ -52,10 +52,10 @@ public partial class MissileTest : Node3D
         _drone = new Drone { Straight = true, Speed = 120, Health = 1e9f, Position = new Vector3(0, 0, -3000) };
         AddChild(_drone);
 
-        Check("the ship's software is running", await Until(() => _display.Text("WEAPON").Contains("FIRECTL"), 40));
+        Check("the ship's software is running", await Until(() => FireControl.Running(_ship), 40));
         await Press(c => c.NextWeapon = true);
         await Seconds(0.2);
-        Check("next weapon selects the missiles", _display.Text("WEAPON").Contains("MSL"));
+        Check("next weapon selects the missiles", FireControl.Weapon(_ship) == "MSL");
 
         GD.Print("     range   target          kills  hits   closest (m)   flight (s)   fuel left (m/s)   decoys  decoy took it");
         float[] ranges = { 2000, 3500, 5000 };
@@ -92,8 +92,8 @@ public partial class MissileTest : Node3D
 
         await Press(c => c.NextWeapon = true);
         await Seconds(0.2);
-        Check("next weapon selects the heat seekers", _display.Text("WEAPON").Contains("IR"));
-        Check("their head stays off until the fire button wakes it", !_launcher.HeadPowered && _display.Text("WEAPON").Contains("SEEKER OFF"));
+        Check("next weapon selects the heat seekers", FireControl.Weapon(_ship) == "IR");
+        Check("their head stays off until the fire button wakes it", !_launcher.HeadPowered && FireControl.Status(_ship) == "SEEKER OFF");
 
         GD.Print("     heat seekers:");
         _heat = true;
@@ -133,7 +133,7 @@ public partial class MissileTest : Node3D
         await Press(c => c.Trigger = true);
         await Seconds(0.5);
         bool tone = _launcher.HeatTone;
-        bool searching = _display.Text("WEAPON").Contains("SEARCH");
+        bool searching = FireControl.Status(_ship) == "SEARCH";
         int before = _launcher.Launched;
         await Press(c => c.Trigger = true);
         await Seconds(1);
@@ -148,7 +148,7 @@ public partial class MissileTest : Node3D
 
         await Press(c => c.NextWeapon = true);
         await Seconds(0.2);
-        Check("next weapon goes back to the gun", _display.Text("WEAPON").Contains("GUN"));
+        Check("next weapon goes back to the gun", FireControl.Weapon(_ship) == "GUN");
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
@@ -176,7 +176,7 @@ public partial class MissileTest : Node3D
                 await Press(c => c.Trigger = true); // the first press wakes the heat seeker's head, the drone still ahead
             await Seconds(1.2);                 // a sweep, so the radar has it in its table
             if (_radarOff)
-                _sawHeadLock |= await Until(() => _launcher.HeadLocked && _display.Text("WEAPON").Contains("IR LOCK"), 2);
+                _sawHeadLock |= await Until(() => _launcher.HeadLocked && FireControl.Status(_ship) == "IR LOCK", 2);
             else
             {
                 if (_radar.Locked != null)

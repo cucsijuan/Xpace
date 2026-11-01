@@ -63,7 +63,7 @@ public partial class ReprogramTest : Node3D
         FatDisk.Write(disk, "ABG.ASM", Encoding.ASCII.GetBytes(edited ?? ""));
         computer.InsertDisk(disk);
         computer.PowerOn();
-        Check("the stock fire control is running", await Until(() => _display.Text("WEAPON").Contains("FIRECTL"), 40));
+        Check("the stock fire control is running", await Until(() => FireControl.Running(_ship), 40));
 
         GD.Print("     stock FIRECTL");
         float[] before = await Rates();

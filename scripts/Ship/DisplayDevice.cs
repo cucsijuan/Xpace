@@ -44,8 +44,8 @@ public enum DisplayKey
 ///   +12 height  +14 memory (offset, a multiple of 16)
 ///
 /// Text: character and attribute pairs, as on a CGA. Graphics: 2 bits a
-/// pixel (off, dim, half, bright), four to a byte with the leftmost in the
-/// top bits, width/4 bytes a row.
+/// pixel (off, dim, half, bright, or a tube's own three colours), four to a
+/// byte with the leftmost in the top bits, width/4 bytes a row.
 /// </summary>
 public partial class DisplayDevice : Node, IShipDevice
 {
@@ -116,6 +116,19 @@ public partial class DisplayDevice : Node, IShipDevice
         }
         return sb.ToString();
     }
+
+    /// <summary>The value of a pixel of a graphics screen, as its memory has it (0-3).</summary>
+    public unsafe int Pixel(string name, int x, int y)
+    {
+        Output o = Find(name);
+        if (_ship == null || o == null)
+            return 0;
+        byte* pixels = _ship.Computer.Memory + ShipMemory.Base + o.Memory;
+        return pixels[y * (o.Spec.Width / 4) + x / 4] >> ((3 - (x & 3)) * 2) & 3;
+    }
+
+    /// <summary>The screen's picture as it was last drawn, or null.</summary>
+    public Image Picture(string name) => Find(name)?.Image;
 
     private Output Find(string name)
     {
@@ -224,12 +237,31 @@ public partial class DisplayDevice : Node, IShipDevice
         int w = o.Spec.Width & ~3, h = o.Spec.Height;
         Resize(o, 1, w, h);
         float fade = Mathf.Pow(0.1f, delta / Mathf.Max(o.Spec.Persistence, 0.001f));
-        float* colour = stackalloc float[3] { o.Spec.Phosphor.R, o.Spec.Phosphor.G, o.Spec.Phosphor.B };
+        float* palette = stackalloc float[12];
+        Palette(o.Spec, palette);
         fixed (byte* p = o.Pixels)
         fixed (float* glow = o.Glow)
-            Pc86.xbus_render_graphics(pixels, w, h, glow, fade, colour, p);
+            Pc86.xbus_render_graphics(pixels, w, h, glow, fade, palette, p);
         o.Image.SetData(w, h, false, Image.Format.Rgb8, o.Pixels);
         o.Texture.Update(o.Image);
+    }
+
+    // The dark tube's faint glow, then the three colours its pixels light
+    private static readonly float[] Levels = { 0.3f, 0.6f, 1f };
+
+    private static unsafe void Palette(DisplayScreen s, float* palette)
+    {
+        Color tube = s.Phosphor;
+        palette[0] = 0.03f * tube.R;
+        palette[1] = 0.03f * tube.G;
+        palette[2] = 0.03f * tube.B;
+        for (int i = 0; i < 3; i++)
+        {
+            Color c = i < s.Palette.Length ? s.Palette[i] : tube * Levels[i];
+            palette[3 + i * 3] = c.R;
+            palette[4 + i * 3] = c.G;
+            palette[5 + i * 3] = c.B;
+        }
     }
 
     // A change of mode changes the picture's size: the texture takes the new image.
@@ -239,7 +271,7 @@ public partial class DisplayDevice : Node, IShipDevice
             return;
         o.Mode = mode;
         o.Pixels = new byte[w * h * 3];
-        o.Glow = mode == 1 ? new float[w * h] : Array.Empty<float>();
+        o.Glow = mode == 1 ? new float[w * h * 3] : Array.Empty<float>();
         o.Image = Image.CreateEmpty(w, h, false, Image.Format.Rgb8);
         o.Texture.SetImage(o.Image);
     }

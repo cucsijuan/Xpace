@@ -10,4 +10,5 @@ Rows = 10
 Width = 112
 Height = 160
 Phosphor = Color(0.35, 1, 0.4, 1)
-Persistence = 0.3
+Palette = PackedColorArray(0.14, 0.5, 0.2, 1, 0.35, 1, 0.4, 1, 1, 0.2, 0.14, 1)
+Persistence = 0.12

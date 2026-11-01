@@ -41,7 +41,7 @@ public partial class AccuracyTest : Node3D
         _drone = new Drone { Straight = true, Speed = 120, Health = 1e9f, Position = new Vector3(0, 0, -3000) };
         AddChild(_drone);
 
-        Check("the ship's software is running", await Until(() => _display.Text("WEAPON").Contains("FIRECTL"), 40));
+        Check("the ship's software is running", await Until(() => FireControl.Running(_ship), 40));
 
         GD.Print("     range   target          hits / rounds   hit rate   SNR");
         float straight2k = 0;

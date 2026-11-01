@@ -86,7 +86,7 @@ public partial class JammerTest : Node3D
         AddChild(_podNode);
         Park(_podNode);
 
-        Check("FIRECTL runs on the hunter", await Until(_hunter, () => _hunterDisplay.Text("WEAPON").Contains("FIRECTL"), 40));
+        Check("FIRECTL runs on the hunter", await Until(_hunter, () => FireControl.Running(_hunter), 40));
         Check("RWR.COM runs on the prey", await Until(_prey, () => _prey.Computer.ScreenText().Contains("Threat warning resident"), 40));
 
         Snapshots();

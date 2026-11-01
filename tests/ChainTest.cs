@@ -52,7 +52,7 @@ public partial class ChainTest : Node3D
 
         Check("AUTOEXEC.BAT ends with POWER resident", await Until(() => Screen().Contains("Power manager resident"), 60));
         await Seconds(1);
-        Check($"the chain is POWER, RWR, FIRECTL, FLIGHT ({Chain()})", Chain() == "XPPW11 XPRW15 XPFC13 XPFL17");
+        Check($"the chain is POWER, RWR, FIRECTL, FLIGHT ({Chain()})", Chain() == "XPPW11 XPRW15 XPFC14 XPFL17");
         Check("FLIGHT drives the thrusters", !_ship.DirectMode);
 
         await Command("FIRECTL OFF");
@@ -65,12 +65,12 @@ public partial class ChainTest : Node3D
         await Command("FIRECTL");
         Check("FIRECTL again", await Until(() => Screen().Contains("Fire control resident"), 10));
         await Seconds(1);
-        Check($"it is on top ({Chain()})", Chain() == "XPFC13 XPPW11 XPRW15 XPFL17");
+        Check($"it is on top ({Chain()})", Chain() == "XPFC14 XPPW11 XPRW15 XPFL17");
         Check("the radar searches again", _radar.Mode == RadarMode.Search);
 
         await Command("FLIGHT OFF");
         Check("FLIGHT OFF from the bottom", await Until(() => Screen().Contains("Flight control removed"), 10));
-        Check($"the chain is FIRECTL, POWER, RWR ({Chain()})", Chain() == "XPFC13 XPPW11 XPRW15");
+        Check($"the chain is FIRECTL, POWER, RWR ({Chain()})", Chain() == "XPFC14 XPPW11 XPRW15");
         await Seconds(1);
         Check("the thrusters fall back to direct", _ship.DirectMode);
         await Command("FLIGHT");
@@ -88,7 +88,7 @@ public partial class ChainTest : Node3D
         await Command("FIRECTL OFF");
         await Until(() => Screen().Contains("Fire control removed"), 10);
         await Command("NEW");
-        Check("and it runs", await Until(() => Chain().StartsWith("XPFC13 "), 10));
+        Check("and it runs", await Until(() => Chain().StartsWith("XPFC14 "), 10));
 
         Check("ASM assembles the manual's COOL.ASM", await Assemble("COOL.ASM", "COOL.COM"));
         string before = Chain();
@@ -105,11 +105,11 @@ public partial class ChainTest : Node3D
         Check($"COOL OFF ({Chain()})", await Until(() => Chain() == before, 10));
 
         var display = _ship.GetNode<DisplayDevice>("Display");
-        Check("FIRECTL draws its page on the WEAPON screen", display.Text("WEAPON").Contains("FIRECTL"));
+        Check("FIRECTL draws its page on the WEAPON screen", FireControl.PageDrawn(display));
         computer.Rearm();
         Check("the insurer's new computer boots", await Until(() => Screen().Contains("Power manager resident"), 60));
         Check("and FIRECTL finds its screens again (the table is written after the power cycle wiped it)",
-              await Until(() => display.Text("WEAPON").Contains("FIRECTL"), 5));
+              await Until(() => FireControl.PageDrawn(display), 5));
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GC.Collect();
