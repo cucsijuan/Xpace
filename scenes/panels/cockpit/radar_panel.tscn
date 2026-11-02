@@ -9,7 +9,7 @@ albedo_color = Color(0.1, 0.5, 0.35, 1)
 texture_filter = 1
 
 [sub_resource type="QuadMesh" id="Mesh_radar"]
-size = Vector2(0.11, 0.088)
+size = Vector2(0.187, 0.1496)
 
 [sub_resource type="StandardMaterial3D" id="Material_weapon"]
 shading_mode = 0
@@ -17,7 +17,7 @@ albedo_color = Color(0.1, 0.5, 0.35, 1)
 texture_filter = 1
 
 [sub_resource type="QuadMesh" id="Mesh_weapon"]
-size = Vector2(0.048, 0.074)
+size = Vector2(0.0816, 0.1258)
 
 [node name="RadarPanel" type="Node3D"]
 
@@ -27,23 +27,23 @@ mesh = SubResource("Mesh_radar")
 script = ExtResource("1_screen")
 Source = 1
 DisplayName = "RADAR"
-Size = Vector2(0.11, 0.088)
+Size = Vector2(0.187, 0.1496)
 
 [node name="WeaponScreen" type="MeshInstance3D" parent="."]
-transform = Transform3D(0.991937, 0, 0, 0, 0.988654, 0, 0, 0, 0.996757, -0.12577, -0.00019, -0.00284)
+transform = Transform3D(0.991937, 0, 0, 0, 0.988654, 0, 0, 0, 0.996757, -0.1603, -0.0033, -0.00284)
 material_override = SubResource("Material_weapon")
 mesh = SubResource("Mesh_weapon")
 script = ExtResource("1_screen")
 Source = 1
 DisplayName = "WEAPON"
-Size = Vector2(0.048, 0.074)
+Size = Vector2(0.0816, 0.1258)
 
 [node name="RadarPower" parent="." instance=ExtResource("2_toggle")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1139, 0.0174, -0.01)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1307, 0.012, -0.01)
 Target = NodePath("Radar")
 Property = &"Powered"
 
 [node name="RwrPower" parent="." instance=ExtResource("2_toggle")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1131, -0.0401, -0.009)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1307, -0.04, -0.009)
 Target = NodePath("Rwr")
 Property = &"Powered"

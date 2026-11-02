@@ -81,4 +81,7 @@ wired the same way; these are the ones meant for it.
 
 `scenes/panels/cockpit/rwr_panel.tscn` (the RWR screen and its volume
 slider) and `radar_panel.tscn` (the radar and weapon screens, the radar's
-and the RWR's power switches) are the examples.
+and the RWR's power switches) are the examples. The room for their screens on
+the front panel comes from `tools/cockpit/build_dash.py`, which raises the panel's
+upper edge and remaps the housings round them; its measures and the panels'
+transforms go together.

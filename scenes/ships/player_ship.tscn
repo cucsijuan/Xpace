@@ -287,7 +287,7 @@ Eye = NodePath("../Cockpit/Eye")
 
 [node name="Camera3D" type="Camera3D" parent="Pilot" unique_id=481021367]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.15, 0)
-fov = 70.0
+fov = 62.0
 near = 0.02
 far = 120000.0
 

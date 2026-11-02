@@ -138,7 +138,7 @@ public partial class Pilot : Node3D
             TreeExiting += () => settings.Changed -= Settle;
         }
         _camera = GetNode<Camera3D>("Camera3D");
-        _fov = _wheelFov = _camera.Fov;
+        _fov = _wheelFov = _camera.Fov = GameSettings.Current?.FieldOfView ?? _camera.Fov;
         if (Eye != null)
             _camera.GlobalPosition = Eye.GlobalPosition;
         _hud = GetNodeOrNull<Label>("Hud/Label");
@@ -166,6 +166,12 @@ public partial class Pilot : Node3D
         StickTravel = _stickTravel / Mathf.Max(settings.MouseSensitivity, 0.05f);
         LookSensitivity = _lookSensitivity * settings.LookSensitivity;
         InvertMouseY = _invertMouseY != settings.InvertMouseY;
+        if (_camera != null)
+        {
+            if (Mathf.IsEqualApprox(_wheelFov, _fov))       // not while the wheel has it zoomed
+                _wheelFov = settings.FieldOfView;
+            _fov = settings.FieldOfView;
+        }
     }
 
     // ---------- input ----------

@@ -1,8 +1,8 @@
-[gd_resource type="Resource" script_class="MeshPartList" load_steps=17 format=3]
+[gd_resource type="Resource" script_class="MeshPartList" load_steps=22 format=3]
 
 [ext_resource type="Script" path="res://scripts/Tools/MeshPartList.cs" id="1_list"]
 [ext_resource type="Script" path="res://scripts/Tools/MeshPart.cs" id="2_part"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Veh_POV_Cockpit_01.fbx" id="3_model"]
+[ext_resource type="PackedScene" path="res://assets/synty/cut/SM_Veh_POV_Cockpit_Dash.glb" id="3_model"]
 
 [sub_resource type="Resource" id="Part_slider_knob"]
 script = ExtResource("2_part")
@@ -86,6 +86,36 @@ Name = "cos_tab_right"
 Mode = 2
 Box = AABB(-0.5799, 0.377, -0.0595, 0.0598, 0.0839, 0.018)
 
+[sub_resource type="Resource" id="Part_slider4_knob"]
+script = ExtResource("2_part")
+Name = "slider4_knob"
+Mode = 2
+Box = AABB(-0.0775, 0.4300, -0.8399, 0.0146, 0.0327, 0.0175)
+
+[sub_resource type="Resource" id="Part_slider4_track"]
+script = ExtResource("2_part")
+Name = "slider4_track"
+Mode = 2
+Box = AABB(-0.0830, 0.3720, -0.8478, 0.0236, 0.1019, 0.0367)
+
+[sub_resource type="Resource" id="Part_hexagon_top"]
+script = ExtResource("2_part")
+Name = "hexagon_top"
+Mode = 2
+Box = AABB(-0.3017, 0.4009, -0.8394, 0.0346, 0.0288, 0.0138)
+
+[sub_resource type="Resource" id="Part_hexagon_bottom"]
+script = ExtResource("2_part")
+Name = "hexagon_bottom"
+Mode = 2
+Box = AABB(-0.3019, 0.3678, -0.8285, 0.0346, 0.0288, 0.0138)
+
+[sub_resource type="Resource" id="Part_hexagon_plate"]
+script = ExtResource("2_part")
+Name = "hexagon_plate"
+Mode = 2
+Box = AABB(-0.3144, 0.3542, -0.8465, 0.0598, 0.0865, 0.0313)
+
 [resource]
 script = ExtResource("1_list")
 Source = ExtResource("3_model")
@@ -93,5 +123,5 @@ SourceMesh = NodePath("SM_Veh_POV_Cockpit_01")
 Placement = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 OutputFolder = "res://assets/synty/parts/pov_cockpit_01"
 RemainderName = "cockpit_body"
-Parts = Array[ExtResource("2_part")]([SubResource("Part_slider_knob"), SubResource("Part_slider_track"), SubResource("Part_slider2_knob"), SubResource("Part_slider2_track"), SubResource("Part_slider3_knob"), SubResource("Part_slider3_track"), SubResource("Part_toggle_lever"), SubResource("Part_toggle_base"), SubResource("Part_toggle2_lever"), SubResource("Part_toggle2_base"), SubResource("Part_comms_tablet"), SubResource("Part_cos_tab_left"), SubResource("Part_cos_tab_right")])
+Parts = Array[ExtResource("2_part")]([SubResource("Part_slider_knob"), SubResource("Part_slider_track"), SubResource("Part_slider2_knob"), SubResource("Part_slider2_track"), SubResource("Part_slider3_knob"), SubResource("Part_slider3_track"), SubResource("Part_slider4_knob"), SubResource("Part_slider4_track"), SubResource("Part_toggle_lever"), SubResource("Part_toggle_base"), SubResource("Part_toggle2_lever"), SubResource("Part_toggle2_base"), SubResource("Part_comms_tablet"), SubResource("Part_cos_tab_left"), SubResource("Part_cos_tab_right"), SubResource("Part_hexagon_top"), SubResource("Part_hexagon_bottom"), SubResource("Part_hexagon_plate")])
 SurveyBox = AABB(-0.32, 0.34, -0.95, 0.66, 0.18, 0.25)

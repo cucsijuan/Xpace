@@ -9,7 +9,7 @@ roughness = 0.7
 
 [sub_resource type="BoxMesh" id="Mesh_housing"]
 material = SubResource("Material_housing")
-size = Vector3(0.108, 0.108, 0.024)
+size = Vector3(0.184, 0.184, 0.024)
 
 [sub_resource type="StandardMaterial3D" id="Material_screen"]
 shading_mode = 0
@@ -17,7 +17,7 @@ albedo_color = Color(0.1, 0.5, 0.35, 1)
 texture_filter = 1
 
 [sub_resource type="QuadMesh" id="Mesh_screen"]
-size = Vector2(0.095, 0.095)
+size = Vector2(0.1615, 0.1615)
 
 [node name="RwrPanel" type="Node3D"]
 
@@ -31,9 +31,9 @@ mesh = SubResource("Mesh_screen")
 script = ExtResource("1_screen")
 Source = 1
 DisplayName = "RWR"
-Size = Vector2(0.095, 0.095)
+Size = Vector2(0.1615, 0.1615)
 
 [node name="Volume" parent="." instance=ExtResource("2_slider")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.0976, -0.0005, -0.0016)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.105, -0.0205, -0.0016)
 Target = NodePath("Rwr/RwrTone")
 Property = &"Volume"
