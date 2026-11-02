@@ -200,6 +200,7 @@ public partial class SessionNode : Node
         Session.RadioChanged += RadioChanged;
         Session.Requested += Requested;
         Session.DockCleared += DockCleared;
+        Session.Thickened += (ship, density) => (NodeOf(ship.NetId) as Xpace.Ship.ShipBody)?.Device<Xpace.Ship.CruiseDevice>()?.Thicken(density);
         Session.DockChanged += (station, number, open) =>
             StationRadio.Called(station)?.Docks.FirstOrDefault(d => d.Number == number)?.Show(open);
         if (Session.IsHost)

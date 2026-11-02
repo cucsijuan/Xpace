@@ -1,5 +1,7 @@
 [gd_scene load_steps=38 format=3]
 
+[ext_resource type="Script" path="res://scripts/Space/CruiseWake.cs" id="cruise_wake"]
+[ext_resource type="Script" path="res://scripts/Ship/InterdictorDevice.cs" id="interdictor"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="1_ship"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="2_spec"]
 [ext_resource type="Script" path="res://scripts/Net/NetBody.cs" id="3_netbody"]
@@ -111,6 +113,9 @@ script = ExtResource("20_dispenser")
 script = ExtResource("46_engine")
 Spec = ExtResource("47_d50")
 
+[node name="Interdictor" type="Node" parent="."]
+script = ExtResource("interdictor")
+
 [node name="Jammer" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -1)
 script = ExtResource("44_jammer")
@@ -164,3 +169,6 @@ script = ExtResource("28_rock_sensor")
 
 [node name="Pilot" type="Node" parent="."]
 script = ExtResource("26_ai")
+
+[node name="Wake" type="MeshInstance3D" parent="."]
+script = ExtResource("cruise_wake")

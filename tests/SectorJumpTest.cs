@@ -30,7 +30,7 @@ public partial class SectorJumpTest : Node
         var camera = ship.GetNode<Camera3D>("Pilot/Camera3D");
         Check("the ship starts in the map's first sector", host.Here?.Id == "a" && ship.GetWorld3D() == host.View.FindWorld3D());
         Check("the pilot's camera is the one drawn", host.View.GetCamera3D() == camera);
-        Check("the computer boots", await Until(() => ship.Computer.ScreenText().Contains("Radio resident"), 90));
+        Check("the computer boots", await Until(() => ship.Computer.ScreenText().TrimEnd().EndsWith("A:\\>"), 90));
 
         FloatingOrigin a = host.Sector;
         double before = ship.Computer.EmulatedSeconds;

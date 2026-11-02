@@ -42,7 +42,7 @@ public partial class StationRadio : Node3D, IRadio
     /// <summary>Up to 8 characters; empty: the station's node name.</summary>
     [Export] public string Callsign { get; set; } = "";
     /// <summary>How far a plain receiver hears it, metres.</summary>
-    [Export] public float Range = 40000f;
+    [Export] public float Range = 500000f;
     [Export] public StationLaws Laws;
     /// <summary>How long traffic control takes to answer a ship that asks.</summary>
     [Export] public double ReplySeconds = 0.5;

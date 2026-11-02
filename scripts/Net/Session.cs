@@ -103,7 +103,7 @@ public sealed class Session
     private const byte KindSnapshot = 1, KindFire = 2, KindHit = 3, KindPing = 4, KindPong = 5,
                        KindSpawn = 6, KindDespawn = 7, KindBlast = 8, KindDrop = 9, KindDelta = 10, KindAck = 11, KindRadio = 12,
                        KindRadioState = 13, KindRequest = 14, KindCleared = 15, KindDock = 16, KindPilot = 17, KindDocument = 18,
-                       KindAsk = 19, KindWalker = 20, KindPlace = 21;
+                       KindAsk = 19, KindWalker = 20, KindPlace = 21, KindThicken = 22;
 
     /// <summary>A document for a guest goes in parts of at most this many bytes (EOS carries 1170 a packet).</summary>
     public const int PartBytes = 1000;
@@ -165,6 +165,8 @@ public sealed class Session
 
     /// <summary>The host's station cleared a ship of this machine to a dock (the ship, the station, the dock; 0: over).</summary>
     public event Action<INetEntity, string, int, int> DockCleared;
+    /// <summary>An interdictor on another machine has its beam on this ship: the density it adds.</summary>
+    public event Action<INetEntity, float> Thickened;
 
     /// <summary>The host opened or shut a station's dock (the station, the dock, open).</summary>
     public event Action<string, int, bool> DockChanged;
@@ -521,6 +523,16 @@ public sealed class Session
         body.Add((byte)Math.Clamp(dock, 0, 255));
         body.Add((byte)Math.Clamp(pad, 0, 255));
         Send(owner, KindCleared, body.ToArray(), reliable: true);
+    }
+
+    /// <summary>An interdictor's beam on another machine's ship: its owner thickens the medium round it.</summary>
+    public void Thicken(ushort ship, float density)
+    {
+        var body = new List<byte>(BitConverter.GetBytes(ship));
+        body.AddRange(BitConverter.GetBytes((ushort)Math.Clamp(density * 16, 0, 65535)));
+        byte owner = NetIds.Owner(ship);
+        if (owner != LocalPeer)
+            Send(IsHost ? owner : HostPeer, KindThicken, body.ToArray(), reliable: false);
     }
 
     /// <summary>The host: a station's dock opens or shuts, on every machine.</summary>
@@ -977,6 +989,17 @@ public sealed class Session
                     ushort id = BitConverter.ToUInt16(body, 0);
                     if (theirs(id))
                         Requested?.Invoke(id, Text(body, 2, 2 + Radio.CallsignLength).TrimEnd(), body[^1]);
+                }
+                break;
+
+            case KindThicken:
+                if (body.Length == 4)
+                {
+                    ushort thick = BitConverter.ToUInt16(body, 0);
+                    if (_entities.GetValueOrDefault(thick) is INetEntity { IsLocal: true } thickened)
+                        Thickened?.Invoke(thickened, BitConverter.ToUInt16(body, 2) / 16f);
+                    else if (IsHost && NetIds.Owner(thick) != HostPeer)
+                        Send(NetIds.Owner(thick), KindThicken, body, reliable: false);
                 }
                 break;
 

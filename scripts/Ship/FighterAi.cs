@@ -124,7 +124,14 @@ public partial class FighterAi : Node
     private ShipBody _ship;
     private RadarDevice _radar;
     private RwrDevice _rwr;
+    /// <summary>It turns its interdictor on a target going faster than this (m/s), if it has one.</summary>
+    [Export] public float InterdictAboveSpeed = 700f;
+
     private JammerDevice _jammer;
+    private InterdictorDevice _interdictor;
+    private Vector3 _interdictTrack;
+    private float _trackSpeed;
+    private bool _interdictPulse;
     private double _jamFor;
     private LauncherDevice _launcher;
     private LaserDevice _laser;
@@ -155,6 +162,7 @@ public partial class FighterAi : Node
             _radar ??= n as RadarDevice;
             _rwr ??= n as RwrDevice;
             _jammer ??= n as JammerDevice;
+            _interdictor ??= n as InterdictorDevice;
             _launcher ??= n as LauncherDevice;
             _laser ??= n as LaserDevice;
             _link ??= n as Datalink;
@@ -570,7 +578,25 @@ public partial class FighterAi : Node
         c.Flare = _held.ContainsKey("flare");
         c.SafeButton = _held.ContainsKey("safe");
         c.Jammer = _held.ContainsKey("jam");
+        c.Interdict = Interdicting();
         c.Trigger |= _held.ContainsKey("fire");
         return c;
+    }
+
+    // What it locked moves faster than anything flies on its engine: in cruise. The button in pulses until the
+    // interdictor is as it wants it. (The speed is from the radar's track, as a pilot would read it.)
+    private bool Interdicting()
+    {
+        if (_interdictor == null || _radar == null)
+            return false;
+        bool tracking = _radar.Locked != null;
+        if (tracking)
+        {
+            _trackSpeed = (_radar.TrackPosition - _interdictTrack).Length() * Engine.PhysicsTicksPerSecond;
+            _interdictTrack = _radar.TrackPosition;
+        }
+        bool want = tracking && _trackSpeed > InterdictAboveSpeed && _trackSpeed < 20000;
+        _interdictPulse = !_interdictPulse && want != _interdictor.On;
+        return _interdictPulse;
     }
 }

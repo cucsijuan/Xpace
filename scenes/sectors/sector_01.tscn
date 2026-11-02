@@ -1,5 +1,6 @@
 [gd_scene format=3]
 
+[ext_resource type="Script" path="res://scripts/Space/MediumMass.cs" id="medium_mass"]
 [ext_resource type="Script" uid="uid://ckiwalmif04k4" path="res://scripts/Space/RockKind.cs" id="8_kind"]
 
 [ext_resource type="Script" uid="uid://cjgdfrbao84c3" path="res://scripts/Space/RockBox.cs" id="8_region"]
@@ -180,6 +181,14 @@ script = ExtResource("51_rock_sensor")
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -600, 150, 4000)
 
 [node name="Gate2" parent="." instance=ExtResource("gate_scene")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2500, 150, -6000)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 90000, 5000, 90000)
 Destination = "sector_02"
 ExitGate = "Gate1"
+
+[node name="Mass" type="Node3D" parent="Planet"]
+script = ExtResource("medium_mass")
+Reach = 172000.0
+
+[node name="Mass" type="Node3D" parent="Asteroids"]
+script = ExtResource("medium_mass")
+Reach = 23000.0

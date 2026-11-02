@@ -184,6 +184,19 @@ max_value = 90.0
 step = 1.0
 value = 62.0
 
+[node name="CruiseShakeLabel" type="Label" parent="Center/Panel/Box/Tabs/Video/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Cockpit shake in cruise"
+
+[node name="CruiseShake" type="HSlider" parent="Center/Panel/Box/Tabs/Video/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+max_value = 1.0
+step = 0.05
+value = 0.5
+
 [node name="Controls" type="MarginContainer" parent="Center/Panel/Box/Tabs"]
 visible = false
 layout_mode = 2

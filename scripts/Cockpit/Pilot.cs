@@ -42,6 +42,11 @@ public partial class Pilot : Node3D
     /// <summary>Field of view while zoomed, degrees, and how fast it gets there.</summary>
     [Export] public float ZoomFov = 25f;
     [Export] public float ZoomSpeed = 12f;
+    /// <summary>The cockpit's shake in cruise at its most (the setting at 1): a truck on a bumpy road.</summary>
+    [Export] public float ShakeDegrees = 0.3f;
+    [Export] public float ShakeMetres = 0.012f;
+    /// <summary>How much wider the view opens at a full cruise, degrees.</summary>
+    [Export] public float CruiseFovKick = 5f;
 
     /// <summary>Mouse travel, in pixels, from the centre to full stick.</summary>
     [Export] public float StickTravel = 300f;
@@ -156,6 +161,42 @@ public partial class Pilot : Node3D
         if (_ship != null)
             _ship.ControlsSource = () => _controls;
         ProcessPhysicsPriority = -1;            // the controls are ready before the ship moves
+    }
+
+    private float _shakeTime, _bump, _bumpSide, _bumpIn;
+    private readonly RandomNumberGenerator _shakeRng = new();
+
+    // The rumble of the road and its bumps now and then, more the faster it goes: only the pilot's eye moves
+    private void Shake(float dt)
+    {
+        float setting = GameSettings.Current?.CruiseShake ?? 0.5f;
+        float speed = _ship?.LinearVelocity.Length() ?? 0;
+        float amount = Typing ? 0 : (_ship?.WakeLevel ?? 0) * setting * (0.45f + 0.55f * Mathf.Clamp(speed / 2500, 0, 1));
+        if (amount < 0.001f)
+        {
+            if (Rotation != Vector3.Zero)
+                Rotation = Vector3.Zero;
+            _camera.HOffset = _camera.VOffset = 0;
+            return;
+        }
+        _shakeTime += dt;
+        _bumpIn -= dt;
+        if (_bumpIn <= 0)
+        {
+            _bumpIn = _shakeRng.RandfRange(0.3f, 1.3f);
+            _bump = _shakeRng.RandfRange(0.5f, 1f) * (_shakeRng.Randf() < 0.5f ? -1 : 1);
+            _bumpSide = _shakeRng.RandfRange(-0.5f, 0.5f);
+        }
+        _bump *= Mathf.Exp(-7 * dt);
+        _bumpSide *= Mathf.Exp(-7 * dt);
+        float t = _shakeTime;
+        float rumbleUp = 0.3f * Mathf.Sin(t * 41) + 0.22f * Mathf.Sin(t * 67 + 1) + 0.28f * Mathf.Sin(t * 13 + 2);
+        float rumbleSide = 0.26f * Mathf.Sin(t * 37 + 3) + 0.18f * Mathf.Sin(t * 59 + 4) + 0.22f * Mathf.Sin(t * 9 + 5);
+        float zoomed = _camera.Fov / Mathf.Max(_fov, 1);       // as steady on the screen when zoomed in
+        float degrees = Mathf.DegToRad(ShakeDegrees) * amount * zoomed;
+        Rotation = new Vector3((rumbleUp + _bump) * degrees, (rumbleSide + _bumpSide) * degrees, (rumbleSide - rumbleUp) * degrees * 0.5f);
+        _camera.VOffset = (rumbleUp + _bump) * ShakeMetres * amount;
+        _camera.HOffset = (rumbleSide + _bumpSide) * ShakeMetres * amount;
     }
 
     /// <summary>The player's mouse settings, over the cockpit's own.</summary>
@@ -463,6 +504,8 @@ public partial class Pilot : Node3D
             HeatSink = keys && Input.IsActionPressed(FlightInput.HeatSink),
             Jammer = keys && Input.IsActionPressed(FlightInput.Jammer),
             Parking = keys && Input.IsActionPressed(FlightInput.Parking),
+            Cruise = keys && Input.IsActionPressed(FlightInput.Cruise),
+            Interdict = keys && Input.IsActionPressed(FlightInput.Interdict),
         };
     }
 
@@ -518,7 +561,8 @@ public partial class Pilot : Node3D
         if (!Input.IsActionPressed(FlightInput.Zoom))
             _zoomHeld = false;
         bool zoom = !Typing && !_zoomHeld && !GameMenu.IsOpen && Input.IsActionPressed(FlightInput.Zoom);
-        float fov = Typing ? _fov : zoom ? Mathf.Min(ZoomFov, _wheelFov) : _wheelFov;
+        Shake((float)delta);
+        float fov = Typing ? _fov : zoom ? Mathf.Min(ZoomFov, _wheelFov) : _wheelFov + (_ship?.WakeLevel ?? 0) * CruiseFovKick;
         _camera.Fov = Mathf.Lerp(_camera.Fov, fov, 1 -Mathf.Exp(-ZoomSpeed * (float)delta));
         Lean(delta);
         if (_widget != null)
@@ -538,6 +582,15 @@ public partial class Pilot : Node3D
             string mode = _ship.DirectMode ? "DIRECT" : _ship.AssistOn ? "ASSIST ON" : "ASSIST OFF";
             if (_ship.ParkingOn)
                 mode += _ship.ParkingLimited ? "   PARKING" : "   PARKING (no limit here)";
+            CruiseDevice cruise = _ship.Device<CruiseDevice>();
+            if (cruise?.Charging == true)
+                mode += "   CRUISE CHARGING";
+            else if (cruise?.On == true)
+                mode += "   CRUISE";
+            else if (cruise?.DroppedOut == true)
+                mode += "   CRUISE DROPPED OUT";
+            else if (cruise?.Locked == true)
+                mode += "   MASS LOCK";
             state += $"   Throttle {_throttle * 100:+0;-0;0}%   {mode}   {_ship.LinearVelocity.Length():0} m/s";
             _hull ??= _ship.GetChildren().OfType<ShipHull>().FirstOrDefault();
             if (_hull?.Wrecked == true)

@@ -88,6 +88,9 @@ public partial class GameSettings : Node
     /// <summary>The cockpit's field of view, degrees from the bottom of the picture to the top.</summary>
     public float FieldOfView = 62;
 
+    /// <summary>How much the cockpit shakes in cruise, 0 not at all to 1.</summary>
+    public float CruiseShake = 0.5f;
+
     /// <summary>The radio's voices (the cockpit radio, on the "Voices" bus), 0 to 1.</summary>
     public float VoiceVolume = 0.6f;
 
@@ -251,6 +254,7 @@ public partial class GameSettings : Node
         file.SetValue("controls", "mouse_sensitivity", MouseSensitivity);
         file.SetValue("controls", "look_sensitivity", LookSensitivity);
         file.SetValue("video", "field_of_view", FieldOfView);
+        file.SetValue("video", "cruise_shake", CruiseShake);
         file.SetValue("audio", "voices", VoiceVolume);
         file.SetValue("updates", "check", CheckForUpdates);
         file.SetValue("updates", "skipped", SkippedVersion);
@@ -285,6 +289,7 @@ public partial class GameSettings : Node
         MouseSensitivity = file.GetValue("controls", "mouse_sensitivity", MouseSensitivity).AsSingle();
         LookSensitivity = file.GetValue("controls", "look_sensitivity", LookSensitivity).AsSingle();
         FieldOfView = file.GetValue("video", "field_of_view", FieldOfView).AsSingle();
+        CruiseShake = file.GetValue("video", "cruise_shake", CruiseShake).AsSingle();
         VoiceVolume = file.GetValue("audio", "voices", VoiceVolume).AsSingle();
         CheckForUpdates = file.GetValue("updates", "check", CheckForUpdates).AsBool();
         SkippedVersion = file.GetValue("updates", "skipped", SkippedVersion).AsString();

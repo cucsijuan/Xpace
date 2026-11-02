@@ -30,7 +30,7 @@ namespace Xpace.Ship;
 /// the thruster controller takes the controls directly (direct mode).
 /// See software/flight/flight.asm for the registers.
 /// </summary>
-public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
+public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.ICruiseShown
 {
     public const int SlotControls = 0, SlotInertial = 1, SlotThrusters = 2, SlotRatings = 10;
     public const byte TypeControls = 1, TypeInertial = 2, TypeThrusters = 3, TypeRatings = 12;
@@ -114,6 +114,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     private readonly List<IShipDevice> _devices = new();
     private PowerDevice _power;
     private EngineDevice _engine;
+    private CruiseDevice _cruise;
     private ShipSignature _signature;
     private Quaternion _orientation = Quaternion.Identity;
     private Basis _written = Basis.Identity;
@@ -142,6 +143,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
                 _devices.Add(device);
         _power = Device<PowerDevice>();
         _engine = Device<EngineDevice>();
+        _cruise = Device<CruiseDevice>();
         foreach (Node node in GetChildren())
             _signature ??= node as ShipSignature;
 
@@ -223,7 +225,11 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
             State = Holder.Hold(this, delta);
             return;
         }
-        if (_engine != null)
+        if (_cruise?.Pushes == true)
+        {
+            _engine?.Drive(Spec, this, 0, delta);       // the generator pushes: the main engine rests
+        }
+        else if (_engine != null)
         {
             // The main engine's controller decides what it gives of what was asked
             float pushed = _engine.Drive(Spec, this, MathF.Max(0, Commands[5]), delta);
@@ -263,11 +269,16 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     /// <summary>What the main motor pushes, 0 to 1: its plume and its heat (a puppet: what its owner's snapshots say).</summary>
     public float EngineThrust => Wrecked ? 0 : _shownThrust ?? MathF.Max(0, Commands[5]);
 
+    /// <summary>How much of the medium it stirs in cruise, 0 to 1 (a puppet: what its owner's snapshots say).</summary>
+    public float WakeLevel => Wrecked ? 0 : _shownWake ?? _cruise?.Wake ?? 0;
+
+    private float? _shownWake;
     private float? _shownThrust;
     private bool _shownDestroyed;
 
     // In a session: the main motor's push is its heat and plume to the others
     float INetShip.Thrust => EngineThrust;
+    float INetShip.Wake => WakeLevel;
     float INetShip.Heat => Wrecked ? 0 : _signature?.HullLevel ?? 0;
     bool INetShip.Exploded => false;
 
@@ -276,7 +287,11 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     {
         _shownThrust = pose.Destroyed ? 0 : pose.Thrust;
         if (_signature != null)
+        {
             _signature.ShownLevel = pose.Heat;
+            _signature.ShownWake = pose.Wake;
+        }
+        _shownWake = pose.Wake;
         if (pose.Destroyed && !_shownDestroyed)
             Space.Explosion.Spawn(GetParent(), GlobalPosition, 30f, 1.6, 16f);
         _shownDestroyed = pose.Destroyed;
@@ -316,14 +331,15 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     private unsafe void WriteRatings(ShipBus bus)
     {
         ShipSpec s = Spec;
-        float forward = _engine?.Spec?.RatedThrust ?? s.MainThrust;
+        float forward = _cruise?.Pushes == true ? _cruise.Push : _engine?.Spec?.RatedThrust ?? s.MainThrust;
         Vector3 turn = s.TurnAcceleration, top = s.TopTurnRate();
+        float thin = Thin;
         Span<int> plate = stackalloc int[]
         {
             Rating(forward / s.Mass * 8), Rating(s.Reverse / s.Mass * 8), Rating(s.Lateral / s.Mass * 8), Rating(s.Vertical / s.Mass * 8),
             Rating(turn.X * 1024), Rating(turn.Y * 1024), Rating(turn.Z * 1024),
-            Rating(s.TopSpeed(forward) * 8), Rating(s.TopSpeed(s.Reverse) * 8),
-            Rating(s.TopSpeed(s.Lateral, s.VeilCross.X) * 8), Rating(s.TopSpeed(s.Vertical, s.VeilCross.Y) * 8),
+            Rating(s.TopSpeed(forward, s.VeilDrag * thin) * 8), Rating(s.TopSpeed(s.Reverse, s.VeilDrag * thin) * 8),
+            Rating(s.TopSpeed(s.Lateral, s.VeilCross.X * thin) * 8), Rating(s.TopSpeed(s.Vertical, s.VeilCross.Y * thin) * 8),
             Rating(top.X * 1024), Rating(top.Y * 1024), Rating(top.Z * 1024),
         };
         byte* table = Computer.Memory + ShipMemory.Base + ShipMemory.Ratings;
@@ -335,6 +351,9 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
             table[i * 2 + 1] = (byte)(plate[i] >> 8);
         }
     }
+
+    /// <summary>What the veil's drag is multiplied by now (the cruise generator thins it; a wreck's is as normal).</summary>
+    private float Thin => Wrecked ? 1 : _cruise?.Thin ?? 1;
 
     private static int Rating(float x) => float.IsFinite(x) ? (int)Math.Clamp(MathF.Round(x), 0, 32767) : 32767;
 
@@ -351,23 +370,27 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
         bus.SetWord(SlotInertial, 2, (int)MathF.Round(w.X * 1024));
         bus.SetWord(SlotInertial, 4, (int)MathF.Round(-w.Z * 1024));
         bus.SetWord(SlotInertial, 6, (int)MathF.Round(-w.Y * 1024));
-        bus.SetWord(SlotInertial, 8, (int)MathF.Round(v.X * 8));
-        bus.SetWord(SlotInertial, 10, (int)MathF.Round(v.Y * 8));
-        bus.SetWord(SlotInertial, 12, (int)MathF.Round(-v.Z * 8));
+        bus.SetWord(SlotInertial, 8, Speed(v.X));
+        bus.SetWord(SlotInertial, 10, Speed(v.Y));
+        bus.SetWord(SlotInertial, 12, Speed(-v.Z));
         bus[SlotInertial, 14] = 1;                  // a new sample
     }
+
+    // The sensor's word: past 4,095 m/s it reads its most
+    private static int Speed(float v) => (int)Math.Clamp(MathF.Round(v * 8), -32767, 32767);
 
     private void Push(float dt)
     {
         ShipSpec s = Spec;
         Vector3 t = s.TurnTorque;
         var torque = new Vector3(Commands[0] * t.X, -Commands[2] * t.Y, -Commands[1] * t.Z);
-        float forward = Commands[5] >= 0 ? Commands[5] * s.MainThrust : Commands[5] * s.Reverse;
+        float main = _cruise?.Pushes == true && !Wrecked ? _cruise.Push : s.MainThrust;
+        float forward = Commands[5] >= 0 ? Commands[5] * main : Commands[5] * s.Reverse;
         var force = new Vector3(Commands[3] * s.Lateral, Commands[4] * s.Vertical, -forward);
         ShipState before = State;
         // Cargo is spread through the hull: it weighs on turning as on going
         float load = Mass / s.Mass;
-        ShipState after = ShipMotion.Step(before, force, torque, Mass, s.Inertia * load, dt, s.VeilAxes, s.VeilSpin);
+        ShipState after = ShipMotion.Step(before, force, torque, Mass, s.Inertia * load, dt, s.VeilAxes * Thin, s.VeilSpin);
         float crash = ShipContact.Collide(GetWorld3D(), ref after, before.Position, _hitboxes, _bound, s, _near, load);
         State = after;
         if (crash > 0)
@@ -377,16 +400,18 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip
     /// <summary>
     /// The thrusters push as hard as the engines capacitor lets them (if the
     /// ship has a <see cref="PowerDevice"/>): <see cref="ShipSpec.ThrustMegawatts"/>
-    /// for the main motor at full, half that for each strafe, a quarter for
-    /// each turn; short of power, every one of them pushes less alike.
+    /// for the main motor at full (in cruise, what the generator draws), half
+    /// that for each strafe, a quarter for each turn; short of power, every one
+    /// of them pushes less alike.
     /// </summary>
     private void Powered(double delta)
     {
         if (_power == null)
             return;
-        float c = MathF.Abs(Commands[5]) + 0.5f * (MathF.Abs(Commands[3]) + MathF.Abs(Commands[4])) +
+        float c = 0.5f * (MathF.Abs(Commands[3]) + MathF.Abs(Commands[4])) +
                   0.25f * (MathF.Abs(Commands[0]) + MathF.Abs(Commands[1]) + MathF.Abs(Commands[2]));
-        double wanted = Spec.ThrustMegawatts * c * delta;
+        float main = MathF.Abs(Commands[5]) * (_cruise?.Pushes == true && Commands[5] > 0 ? _cruise.Megawatts : Spec.ThrustMegawatts);
+        double wanted = (Spec.ThrustMegawatts * c + main) * delta;
         if (wanted <= 0)
             return;
         double got = _power.DrawUpTo(PowerStore.Engines, wanted);

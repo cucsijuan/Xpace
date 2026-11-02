@@ -13,10 +13,10 @@ namespace Xpace.Space;
 /// the player is in is drawn and heard.
 ///
 /// A session's host also runs the sectors its guests are in
-/// (<see cref="Hold"/>): loaded the same way, nothing drawn or heard, let go
-/// when nobody is left in them (<see cref="Release"/>, and <see cref="Keep"/>
-/// when the player leaves one). A sector's number in the map is its place
-/// in a session.
+/// (<see cref="Hold"/>): loaded the same way, nothing drawn or heard and what
+/// they show left out (<see cref="SectorVisuals"/>), let go when nobody is
+/// left in them (<see cref="Release"/>, and <see cref="Keep"/> when the player
+/// leaves one). A sector's number in the map is its place in a session.
 /// </summary>
 public partial class SectorHost : Node
 {
@@ -43,6 +43,7 @@ public partial class SectorHost : Node
         public SubViewportContainer Frame;
         public SubViewport Port;
         public FloatingOrigin Origin;
+        public SectorVisuals Visuals;
     }
 
     /// <summary>A sector was loaded (its root), before anything in it has run a step.</summary>
@@ -160,6 +161,17 @@ public partial class SectorHost : Node
             Unload(l);
     }
 
+    /// <summary>What the sector of that Id shows is left out (it is loaded and the player is elsewhere).</summary>
+    public SectorVisuals VisualsOf(string sectorId) => _loaded.TryGetValue(sectorId, out Running l) ? l.Visuals : null;
+
+    /// <summary>A node's sector is the one on the screen (with no sectors at all, it is).</summary>
+    public static bool Seen(Node node)
+    {
+        if (Current == null || Current._here == null || node == null)
+            return true;
+        return node == Current._here.Origin || Current._here.Origin.IsAncestorOf(node);
+    }
+
     /// <summary>The root of the sector of that Id if it is loaded, or null.</summary>
     public FloatingOrigin Root(string sectorId) => _loaded.TryGetValue(sectorId, out Running l) ? l.Origin : null;
 
@@ -181,7 +193,7 @@ public partial class SectorHost : Node
         var frame = new SubViewportContainer { Name = info.Id, Stretch = true, Visible = false };
         frame.SetAnchorsPreset(Control.LayoutPreset.FullRect);
         frame.AddChild(port);
-        var loaded = new Running { Info = info, Frame = frame, Port = port, Origin = origin };
+        var loaded = new Running { Info = info, Frame = frame, Port = port, Origin = origin, Visuals = new SectorVisuals(origin) };
         _loaded[info.Id] = loaded;
         AddChild(frame);
         MoveChild(frame, 0);                        // under the menus
@@ -193,6 +205,7 @@ public partial class SectorHost : Node
     private void Unload(Running l)
     {
         _loaded.Remove(l.Info.Id);
+        l.Visuals.Forget();
         l.Frame.QueueFree();
     }
 
@@ -205,6 +218,10 @@ public partial class SectorHost : Node
             l.Frame.Visible = shown;
             l.Port.RenderTargetUpdateMode = shown ? SubViewport.UpdateMode.Always : SubViewport.UpdateMode.Disabled;
             l.Port.AudioListenerEnable3D = shown;
+            if (shown)
+                l.Visuals.Show();
+            else
+                l.Visuals.Hide();
         }
     }
 

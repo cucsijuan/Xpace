@@ -165,6 +165,27 @@ public partial class SessionTest : Node
         Check($"snapshots go as deltas ({deltas} of {whole + deltas}, {lost} with no base), {(double)bytes / (whole + deltas):0.0} bytes each",
               deltas > (whole + deltas) * 9 / 10 && (double)bytes / (whole + deltas) < 10 && lost < deltas / 50);
 
+        // An interdictor's beam reaches the ship's owner, whoever that is, and only it
+        var thick = new Dictionary<(byte machine, ushort ship), float>();
+        foreach (var (peer, m) in machines)
+        {
+            byte machine = peer;
+            m.Thickened += (ship, density) => thick[(machine, ship.NetId)] = density;
+        }
+        for (uint tick = 900; tick < 960; tick++)
+        {
+            net.Now = tick * Dt;
+            machines[Guest1].Thicken(Ship2, 33);    // through the host
+            machines[Guest1].Thicken(DroneId, 20);  // the host's
+            machines[Host].Thicken(Ship1, 10);      // from the host
+            foreach (Session s in machines.Values)
+                s.Tick(tick);
+        }
+        Check("a beam reaches its target's owner, through the host", thick.GetValueOrDefault((Guest2, Ship2)) == 33);
+        Check("the host's own ship", thick.GetValueOrDefault((Host, DroneId)) == 20);
+        Check("a guest's, from the host", thick.GetValueOrDefault((Guest1, Ship1)) == 10);
+        Check("and nobody else", thick.Count == 3);
+
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
     }

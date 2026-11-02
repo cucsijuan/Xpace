@@ -22,9 +22,19 @@ namespace Xpace.Net;
 /// fuse goes off on it; the damage is the host's to judge and its owner's
 /// to take.
 /// </summary>
-public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource, IDamageable
+public partial class RemoteShip : Node3D, Space.ICruiseShown, INetEntity, IRadarTarget, IHeatSource, IDamageable
 {
-    [Export] public float RadarCrossSection { get; set; } = 4f;   // m²
+    /// <summary>The hull's echo (m²), and in cruise the wake's on top of it, as its owner's snapshots say.</summary>
+    [Export] public float RadarCrossSection
+    {
+        get => _hullEcho + WakeLevel * WakeEcho;
+        set => _hullEcho = value;
+    }
+    private float _hullEcho = 4f;
+    /// <summary>What its wake adds to its echo at its fullest (m²).</summary>
+    [Export] public float WakeEcho = 300f;
+    /// <summary>What it stirs in cruise, 0 to 1.</summary>
+    public float WakeLevel { get; private set; }
     [Export] public float HullHeatAtFull = 30f;     // as a ship's signature: its hull at 100%
     [Export] public float MotorHeat = 80f;
     [Export] public float FrontHeat = 0.3f;
@@ -142,6 +152,7 @@ public partial class RemoteShip : Node3D, INetEntity, IRadarTarget, IHeatSource,
                 Explosion.Fade(this, 0);
             _down = false;
         }
+        WakeLevel = p.Destroyed ? 0 : p.Wake;
         _radar.Follow(p.Radar, p.Radar == RadarMode.Track ? SessionNode.Instance?.NodeOf(p.RadarTarget) : null, p.RadarGuiding);
         if (p.Jam != JamMode.Off)
             _jammer.Spec = SessionNode.Instance?.JammerModel(p.JamModel) ?? Jammer ?? _jammer.Spec;

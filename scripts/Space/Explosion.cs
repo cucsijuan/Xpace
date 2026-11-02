@@ -39,6 +39,8 @@ public static class Explosion
 
     public static void Spawn(Node parent, Vector3 where, float size = 25f, double seconds = 1.2, float light = 12f)
     {
+        if (!SectorHost.Seen(parent))
+            return;                                 // nobody here looks at that sector
         if (size >= SmallBelow)
         {
             PackedScene scene = size >= BigFrom

@@ -20,6 +20,7 @@ public enum RadarMode : byte { Off, Search, Track }
 ///   destroyed            1 bit
 ///   thrust               4 bits, its motor's push, 0 to 15 fifteenths of the most
 ///   heat                 4 bits, its hull's, in tenths of 100% (to 150%)
+///   wake                 3 bits, what it stirs in cruise, 0 to 7 sevenths
 ///   radar                2 bits: off, searching, tracking; tracking, then
 ///                        16 bits for the ship tracked (0FFFFh: none in the
 ///                        session) and 1 bit: guiding a missile at it
@@ -50,6 +51,7 @@ public struct ShipSnapshot
     public bool Destroyed;                  // blown up and not back: shown hidden, cannot be hit
     public float Thrust;                    // 0 to 1: what the motor pushes, of the most it can (its heat, its plume)
     public float Heat;                      // its hull's heat, 1 at 100% (what a heat seeker sees of it besides the motor)
+    public float Wake;                      // 0 to 1: what it stirs in cruise (its echo, the wake others see)
     public RadarMode Radar;
     public ushort RadarTarget;              // tracking: whom
     public bool RadarGuiding;               // tracking: and guiding a missile at it
@@ -96,7 +98,7 @@ public struct ShipSnapshot
         s.W1 = Steps(AngularVelocity.Y, AngularRange, AngularBits);
         s.W2 = Steps(AngularVelocity.Z, AngularRange, AngularBits);
         s.Flags = (Destroyed ? 1u : 0) | (uint)Math.Clamp(MathF.Round(Thrust * 15), 0, 15) << 1 | ((uint)Radar & 3) << 5 |
-                  (uint)Math.Clamp(MathF.Round(Heat * 10), 0, 15) << 7;
+                  (uint)Math.Clamp(MathF.Round(Heat * 10), 0, 15) << 7 | (uint)Math.Clamp(MathF.Round(Wake * 7), 0, 7) << 28;
         if (Radar == RadarMode.Track)
             s.Flags |= (uint)RadarTarget << 11 | (RadarGuiding ? 1u : 0) << 27;
         if (Jam != JamMode.Off)
@@ -164,6 +166,7 @@ public struct ShipSnapshot
             s.Destroyed = (Flags & 1) != 0;
             s.Thrust = (Flags >> 1 & 15) / 15f;
             s.Heat = (Flags >> 7 & 15) / 10f;
+            s.Wake = (Flags >> 28 & 7) / 7f;
             s.Radar = Radar;
             s.RadarTarget = s.Radar == RadarMode.Track ? (ushort)(Flags >> 11) : NoTarget;
             s.RadarGuiding = s.Radar == RadarMode.Track && (Flags >> 27 & 1) != 0;
@@ -301,6 +304,7 @@ public struct ShipSnapshot
         private readonly void WriteFlags(BitWriter w)
         {
             w.Write(Flags & 0x7FF, 11);
+            w.Write(Flags >> 28 & 7, 3);
             if (Radar == RadarMode.Track)
                 w.Write(Flags >> 11 & 0x1FFFF, 17);
             w.Write(Jam & 3, 2);
@@ -314,6 +318,7 @@ public struct ShipSnapshot
         private void ReadFlags(BitReader r)
         {
             Flags = r.Read(11);
+            Flags |= r.Read(3) << 28;
             if (Radar == RadarMode.Track)
                 Flags |= r.Read(17) << 11;
             Jam = r.Read(2);

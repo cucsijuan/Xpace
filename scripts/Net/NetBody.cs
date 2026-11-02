@@ -27,6 +27,9 @@ public interface INetShip
     /// <summary>Owned here: its hull's heat, 1 at 100% (none: cold, or only its motor counts).</summary>
     float Heat => 0;
 
+    /// <summary>Owned here: the wake it stirs in cruise, 0 to 1.</summary>
+    float Wake => 0;
+
     /// <summary>Owned here, as it leaves: it blew up.</summary>
     bool Exploded { get; }
 
@@ -212,7 +215,7 @@ public partial class NetBody : Node, INetEntity
         return new ShipSnapshot
         {
             Tick = tick, Position = position, Orientation = orientation, Velocity = velocity, AngularVelocity = spin,
-            Destroyed = destroyed, Thrust = _script?.Thrust ?? 0, Heat = _script?.Heat ?? 0,
+            Destroyed = destroyed, Thrust = _script?.Thrust ?? 0, Heat = _script?.Heat ?? 0, Wake = _script?.Wake ?? 0,
             Radar = radar, RadarTarget = tracked, RadarGuiding = radar == RadarMode.Track && _radar.Guiding,
             Jam = jam, JamModel = SessionNode.Instance?.JammerIndex(_jammer?.Spec) ?? ShipSnapshot.NoModel,
             JamAimed = jam != JamMode.Off && _jammer.Aimed, JamAim = _jammer?.Aim ?? Vector3.Forward,

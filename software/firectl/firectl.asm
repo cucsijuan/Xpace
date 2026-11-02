@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.14 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.15 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -86,6 +86,9 @@
 ;                            +10 status (bit 1 no word, 2 lost)  +11 1 flying,
 ;                            2 hit, 3 missed  +12 fuel (m/s)  +14 heat
 ;                            seekers left  +15 the newest's kind (2 heat)
+;   230h  interdictor        +0 type 21  +2 status: bit 0 on, 1 on a target
+;                            +5 write: 1 on, 0 off  +7 its button (it thickens
+;                            the medium round the ship the radar tracks)
 ;   190h  pulse laser        +0 type 11  +2 status (bit 0 ready, 2 too hot)
 ;                            +3 heat  +4 fire (write 1)  +6 bolt speed (m/s)
 ;                            +8 +10 +12 the lead point (right, up, forward,
@@ -101,11 +104,13 @@ TURRET      equ 140h
 DISPLAYS    equ 150h
 LAUNCHER    equ 160h
 LASER       equ 190h
+INTERDICTOR equ 230h
 TYPE_RADAR  equ 4
 TYPE_TURRET equ 5
 TYPE_DISPLAYS equ 6
 TYPE_LAUNCHER equ 7
 TYPE_LASER  equ 11
+TYPE_INTERDICTOR equ 21
 IRQ_VECTOR  equ 0Dh
 IRQ_BIT     equ 20h
 
@@ -155,7 +160,7 @@ INK_RED     equ 0FFh
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPFC14'             ; 103h
+signature   db 'XPFC15'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 weapon      db 0                    ; 10Dh  0 the cannon, 1 radar missiles, 2 heat seekers, 3 the laser
 cpu_load    db 0                    ; 10Eh  % of the processor it took, last time it drew
@@ -213,6 +218,22 @@ step:
     jz .no_weapon
     call next_weapon
 .no_weapon:
+    cmp byte [has_interdictor], 0   ; the interdictor, on the press of its button
+    je .no_interdictor
+    mov dx, INTERDICTOR + 7
+    in al, dx
+    mov ah, [interdict_button]
+    mov [interdict_button], al
+    not ah
+    and al, ah
+    jz .no_interdictor
+    mov dx, INTERDICTOR + 2
+    in al, dx
+    not al
+    and al, 1
+    mov dx, INTERDICTOR + 5
+    out dx, al
+.no_interdictor:
     call launcher_news
 
     mov dx, DISPLAYS + 8            ; a screen key for RADAR since the last look?
@@ -1598,6 +1619,16 @@ missiles_left:
 
 ; The word at the bottom, when there is something to say
 put_status:
+    cmp byte [has_interdictor], 0
+    je .weapon
+    mov dx, INTERDICTOR + 2
+    in al, dx
+    test al, 1
+    jz .weapon
+    mov si, s_interdict
+    mov ah, INK_BRIGHT
+    jmp .say
+.weapon:
     cmp byte [weapon], 0
     je .gun
     cmp byte [weapon], WEAPON_LASER
@@ -1911,6 +1942,7 @@ s_heat          db 'HEAT', 0
 s_dist          db 'DIST', 0
 s_no_ammo       db 'NO AMMO', 0
 s_no_target     db 'NO TARGET', 0
+s_interdict     db 'INTERDICT', 0
 s_too_hot       db 'TOO HOT', 0
 s_out_of_arc    db 'OUT OF ARC', 0
 s_msl_ready     db 'READY', 0
@@ -2140,6 +2172,8 @@ screen_wait     db 1
 turret_status   db 0
 has_launcher    db 0
 has_laser       db 0
+has_interdictor db 0
+interdict_button db 0
 has_turret      db 0
 head_on         db 0                ; the heat seeker's head powered
 last_result     db 0
@@ -2260,6 +2294,12 @@ install:
     call check_device
     mov byte [weapon], WEAPON_LASER
 .armed:
+    mov dx, INTERDICTOR
+    in al, dx
+    cmp al, TYPE_INTERDICTOR
+    jne .no_interdictor
+    mov byte [has_interdictor], 1
+.no_interdictor:
 
     mov dx, RADAR + 10              ; the radar's picture
     in ax, dx

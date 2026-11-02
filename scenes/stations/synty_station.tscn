@@ -1,5 +1,6 @@
 [gd_scene load_steps=39 format=3]
 
+[ext_resource type="Script" path="res://scripts/Space/MediumMass.cs" id="medium_mass"]
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_01_ring_hangar.tscn" id="1_station_01_ring"]
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_02_outer_ring.tscn" id="2_station_02_outer_ring"]
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_03_inner_ring.tscn" id="3_station_03_inner_ring"]
@@ -170,3 +171,7 @@ script = ExtResource("40_lockers")
 [node name="Security" type="Node" parent="."]
 script = ExtResource("14_security")
 PoliceScene = ExtResource("15_police")
+
+[node name="Mass" type="Node3D" parent="."]
+script = ExtResource("medium_mass")
+Reach = 46000.0

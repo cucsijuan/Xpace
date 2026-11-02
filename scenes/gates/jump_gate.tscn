@@ -1,5 +1,6 @@
 [gd_scene load_steps=16 format=3]
 
+[ext_resource type="Script" path="res://scripts/Space/MediumMass.cs" id="medium_mass"]
 [ext_resource type="Script" path="res://scripts/Space/JumpGate.cs" id="1_gate"]
 [ext_resource type="PackedScene" path="res://scenes/fx/transit_tunnel.tscn" id="2_transit"]
 [ext_resource type="PackedScene" path="res://assets/synty/SM_Veh_WarpGate_Outer_01.fbx" id="3_outer"]
@@ -66,3 +67,7 @@ DeniedText = "This is a gate: no docking here."
 
 [node name="Security" type="Node" parent="."]
 script = ExtResource("17_security")
+
+[node name="Mass" type="Node3D" parent="."]
+script = ExtResource("medium_mass")
+Reach = 23000.0

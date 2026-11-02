@@ -53,6 +53,7 @@ org 100h
 
 DISPLAYS    equ 150h
 RADIO       equ 200h
+CRUISE      equ 220h
 TYPE_DISPLAYS equ 6
 TYPE_RADIO  equ 18
 IRQ_VECTOR  equ 0Dh
@@ -68,8 +69,9 @@ WRAP        equ 30                  ; the words' columns
 LAWS_ROW    equ 11
 MSG_SIZE    equ 128
 DRAW_EVERY  equ 15                  ; steps between redraws (4 a second)
-OPTIONS     equ 3                   ; a station's: docking, laws, launch
-GATE_OPTIONS equ 2                  ; a gate's: transit, laws
+OPTIONS     equ 4                   ; a station's: docking, laws, launch, course
+GATE_OPTIONS equ 3                  ; a gate's: transit, laws, course
+ASK_COURSE  equ 0FFh                ; (not the radio's: the cruise generator's)
 KEY_UP      equ 4
 KEY_DOWN    equ 5
 KEY_SELECT  equ 6
@@ -90,7 +92,7 @@ ATTR_CURSOR equ 70h
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPCM13'             ; 103h
+signature   db 'XPCM14'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -212,10 +214,6 @@ press:
     jne .done
     cmp byte [options], 0           ; a ship: nothing to send yet
     je .to_list
-    mov dx, RADIO + 6               ; to the contact under the cursor
-    mov al, [cursor]
-    out dx, al
-    dec dx
     mov bl, [option]                ; what the option asks
     xor bh, bh
     mov al, [asks + bx]
@@ -223,6 +221,19 @@ press:
     jne .send
     mov al, [gate_asks + bx]
 .send:
+    cmp al, ASK_COURSE
+    je .course
+    mov ah, al
+    mov dx, RADIO + 6               ; to the contact under the cursor
+    mov al, [cursor]
+    out dx, al
+    dec dx
+    mov al, ah
+    out dx, al
+    jmp .to_list
+.course:
+    mov dx, CRUISE + 8              ; steer for the contact under the cursor
+    mov al, [cursor]
     out dx, al
 .to_list:
     mov byte [mode], 0
@@ -433,6 +444,10 @@ draw_options:
     mov si, s_option1
     mov dl, 1
     call put_option
+    mov di, ((FIRST_ROW + 3) * COLS + 1) * 2
+    mov si, s_course
+    mov dl, 2
+    call put_option
     jmp .hint
 .station:
     mov di, ((FIRST_ROW + 1) * COLS + 1) * 2
@@ -447,6 +462,10 @@ draw_options:
     mov si, s_option2
     mov dl, 2
     call put_option
+    mov di, ((FIRST_ROW + 4) * COLS + 1) * 2
+    mov si, s_course
+    mov dl, 3
+    jmp put_option
 .hint:
     mov di, ((FIRST_ROW + 4) * COLS + 1) * 2
     mov si, s_hint
@@ -719,9 +738,10 @@ s_off       db 'RADIO OFF', 0
 s_option0   db ' REQUEST DOCKING              ', 0
 s_option1   db ' REQUEST LAWS                 ', 0
 s_option2   db ' REQUEST LAUNCH               ', 0
-asks        db 2, 1, 3              ; what each option asks: docking, laws, launch
+s_course    db ' SET COURSE                   ', 0
+asks        db 2, 1, 3, ASK_COURSE  ; what each option asks: docking, laws, launch, course
 s_transit   db ' REQUEST TRANSIT              ', 0
-gate_asks   db 4, 1                 ; a gate's: transit, laws
+gate_asks   db 4, 1, ASK_COURSE     ; a gate's: transit, laws, course
 s_no_options db 'NO OPTIONS FOR SHIPS', 0
 s_hint      db 'SELECT: SEND   BACK: LIST', 0
 

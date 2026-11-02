@@ -1,4 +1,4 @@
-; flight.asm - CucsiCorp Flight Control 1.7 (FLIGHT.COM)
+; flight.asm - CucsiCorp Flight Control 1.8 (FLIGHT.COM)
 ;
 ;   FLIGHT          stays resident and flies the ship
 ;   FLIGHT OFF      takes it out of memory: the thrusters answer the
@@ -64,6 +64,10 @@
 ;                            (all -32767..32767)  +14 buttons: bit 0 FA,
 ;                            1 boost, 2 target ahead, 3 next target, 4 fire
 ;                            +15 more buttons: bit 0 SAFE, bit 7 PARK
+;   220h  cruise generator   +0 type 20  +2 status: bit 0 on, bit 1 charging
+;                            +5 write: 1 start, 0 stop  +7 its button
+;                            (it thins the veil and the plate reads the
+;                            tops that gives: flying it is flying as ever)
 ;   110h  inertial unit      +0 type 2   +2 pitch rate  +4 roll rate
 ;                            +6 yaw rate (1/1024 rad/s)  +8 right  +10 up
 ;                            +12 forward speed (1/8 m/s)  +14 status:
@@ -117,6 +121,7 @@ DISPLAYS    equ 150h
 RATINGS     equ 1A0h
 ENGINE      equ 1F0h
 RADIO       equ 200h
+CRUISE      equ 220h
 TYPE_CTRL   equ 1
 TYPE_IMU    equ 2
 TYPE_THRUST equ 3
@@ -124,6 +129,7 @@ TYPE_DISPLAYS equ 6
 TYPE_RATINGS equ 12
 TYPE_ENGINE equ 17
 TYPE_RADIO  equ 18
+TYPE_CRUISE equ 20
 IRQ_VECTOR  equ 0Dh                 ; IRQ 5
 IRQ_BIT     equ 20h
 
@@ -171,7 +177,7 @@ COLS        equ 40
 ; ======================================================================
 
 ; FLIGHT OFF finds the resident copy by these, at fixed places
-signature   db 'XPFL17'             ; 103h
+signature   db 'XPFL18'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -225,6 +231,24 @@ step:
     jz .no_toggle
     xor byte [assist], 1
 .no_toggle:
+    cmp byte [has_cruise], 0        ; the cruise generator, on the press of its button
+    je .no_cruise
+    mov dx, CRUISE + 7
+    in al, dx
+    mov ah, [cruise_button]
+    mov [cruise_button], al
+    not ah
+    and al, ah
+    jz .no_cruise
+    mov dx, CRUISE + 2              ; running or charging: stop; else start
+    in al, dx
+    and al, 3
+    sub al, 1
+    sbb al, al
+    and al, 1
+    mov dx, CRUISE + 5
+    out dx, al
+.no_cruise:
     mov dx, CTRL + 15               ; SAFE on the press of its button
     in al, dx
     mov ah, [buttons2]
@@ -1277,6 +1301,8 @@ lim_vert        dw 800
 lim_speed       dw 2000
 parking         db 0
 has_radio       db 0                ; the ship has a radio (for the laws)
+has_cruise      db 0                ; the ship has a cruise generator
+cruise_button   db 0
 ask_wait        db 1
 park_limit      dw 0                ; the speed limit kept to (1/8 m/s; 0: none)
 setpoint        dw 0
@@ -1361,6 +1387,12 @@ install:
     jne .no_engine
     mov byte [has_engine], 1
 .no_engine:
+    mov dx, CRUISE
+    in al, dx
+    cmp al, TYPE_CRUISE
+    jne .no_generator
+    mov byte [has_cruise], 1
+.no_generator:
     mov dx, RADIO                   ; a radio, for the stations' laws
     in al, dx
     cmp al, TYPE_RADIO

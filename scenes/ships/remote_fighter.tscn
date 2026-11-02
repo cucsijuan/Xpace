@@ -1,5 +1,6 @@
 [gd_scene load_steps=8 format=3]
 
+[ext_resource type="Script" path="res://scripts/Space/CruiseWake.cs" id="cruise_wake"]
 [ext_resource type="Script" path="res://scripts/Net/RemoteShip.cs" id="1_remote"]
 [ext_resource type="PackedScene" uid="uid://c24bvglq01n2e" path="res://assets/synty/SM_Ship_Fighter_03.fbx" id="2_model"]
 [ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="3_atlas"]
@@ -33,3 +34,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.295, 0.075, 3.86)
 script = ExtResource("5_plume")
 FlameModel = ExtResource("6_flame")
 FlameTexture = ExtResource("7_boost")
+
+[node name="Wake" type="MeshInstance3D" parent="."]
+script = ExtResource("cruise_wake")

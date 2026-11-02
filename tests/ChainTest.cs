@@ -52,12 +52,12 @@ public partial class ChainTest : Node3D
 
         Check("AUTOEXEC.BAT ends with POWER resident", await Until(() => Screen().Contains("Power manager resident"), 60));
         await Seconds(1);
-        Check($"the chain is POWER, RWR, FIRECTL, FLIGHT ({Chain()})", Chain() == "XPPW11 XPRW15 XPFC14 XPFL17");
+        Check($"the chain is POWER, RWR, FIRECTL, FLIGHT ({Chain()})", Chain() == "XPPW11 XPRW15 XPFC15 XPFL18");
         Check("FLIGHT drives the thrusters", !_ship.DirectMode);
 
         await Command("FIRECTL OFF");
         Check("FIRECTL OFF from the middle of the chain", await Until(() => Screen().Contains("Fire control removed"), 10));
-        Check($"the chain is POWER, RWR, FLIGHT ({Chain()})", Chain() == "XPPW11 XPRW15 XPFL17");
+        Check($"the chain is POWER, RWR, FLIGHT ({Chain()})", Chain() == "XPPW11 XPRW15 XPFL18");
         await Seconds(1);
         Check("the radar is off", _radar.Mode == RadarMode.Off);
         Check("FLIGHT still drives the thrusters", !_ship.DirectMode);
@@ -65,12 +65,12 @@ public partial class ChainTest : Node3D
         await Command("FIRECTL");
         Check("FIRECTL again", await Until(() => Screen().Contains("Fire control resident"), 10));
         await Seconds(1);
-        Check($"it is on top ({Chain()})", Chain() == "XPFC14 XPPW11 XPRW15 XPFL17");
+        Check($"it is on top ({Chain()})", Chain() == "XPFC15 XPPW11 XPRW15 XPFL18");
         Check("the radar searches again", _radar.Mode == RadarMode.Search);
 
         await Command("FLIGHT OFF");
         Check("FLIGHT OFF from the bottom", await Until(() => Screen().Contains("Flight control removed"), 10));
-        Check($"the chain is FIRECTL, POWER, RWR ({Chain()})", Chain() == "XPFC14 XPPW11 XPRW15");
+        Check($"the chain is FIRECTL, POWER, RWR ({Chain()})", Chain() == "XPFC15 XPPW11 XPRW15");
         await Seconds(1);
         Check("the thrusters fall back to direct", _ship.DirectMode);
         await Command("FLIGHT");
@@ -88,7 +88,7 @@ public partial class ChainTest : Node3D
         await Command("FIRECTL OFF");
         await Until(() => Screen().Contains("Fire control removed"), 10);
         await Command("NEW");
-        Check("and it runs", await Until(() => Chain().StartsWith("XPFC14 "), 10));
+        Check("and it runs", await Until(() => Chain().StartsWith("XPFC15 "), 10));
 
         Check("ASM assembles the manual's COOL.ASM", await Assemble("COOL.ASM", "COOL.COM"));
         string before = Chain();

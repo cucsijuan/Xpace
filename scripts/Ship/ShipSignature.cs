@@ -16,7 +16,22 @@ namespace Xpace.Ship;
 /// </summary>
 public partial class ShipSignature : Node3D, IRadarTarget, IDamageable, IHeatSource
 {
-    [Export] public float RadarCrossSection { get; set; } = 4f;   // m²
+    /// <summary>The hull's echo (m²), and in cruise the wake's on top of it.</summary>
+    [Export] public float RadarCrossSection
+    {
+        get
+        {
+            _cruise ??= _ship?.Device<CruiseDevice>();
+            return _hullEcho + Mathf.Max(_cruise?.WakeEcho ?? 0, ShownWake * RemoteWakeEcho);
+        }
+        set => _hullEcho = value;
+    }
+    private float _hullEcho = 4f;
+    private CruiseDevice _cruise;
+    private const float RemoteWakeEcho = 300f;
+
+    /// <summary>On a puppet: the wake its owner says it has, 0 to 1.</summary>
+    public float ShownWake { get; set; }
     [Export] public float HullHeat = 8f;            // the motor idle
     [Export] public float HullHeatAtFull = 30f;     // with a HeatDevice: at 100%
     [Export] public float MotorHeat = 80f;          // at full thrust, seen from straight behind

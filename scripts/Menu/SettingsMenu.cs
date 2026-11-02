@@ -36,7 +36,7 @@ public partial class SettingsMenu : Control
     private LineEdit _name;
     private OptionButton _resolution, _window, _antialiasing, _shadows, _occlusion, _indirect;
     private CheckButton _vsync, _invertY, _checkUpdates, _reflections, _glow;
-    private HSlider _mouse, _look, _fieldOfView, _voices;
+    private HSlider _mouse, _look, _fieldOfView, _cruiseShake, _voices;
     private GridContainer _bindings;
     private readonly Dictionary<string, Button> _bindButtons = new();
     private List<Vector2I> _resolutions;
@@ -60,6 +60,7 @@ public partial class SettingsMenu : Control
         _mouse = GetNode<HSlider>("%MouseSensitivity");
         _look = GetNode<HSlider>("%LookSensitivity");
         _fieldOfView = GetNode<HSlider>("%FieldOfView");
+        _cruiseShake = GetNode<HSlider>("%CruiseShake");
         _voices = GetNode<HSlider>("%VoiceVolume");
         _bindings = GetNode<GridContainer>("%Bindings");
 
@@ -97,6 +98,7 @@ public partial class SettingsMenu : Control
         _mouse.ValueChanged += v => Change(s => s.MouseSensitivity = (float)v);
         _look.ValueChanged += v => Change(s => s.LookSensitivity = (float)v);
         _fieldOfView.ValueChanged += v => Change(s => s.FieldOfView = (float)v);
+        _cruiseShake.ValueChanged += v => Change(s => s.CruiseShake = (float)v);
         _voices.ValueChanged += v => Change(s => s.VoiceVolume = (float)v);
         GetNode<Button>("%Defaults").Pressed += Defaults;
         GetNode<Button>("%Back").Pressed += Close;
@@ -145,6 +147,7 @@ public partial class SettingsMenu : Control
         _mouse.Value = _s.MouseSensitivity;
         _look.Value = _s.LookSensitivity;
         _fieldOfView.Value = _s.FieldOfView;
+        _cruiseShake.Value = _s.CruiseShake;
         _voices.Value = _s.VoiceVolume;
         ShowBindings();
         _filling = false;
@@ -221,6 +224,7 @@ public partial class SettingsMenu : Control
         _s.MouseSensitivity = fresh.MouseSensitivity;
         _s.LookSensitivity = fresh.LookSensitivity;
         _s.FieldOfView = fresh.FieldOfView;
+        _s.CruiseShake = fresh.CruiseShake;
         _s.VoiceVolume = fresh.VoiceVolume;
         fresh.Free();
         _s.PlayerName = name;

@@ -229,8 +229,10 @@ pre.listing.full { font-size: 7.3pt; line-height: 1.16; }
 <tr><td>15</td><td>1F0h</td><td>17</td><td>Main engine</td></tr>
 <tr><td>16</td><td>200h</td><td>18</td><td>Radio</td></tr>
 <tr><td>17</td><td>210h</td><td>19</td><td>Cargo hold</td></tr>
+<tr><td>18</td><td>220h</td><td>20</td><td>Cruise generator</td></tr>
+<tr><td>19</td><td>230h</td><td>21</td><td>Interdictor</td></tr>
 </table>
-<p>Slots 18 to 31 are free for devices still to come.</p>
+<p>Slots 20 to 31 are free for devices still to come.</p>
 <p>Not every ship has every device: a ship may have a laser and no turret, or no jammer. Before a program uses a device, it reads the device's type register and checks it. A program that writes to an empty slot does nothing; one that reads from it reads zeros, which may be taken for real readings.</p>
 <pre class="listing">    mov dx, 1D0h            ; a heat sink launcher?
     in al, dx
@@ -721,6 +723,30 @@ COOL resident.
 <tr><th>Offset</th><th>Contents</th></tr>
 <tr><td>+0</td><td>The good's name: twelve characters, upper case, filled with spaces</td></tr>
 <tr><td>+12 word</td><td>Tonnes aboard</td></tr>
+</table>
+
+<h2 class="cmd">Cruise Generator<span>220h &middot; type 20</span></h2>
+<p>Thins the veil, so the drag falls and the top speed rises, and pushes the ship in place of the main engine, which rests. The rating plate reads what the ship can do as it is now, so a flight program goes on flying it as ever. The medium is denser near large masses: the veil's drag is the normal one times the density over the generator's thinning, so the ship slows as one nears. Where the density reaches the thinning the generator can do nothing: it drops out, and will not start there. It charges for a few seconds before it starts. Stopped, it lets the veil come back only as fast as the ship can be braked.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2</td><td>Status: bit 0 on, bit 1 charging, bit 2 too near a mass, bit 3 it dropped out since last started</td></tr>
+<tr><td>+3</td><td>How thin the veil is: 255 as normal, 0 at its thinnest</td></tr>
+<tr><td>+4 word</td><td>The medium's density, in 1/16</td></tr>
+<tr><td>+5</td><td>Write 1 to start, 0 to stop</td></tr>
+<tr><td>+6 word</td><td>The ship's speed, m/s</td></tr>
+<tr><td>+7</td><td>The pilot's cruise button</td></tr>
+<tr><td>+8</td><td>Write a contact's place in the radio's table to steer for it (write it again, or 0FFh, for none): the head-up display marks it</td></tr>
+<tr><td>+9</td><td>That contact, or 0FFh</td></tr>
+</table>
+
+<h2 class="cmd">Interdictor<span>230h &middot; type 21</span></h2>
+<p>A beam that thickens the medium round the ship the radar tracks, the more the nearer it is. A cruising ship caught in it slows and drops out when the density reaches what its generator bears. It does nothing to a ship that is not in cruise, needs the radar's lock, and draws on the systems capacitor.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2</td><td>Status: bit 0 on, bit 1 its beam is on a target</td></tr>
+<tr><td>+3</td><td>The share of the power it wants that it gets, 0 to 255</td></tr>
+<tr><td>+5</td><td>Write 1 for on, 0 for off</td></tr>
+<tr><td>+7</td><td>The pilot's interdictor button</td></tr>
 </table>
 
 <h2 class="cmd">Display Card<span>150h &middot; type 6</span></h2>

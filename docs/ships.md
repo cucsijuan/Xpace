@@ -27,6 +27,21 @@ The formulas the rating plate uses (and that you can use to tune):
 | Top turn rate | sqrt(turning acceleration / veil spin about that axis) |
 | Coasting from v, the time to halve the speed | 1 / (veil drag x v) |
 
+
+## Cruise
+
+A `CruiseDevice` with a `GeneratorSpec` (`assets/ship/generators`) thins the veil. `Thinning` is the most it divides the drag by, and also the density of the medium at which it drops out; `Push` replaces the main engine's in cruise; `Megawatts` is drawn from the engines capacitor; `BrakeAcceleration` limits how hard the veil may brake the ship as it comes back. With k the veil's drag:
+
+| What | Formula |
+|---|---|
+| Veil's drag in cruise | k x clamp(density / thinning, 1 / thinning, 1) |
+| Density | 1 + the sum of (Reach / distance)² over the sector's `MediumMass` nodes |
+| Where it drops out, by a lone mass | Reach / sqrt(thinning) |
+| Top speed | sqrt(push / mass / drag in cruise) |
+| Radar echo in cruise | the hull's + `WakeEcho`, as thin as the veil is; range goes with its fourth root |
+
+A station's or planet's `MediumMass` is a child node with a `Reach`; to drop out r metres from it with a G-1, Reach = 5.74 r. Keep each sector within ±2,000 km of its centre (what snapshots carry), and a ship's top under 4,096 m/s (what the inertial unit and snapshots read).
+
 ## Hull (`ShipSpec`)
 
 | Field | Units | What it does |
