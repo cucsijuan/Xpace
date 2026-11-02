@@ -3,7 +3,6 @@
 [ext_resource type="Resource" path="res://assets/weapons/lasers/lsr_1.tres" id="spec_laser"]
 [ext_resource type="Resource" path="res://assets/weapons/decoys/dispenser_1.tres" id="spec_dispenser"]
 [ext_resource type="Script" path="res://scripts/Space/CruiseWake.cs" id="cruise_wake"]
-[ext_resource type="Script" path="res://scripts/Ship/InterdictorDevice.cs" id="interdictor"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="1_ship"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="2_spec"]
 [ext_resource type="Script" path="res://scripts/Net/NetBody.cs" id="3_netbody"]
@@ -116,9 +115,6 @@ Spec = ExtResource("spec_dispenser")
 [node name="Engine" type="Node" parent="."]
 script = ExtResource("46_engine")
 Spec = ExtResource("47_d50")
-
-[node name="Interdictor" type="Node" parent="."]
-script = ExtResource("interdictor")
 
 [node name="Jammer" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -1)

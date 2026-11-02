@@ -36,7 +36,7 @@ public partial class SettingsMenu : Control
     private LineEdit _name;
     private OptionButton _resolution, _window, _antialiasing, _shadows, _occlusion, _indirect;
     private CheckButton _vsync, _invertY, _checkUpdates, _reflections, _glow;
-    private HSlider _mouse, _look, _fieldOfView, _cruiseShake, _voices;
+    private HSlider _mouse, _deadZone, _look, _fieldOfView, _cruiseShake, _voices;
     private GridContainer _bindings;
     private readonly Dictionary<string, Button> _bindButtons = new();
     private List<Vector2I> _resolutions;
@@ -58,6 +58,7 @@ public partial class SettingsMenu : Control
         _glow = GetNode<CheckButton>("%Glow");
         _invertY = GetNode<CheckButton>("%InvertY");
         _mouse = GetNode<HSlider>("%MouseSensitivity");
+        _deadZone = GetNode<HSlider>("%MouseDeadZone");
         _look = GetNode<HSlider>("%LookSensitivity");
         _fieldOfView = GetNode<HSlider>("%FieldOfView");
         _cruiseShake = GetNode<HSlider>("%CruiseShake");
@@ -96,6 +97,7 @@ public partial class SettingsMenu : Control
         _glow.Toggled += on => Change(s => s.Glow = on);
         _invertY.Toggled += on => Change(s => s.InvertMouseY = on);
         _mouse.ValueChanged += v => Change(s => s.MouseSensitivity = (float)v);
+        _deadZone.ValueChanged += v => Change(s => s.MouseDeadZone = (float)v);
         _look.ValueChanged += v => Change(s => s.LookSensitivity = (float)v);
         _fieldOfView.ValueChanged += v => Change(s => s.FieldOfView = (float)v);
         _cruiseShake.ValueChanged += v => Change(s => s.CruiseShake = (float)v);
@@ -145,6 +147,7 @@ public partial class SettingsMenu : Control
         _glow.ButtonPressed = _s.Glow;
         _invertY.ButtonPressed = _s.InvertMouseY;
         _mouse.Value = _s.MouseSensitivity;
+        _deadZone.Value = _s.MouseDeadZone;
         _look.Value = _s.LookSensitivity;
         _fieldOfView.Value = _s.FieldOfView;
         _cruiseShake.Value = _s.CruiseShake;
@@ -222,6 +225,7 @@ public partial class SettingsMenu : Control
         _s.Glow = fresh.Glow;
         _s.InvertMouseY = fresh.InvertMouseY;
         _s.MouseSensitivity = fresh.MouseSensitivity;
+        _s.MouseDeadZone = fresh.MouseDeadZone;
         _s.LookSensitivity = fresh.LookSensitivity;
         _s.FieldOfView = fresh.FieldOfView;
         _s.CruiseShake = fresh.CruiseShake;

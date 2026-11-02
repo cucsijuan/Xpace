@@ -166,7 +166,7 @@ public sealed class Session
     /// <summary>The host's station cleared a ship of this machine to a dock (the ship, the station, the dock; 0: over).</summary>
     public event Action<INetEntity, string, int, int> DockCleared;
     /// <summary>An interdictor on another machine has its beam on this ship: the density it adds.</summary>
-    public event Action<INetEntity, float> Thickened;
+    public event Action<INetEntity, float, byte> Thickened;
 
     /// <summary>The host opened or shut a station's dock (the station, the dock, open).</summary>
     public event Action<string, int, bool> DockChanged;
@@ -526,10 +526,11 @@ public sealed class Session
     }
 
     /// <summary>An interdictor's beam on another machine's ship: its owner thickens the medium round it.</summary>
-    public void Thicken(ushort ship, float density)
+    public void Thicken(ushort ship, float density, byte band)
     {
         var body = new List<byte>(BitConverter.GetBytes(ship));
         body.AddRange(BitConverter.GetBytes((ushort)Math.Clamp(density * 16, 0, 65535)));
+        body.Add(band);
         byte owner = NetIds.Owner(ship);
         if (owner != LocalPeer)
             Send(IsHost ? owner : HostPeer, KindThicken, body.ToArray(), reliable: false);
@@ -993,11 +994,11 @@ public sealed class Session
                 break;
 
             case KindThicken:
-                if (body.Length == 4)
+                if (body.Length == 5)
                 {
                     ushort thick = BitConverter.ToUInt16(body, 0);
                     if (_entities.GetValueOrDefault(thick) is INetEntity { IsLocal: true } thickened)
-                        Thickened?.Invoke(thickened, BitConverter.ToUInt16(body, 2) / 16f);
+                        Thickened?.Invoke(thickened, BitConverter.ToUInt16(body, 2) / 16f, body[4]);
                     else if (IsHost && NetIds.Owner(thick) != HostPeer)
                         Send(NetIds.Owner(thick), KindThicken, body, reliable: false);
                 }

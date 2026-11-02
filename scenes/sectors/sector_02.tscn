@@ -20,11 +20,13 @@
 
 [ext_resource type="Script" path="res://scripts/World/MarketGood.cs" id="kestrel_market_good"]
 
+[ext_resource type="Script" path="res://scripts/World/OutfitLine.cs" id="kestrel_outfit"]
+
 [ext_resource type="Resource" path="res://assets/goods/water.tres" id="good_water"]
 
 [ext_resource type="Resource" path="res://assets/goods/food.tres" id="good_food"]
 
-[ext_resource type="Resource" path="res://assets/goods/iron_ore.tres" id="good_iron_ore"]
+[ext_resource type="Resource" path="res://assets/goods/iron.tres" id="good_iron"]
 
 [ext_resource type="Resource" path="res://assets/goods/medicines.tres" id="good_medicines"]
 
@@ -53,11 +55,11 @@ Good = ExtResource("good_food")
 Stock = 400
 Rate = 50.0
 
-[sub_resource type="Resource" id="Kestrel_iron_ore"]
+[sub_resource type="Resource" id="Kestrel_iron"]
 script = ExtResource("kestrel_market_good")
-Good = ExtResource("good_iron_ore")
-Stock = 600
-Rate = 100.0
+Good = ExtResource("good_iron")
+Stock = 300
+Rate = 40.0
 
 [sub_resource type="Resource" id="Kestrel_medicines"]
 script = ExtResource("kestrel_market_good")
@@ -136,7 +138,8 @@ OnFoot = ExtResource("shadows_on_foot")
 transform = Transform3D(-0.5, 0, -0.866025, 0, 1, 0, 0.866025, 0, -0.5, -70000, 2000, -100000)
 
 [node name="Market" parent="Kestrel"]
-Goods = Array[ExtResource("kestrel_market_good")]([SubResource("Kestrel_water"), SubResource("Kestrel_food"), SubResource("Kestrel_iron_ore"), SubResource("Kestrel_medicines"), SubResource("Kestrel_metals"), SubResource("Kestrel_machinery"), SubResource("Kestrel_electronics"), SubResource("Kestrel_hydrogen")])
+Goods = Array[ExtResource("kestrel_market_good")]([SubResource("Kestrel_water"), SubResource("Kestrel_food"), SubResource("Kestrel_iron"), SubResource("Kestrel_medicines"), SubResource("Kestrel_metals"), SubResource("Kestrel_machinery"), SubResource("Kestrel_electronics"), SubResource("Kestrel_hydrogen")])
+Outfits = Array[ExtResource("kestrel_outfit")]([])
 Factor = true
 
 [node name="Projectiles" type="MultiMeshInstance3D" parent="." unique_id=1887929994]

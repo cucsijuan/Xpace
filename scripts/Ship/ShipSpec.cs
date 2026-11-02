@@ -64,6 +64,9 @@ public partial class ShipSpec : Resource
     /// <summary>The cargo racks the hull comes with from the factory: a size for each compartment (0 or less: none).</summary>
     [Export] public int[] CargoRacks = System.Array.Empty<int>();
 
+    /// <summary>Missiles of each model the hull's launcher carries when the ship has a pilot's record (its magazine).</summary>
+    [Export] public int MissileRack = 4;
+
     /// <summary>Tonnes the racks hold (a rack too big for its compartment isn't fitted, and holds nothing).</summary>
     public int CargoCapacity
     {

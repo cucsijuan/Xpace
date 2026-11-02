@@ -13,7 +13,9 @@ namespace Xpace.Ship;
 /// the density reaches what its generator can bear: a better generator holds
 /// on longer, from nearer. It does nothing to a ship not in cruise, and needs
 /// the radar's lock. It draws on the systems capacitor, and with too little
-/// power its reach falls. In a session the ship's owner is told.
+/// power its reach falls. In a session the ship's owner is told. The beam's
+/// frequency wanders by its own program (<see cref="BandAt"/>), and a generator
+/// tuned to it cancels most of it.
 ///
 /// Registers: +0 type 21  +1 version 1  +2 status: bit 0 on, bit 1 its beam
 /// is on a target  +3 the share of the power it wants that it gets, 0 to 255
@@ -29,6 +31,12 @@ public partial class InterdictorDevice : Node, IShipDevice, IRearmable
     [Export] public float Reach = 46000f;
     /// <summary>What it draws while on (MW).</summary>
     [Export] public float Megawatts = 8f;
+    [ExportGroup("Its frequency's program (0-255 band)")]
+    [Export] public float Centre = 128f;
+    [Export] public float Wander = 70f;
+    [Export] public float Quiver = 15f;
+    /// <summary>How fast the frequency wanders (radians a second of its slower swing).</summary>
+    [Export] public float WanderRate = 0.12f;
 
     public bool On { get; private set; }
     /// <summary>Its beam reached a ship this step.</summary>
@@ -42,6 +50,12 @@ public partial class InterdictorDevice : Node, IShipDevice, IRearmable
     private double _sinceTold;
 
     public void Rearm() => On = false;
+
+    /// <summary>Where a beam's frequency is after so many seconds: two swings, out of step.</summary>
+    public static byte BandAt(double t, float centre, float wander, float quiver, float rate) =>
+        (byte)Mathf.Clamp(centre + wander * Math.Sin(t * rate) + quiver * Math.Sin(t * rate * 2.3 + 1), 0, 255);
+
+    private double _beamTime;
 
     public void BeforeStep(ShipBody ship, double delta)
     {
@@ -80,17 +94,19 @@ public partial class InterdictorDevice : Node, IShipDevice, IRearmable
             return;
         OnTarget = true;
         float reach = Reach * _share;
+        _beamTime += delta;
+        byte band = BandAt(_beamTime, Centre, Wander, Quiver, WanderRate);
         float density = reach * reach / Mathf.Max(ship.GlobalPosition.DistanceSquaredTo(target.GlobalPosition), 1);
         if (target is ShipBody local && !NetBody.IsPuppet(local))
         {
-            local.Device<CruiseDevice>()?.Thicken(density);
+            local.Device<CruiseDevice>()?.Thicken(density, band);
             return;
         }
         _sinceTold += delta;
         if (_sinceTold >= TellEvery && SessionNode.Instance is { Active: true } session && session.IdOf(target) is ushort id)
         {
             _sinceTold = 0;
-            session.Session.Thicken(id, density);
+            session.Session.Thicken(id, density, band);
         }
     }
 }

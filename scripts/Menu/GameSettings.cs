@@ -85,6 +85,9 @@ public partial class GameSettings : Node
     /// <summary>The mouse's speed as a stick, and turning the head: 1 as the cockpit is made.</summary>
     public float MouseSensitivity = 1, LookSensitivity = 1;
 
+    /// <summary>How far the mouse stick goes from the centre before the ship answers, as a share of full stick.</summary>
+    public float MouseDeadZone = 0.1f;
+
     /// <summary>The cockpit's field of view, degrees from the bottom of the picture to the top.</summary>
     public float FieldOfView = 62;
 
@@ -252,6 +255,7 @@ public partial class GameSettings : Node
         file.SetValue("video", "glow", Glow);
         file.SetValue("controls", "invert_mouse_y", InvertMouseY);
         file.SetValue("controls", "mouse_sensitivity", MouseSensitivity);
+        file.SetValue("controls", "mouse_dead_zone", MouseDeadZone);
         file.SetValue("controls", "look_sensitivity", LookSensitivity);
         file.SetValue("video", "field_of_view", FieldOfView);
         file.SetValue("video", "cruise_shake", CruiseShake);
@@ -287,6 +291,7 @@ public partial class GameSettings : Node
         Glow = file.GetValue("video", "glow", Glow).AsBool();
         InvertMouseY = file.GetValue("controls", "invert_mouse_y", InvertMouseY).AsBool();
         MouseSensitivity = file.GetValue("controls", "mouse_sensitivity", MouseSensitivity).AsSingle();
+        MouseDeadZone = file.GetValue("controls", "mouse_dead_zone", MouseDeadZone).AsSingle();
         LookSensitivity = file.GetValue("controls", "look_sensitivity", LookSensitivity).AsSingle();
         FieldOfView = file.GetValue("video", "field_of_view", FieldOfView).AsSingle();
         CruiseShake = file.GetValue("video", "cruise_shake", CruiseShake).AsSingle();

@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_spec")
 Model = "IR-1"
+Price = 500
 DeltaV = 1200.0
 LifeSeconds = 20.0
 FirmwarePath = "res://disks/irmissile.bin"

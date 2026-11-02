@@ -42,6 +42,10 @@ A `CruiseDevice` with a `GeneratorSpec` (`assets/ship/generators`) thins the vei
 
 A station's or planet's `MediumMass` is a child node with a `Reach`; to drop out r metres from it with a G-1, Reach = 5.74 r. Keep each sector within ±2,000 km of its centre (what snapshots carry), and a ship's top under 4,096 m/s (what the inertial unit and snapshots read).
 
+### Against an interdictor
+
+An interdictor's beam adds (Reach / distance)² to the density on a frequency that wanders (`InterdictorDevice.BandAt`, 0-255 band, 0.5-4 Hz). The generator cancels up to `Rejection` of it: all of that within `TuneFlat` of `TuneBand` of the beam's frequency, falling to none at `TuneBand`. Over `Thinning` from a beam it holds for `HoldSeconds`, then drops out; a mass still drops it at once. `TuneRate` limits how fast it retunes. TUNE.COM takes the RADAR screen while a beam is on: the two waves swept one above the other (as many waves in both when tuned) with bars for the share cancelled and the strain; keys `,` and `.`. An `InterdictorBuoy` is the same beam from a fixed point on any cruising ship within `Range`, for hazards on routes (one in sector_01, off the line to the gate). No AI ship carries an interdictor for now.
+
 ## Hull (`ShipSpec`)
 
 | Field | Units | What it does |

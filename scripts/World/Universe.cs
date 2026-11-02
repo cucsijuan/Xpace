@@ -5,6 +5,7 @@ using System.Text.Json;
 using Godot;
 using Xpace.Menu;
 using Xpace.Net;
+using Xpace.Ship;
 using Xpace.Space;
 
 namespace Xpace.World;
@@ -218,14 +219,32 @@ public partial class Universe : Node
         return null;
     }
 
-    /// <summary>A player's ship blew up (here or on its owner's machine): its cargo went with it.</summary>
+    /// <summary>A player's ship blew up (here or on its owner's machine): its cargo went with it, and the insurer's new ship comes loaded.</summary>
     public void Lose(Node3D ship)
     {
-        if (PilotOf(ship) is PilotRecord pilot && pilot.Ship.Cargo.Count > 0)
+        if (PilotOf(ship) is PilotRecord pilot && (pilot.Ship.Cargo.Count > 0 || pilot.Ship.Magazine.Count > 0))
         {
             pilot.Ship.Cargo.Clear();
+            pilot.Ship.Magazine.Clear();
             Touch(pilot);
         }
+    }
+
+    /// <summary>How many missiles of each model the pilot's hull carries.</summary>
+    public static int RackSize(PilotRecord pilot) =>
+        ResourceLoader.Exists(pilot.Ship.Hull) && GD.Load<ShipSpec>(pilot.Ship.Hull) is ShipSpec spec ? spec.MissileRack : 0;
+
+    /// <summary>
+    /// A player's ship let a missile go. The guest who fired counts it at once on its copy of the record; the host hears
+    /// of it from the missile itself, and what it then sends puts the record right.
+    /// </summary>
+    public void Fired(Node3D ship, string model)
+    {
+        if (string.IsNullOrEmpty(model) || RecordOf(ship) is not PilotRecord pilot)
+            return;
+        pilot.Ship.Magazine[model] = Math.Max(0, pilot.Ship.Rack(model, RackSize(pilot)) - 1);
+        if (!IsGuest)
+            Touch(pilot);
     }
 
     private void Destroyed(Node3D ship, Node3D by, Vector3 at) => Lose(ship);

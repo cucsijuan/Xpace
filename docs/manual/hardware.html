@@ -737,7 +737,14 @@ COOL resident.
 <tr><td>+7</td><td>The pilot's cruise button</td></tr>
 <tr><td>+8</td><td>Write a contact's place in the radio's table to steer for it (write it again, or 0FFh, for none): the head-up display marks it</td></tr>
 <tr><td>+9</td><td>That contact, or 0FFh</td></tr>
+<tr><td>+10</td><td>Its frequency, 0 to 255 (0.5 to 4 Hz); write to tune it. It moves at a limited rate</td></tr>
+<tr><td>+11</td><td>The pilot's tuning buttons: bit 0 up, bit 1 down</td></tr>
+<tr><td>+12</td><td>The strain from a beam: at 255 it drops out</td></tr>
+<tr><td>+13</td><td>How much of the beam it cancels: 255, all it can</td></tr>
+<tr><td>+14</td><td>The beam's wave as received, a signed byte, 60 samples a second</td></tr>
+<tr><td>+15</td><td>Its own wave, a signed byte</td></tr>
 </table>
+<p>Status bit 4: a beam is on it. A generator tuned to an interdictor's beam cancels most of it; off by too much, none. Past what it can bear from a beam it holds on for a few seconds, the strain building, and eases when the medium thins again. A mass gives no such grace, and no tuning helps against one. The beam's frequency is not on the bus: only its wave.</p>
 
 <h2 class="cmd">Interdictor<span>230h &middot; type 21</span></h2>
 <p>A beam that thickens the medium round the ship the radar tracks, the more the nearer it is. A cruising ship caught in it slows and drops out when the density reaches what its generator bears. It does nothing to a ship that is not in cruise, needs the radar's lock, and draws on the systems capacitor.</p>
@@ -804,6 +811,10 @@ COOL resident.
 <h2 class="cmd">COMMS<span>Radio contacts</span></h2>
 <p>Works the radio from the COMMS screen and its keys. It lists the contacts: callsign, station or ship, range in kilometres, and LAWS beside the station whose laws the radio holds (DOCK if it cleared the ship to a dock). UP and DOWN move the cursor, SELECT gives the contact's options (a station: request docking, request laws, request launch) and SELECT again sends the one under the cursor; BACK returns to the list. Below, the last message heard and the hangar the ship is cleared to. The bottom line gives the speed limit where the ship is and whose it is, PROTECTED ZONE inside a zone but outside its speed limit, OPEN SPACE outside the zone of the laws held, NO LAWS RECEIVED with none.</p>
 
+<h2 class="cmd">TUNE<span>Generator tuner</span></h2>
+<p>With an interdictor's beam on the ship it takes the RADAR screen and sweeps two waves across it, the beam's above (BEAM) and the generator's below (YOU). More waves above than below: tune up. Fewer: tune down. Alike: it is tuned. A tap moves the frequency a little; held, it goes faster. A needle under the traces shows where it is at once; the traces change as the sweep gets there. Under them, how much of the beam the generator cancels (LOCK) and the strain on it (STRAIN). The screen goes back when the beam goes.</p>
+<p>Buttons: frequency up, frequency down. It reads only the waves: a program that works out the beam's frequency from them can tune by itself.</p>
+
 <h2>Signatures</h2>
 <table class="ref">
 <tr><th>Program</th><th>Signature at 103h</th></tr>
@@ -812,6 +823,7 @@ COOL resident.
 <tr><td>RWR</td><td>XPRW15</td></tr>
 <tr><td>POWER</td><td>XPPW11</td></tr>
 <tr><td>COMMS</td><td>XPCM13</td></tr>
+<tr><td>TUNE</td><td>XPTU10</td></tr>
 </table>
 <p>The last two characters are the version. Change them when you change a program, so that a new version is not taken for the old one; a program that finds another version of itself on the chain does not take it out.</p>
 </section>

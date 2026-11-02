@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Godot;
 using Xpace.Computer;
 using Xpace.Space;
+using Xpace.World;
 
 namespace Xpace.Ship;
 
@@ -36,6 +37,9 @@ namespace Xpace.Ship;
 /// or the head sees nothing, 2 lost)  +11 how it went (0 none, 1 flying,
 /// 2 hit, 3 missed)  +12 its fuel (the speed change left, m/s)
 /// +14 heat seekers left  +15 the newest's kind (1 radar, 2 heat seeker)
+///
+/// A player's ship keeps its missiles in the pilot's record (<see cref="ShipRecord.Magazine"/>), bought at a station's
+/// arms kiosk; any other ship, here.
 /// </summary>
 public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
 {
@@ -52,8 +56,8 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
     [Export] public NodePath RadarPath = "../Radar";
     [Export] public double HeadLockSeconds = 0.3;   // heat held this long: locked on
 
-    public int MissilesLeft { get; private set; }
-    public int HeatSeekersLeft { get; private set; }
+    public int MissilesLeft => Left(_radarModel, _missiles);
+    public int HeatSeekersLeft => Left(_heatModel, _heatSeekers);
     /// <summary>The heat seeker's head on the rail is powered (the computer selected it).</summary>
     public bool HeadPowered { get; private set; }
     /// <summary>The head on the rail sees heat: it growls.</summary>
@@ -71,6 +75,9 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
     /// <summary>Fired since the start, for the tests.</summary>
     public int Launched { get; private set; }
 
+    private ShipBody _ship;
+    private string _radarModel, _heatModel;
+    private int _missiles, _heatSeekers;
     private RadarDevice _radar;
     private readonly List<Missile> _inFlight = new();
     private double _reload;
@@ -83,11 +90,18 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
 
     public override void _Ready()
     {
-        MissilesLeft = Missiles;
-        HeatSeekersLeft = HeatSeekers;
+        _missiles = Missiles;
+        _heatSeekers = HeatSeekers;
+        _ship = GetParentOrNull<ShipBody>();
         _radar = GetNodeOrNull<RadarDevice>(RadarPath);
         _railHead = HeatSeekerScene?.Instantiate<Missile>();
         _railHead?.SetUpHead(_head);
+        _heatModel = _railHead?.Model;
+        if (MissileScene?.Instantiate<Missile>() is Missile radar)
+        {
+            _radarModel = radar.Model;
+            radar.Free();
+        }
         _head.Look = -GlobalBasis.Z;
     }
 
@@ -97,12 +111,18 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
             _railHead?.Free();
     }
 
-    /// <summary>A full load again (a new ship, a resupply).</summary>
+    /// <summary>A full load again: the insurer's new ship.</summary>
     public void Rearm()
     {
-        MissilesLeft = Missiles;
-        HeatSeekersLeft = HeatSeekers;
+        _missiles = Missiles;
+        _heatSeekers = HeatSeekers;
+        Pilot?.Ship.Magazine.Clear();
     }
+
+    private PilotRecord Pilot => _ship != null ? Universe.Current?.RecordOf(_ship) : null;
+
+    private int Left(string model, int own) =>
+        model != null && Pilot is PilotRecord pilot ? pilot.Ship.Rack(model, Universe.RackSize(pilot)) : own;
 
     public void BeforeStep(ShipBody ship, double delta)
     {
@@ -210,13 +230,18 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
         _anyFired = true;
         if (heat)
         {
-            HeatSeekersLeft--;
+            if (_heatModel != null && Pilot != null)
+                Universe.Current.Fired(ship, _heatModel);
+            else
+                _heatSeekers--;
             ship.Computer.Bus[Slot, 7] = 0;             // the next one's head, off
             _head.Look = -GlobalBasis.Z;
             _toneFor = 0;
         }
+        else if (_radarModel != null && Pilot != null)
+            Universe.Current.Fired(ship, _radarModel);
         else
-            MissilesLeft--;
+            _missiles--;
         Launched++;
         _reload = ReloadSeconds;
     }

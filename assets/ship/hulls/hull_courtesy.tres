@@ -10,4 +10,5 @@ Thrusters = ExtResource("2_thrusters")
 VeilDrag = 0.00031
 Compartments = PackedInt32Array(3, 2)
 CargoRacks = PackedInt32Array(2, 0)
+MissileRack = 2
 Screens = ExtResource("3_screens")

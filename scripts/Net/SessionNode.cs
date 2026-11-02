@@ -200,7 +200,7 @@ public partial class SessionNode : Node
         Session.RadioChanged += RadioChanged;
         Session.Requested += Requested;
         Session.DockCleared += DockCleared;
-        Session.Thickened += (ship, density) => (NodeOf(ship.NetId) as Xpace.Ship.ShipBody)?.Device<Xpace.Ship.CruiseDevice>()?.Thicken(density);
+        Session.Thickened += (ship, density, band) => (NodeOf(ship.NetId) as Xpace.Ship.ShipBody)?.Device<Xpace.Ship.CruiseDevice>()?.Thicken(density, band);
         Session.DockChanged += (station, number, open) =>
             StationRadio.Called(station)?.Docks.FirstOrDefault(d => d.Number == number)?.Show(open);
         if (Session.IsHost)
@@ -520,6 +520,7 @@ public partial class SessionNode : Node
         {
             missile.Shooter = shooter;
             Combat.Fire(shooter, shooter.GlobalPosition);
+            Xpace.World.Universe.Current?.Fired(shooter, missile.Model);
         }
         return body;
     }

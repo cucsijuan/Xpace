@@ -128,6 +128,16 @@ public partial class SessionPadTest : Node
         Check("and the guest gets the pilot's record with it",
               await Until(() => documents[Universe.PilotTopic].Contains("\"food\":2"), 1));
 
+        ace.Ship.Magazine["ir_1"] = 0;
+        ace.Credits = 100_000;
+        _other.Ask(StationMarket.ArmsTopic, System.Text.Json.JsonSerializer.Serialize(
+            new MarketRequest { Station = "HAVEN", Do = MarketRequest.Buy, Good = "ir_1", Tonnes = 1 }));
+        Check("the guest buys a missile at the arms dealer through the host", await Until(() => documents.ContainsKey(StationMarket.ArmsTopic), 2));
+        ArmsView arms = System.Text.Json.JsonSerializer.Deserialize<ArmsView>(documents.GetValueOrDefault(StationMarket.ArmsTopic) ?? "{}");
+        Check($"the host loads it on the pilot's record ({arms.Message})", ace.Ship.Magazine["ir_1"] == 1 && arms.Credits == ace.Credits && ace.Credits < 100_000);
+        Check("and the guest's copy of the record has it",
+              await Until(() => documents[Universe.PilotTopic].Contains("\"ir_1\":1"), 1));
+
         _other.Request(GuestShipId, "HAVEN", (byte)RadioRequest.Launch);
         Check("asking to launch: the door opens, everywhere", await Until(() => dock.IsOpen && _doors[^1] == ("HAVEN", dock.Number, true), 2));
         Check($"the guest is told ({Last})", await Until(() => Last.Contains("launch"), 1));

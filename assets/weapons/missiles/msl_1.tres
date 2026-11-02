@@ -5,3 +5,4 @@
 [resource]
 script = ExtResource("1_spec")
 Model = "MSL-1"
+Price = 800

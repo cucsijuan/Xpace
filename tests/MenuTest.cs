@@ -66,6 +66,8 @@ public partial class MenuTest : Node
         bool invert = s.InvertMouseY;
         settings.GetNode<CheckButton>("%InvertY").ButtonPressed = !invert;
         settings.GetNode<HSlider>("%MouseSensitivity").Value = 1.5;
+        settings.GetNode<HSlider>("%MouseDeadZone").Value = 0.3;
+        Check("the stick's dead zone is a setting", Mathf.IsEqualApprox(s.MouseDeadZone, 0.3f));
         Check("changes reach the settings at once", s.InvertMouseY == !invert && Mathf.IsEqualApprox(s.MouseSensitivity, 1.5f));
         settings.GetNode<Button>("%Back").EmitSignal(BaseButton.SignalName.Pressed);
         await Frames(2);

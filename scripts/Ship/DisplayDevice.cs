@@ -127,6 +127,25 @@ public partial class DisplayDevice : Node, IShipDevice
         return pixels[y * (o.Spec.Width / 4) + x / 4] >> ((3 - (x & 3)) * 2) & 3;
     }
 
+    /// <summary>The mark of the program that has the screen lent to it (0: none).</summary>
+    public unsafe byte Lent(string name)
+    {
+        if (_ship == null)
+            return 0;
+        byte* table = _ship.Computer.Memory + ShipMemory.Base + ShipMemory.Screens;
+        string padded = name.PadRight(6);
+        for (int i = 0; i < MaxScreens; i++)
+        {
+            byte* e = table + i * EntrySize;
+            bool same = true;
+            for (int c = 0; c < 6 && same; c++)
+                same = e[c] == padded[c];
+            if (same)
+                return e[9];
+        }
+        return 0;
+    }
+
     /// <summary>The screen's picture as it was last drawn, or null.</summary>
     public Image Picture(string name) => Find(name)?.Image;
 

@@ -224,9 +224,9 @@ public partial class LandingPad : Node3D, IShipHold
             if (k >= 1)
             {
                 State = PadState.Docked;
-                // The station's crew fills it up: what it has thrown and fired comes back only here, or from the insurer
+                // The station's crew fills the dispenser up: what it has thrown comes back only here, or from the
+                // insurer. Missiles are bought (StationKiosk, the arms kiosk)
                 ship.Device<DispenserDevice>()?.Rearm();
-                ship.Device<LauncherDevice>()?.Rearm();
             }
         }
         else if (State == PadState.Launching)

@@ -170,14 +170,14 @@ public partial class SessionTest : Node
         foreach (var (peer, m) in machines)
         {
             byte machine = peer;
-            m.Thickened += (ship, density) => thick[(machine, ship.NetId)] = density;
+            m.Thickened += (ship, density, band) => thick[(machine, ship.NetId)] = density;
         }
         for (uint tick = 900; tick < 960; tick++)
         {
             net.Now = tick * Dt;
-            machines[Guest1].Thicken(Ship2, 33);    // through the host
-            machines[Guest1].Thicken(DroneId, 20);  // the host's
-            machines[Host].Thicken(Ship1, 10);      // from the host
+            machines[Guest1].Thicken(Ship2, 33, 100);    // through the host
+            machines[Guest1].Thicken(DroneId, 20, 100);  // the host's
+            machines[Host].Thicken(Ship1, 10, 100);      // from the host
             foreach (Session s in machines.Values)
                 s.Tick(tick);
         }

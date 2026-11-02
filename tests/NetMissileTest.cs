@@ -217,6 +217,7 @@ public partial class NetMissileTest : Node
         guest.Dropped += drops.Add;
         var hits = new List<HitEvent>();
         guest.HitConfirmed += hits.Add;
+        guest.Introduce("net-guest", "Guest");
 
         Thing missile = null;
         float worst = 0;
@@ -287,6 +288,9 @@ public partial class NetMissileTest : Node
         float damage = hits.Where(h => h.Target == HostShipId).Sum(h => h.Damage);
         Check($"the guest's blast hurt the drone ({drone.Hits} hit here; the guest heard {damage:0} damage)", drone.Hits == 1 && damage > 30);
         Check("the puppet missile goes when the guest's ends", gone);
+        Xpace.World.PilotRecord pilot = Xpace.World.Universe.Current.State.Pilot("net-guest");
+        int rack = Xpace.World.Universe.RackSize(pilot);
+        Check($"the host counts it off the guest's magazine ({pilot.Ship.Rack("msl_1", rack)} of {rack} left)", pilot.Ship.Rack("msl_1", rack) == rack - 1);
 
         origin.QueueFree();
         await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);

@@ -61,6 +61,37 @@ public sealed class MarketLine
     public int Held { get; set; }
 }
 
+/// <summary>What a station's arms dealer shows a pilot.</summary>
+public sealed class ArmsView
+{
+    public string Station { get; set; }
+    public bool Docked { get; set; }
+    public long Credits { get; set; }
+    /// <summary>What came of the request (empty for a look; with nothing on sale, says so).</summary>
+    public string Message { get; set; } = "";
+    public List<ArmsOffer> Offers { get; set; } = new();
+}
+
+public sealed class ArmsOffer
+{
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public bool HeatSeeker { get; set; }
+    public int Stock { get; set; }
+    /// <summary>What the next one costs (-1: none to sell).</summary>
+    public long Price { get; set; }
+    public int Aboard { get; set; }
+    public int Rack { get; set; }
+    public float Damage { get; set; }
+    public float DeltaV { get; set; }
+    public float Acceleration { get; set; }
+    /// <summary>The good its factory makes it of, and the tonnes of it the station has.</summary>
+    public string MadeOf { get; set; } = "";
+    public int MadeOfStock { get; set; }
+    /// <summary>The dealer is short of it and the factory has nothing to make more with.</summary>
+    public bool Starved { get; set; }
+}
+
 /// <summary>
 /// A station's market, beside its radio (<see cref="StationRadio"/>) in the station's scene: the goods it deals in
 /// (<see cref="Goods"/>: what it wants to have, what it makes and uses) and the desk that serves pilots. The rules
@@ -75,9 +106,12 @@ public sealed class MarketLine
 /// </summary>
 public partial class StationMarket : Node
 {
-    public const string Topic = "market";
+    public const string Topic = "market", ArmsTopic = "arms";
 
     [Export] public MarketGood[] Goods = System.Array.Empty<MarketGood>();
+
+    /// <summary>What the station's arms dealer sells, from its own factory (none: no arms dealer here).</summary>
+    [Export] public OutfitLine[] Outfits = System.Array.Empty<OutfitLine>();
 
     /// <summary>A disreputable factor works here: it pays other stations' fines and bounties for the pilot.</summary>
     [Export] public bool Factor;
@@ -108,6 +142,10 @@ public partial class StationMarket : Node
     [Export] public string NoFactorText = "No factor works here.";
     /// <summary>{0} the station, {1} credits.</summary>
     [Export] public string FactorText = "Your debts to {0} are settled, for {1} credits. Nobody asks where it came from.";
+    [Export] public string NoArmsText = "No arms are sold at this station.";
+    /// <summary>{0} how many, {1} the model, {2} credits.</summary>
+    [Export] public string LoadedText = "Loaded {0} {1} for {2} credits.";
+    [Export] public string RackFullText = "The rack is full.";
 
     public StationRadio Radio { get; private set; }
 
@@ -125,6 +163,7 @@ public partial class StationMarket : Node
     {
         _all.Add(this);
         Universe.Current?.Answer(Topic, Desk);
+        Universe.Current?.Answer(ArmsTopic, ArmsDesk);
     }
 
     public override void _ExitTree() => _all.Remove(this);
@@ -153,7 +192,7 @@ public partial class StationMarket : Node
         UniverseState state = universe.State;
         StationRecord station = state.Station(Radio.Sign);
         PilotRecord pilot = state.Pilot(pilotId);
-        Market.Advance(station, Goods, state.Clock);
+        Market.Advance(station, Goods, state.Clock, Outfits);
         Node3D ship = universe.ShipOf(pilotId);
         bool docked = Radio.DockedHere(ship), present = docked || Radio.Inside(ship) || universe.OnFootAt(pilotId) == Radio.Sign;
         CrimeRecord crimes = station.CrimesOf(pilotId);
@@ -240,6 +279,73 @@ public partial class StationMarket : Node
         return view;
     }
 
+    /// <summary>The universe's owner: a pilot's request at an arms kiosk, answered by the station it names.</summary>
+    private static string ArmsDesk(string pilot, string text)
+    {
+        MarketRequest request;
+        try
+        {
+            request = JsonSerializer.Deserialize<MarketRequest>(text);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+        return request != null && Of(request.Station) is StationMarket market
+            ? JsonSerializer.Serialize(market.ServeArms(pilot, request))
+            : null;
+    }
+
+    /// <summary>Does what the pilot asks of the arms dealer, if it may be done, and shows what it has after.</summary>
+    public ArmsView ServeArms(string pilotId, MarketRequest request)
+    {
+        Universe universe = Universe.Current;
+        UniverseState state = universe.State;
+        StationRecord station = state.Station(Radio.Sign);
+        PilotRecord pilot = state.Pilot(pilotId);
+        Market.Advance(station, Goods, state.Clock, Outfits);
+        Node3D ship = universe.ShipOf(pilotId);
+        bool docked = Radio.DockedHere(ship);
+        int rack = Universe.RackSize(pilot);
+        string message = Outfits.Length == 0 ? NoArmsText : "";
+        bool changed = false;
+        if (request.Do == MarketRequest.Buy)
+        {
+            OutfitLine line = Outfits.FirstOrDefault(o => o?.Item != null && o.Id == request.Good);
+            if (line == null)
+                message = NoArmsText;
+            else if (!docked)
+                message = NotDockedText;
+            else if (Radio.Security?.Refuses(ship) == true)
+                message = RefusedText;
+            else
+            {
+                Market.Result result = Market.BuyOutfit(station, line, pilot, request.Tonnes, rack, out int bought, out long paid);
+                message = bought > 0 ? string.Format(LoadedText, bought, line.Item.Model, paid) : Why(result);
+                changed = bought > 0;
+            }
+        }
+        if (changed)
+            universe.Touch(pilot);
+        else
+            universe.Touch();
+
+        var view = new ArmsView { Station = Radio.Sign, Docked = docked, Credits = pilot.Credits, Message = message };
+        foreach (OutfitLine line in Outfits.Where(o => o?.Item != null))
+        {
+            double stock = station.Stock.GetValueOrDefault(line.Id);
+            double input = line.Input != null ? station.Stock.GetValueOrDefault(line.Input.Id) : 0;
+            view.Offers.Add(new ArmsOffer
+            {
+                Id = line.Id, Name = line.Item.Model, HeatSeeker = line.Item.HeatSeeker, Stock = (int)stock, Price = Market.OutfitPrice(line, stock),
+                Aboard = pilot.Ship.Rack(line.Id, rack), Rack = rack, Damage = line.Item.Damage, DeltaV = line.Item.DeltaV, Acceleration = line.Item.MaxAcceleration,
+                MadeOf = line.Input?.Name ?? "", MadeOfStock = (int)input,
+                Starved = line.Input != null && stock < line.Stock && input < line.InputPerUnit,
+            });
+        }
+        return view;
+    }
+
     public long FactorCost(long owed) => (long)System.Math.Ceiling(owed * (1 + FactorSurcharge));
 
     // The factor settles what the pilot owes another station
@@ -280,6 +386,7 @@ public partial class StationMarket : Node
         Market.Result.MarketFull => MarketFullText,
         Market.Result.NoMoney => NoMoneyText,
         Market.Result.HoldFull => HoldFullText,
+        Market.Result.RackFull => RackFullText,
         Market.Result.NotHeld => NotHeldText,
         _ => NotTradedText,
     };

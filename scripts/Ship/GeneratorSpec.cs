@@ -23,6 +23,19 @@ public partial class GeneratorSpec : Resource
     /// <summary>What it draws from the engines capacitor at full throttle, if the ship has a power plant (MW).</summary>
     [Export] public float Megawatts = 6f;
 
+    [ExportGroup("Against an interdictor")]
+    /// <summary>Seconds it can bear a medium thicker than <see cref="Thinning"/> from a beam before it drops out.</summary>
+    [Export] public float HoldSeconds = 4f;
+    /// <summary>The share of a beam it cancels, tuned exactly to it.</summary>
+    [Export] public float Rejection = 0.97f;
+    /// <summary>How far off the beam's frequency it can be and still cancel any of it (0-255 band).</summary>
+    [Export] public float TuneBand = 30f;
+    /// <summary>The share of that band over which it cancels all it can.</summary>
+    [Export] public float TuneFlat = 0.3f;
+    /// <summary>How fast its frequency can move (band a second).</summary>
+    [Export] public float TuneRate = 240f;
+
+    [ExportGroup("")]
     /// <summary>Seconds charging before it starts to thin the veil.</summary>
     [Export] public double SpoolSeconds = 4;
 

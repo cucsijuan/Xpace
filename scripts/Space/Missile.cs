@@ -56,6 +56,9 @@ public partial class Missile : Node3D, INetShip
     [Export] public MissileSpec Spec;
     private MissileSpec S => Spec ??= new MissileSpec();
 
+    /// <summary>The model's id, for a pilot's magazine (null: a model with no file).</summary>
+    public string Model => string.IsNullOrEmpty(Spec?.ResourcePath) ? null : Spec.ResourcePath.GetFile().GetBaseName();
+
     public float MaxAcceleration => S.MaxAcceleration;
     public float DeltaV => S.DeltaV;
     public float ArmSeconds => S.ArmSeconds;

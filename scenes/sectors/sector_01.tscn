@@ -1,6 +1,7 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/Space/MediumMass.cs" id="medium_mass"]
+[ext_resource type="Script" path="res://scripts/Space/InterdictorBuoy.cs" id="interdictor_buoy"]
 [ext_resource type="Script" uid="uid://ckiwalmif04k4" path="res://scripts/Space/RockKind.cs" id="8_kind"]
 
 [ext_resource type="Script" uid="uid://cjgdfrbao84c3" path="res://scripts/Space/RockBox.cs" id="8_region"]
@@ -179,6 +180,10 @@ script = ExtResource("51_rock_sensor")
 
 [node name="Raider" parent="." unique_id=1007152421 instance=ExtResource("41_ai_fighter")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -600, 150, 4000)
+
+[node name="InterdictorBuoy" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55000, 2500, 35000)
+script = ExtResource("interdictor_buoy")
 
 [node name="Gate2" parent="." instance=ExtResource("gate_scene")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 90000, 5000, 90000)

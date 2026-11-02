@@ -124,7 +124,16 @@ public sealed class ShipRecord
         }
     }
 
+    /// <summary>
+    /// Missiles aboard, by the model's id (<see cref="Xpace.World.OutfitLine.Id"/>). A model not listed has what the
+    /// factory gave the ship: a new ship comes loaded.
+    /// </summary>
+    public Dictionary<string, int> Magazine { get; set; } = new();
+
     public int Holds(string good) => Cargo.TryGetValue(good, out int t) ? t : 0;
+
+    /// <summary>Missiles of a model aboard, where a full rack is <paramref name="factory"/>.</summary>
+    public int Rack(string model, int factory) => Magazine.TryGetValue(model, out int n) ? n : factory;
 
     /// <summary>Adds (or with a negative count takes away) tonnes of a good; none left of it, it goes from the list.</summary>
     public void Load(string good, int tonnes)

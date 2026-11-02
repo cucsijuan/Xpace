@@ -27,4 +27,5 @@ public struct PilotControls
     public bool Parking;            // FLIGHT's parking mode, on and off
     public bool Cruise;             // the cruise generator, on and off
     public bool Interdict;          // the interdictor, on and off
+    public bool TuneUp, TuneDown;   // the generator's frequency, against an interdictor's beam
 }

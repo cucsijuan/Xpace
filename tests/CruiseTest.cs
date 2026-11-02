@@ -41,7 +41,7 @@ public partial class CruiseTest : Node
         var radio = _ship.GetNode<RadioDevice>("Radio");
         var display = _ship.GetNode<DisplayDevice>("Display");
         var engine = _ship.GetNode<EngineDevice>("Engine");
-        foreach (string ship in new[] { "Drone1", "Drone2", "Raider" })
+        foreach (string ship in new[] { "Drone1", "Drone2", "Raider", "InterdictorBuoy" })
             _main.Sector.GetNodeOrNull(ship)?.QueueFree();
         _ship.ControlsSource = () => _controls;
         JumpGate gate = _main.Sector.GetNode<JumpGate>("Gate2");
@@ -178,6 +178,7 @@ public partial class CruiseTest : Node
         Check("and off", !interdictor.On);
         var hunter = GD.Load<PackedScene>("res://scenes/ships/ai_fighter.tscn").Instantiate<ShipBody>();
         hunter.GetNode("Pilot").ProcessMode = ProcessModeEnum.Disabled;
+        hunter.AddChild(new InterdictorDevice { Name = "Interdictor", Wander = 0, Quiver = 0, Centre = 0 });
         _main.Sector.AddChild(hunter);
         Point(open, open + new Vector3(1000, 0, 1000), 0);
         _controls.Throttle = 1;

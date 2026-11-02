@@ -199,12 +199,15 @@ public partial class Pilot : Node3D
         _camera.HOffset = (rumbleSide + _bumpSide) * ShakeMetres * amount;
     }
 
+    private static string InputKey(string action) => GameSettings.Describe(GameSettings.Binding(action));
+
     /// <summary>The player's mouse settings, over the cockpit's own.</summary>
     private void Settle() => Settle(GameSettings.Current);
 
     private void Settle(GameSettings settings)
     {
         StickTravel = _stickTravel / Mathf.Max(settings.MouseSensitivity, 0.05f);
+        StickDeadZone = Mathf.Clamp(settings.MouseDeadZone, 0, 0.9f);
         LookSensitivity = _lookSensitivity * settings.LookSensitivity;
         InvertMouseY = _invertMouseY != settings.InvertMouseY;
         if (_camera != null)
@@ -506,6 +509,8 @@ public partial class Pilot : Node3D
             Parking = keys && Input.IsActionPressed(FlightInput.Parking),
             Cruise = keys && Input.IsActionPressed(FlightInput.Cruise),
             Interdict = keys && Input.IsActionPressed(FlightInput.Interdict),
+            TuneUp = keys && Input.IsActionPressed(FlightInput.TuneUp),
+            TuneDown = keys && Input.IsActionPressed(FlightInput.TuneDown),
         };
     }
 
@@ -569,6 +574,7 @@ public partial class Pilot : Node3D
         {
             _widget.Visible = Mode == MouseUse.Flying;
             _widget.Stick = _stick;
+            _widget.DeadZone = StickDeadZone;
         }
         if (_hud == null)
             return;
@@ -585,6 +591,8 @@ public partial class Pilot : Node3D
             CruiseDevice cruise = _ship.Device<CruiseDevice>();
             if (cruise?.Charging == true)
                 mode += "   CRUISE CHARGING";
+            else if (cruise?.BeamOn == true)
+                mode += $"   INTERDICTED: match YOU to BEAM on the radar screen ({InputKey(FlightInput.TuneDown)} fewer waves, {InputKey(FlightInput.TuneUp)} more)";
             else if (cruise?.On == true)
                 mode += "   CRUISE";
             else if (cruise?.DroppedOut == true)

@@ -77,8 +77,26 @@ A pilot is present at a station when their ship is docked there or inside one of
 foot there. The market and the lockers both check this. The host's universe knows where each pilot is on foot: the
 local player's walker, or a guest's as the guest's machine reports it in the walker states (`Universe.OnFootAt`).
 
-The sector has two stations with complementary markets: the first (industry: metals, machinery, hydrogen) and Kestrel
-(water, food, ore, medicines), about 24 km apart.
+There are two stations with complementary markets, a gate apart: the first sector's (industry: metals, machinery,
+hydrogen) and Kestrel, in the second sector (water, food, iron, medicines). Stations were at work before any pilot
+came (`Market.HoursBeforeStart`) and go on working unvisited, so prices differ from a new universe's first minute.
+
+**The first chain: iron into missiles.** Kestrel makes iron; the first station's market buys it, uses a little itself,
+and its factory makes missiles of it (`StationMarket.Outfits`, an `OutfitLine` per model: the stock wanted, how many
+an hour, the input and how much of it goes into one). The factory rests with the stock full and stops with no iron.
+The price (`MissileSpec.Price`) moves with the stock as a good's does. Commodities are traded at the market's kiosk,
+in tonnes, into the hold; missiles at the **arms kiosk** (`scenes/stations/props/arms_kiosk.tscn`, `ArmsWindow`), by
+the piece, straight onto the ship. Docked only; Kestrel's dealer has nothing to sell.
+
+A player's missiles are in their record (`ShipRecord.Magazine`, by model; a model not listed has what the hull's
+`ShipSpec.MissileRack` gives, so a new ship comes loaded). Docking no longer brings them back: the insurer's new ship
+is the only free load. Chaff and flares are still refilled free on docking. In a session the host owns the record: a
+guest asks through it (topic `arms`) and the host counts a guest's launch when its missile appears there.
+
+**Measuring the balance:** `tests/trade_balance_test.tscn` reads the goods, markets, hulls, generator, tolls and
+distances from the game's data and prints what trading pays: prices at both ends, the best run as the universe ages,
+careers against hours played. Change the data and run it again; the targets it fails on are constants at the top of
+`tests/TradeBalanceTest.cs`. `tests/trade_run_test.tscn` is one run in the real game, from dock to dock.
 
 ## The law
 

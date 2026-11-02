@@ -11,6 +11,9 @@ public partial class MissileSpec : Resource
     /// <summary>The model's name, as a program or a fittings list shows it.</summary>
     [Export] public string Model = "MSL";
 
+    /// <summary>What it costs where the market has the stock it wants.</summary>
+    [Export] public long Price = 800;
+
     [ExportGroup("Motor")]
     /// <summary>m/s the fuel gives in all.</summary>
     [Export] public float DeltaV = 1500f;

@@ -232,9 +232,13 @@ public partial class MarketTest : Node
               Market.Price(line, 10_000) == (long)Math.Round(line.Good.BasePrice * Market.Cheapest));
         var station = new StationRecord();
         Market.Advance(station, new[] { line }, 0);
-        Check($"a new market starts with the stock it wants ({station.Stock["food"]})", station.Stock["food"] == 100);
+        double atStart = 100 + line.Rate * Market.HoursBeforeStart;
+        Check($"a new market has been at work for a while already ({station.Stock["food"]} of the 100 t it wants)", station.Stock["food"] == atStart);
         Market.Advance(station, new[] { line }, 3600 * 2);
-        Check($"two hours on, it has used 20 t ({station.Stock["food"]})", Math.Abs(station.Stock["food"] - 80) < 1e-9);
+        Check($"two hours on, it has used 20 t ({station.Stock["food"]})", Math.Abs(station.Stock["food"] - (atStart - 20)) < 1e-9);
+        var late = new StationRecord { UpdatedAt = 3600 * 2 };
+        Market.Advance(late, new[] { line }, 3600 * 2);
+        Check($"first seen two hours on, it stands the same ({late.Stock["food"]})", late.Stock["food"] == station.Stock["food"]);
         Market.Advance(station, new[] { line }, 3600 * 100);
         Check("and never less than none", station.Stock["food"] == 0);
         Check("with none, nothing to sell", Market.BuyPrice(line, 0) < 0);

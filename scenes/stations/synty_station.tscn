@@ -26,12 +26,31 @@
 [ext_resource type="Script" path="res://scripts/World/MarketGood.cs" id="31_market_good"]
 [ext_resource type="Resource" path="res://assets/goods/water.tres" id="32_water"]
 [ext_resource type="Resource" path="res://assets/goods/food.tres" id="32_food"]
-[ext_resource type="Resource" path="res://assets/goods/iron_ore.tres" id="32_iron_ore"]
+[ext_resource type="Resource" path="res://assets/goods/iron.tres" id="32_iron"]
+[ext_resource type="Script" path="res://scripts/World/OutfitLine.cs" id="33_outfit"]
+[ext_resource type="Resource" path="res://assets/weapons/missiles/msl_1.tres" id="33_msl"]
+[ext_resource type="Resource" path="res://assets/weapons/missiles/ir_1.tres" id="33_ir"]
 [ext_resource type="Resource" path="res://assets/goods/medicines.tres" id="32_medicines"]
 [ext_resource type="Resource" path="res://assets/goods/metals.tres" id="32_metals"]
 [ext_resource type="Resource" path="res://assets/goods/machinery.tres" id="32_machinery"]
 [ext_resource type="Resource" path="res://assets/goods/electronics.tres" id="32_electronics"]
 [ext_resource type="Resource" path="res://assets/goods/hydrogen.tres" id="32_hydrogen"]
+
+[sub_resource type="Resource" id="Arms_msl"]
+script = ExtResource("33_outfit")
+Item = ExtResource("33_msl")
+Stock = 24
+PerHour = 12.0
+Input = ExtResource("32_iron")
+InputPerUnit = 0.5
+
+[sub_resource type="Resource" id="Arms_ir"]
+script = ExtResource("33_outfit")
+Item = ExtResource("33_ir")
+Stock = 24
+PerHour = 12.0
+Input = ExtResource("32_iron")
+InputPerUnit = 0.25
 
 [sub_resource type="Resource" id="Market_water"]
 script = ExtResource("31_market_good")
@@ -45,11 +64,11 @@ Good = ExtResource("32_food")
 Stock = 300
 Rate = -40.0
 
-[sub_resource type="Resource" id="Market_iron_ore"]
+[sub_resource type="Resource" id="Market_iron"]
 script = ExtResource("31_market_good")
-Good = ExtResource("32_iron_ore")
-Stock = 500
-Rate = -80.0
+Good = ExtResource("32_iron")
+Stock = 60
+Rate = -5.0
 
 [sub_resource type="Resource" id="Market_medicines"]
 script = ExtResource("31_market_good")
@@ -163,7 +182,8 @@ Voices = Array[ExtResource("20_voice_pack")]([ExtResource("16_voice_f1"), ExtRes
 
 [node name="Market" type="Node" parent="."]
 script = ExtResource("30_market")
-Goods = Array[ExtResource("31_market_good")]([SubResource("Market_water"), SubResource("Market_food"), SubResource("Market_iron_ore"), SubResource("Market_medicines"), SubResource("Market_metals"), SubResource("Market_machinery"), SubResource("Market_electronics"), SubResource("Market_hydrogen")])
+Goods = Array[ExtResource("31_market_good")]([SubResource("Market_water"), SubResource("Market_food"), SubResource("Market_iron"), SubResource("Market_medicines"), SubResource("Market_metals"), SubResource("Market_machinery"), SubResource("Market_electronics"), SubResource("Market_hydrogen")])
+Outfits = Array[ExtResource("33_outfit")]([SubResource("Arms_msl"), SubResource("Arms_ir")])
 
 [node name="Lockers" type="Node" parent="."]
 script = ExtResource("40_lockers")
