@@ -18,6 +18,13 @@ public partial class JammerSpec : Resource
     /// <summary>The model's name, as a program or a fittings list shows it.</summary>
     [Export] public string Model = "JAM";
 
+    [ExportGroup("Heat")]
+    /// <summary>
+    /// How bright it makes the ship to a heat seeker while it sends, from every side (a flare's peak is 45): what it
+    /// radiates makes flares of no use, so a ship has to choose which missile it hides from.
+    /// </summary>
+    [Export] public float HeatGlow = 320f;
+
     [ExportGroup("Noise")]
     /// <summary>The jamming-to-noise ratio it causes at 1 km, sending all round.</summary>
     [Export] public float NoiseAt1Km = 400f;

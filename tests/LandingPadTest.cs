@@ -68,6 +68,11 @@ public partial class LandingPadTest : Node3D
         Check($"the fighter fits the pads (its box {_ship.Bounds.Size})", dock.Pads.All(p => p.Fits(_ship)));
         Check("no beacon yet: FIRECTL has the RADAR screen", Lent() == 0 && Pixel(0, 64) != 0);
 
+        var dispenser = _ship.Device<DispenserDevice>();
+        _ship.Computer.Bus.Out(DispenserDevice.Slot, 4, 1);
+        dispenser.AfterStep(_ship, 0);
+        int thrownChaff = dispenser.ChaffLeft;
+
         _radio.AskDocking();
         Check("cleared to the hangar and a pad in it", await Until(() => _radio.Dock == dock.Number && _radio.Pad != 0, 3));
         LandingPad pad = dock.PadNumbered(_radio.Pad);
@@ -120,6 +125,7 @@ public partial class LandingPadTest : Node3D
         float turned = _ship.GlobalBasis.Z.AngleTo(rest.Basis.Z);
         Check($"exactly ({off:0.000} m, {Mathf.RadToDeg(turned):0.00} degrees off)", off < 0.01f && turned < 0.002f);
         Shot("4_docked");
+        Check($"docked, the station fills it up ({thrownChaff} chaff, now {dispenser.ChaffLeft})", thrownChaff < dispenser.Chaff && dispenser.ChaffLeft == dispenser.Chaff);
         Check($"the beacon says docked (flags {Guide(0)})", (Guide(0) & (RadioDevice.PadHeld | RadioDevice.PadDocked)) == (RadioDevice.PadHeld | RadioDevice.PadDocked));
         Check("the station shuts the door and says so", await Until(() => !dock.IsOpen && dock.Door.Open == 0, 2) && Heard("Docked"));
         _controls = new PilotControls { Throttle = 1, Up = 1, Yaw = 1 };

@@ -4,9 +4,9 @@
 
 [resource]
 script = ExtResource("1_look")
-Colour = Color(1, 0.75, 0.35, 1)
-Glow = Color(1, 0.6, 0.2, 1)
-GlowEnergy = 3.0
-Length = 40.0
-MinWidth = 0.15
-WidthPerMetre = 0.0025
+Colour = Color(1, 0.88, 0.6, 1)
+Glow = Color(1, 0.42, 0.1, 1)
+GlowEnergy = 2.5
+Length = 28.0
+MinWidth = 0.12
+WidthPerMetre = 0.0016

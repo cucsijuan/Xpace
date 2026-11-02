@@ -23,11 +23,17 @@ public partial class DispenserDevice : Node3D, IShipDevice, IRearmable
 
     [Export] public PackedScene ChaffScene;
     [Export] public PackedScene FlareScene;
-    [Export] public int Chaff = 24;
-    [Export] public int Flares = 24;
-    [Export] public float ChaffKick = 15f;          // m/s
-    [Export] public float FlareKick = 20f;
-    [Export] public double CycleSeconds = 0.25;
+    /// <summary>The model.</summary>
+    [Export] public DispenserSpec Spec;
+    private DispenserSpec S => Spec ??= new DispenserSpec();
+
+    /// <summary>What a full load is: the model's, unless a test or a fitting says otherwise.</summary>
+    public int Chaff { get => _chaff ?? S.Chaff; set => _chaff = value; }
+    public int Flares { get => _flares ?? S.Flares; set => _flares = value; }
+    private int? _chaff, _flares;
+    public float ChaffKick => S.ChaffKick;
+    public float FlareKick => S.FlareKick;
+    public double CycleSeconds => S.CycleSeconds;
 
     public int ChaffLeft { get; private set; }
     public int FlaresLeft { get; private set; }

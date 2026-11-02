@@ -106,7 +106,7 @@ public partial class RemoteShip : Node3D, Space.ICruiseShown, INetEntity, IRadar
         if (!Alive)
             return 0;
         float behind = Mathf.Max(0, -direction.Dot(GlobalBasis.Z.Normalized()));
-        return heat * (HullHeatAtFull * HullLevel + MotorHeat * Thrust * (FrontHeat + (1 - FrontHeat) * behind));
+        return heat * (HullHeatAtFull * HullLevel + _jammer.Glow + MotorHeat * Thrust * (FrontHeat + (1 - FrontHeat) * behind));
     }
 
     /// <summary>A packet from the owner's <see cref="ShipStateSender"/>.</summary>

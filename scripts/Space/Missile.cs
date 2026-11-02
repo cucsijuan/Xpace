@@ -52,23 +52,26 @@ public partial class Missile : Node3D, INetShip
 
     public enum Outcome { Flying, Hit, Missed }
 
-    [Export] public float MaxAcceleration = 200f;      // m/s², about 20 g
-    [Export] public float DeltaV = 1500f;              // m/s the fuel gives in all
-    [Export] public float ArmSeconds = 0.5f;
-    [Export] public float LifeSeconds = 30f;
-    [Export] public float FuseRadius = 12f;
-    [Export] public float LethalRadius = 6f;
-    [Export] public float BlastRadius = 25f;
-    [Export] public float Damage = 150f;               // within LethalRadius
-    [Export] public uint InstructionsPerSecond = 400_000;
-    [Export(PropertyHint.File, "*.bin")] public string FirmwarePath = "res://disks/missile.bin";
+    /// <summary>The model.</summary>
+    [Export] public MissileSpec Spec;
+    private MissileSpec S => Spec ??= new MissileSpec();
 
-    [ExportGroup("Heat seeker")]
-    [Export] public bool HeatSeeker;
-    [Export] public float SeekerFieldDegrees = 8f;     // the whole cone it looks at
-    [Export] public float SeekerSensitivity = 1e-6f;   // the least heat it notices
-    [Export] public float SeekerSlewDegrees = 60f;     // how fast the gimbal turns, per second
-    [Export] public float GimbalLimitDegrees = 50f;    // how far off the nose it can look
+    public float MaxAcceleration => S.MaxAcceleration;
+    public float DeltaV => S.DeltaV;
+    public float ArmSeconds => S.ArmSeconds;
+    public float LifeSeconds => S.LifeSeconds;
+    public float FuseRadius => S.FuseRadius;
+    public float LethalRadius => S.LethalRadius;
+    public float BlastRadius => S.BlastRadius;
+    public float Damage => S.Damage;
+    public uint InstructionsPerSecond => S.InstructionsPerSecond;
+    public string FirmwarePath => S.FirmwarePath;
+
+    public bool HeatSeeker => S.HeatSeeker;
+    public float SeekerFieldDegrees => S.SeekerFieldDegrees;
+    public float SeekerSensitivity => S.SeekerSensitivity;
+    public float SeekerSlewDegrees => S.SeekerSlewDegrees;
+    public float GimbalLimitDegrees => S.GimbalLimitDegrees;
 
     public Vector3 Velocity { get; set; }
     /// <summary>Where a heat seeker's head points, world axes (the launcher aims it first).</summary>
@@ -329,7 +332,7 @@ public partial class Missile : Node3D, INetShip
     {
         float push = _applied.Length();
         if (_plume != null)
-            _plume.Thrust = push / MaxAcceleration;
+            _plume.Thrust = Mathf.Min(push / (MaxAcceleration * 0.4f), 1);    // cruising on its boost, it burns in full
         else
         {
             _flame.Visible = push > 1;

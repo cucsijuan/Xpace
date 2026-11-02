@@ -142,8 +142,10 @@ public partial class RaiderHuntTest : Node
               ship.Hits >= 8 && confirmed == ship.Hits);
         Check($"a missile it lets go is made on the guest's machine ({launcher.Launched} fired, {spawned.Count} spawned there)",
               launcher.Launched >= 1 && spawned.Count >= 1);
-        Check($"the raider and the drone never hurt each other (hull {hull.Left:0} of {hull.Integrity:0}, drone hit {drone.Hits} times)",
-              hull.Left == hull.Integrity && drone.Hits == 0);
+        // (Its own heat may wear its hull a little, firing and jamming: that's not the drone's doing)
+        ShipSignature signature = hull.GetParent().GetChildren().OfType<ShipSignature>().First();
+        Check($"the raider and the drone never hurt each other (raider hit {signature.Hits} times, drone {drone.Hits})",
+              signature.Hits == 0 && drone.Hits == 0);
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);

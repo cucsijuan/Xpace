@@ -130,15 +130,19 @@ internal static class Events
         return new SectorPoint(x, y, z);
     }
 
+    // A round leaves faster than a ship flies: the laser's bolt on top of a cruising ship (steps of 1/16 m/s)
+    private const double VelocityRange = 16384;
+    private const int VelocityBits = 19;
+
     public static void WriteVelocity(BitWriter w, Vector3 v)
     {
-        w.WriteScaled(v.X, ShipSnapshot.VelocityRange, 17);
-        w.WriteScaled(v.Y, ShipSnapshot.VelocityRange, 17);
-        w.WriteScaled(v.Z, ShipSnapshot.VelocityRange, 17);
+        w.WriteScaled(v.X, VelocityRange, VelocityBits);
+        w.WriteScaled(v.Y, VelocityRange, VelocityBits);
+        w.WriteScaled(v.Z, VelocityRange, VelocityBits);
     }
 
     public static Vector3 ReadVelocity(BitReader r) =>
-        new((float)r.ReadScaled(ShipSnapshot.VelocityRange, 17),
-            (float)r.ReadScaled(ShipSnapshot.VelocityRange, 17),
-            (float)r.ReadScaled(ShipSnapshot.VelocityRange, 17));
+        new((float)r.ReadScaled(VelocityRange, VelocityBits),
+            (float)r.ReadScaled(VelocityRange, VelocityBits),
+            (float)r.ReadScaled(VelocityRange, VelocityBits));
 }

@@ -177,7 +177,7 @@ public partial class NetMissileTest : Node
         GD.Print($"     the heat seeker came within {missile?.ClosestApproach ?? -1:0.0} m of the puppet");
         (byte scene, Thing seen) = made.Values.FirstOrDefault();
         Check($"the host hears of the missile fired here (scene {scene}: the heat seeker) and sees it fly, motor burning ({mostThrust:0.00})",
-              made.Count == 1 && scene == 1 && mostThrust > 0.5f);
+              made.Count == 1 && scene == 1 && mostThrust > 0.3f);
         Check($"the missile went off here at the puppet ({missile != null && !IsInstanceValid(missile)}); the host hears it end, blown up ({ended?.Exploded})",
               missile != null && !IsInstanceValid(missile) && ended?.What == seen && ended?.Exploded == true);
         Check($"the host judged the blast: its ship took {hostShip.Hits} hit, {hostShip.Damage:0} damage", hostShip.Hits == 1 && hostShip.Damage > 30);

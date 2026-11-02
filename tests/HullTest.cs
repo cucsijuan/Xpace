@@ -64,7 +64,7 @@ public partial class HullTest : Node
         Check($"a round just over the wing misses ({hull.Left:0} left)", Math.Abs(hull.Left - 50) < 0.01f);
 
         // A missile blows up 20 m off: the fragments hurt, not kill
-        var missile = new Missile { Name = "Missile", Damage = 150, LethalRadius = 6, BlastRadius = 25 };
+        var missile = new Missile { Name = "Missile", Spec = new MissileSpec { Damage = 150, LethalRadius = 6, BlastRadius = 25 } };
         signature.Hit(DamageAt(missile, 20));
         Check($"a warhead 20 m off hurts it ({hull.Left:0} left)", hull.Left < 50 && hull.Left > 0);
         missile.Free();

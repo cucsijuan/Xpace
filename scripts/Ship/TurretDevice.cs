@@ -25,18 +25,25 @@ public partial class TurretDevice : Node3D, IShipDevice
     public const int Slot = 4;
     public const byte Type = 5;
 
-    [Export] public float MuzzleSpeed = 1200f;          // m/s
-    [Export] public float ServoDegreesPerSecond = 150f;
-    [Export] public float ServoAcceleration = 600f;     // degrees/s²
-    [Export] public float ServoGain = 12f;              // 1/s: how fast it closes an error
-    [Export] public float DispersionMrad = 0.8f;        // spread of the rounds (sigma), cold barrel
-    [Export] public float RecoilKickMrad = 0.4f;
-    [Export] public float AzimuthLimit = 170f;          // degrees either side
-    [Export] public float ElevationMin = -5f, ElevationMax = 85f;
-    [Export] public double FireInterval = 0.1;
-    [Export] public float Damage = 10f;
-    [Export] public float HeatPerShot = 5f, CoolingPerSecond = 35f;
-    [Export] public float HotAbove = 250f, CoolBelow = 120f;
+    /// <summary>The model.</summary>
+    [Export] public TurretSpec Spec;
+    private TurretSpec S => Spec ??= new TurretSpec();
+
+    public float MuzzleSpeed => S.MuzzleSpeed;
+    public float ServoDegreesPerSecond => S.ServoDegreesPerSecond;
+    public float ServoAcceleration => S.ServoAcceleration;
+    public float ServoGain => S.ServoGain;
+    public float DispersionMrad => S.DispersionMrad;
+    public float RecoilKickMrad => S.RecoilKickMrad;
+    public float AzimuthLimit => S.AzimuthLimit;
+    public float ElevationMin => S.ElevationMin;
+    public float ElevationMax => S.ElevationMax;
+    public double FireInterval => S.FireInterval;
+    public float Damage => S.Damage;
+    public float HeatPerShot => S.HeatPerShot;
+    public float CoolingPerSecond => S.CoolingPerSecond;
+    public float HotAbove => S.HotAbove;
+    public float CoolBelow => S.CoolBelow;
 
     /// <summary>Radians, right and up positive.</summary>
     public float Azimuth { get; private set; }
@@ -50,12 +57,32 @@ public partial class TurretDevice : Node3D, IShipDevice
 
     private Node3D _yoke, _cradle, _muzzle;
     private OmniLight3D _flash;
+    private const float FlashEnergy = 1.2f;     // near the cockpit: enough for a wink on the hull, not to light the cabin
+    private TurretRig _rig;
     private double _cooldown;
     private bool _registersSet;
     private float _rateAz, _rateEl, _lastWantAz, _lastWantEl, _feedAz, _feedEl;
     private readonly RandomNumberGenerator _rng = new() { Seed = 1200 };
 
+    /// <summary>Where its rounds leave.</summary>
+    public Node3D Muzzle => _muzzle;
+
     public override void _Ready()
+    {
+        if (S.Scene?.Instantiate() is TurretRig rig)
+        {
+            _rig = rig;
+            AddChild(rig);
+            _muzzle = rig.Muzzle;
+        }
+        else
+            Plain();
+        _flash = new OmniLight3D { LightColor = new Color(1f, 0.7f, 0.35f), LightEnergy = 0, OmniRange = 8f };
+        _muzzle.AddChild(_flash);
+    }
+
+    // With no model: a mount and a barrel made here
+    private void Plain()
     {
         var metal = new StandardMaterial3D { AlbedoColor = new Color(0.32f, 0.34f, 0.37f), Metallic = 0.5f, Roughness = 0.45f };
         var dark = new StandardMaterial3D { AlbedoColor = new Color(0.12f, 0.12f, 0.13f), Roughness = 0.6f };
@@ -74,8 +101,6 @@ public partial class TurretDevice : Node3D, IShipDevice
         });
         _muzzle = new Node3D { Position = new Vector3(0, 0, -2.6f) };
         _cradle.AddChild(_muzzle);
-        _flash = new OmniLight3D { LightColor = new Color(1f, 0.7f, 0.35f), LightEnergy = 0, OmniRange = 8f };
-        _muzzle.AddChild(_flash);
     }
 
     public void BeforeStep(ShipBody ship, double delta)
@@ -111,8 +136,13 @@ public partial class TurretDevice : Node3D, IShipDevice
         _lastWantEl = wantEl;
         Azimuth = Servo(Azimuth, wantAz, _feedAz, ref _rateAz, dt);
         Elevation = Servo(Elevation, wantEl, _feedEl, ref _rateEl, dt);
-        _yoke.Rotation = new Vector3(0, -Azimuth, 0);
-        _cradle.Rotation = new Vector3(Elevation, 0, 0);
+        if (_rig != null)
+            _rig.Aim(Azimuth, Elevation);
+        else
+        {
+            _yoke.Rotation = new Vector3(0, -Azimuth, 0);
+            _cradle.Rotation = new Vector3(Elevation, 0, 0);
+        }
 
         Heat = MathF.Max(0, Heat - CoolingPerSecond * dt);
         if (TooHot && Heat < CoolBelow)
@@ -121,6 +151,7 @@ public partial class TurretDevice : Node3D, IShipDevice
         _flash.LightEnergy = MathF.Max(0, _flash.LightEnergy - 60 * dt);
 
         bool fire = bus.TakeWritten(Slot, 12) && (bus[Slot, 12] & 1) != 0;
+        _rig?.Spin(fire && !TooHot, dt);
         if (fire && _cooldown <= 0 && !TooHot)
         {
             _cooldown = FireInterval;
@@ -133,7 +164,7 @@ public partial class TurretDevice : Node3D, IShipDevice
             Azimuth += _rng.Randfn(0, RecoilKickMrad / 1000f);
             Elevation += _rng.Randfn(0, RecoilKickMrad / 1000f);
             Projectiles.In(this)?.Fire(_muzzle.GlobalPosition, ship.LinearVelocity + direction * MuzzleSpeed, Damage, ship);
-            _flash.LightEnergy = 6;
+            _flash.LightEnergy = FlashEnergy;
         }
     }
 

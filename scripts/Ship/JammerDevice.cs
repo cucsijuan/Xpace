@@ -224,6 +224,9 @@ public partial class JammerDevice : Node3D, IShipDevice, IDeceiver, IRadarEmitte
 
     public void AllRound() => Aimed = false;
 
+    /// <summary>How bright it makes the ship to a heat seeker now (<see cref="JammerSpec.HeatGlow"/>).</summary>
+    public float Glow => Sending ? S.HeatGlow * Powered : 0;
+
     /// <summary>The power it sends with, from the systems capacitor; all of it goes to heat.</summary>
     private void Draw(double delta)
     {

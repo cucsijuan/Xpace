@@ -1,6 +1,8 @@
 [gd_scene load_steps=2 format=3]
 
+[ext_resource type="Resource" path="res://assets/weapons/decoys/flare_1.tres" id="spec"]
 [ext_resource type="Script" path="res://scripts/Space/Flare.cs" id="1_flare"]
 
 [node name="Flare" type="Node3D"]
 script = ExtResource("1_flare")
+Spec = ExtResource("spec")

@@ -83,7 +83,7 @@ public partial class FighterAi : Node
     [Export] public double MissileInterval = 15;
     [Export] public float CloseRange = 500f;            // nearer than this it eases off
     [Export] public double BreakSeconds = 4;
-    [Export] public double CountermeasureInterval = 0.5;
+    [Export] public double CountermeasureInterval = 1;
     [Export] public float JinkAmount = 0.5f;            // of the stick, while locked by a radar
     [Export] public double JamSeconds = 6;              // the jammer stays on this long after the last lock on the ship
     [Export] public float PlumeThreatRange = 4000f;

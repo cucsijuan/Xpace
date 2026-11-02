@@ -137,3 +137,17 @@ The controller's flaws, for players who write their own software: it trusts the 
 - **Cheap jammer:** noise only, `BeamGain` 1; a better one aims; the best also deceives.
 
 The tests that measure all this: `drive_test` (veil, engine), `flight_test` (FLIGHT against the rating plate), `jammer_test`.
+
+## Weapons and decoys
+
+Every weapon and decoy is a model: a resource per model in `assets/weapons`, so a new one, or a better one, is a new `.tres` and nothing else.
+
+| Resource | Folder | Used by |
+|---|---|---|
+| `MissileSpec` | `missiles/` | `Missile`, in a scene of `scenes/weapons` |
+| `LaserSpec` | `lasers/` | `LaserDevice` |
+| `TurretSpec` | `turrets/` | `TurretDevice` |
+| `ChaffSpec`, `FlareSpec` | `decoys/` | `ChaffCloud`, `Flare`, in a scene of `scenes/weapons` |
+| `DispenserSpec` | `decoys/` | `DispenserDevice` |
+
+Tiers should differ by what the hardware physically does, not by a resistance or hit-chance figure. Still to come out into data: the constants in the missiles' firmware (boost, navigation gain, assumed closing speed), and a physical quantity for telling a flare from a ship.

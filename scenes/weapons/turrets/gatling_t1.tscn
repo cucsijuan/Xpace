@@ -1,0 +1,24 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/TurretRig.cs" id="1_rig"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Turret_Base_Single_01.fbx" id="2_model"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="3_paint"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="4_atlas"]
+
+[node name="GatlingT1" type="Node3D"]
+transform = Transform3D(0.7, 0, 0, 0, 0.7, 0, 0, 0, 0.7, 0, 0, 0)
+script = ExtResource("1_rig")
+YokePath = NodePath("Yoke")
+CradlePath = NodePath("Yoke/Model/SM_Prop_Turret_Base_Single_01/SM_Prop_Turret_Gattling_Base_01")
+BarrelPath = NodePath("Yoke/Model/SM_Prop_Turret_Base_Single_01/SM_Prop_Turret_Gattling_Base_01/SM_Prop_Turret_Gattling_Barrel_01")
+MuzzleAt = Vector3(0, 0.043, 2.434)
+FacesPlusZ = true
+
+[node name="Yoke" type="Node3D" parent="."]
+
+[node name="Model" parent="Yoke" instance=ExtResource("2_model")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="Paint" type="Node" parent="Yoke/Model"]
+script = ExtResource("3_paint")
+Material = ExtResource("4_atlas")

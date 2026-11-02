@@ -39,16 +39,22 @@ public partial class LaserDevice : Node3D, IShipDevice
     public const int Slot = 9;
     public const byte Type = 11;
 
-    [Export] public float BoltSpeed = 2000f;            // m/s
-    [Export] public double FireInterval = 0.15;
-    [Export] public float Damage = 12f;
-    [Export] public float DispersionMrad = 0.2f;        // the optics' spread (sigma)
-    [Export] public float HeatPerPulse = 9f, CoolingPerSecond = 30f;
-    [Export] public float HotAbove = 250f, CoolBelow = 120f;
-    [Export] public float MegajoulesPerPulse = 1f;
-    [Export] public float ShipHeatPerPulse = 0.6f;     // MJ
-    [Export] public byte RoundKind = 1;                 // how its bolts look (Projectiles' looks)
-    [Export] public Color FlashColour = new(1f, 0.25f, 0.2f);
+    /// <summary>The model.</summary>
+    [Export] public LaserSpec Spec;
+    private LaserSpec S => Spec ??= new LaserSpec();
+
+    public float BoltSpeed => S.BoltSpeed;
+    public double FireInterval => S.FireInterval;
+    public float Damage => S.Damage;
+    public float DispersionMrad => S.DispersionMrad;
+    public float HeatPerPulse => S.HeatPerPulse;
+    public float CoolingPerSecond => S.CoolingPerSecond;
+    public float HotAbove => S.HotAbove;
+    public float CoolBelow => S.CoolBelow;
+    public float MegajoulesPerPulse => S.MegajoulesPerPulse;
+    public float ShipHeatPerPulse => S.ShipHeatPerPulse;
+    public byte RoundKind => S.RoundKind;
+    public Color FlashColour => S.FlashColour;
 
     public int PulsesFired { get; private set; }
     public float Heat { get; private set; }

@@ -12,9 +12,13 @@ namespace Xpace.Space;
 /// </summary>
 public partial class Flare : Node3D, IHeatSource, IDropped
 {
-    [Export] public float PeakHeat = 80f;               // a drone's motor is 50 from behind
-    [Export] public float IgniteSeconds = 0.15f;
-    [Export] public float BurnSeconds = 2f;
+    /// <summary>The model.</summary>
+    [Export] public FlareSpec Spec;
+    private FlareSpec S => Spec ??= new FlareSpec();
+
+    public float PeakHeat => S.PeakHeat;
+    public float IgniteSeconds => S.IgniteSeconds;
+    public float BurnSeconds => S.BurnSeconds;
 
     public Vector3 Velocity { get; set; }
     public bool Burning => Age < BurnSeconds;

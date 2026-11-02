@@ -1,5 +1,6 @@
 [gd_scene load_steps=9 format=3]
 
+[ext_resource type="Resource" path="res://assets/weapons/missiles/msl_1.tres" id="spec"]
 [ext_resource type="Script" path="res://scripts/Space/Missile.cs" id="1_missile"]
 [ext_resource type="Script" path="res://scripts/Net/NetBody.cs" id="2_netbody"]
 [ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Missile_03.fbx" id="3_model"]
@@ -12,6 +13,7 @@
 
 [node name="Missile" type="Node3D"]
 script = ExtResource("1_missile")
+Spec = ExtResource("spec")
 
 [node name="NetBody" type="Node" parent="."]
 script = ExtResource("2_netbody")

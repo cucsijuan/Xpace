@@ -1,5 +1,7 @@
 [gd_scene load_steps=38 format=3]
 
+[ext_resource type="Resource" path="res://assets/weapons/lasers/lsr_1.tres" id="spec_laser"]
+[ext_resource type="Resource" path="res://assets/weapons/decoys/dispenser_1.tres" id="spec_dispenser"]
 [ext_resource type="Script" path="res://scripts/Space/CruiseWake.cs" id="cruise_wake"]
 [ext_resource type="Script" path="res://scripts/Ship/InterdictorDevice.cs" id="interdictor"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="1_ship"]
@@ -79,6 +81,7 @@ Screens = Array[ExtResource("10_screen")]([ExtResource("11_radar_screen"), ExtRe
 [node name="Laser" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, -5.5)
 script = ExtResource("14_laser")
+Spec = ExtResource("spec_laser")
 
 [node name="Left" type="Marker3D" parent="Laser"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 0)
@@ -108,6 +111,7 @@ HeatSeekers = 2
 [node name="Dispenser" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 4)
 script = ExtResource("20_dispenser")
+Spec = ExtResource("spec_dispenser")
 
 [node name="Engine" type="Node" parent="."]
 script = ExtResource("46_engine")

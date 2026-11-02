@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/Ship/JammerSpec.cs" id="1_spec"]
 
 [resource]
+HeatGlow = 200.0
 script = ExtResource("1_spec")
 Model = "NJ-1"
 NoiseAt1Km = 100.0

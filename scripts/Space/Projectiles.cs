@@ -67,18 +67,8 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
             drawer.Multimesh = new MultiMesh
             {
                 TransformFormat = MultiMesh.TransformFormatEnum.Transform3D,
-                Mesh = new BoxMesh
-                {
-                    Size = new Vector3(1f, 1f, 1f),
-                    Material = new StandardMaterial3D
-                    {
-                        ShadingMode = BaseMaterial3D.ShadingModeEnum.Unshaded,
-                        AlbedoColor = look.Colour,
-                        EmissionEnabled = true,
-                        Emission = look.Glow,
-                        EmissionEnergyMultiplier = look.GlowEnergy,
-                    },
-                },
+                UseCustomData = true,
+                Mesh = new QuadMesh { Size = new Vector2(1f, 1f), Material = Streak(look) },
                 InstanceCount = MaxRounds,
                 VisibleInstanceCount = 0,
             };
@@ -89,6 +79,20 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
             _drawers.Add(drawer);
             _counts.Add(0);
         }
+    }
+
+    private const float GlowWidth = 5f;     // the strip is this much wider than the look's width: room for the glow
+
+    /// <summary>How long a round's streak is now: as far as it has come, up to its look's length.</summary>
+    public static float StreakLength(float age, float speed, float length) => Mathf.Clamp(age * speed, 0.5f, length);
+
+    private static Material Streak(RoundLook look)
+    {
+        var material = new ShaderMaterial { Shader = GD.Load<Shader>("res://assets/materials/round_streak.gdshader") };
+        material.SetShaderParameter("core_colour", look.Colour);
+        material.SetShaderParameter("glow_colour", look.Glow);
+        material.SetShaderParameter("energy", look.GlowEnergy);
+        return material;
     }
 
     private RoundLook Look(byte kind) => kind < Looks.Count && Looks[kind] != null ? Looks[kind] : Looks[0];
@@ -224,11 +228,21 @@ public partial class Projectiles : MultiMeshInstance3D, IOriginShift
         {
             int k = r.Kind < _drawers.Count ? r.Kind : 0;
             RoundLook look = Look(r.Kind);
-            Vector3 dir = r.Velocity.Normalized();
-            float width = Mathf.Max(look.MinWidth, r.Position.DistanceTo(eye) * look.WidthPerMetre);
-            Basis basis = Basis.LookingAt(dir, Mathf.Abs(dir.Y) > 0.99f ? Vector3.Right : Vector3.Up)
-                * Basis.FromScale(new Vector3(width, width, look.Length));
-            _drawers[k].Multimesh.SetInstanceTransform(_counts[k]++, new Transform3D(basis, r.Position - dir * look.Length / 2));
+            float speed = r.Velocity.Length();
+            Vector3 dir = speed > 0 ? r.Velocity / speed : Vector3.Forward;
+            // It grows out of the muzzle: its tail never reaches back past where it was fired from
+            float length = StreakLength(r.Age, speed, look.Length);
+            float width = Mathf.Max(look.MinWidth, r.Position.DistanceTo(eye) * look.WidthPerMetre) * GlowWidth;
+            // The strip reaches a half width past the round: the head's circle and its glow fit, with no edge to cut them
+            float strip = length + width / 2;
+            Vector3 middle = r.Position + dir * (width / 2) - dir * (strip / 2);
+            // A flat strip along its way, turned to the eye
+            Vector3 toEye = (eye - middle).Normalized();
+            Vector3 across = dir.Cross(toEye);
+            across = across.LengthSquared() > 1e-6f ? across.Normalized() : dir.Cross(Vector3.Up).Normalized();
+            var basis = new Basis(across * width, dir * strip, across.Cross(dir));
+            _drawers[k].Multimesh.SetInstanceCustomData(_counts[k], new Color(strip / (width / 2), 0, 0, 0));
+            _drawers[k].Multimesh.SetInstanceTransform(_counts[k]++, new Transform3D(basis, middle));
         }
         for (int k = 0; k < _drawers.Count; k++)
             _drawers[k].Multimesh.VisibleInstanceCount = _counts[k];

@@ -12,10 +12,14 @@ namespace Xpace.Space;
 /// </summary>
 public partial class ChaffCloud : Node3D, IRadarTarget, IDropped
 {
-    [Export] public float PeakCrossSection = 2.5f;     // m², a bit less than a light fighter
-    [Export] public float BloomSeconds = 0.4f;
-    [Export] public float LifeSeconds = 5f;
-    [Export] public float SpreadSpeed = 4f;            // m/s: how fast the strips drift apart
+    /// <summary>The model.</summary>
+    [Export] public ChaffSpec Spec;
+    private ChaffSpec S => Spec ??= new ChaffSpec();
+
+    public float PeakCrossSection => S.PeakCrossSection;
+    public float BloomSeconds => S.BloomSeconds;
+    public float LifeSeconds => S.LifeSeconds;
+    public float SpreadSpeed => S.SpreadSpeed;
 
     public ushort RadarId { get; private set; }
     public Vector3 Velocity { get; set; }

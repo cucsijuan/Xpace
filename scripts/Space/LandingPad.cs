@@ -222,7 +222,12 @@ public partial class LandingPad : Node3D, IShipHold
             float k = Smooth(_t / Math.Max(SettleSeconds, 0.01));
             at = _from.InterpolateWith(rest, k);
             if (k >= 1)
+            {
                 State = PadState.Docked;
+                // The station's crew fills it up: what it has thrown and fired comes back only here, or from the insurer
+                ship.Device<DispenserDevice>()?.Rearm();
+                ship.Device<LauncherDevice>()?.Rearm();
+            }
         }
         else if (State == PadState.Launching)
         {
