@@ -92,8 +92,8 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
     {
         _missiles = Missiles;
         _heatSeekers = HeatSeekers;
-        _ship = GetParentOrNull<ShipBody>();
-        _radar = GetNodeOrNull<RadarDevice>(RadarPath);
+        _ship = ShipBody.Of(this);
+        _radar = GetNodeOrNull<RadarDevice>(RadarPath) ?? ShipBody.Part<RadarDevice>(this);
         _railHead = HeatSeekerScene?.Instantiate<Missile>();
         _railHead?.SetUpHead(_head);
         _heatSpec = _railHead?.Spec;

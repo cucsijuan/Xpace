@@ -35,7 +35,7 @@ public partial class OnFootTest : Node
         _ship = main.Ship;
         var seat = _ship.GetNode<ShipSeat>("Seat");
         var pilot = _ship.GetNode<Pilot>("Pilot");
-        var radio = _ship.GetNode<RadioDevice>("Radio");
+        var radio = _ship.Find<RadioDevice>();
         Node3D station = main.Sector.GetNode<Node3D>("Station");
         HangarDock dock = station.GetNode("HangarBig1").GetNode<HangarDock>("Dock");
 
@@ -63,7 +63,7 @@ public partial class OnFootTest : Node
             return;
         }
         var cockpit = _ship.GetNode<Node3D>("Cockpit");
-        var exterior = _ship.GetNode<Node3D>("Exterior");
+        var exterior = _ship.GetNode<Node3D>("Exterior/Model");      // the hull; the weapons on its hardpoints always show
         Check("its camera is the view; the cockpit hidden, the hull shown; the pilot stopped",
               walker.Camera.Current && !cockpit.Visible && exterior.Visible && !pilot.Seated && pilot.ProcessMode == ProcessModeEnum.Disabled);
         var sun = main.Sector.GetNode<DirectionalLight3D>("Sun");

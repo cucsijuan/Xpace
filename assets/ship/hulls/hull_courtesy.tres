@@ -5,6 +5,7 @@
 [ext_resource type="Resource" path="res://assets/ship/monitors/old_green.tres" id="3_screens"]
 [ext_resource type="Resource" path="res://assets/weapons/decoys/dispenser_1.tres" id="4_dispenser"]
 [ext_resource type="Resource" path="res://assets/weapons/turrets/gun_1.tres" id="5_turret"]
+[ext_resource type="Resource" path="res://assets/weapons/lasers/lsr_1.tres" id="6_laser"]
 
 [resource]
 script = ExtResource("1_spec")
@@ -15,4 +16,8 @@ CargoRacks = PackedInt32Array(2, 0)
 MissileRack = 2
 Screens = ExtResource("3_screens")
 Dispenser = ExtResource("4_dispenser")
-Turret = ExtResource("5_turret")
+Fitting = Dictionary[String, Resource]({
+"NoseLeft": ExtResource("6_laser"),
+"NoseRight": ExtResource("6_laser"),
+"Spine": ExtResource("5_turret")
+})

@@ -50,8 +50,7 @@ public partial class ShieldDevice : Node, IShipDevice, IRearmable
         _bubble = Bubble == null || Bubble.IsEmpty ? null : GetNodeOrNull<GeometryInstance3D>(Bubble);
         if (_bubble != null)
             _bubble.Visible = false;
-        foreach (Node n in GetParent().GetChildren())
-            _power ??= n as PowerDevice;
+        _power = ShipBody.Part<PowerDevice>(this);
         Rearm();
     }
 

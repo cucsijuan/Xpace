@@ -240,16 +240,20 @@ public partial class Universe : Node
         MissileSpec => RackSize(pilot),
         ChaffSpec => Hull(pilot)?.Dispenser?.Chaff ?? 0,
         FlareSpec => Hull(pilot)?.Dispenser?.Flares ?? 0,
-        AmmoSpec => Hull(pilot)?.Turret?.Rounds ?? 0,
+        AmmoSpec => FittedTurret(pilot)?.Rounds ?? 0,
         _ => 0,
     };
 
     /// <summary>The host: a guest's player ship fired a cannon round (its fire event came in); it comes off the magazine.</summary>
     public void FiredRound(Node3D ship)
     {
-        if (RecordOf(ship) is PilotRecord pilot && Hull(pilot)?.Turret?.Ammunition is AmmoSpec ammo)
+        if (RecordOf(ship) is PilotRecord pilot && FittedTurret(pilot)?.Ammunition is AmmoSpec ammo)
             Fired(ship, ammo);
     }
+
+    // The turret on the pilot's ship, as fitted
+    private static TurretSpec FittedTurret(PilotRecord pilot) =>
+        Hull(pilot) is ShipSpec hull ? Fittings.Of(hull, pilot.Ship).Values.OfType<TurretSpec>().FirstOrDefault() : null;
 
     private static ShipSpec Hull(PilotRecord pilot) =>
         ResourceLoader.Exists(pilot.Ship.Hull) ? GD.Load<ShipSpec>(pilot.Ship.Hull) : null;

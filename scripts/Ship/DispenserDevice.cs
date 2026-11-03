@@ -57,7 +57,7 @@ public partial class DispenserDevice : Node3D, IShipDevice, IRearmable
     {
         ChaffScene ??= GD.Load<PackedScene>("res://scenes/weapons/chaff.tscn");
         FlareScene ??= GD.Load<PackedScene>("res://scenes/weapons/flare.tscn");
-        _ship = GetParentOrNull<ShipBody>();
+        _ship = ShipBody.Of(this);
         _chaffSpec = ModelOf(ChaffScene) as ChaffSpec;
         _flareSpec = ModelOf(FlareScene) as FlareSpec;
         _chaffLeft = Chaff;

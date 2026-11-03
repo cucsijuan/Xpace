@@ -54,10 +54,10 @@ public partial class DuelTest : Node
         var ai = GD.Load<PackedScene>("res://scenes/ships/ai_fighter.tscn").Instantiate<ShipBody>();
         world.AddChild(ai);
         var pilot = ai.GetNode<FighterAi>("Pilot");
-        var radar = ai.GetNode<RadarDevice>("Radar");
-        var launcher = ai.GetNode<LauncherDevice>("Launcher");
-        var laser = ai.GetNode<LaserDevice>("Laser");
-        var dispenser = ai.GetNode<DispenserDevice>("Dispenser");
+        var radar = ai.Find<RadarDevice>();
+        var launcher = ai.Find<LauncherDevice>();
+        var laser = ai.Find<LaserDevice>();
+        var dispenser = ai.Find<DispenserDevice>();
         var hull = ai.GetNode<ShipHull>("Hull");
 
         bool booted = await Until(() => ai.Computer.ScreenText().Contains("Threat warning resident"), 60);
@@ -139,7 +139,7 @@ public partial class DuelTest : Node
             await Frames(1);
             brokeChaff |= pilot.Doing == "breaking (chaff)";
         }
-        Check($"a radar guiding a missile at it (its RWR: launch {ai.GetNode<RwrDevice>("Rwr").LaunchWarning}): it breaks ({brokeChaff}) and throws chaff ({chaff - dispenser.ChaffLeft})",
+        Check($"a radar guiding a missile at it (its RWR: launch {ai.Find<RwrDevice>().LaunchWarning}): it breaks ({brokeChaff}) and throws chaff ({chaff - dispenser.ChaffLeft})",
               brokeChaff && dispenser.ChaffLeft < chaff);
         hunter.QueueFree();
 

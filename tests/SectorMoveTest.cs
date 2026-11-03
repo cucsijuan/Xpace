@@ -31,7 +31,7 @@ public partial class SectorMoveTest : Node
         // Sector A has a drone ahead and a wall where the ship will be pushed in sector B
         a.AddChild(new Drone { Name = "Drone", Position = new Vector3(0, 0, -1500), Speed = 0 });
         a.AddChild(Wall(-125));
-        var computer = ship.GetNode<ShipComputer>("ShipComputer");
+        var computer = ship.Find<ShipComputer>();
         var hull = ship.GetNode<ShipHull>("Hull");
         await Frames(60 * 20);                       // boots and loads its programs
 

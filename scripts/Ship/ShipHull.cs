@@ -54,8 +54,7 @@ public partial class ShipHull : Node, IDamageable
         Spawn = _ship.GlobalTransform;
         _ship.Impact += Crash;
         _subscribed = true;
-        foreach (Node n in _ship.GetChildren())
-            _shield ??= n as ShieldDevice;
+        _shield = ShipBody.Part<ShieldDevice>(this);
     }
 
     private bool _subscribed;

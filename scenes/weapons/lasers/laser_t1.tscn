@@ -1,0 +1,17 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Veh_Part_Misc_09.fbx" id="1_model"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="2_paint"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="3_atlas"]
+
+[node name="LaserT1" type="Node3D"]
+
+[node name="Model" parent="." instance=ExtResource("1_model")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="Paint" type="Node" parent="Model"]
+script = ExtResource("2_paint")
+Material = ExtResource("3_atlas")
+
+[node name="Muzzle" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -0.9)

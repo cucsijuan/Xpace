@@ -97,7 +97,7 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
     /// <summary>A message heard: who sent it, the words, how they are spoken.</summary>
     public event Action<string, string, string> MessageHeard;
 
-    string IRadio.Callsign => Radio.Callsign(Callsign == "" && PilotsName ? Menu.MainMenu.PlayerName : Callsign, GetParent() ?? this);
+    string IRadio.Callsign => Radio.Callsign(Callsign == "" && PilotsName ? Menu.MainMenu.PlayerName : Callsign, (Node)ShipBody.Of(this) ?? GetParent() ?? this);
 
     /// <summary>On a ship another machine flies (a puppet), it is that machine's radio: stations here leave it to that machine.</summary>
     bool IRadioReceiver.Relayed => Net.NetBody.IsPuppet(this);

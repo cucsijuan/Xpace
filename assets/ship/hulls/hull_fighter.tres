@@ -4,6 +4,7 @@
 [ext_resource type="Resource" uid="uid://o32wi1s62afr" path="res://assets/ship/thrusters/thrusters_t35.tres" id="2_thrusters"]
 [ext_resource type="Resource" path="res://assets/weapons/decoys/dispenser_1.tres" id="4_dispenser"]
 [ext_resource type="Resource" path="res://assets/weapons/turrets/gun_1.tres" id="5_turret"]
+[ext_resource type="Resource" path="res://assets/weapons/lasers/lsr_1.tres" id="6_laser"]
 
 [resource]
 script = ExtResource("1_spec")
@@ -12,4 +13,8 @@ VeilDrag = 0.00031
 Compartments = PackedInt32Array(3, 2)
 CargoRacks = PackedInt32Array(3, 1)
 Dispenser = ExtResource("4_dispenser")
-Turret = ExtResource("5_turret")
+Fitting = Dictionary[String, Resource]({
+"NoseLeft": ExtResource("6_laser"),
+"NoseRight": ExtResource("6_laser"),
+"Spine": ExtResource("5_turret")
+})

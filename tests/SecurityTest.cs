@@ -144,7 +144,7 @@ public partial class SecurityTest : Node3D
         return ship;
     }
 
-    private static RadioDevice Radio(ShipBody ship) => ship.GetNode<RadioDevice>("Radio");
+    private static RadioDevice Radio(ShipBody ship) => ship.Find<RadioDevice>();
 
     private static string Last(ShipBody ship) => Radio(ship).Heard.Count > 0 ? Radio(ship).Heard[^1].Text : "";
 

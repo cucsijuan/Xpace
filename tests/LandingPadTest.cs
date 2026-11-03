@@ -55,10 +55,10 @@ public partial class LandingPadTest : Node3D
 
         _ship = GD.Load<PackedScene>("res://scenes/ships/ai_fighter.tscn").Instantiate<ShipBody>();
         _ship.GetNode("Pilot").Free();
-        _display = _ship.GetNode<DisplayDevice>("Display");
+        _display = _ship.Find<DisplayDevice>();
         var screens = new Godot.Collections.Array<DisplayScreen>(_display.Screens) { GD.Load<DisplayScreen>("res://assets/ship/displays/comms.tres") };
         _display.Screens = screens;
-        _radio = _ship.GetNode<RadioDevice>("Radio");
+        _radio = _ship.Find<RadioDevice>();
         _radio.Callsign = "TESTER";
         _ship.ControlsSource = () => _controls;
         AddChild(_ship);

@@ -34,7 +34,7 @@ public partial class PowerGauge : Control
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
-        foreach (Node n in GetNodeOrNull(ShipPath)?.GetChildren() ?? new Godot.Collections.Array<Node>())
+        foreach (Node n in GetNodeOrNull(ShipPath)?.FindChildren("*", "", true, false) ?? new Godot.Collections.Array<Node>())
         {
             _power ??= n as PowerDevice;
             _shield ??= n as ShieldDevice;

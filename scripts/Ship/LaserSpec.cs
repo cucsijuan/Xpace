@@ -3,7 +3,8 @@ using Godot;
 namespace Xpace.Ship;
 
 /// <summary>
-/// A model of pulse laser (a .tres per model, in assets/weapons/lasers).
+/// A model of pulse laser (a .tres per model, in assets/weapons/lasers), mounted on a ship's hardpoint
+/// (<see cref="Hardpoint"/>). The ship's lasers fire in turn, as one (<see cref="LaserDevice"/>).
 /// </summary>
 [GlobalClass]
 public partial class LaserSpec : Resource
@@ -11,11 +12,17 @@ public partial class LaserSpec : Resource
     /// <summary>The model's name, as a program or a fittings list shows it.</summary>
     [Export] public string Model = "LSR";
 
+    /// <summary>The hardpoint size it needs.</summary>
+    [Export] public int Size = 1;
+
+    /// <summary>What it looks like on a hardpoint: a scene facing -Z, with a Marker3D "Muzzle" where pulses leave.</summary>
+    [Export] public PackedScene Scene;
+
     [ExportGroup("Pulse")]
     /// <summary>m/s.</summary>
     [Export] public float BoltSpeed = 5000f;
-    /// <summary>Seconds between pulses.</summary>
-    [Export] public double FireInterval = 0.1;
+    /// <summary>Seconds one laser takes to fire again: the ship's lasers fire in turn, so two fire twice as often.</summary>
+    [Export] public double FireInterval = 0.2;
     [Export] public float Damage = 12f;
     /// <summary>The optics' spread (sigma).</summary>
     [Export] public float DispersionMrad = 0.2f;

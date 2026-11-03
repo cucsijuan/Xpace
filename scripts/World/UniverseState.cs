@@ -130,6 +130,12 @@ public sealed class ShipRecord
     /// </summary>
     public Dictionary<string, int> Magazine { get; set; } = new();
 
+    /// <summary>
+    /// What is mounted on its hardpoints where it differs from the factory's (<see cref="Xpace.Ship.ShipSpec.Fitting"/>):
+    /// by the hardpoint's name, the model's resource path, or "" for nothing.
+    /// </summary>
+    public Dictionary<string, string> Fittings { get; set; } = new();
+
     public int Holds(string good) => Cargo.TryGetValue(good, out int t) ? t : 0;
 
     /// <summary>How many of a model are aboard, where a full rack is <paramref name="factory"/>.</summary>

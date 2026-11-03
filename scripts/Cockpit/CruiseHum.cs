@@ -29,7 +29,7 @@ public partial class CruiseHum : AudioStreamPlayer
 
     public override void _Ready()
     {
-        _ship = GetNodeOrNull<ShipBody>(ShipPath);
+        _ship = GetNodeOrNull<ShipBody>(ShipPath) ?? ShipBody.Of(this);
         var generator = new AudioStreamGenerator { MixRate = 22050, BufferLength = 0.1f };
         _rate = generator.MixRate;
         _hz = LowHz;

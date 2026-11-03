@@ -103,8 +103,8 @@ public partial class RaiderHuntTest : Node
         guest.HitConfirmed += heard.Add;
 
         var pilot = raider.GetNode<FighterAi>("Pilot");
-        var radar = raider.GetNode<RadarDevice>("Radar");
-        var launcher = raider.GetNode<LauncherDevice>("Launcher");
+        var radar = raider.Find<RadarDevice>();
+        var launcher = raider.Find<LauncherDevice>();
         var hull = raider.GetNode<ShipHull>("Hull");
         RemoteShip seen = null;
         bool booted = false, raiderLocked = false, droneHunts = false, droneOnFriend = false, raiderOnDrone = false;

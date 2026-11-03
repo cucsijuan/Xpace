@@ -55,6 +55,7 @@ set(MODELS
   SM_Ship_Station_05
   SM_Ship_Station_06
   SM_Prop_Turret_Base_Single_01
+  SM_Veh_Part_Misc_09
   SM_Prop_Turret_Base_Double_06
   SM_Prop_Turret_Base_Double_08
   SM_Prop_SpaceWalk_Tube_01

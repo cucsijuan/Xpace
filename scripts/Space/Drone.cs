@@ -385,7 +385,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     private void Jink(float dt)
     {
         _jinkLeft -= dt;
-        Vector3 heading = Velocity.Normalized();
+        Vector3 heading = Velocity.LengthSquared() > 1e-6f ? Velocity.Normalized() : -GlobalBasis.Z.Normalized();
         if (_jinkLeft <= 0)
         {
             _jinkLeft = Threatened ? _rng.RandfRange(0.5f, 1.4f) : _rng.RandfRange(0.6f, 1.6f);

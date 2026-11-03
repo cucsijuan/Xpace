@@ -40,10 +40,10 @@ Size = Vector2(0.0816, 0.1258)
 
 [node name="RadarPower" parent="." instance=ExtResource("2_toggle")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1307, 0.012, -0.01)
-Target = NodePath("Radar")
+Target = NodePath("Sensors/Radar")
 Property = &"Powered"
 
 [node name="RwrPower" parent="." instance=ExtResource("2_toggle")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.1307, -0.04, -0.009)
-Target = NodePath("Rwr")
+Target = NodePath("Sensors/Rwr")
 Property = &"Powered"

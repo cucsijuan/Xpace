@@ -33,7 +33,7 @@ public partial class GateTest : Node
         _main = GD.Load<PackedScene>("res://scenes/main.tscn").Instantiate<SectorHost>();
         AddChild(_main);
         _ship = _main.Ship;
-        var radio = _ship.GetNode<RadioDevice>("Radio");
+        var radio = _ship.Find<RadioDevice>();
         PilotRecord me = universe.Me;
         Check("the computer boots", await Until(() => _ship.Computer.ScreenText().Contains("Radio resident"), 90));
 

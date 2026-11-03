@@ -37,10 +37,10 @@ public partial class CruiseTest : Node
         _main = GD.Load<PackedScene>("res://scenes/main.tscn").Instantiate<SectorHost>();
         AddChild(_main);
         _ship = _main.Ship;
-        _cruise = _ship.GetNode<CruiseDevice>("Cruise");
-        var radio = _ship.GetNode<RadioDevice>("Radio");
-        var display = _ship.GetNode<DisplayDevice>("Display");
-        var engine = _ship.GetNode<EngineDevice>("Engine");
+        _cruise = _ship.Find<CruiseDevice>();
+        var radio = _ship.Find<RadioDevice>();
+        var display = _ship.Find<DisplayDevice>();
+        var engine = _ship.Find<EngineDevice>();
         foreach (string ship in new[] { "Drone1", "Drone2", "Raider", "InterdictorBuoy" })
             _main.Sector.GetNodeOrNull(ship)?.QueueFree();
         _ship.ControlsSource = () => _controls;
@@ -170,7 +170,7 @@ public partial class CruiseTest : Node
         Check($"and the echo is the hull's ({signature.RadarCrossSection:0} m2)", signature.RadarCrossSection < 20);
 
         // Caught in an interdictor's beam
-        var interdictor = _ship.GetNode<InterdictorDevice>("Interdictor");
+        var interdictor = _ship.Find<InterdictorDevice>();
         Check("nothing locked, the interdictor is off", !interdictor.On);
         await Press(() => _controls.Interdict = true, () => _controls.Interdict = false);
         Check("its button turns it on, through the fire control", interdictor.On && FireControl.Status(_ship) == "INTERDICT");
@@ -186,7 +186,7 @@ public partial class CruiseTest : Node
         await Button();
         Check("cruising again", await Until(() => _cruise.On && _ship.LinearVelocity.Length() > 1500, 40));
         hunter.GlobalPosition = _ship.GlobalPosition + _ship.LinearVelocity.Normalized() * 40000;
-        var beam = hunter.GetNode<InterdictorDevice>("Interdictor");
+        var beam = hunter.Find<InterdictorDevice>();
         beam.Forced = _ship;
         hunter.Computer.Bus.Out(InterdictorDevice.Slot, 5, 1);
         beam.AfterStep(hunter, 0);

@@ -1,3 +1,4 @@
+using System.Linq;
 using Godot;
 using Xpace.World;
 
@@ -5,7 +6,7 @@ namespace Xpace.Ship;
 
 /// <summary>
 /// Makes a player's ship the one their record says (<see cref="ShipRecord.Hull"/>): its hull's spec, and with it its
-/// racks, its mass and its cockpit's screens. A pilot whose ship is impounded flies the insurer's courtesy ship in its
+/// racks, its mass and its cockpit's screens, and what is mounted on its hardpoints (<see cref="ShipRecord.Fittings"/>). A pilot whose ship is impounded flies the insurer's courtesy ship in its
 /// place, and their own again once it is released. Put it under the player's <see cref="ShipBody"/>.
 /// </summary>
 public partial class PilotShip : Node
@@ -30,12 +31,21 @@ public partial class PilotShip : Node
 
     public override void _PhysicsProcess(double delta) => Fit();
 
-    /// <summary>The hull the record says, if the ship has another.</summary>
+    /// <summary>The hull and the fitting the record says, if the ship has others.</summary>
     public void Fit()
     {
-        if (_ship == null || Universe.Current?.RecordOf(_ship)?.Ship.Hull is not string hull || _ship.Spec?.ResourcePath == hull)
+        if (_ship == null || Universe.Current?.RecordOf(_ship)?.Ship is not ShipRecord record || record.Hull is not string hull)
             return;
-        if (ResourceLoader.Exists(hull) && GD.Load<ShipSpec>(hull) is ShipSpec spec)
+        if (_ship.Spec?.ResourcePath != hull && ResourceLoader.Exists(hull) && GD.Load<ShipSpec>(hull) is ShipSpec spec)
             _ship.Spec = spec;
+        string wanted = $"{_ship.Spec?.ResourcePath}|{string.Join(";", record.Fittings.OrderBy(f => f.Key, System.StringComparer.Ordinal))}";
+        if (wanted == _fitted)
+            return;
+        _fitted = wanted;
+        var fitted = Fittings.Of(_ship.Spec, record);
+        if (ShipBody.Key(fitted) != _ship.Fitted)
+            _ship.Fit(fitted);
     }
+
+    private string _fitted;
 }

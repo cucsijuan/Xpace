@@ -11,6 +11,9 @@ public partial class TurretSpec : Resource
     /// <summary>The model's name, as a program or a fittings list shows it.</summary>
     [Export] public string Model = "GUN";
 
+    /// <summary>The hardpoint size it needs.</summary>
+    [Export] public int Size = 1;
+
     /// <summary>What it looks like and how it moves: a scene with a <see cref="TurretRig"/> (scenes/weapons/turrets). None: a plain placeholder.</summary>
     [Export] public PackedScene Scene;
 

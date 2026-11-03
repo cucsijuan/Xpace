@@ -45,8 +45,8 @@ public partial class MarketTest : Node
         AddChild(main);
         _ship = main.Ship;
         var seat = _ship.GetNode<ShipSeat>("Seat");
-        var radio = _ship.GetNode<RadioDevice>("Radio");
-        var hold = _ship.GetNode<CargoHold>("Hold");
+        var radio = _ship.Find<RadioDevice>();
+        var hold = _ship.Find<CargoHold>();
         Node3D station = main.Sector.GetNode<Node3D>("Station");
         StationMarket market = station.GetNode<StationMarket>("Market");
         HangarDock dock = station.GetNode("HangarBig1").GetNode<HangarDock>("Dock");

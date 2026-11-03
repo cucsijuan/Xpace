@@ -43,8 +43,8 @@ public partial class ArmsTest : Node
         var main = GD.Load<PackedScene>("res://scenes/main.tscn").Instantiate<SectorHost>();
         AddChild(main);
         _ship = main.Ship;
-        var radio = _ship.GetNode<RadioDevice>("Radio");
-        var launcher = _ship.GetNode<LauncherDevice>("Launcher");
+        var radio = _ship.Find<RadioDevice>();
+        var launcher = _ship.Find<LauncherDevice>();
         var dispenser = _ship.Device<DispenserDevice>();
         var turret = _ship.Device<TurretDevice>();
         var station = main.Sector.GetNode<Node3D>("Station");
@@ -59,7 +59,7 @@ public partial class ArmsTest : Node
         int chaffRack = _ship.Spec.Dispenser.Chaff, flareRack = _ship.Spec.Dispenser.Flares;
         Check($"its dispenser is the hull's, full ({dispenser.ChaffLeft}/{chaffRack} chaff, {dispenser.FlaresLeft}/{flareRack} flares)",
               chaffRack > 0 && flareRack > 0 && dispenser.ChaffLeft == chaffRack && dispenser.FlaresLeft == flareRack);
-        int magazine = _ship.Spec.Turret.Rounds;
+        int magazine = turret.Magazine;
         Check($"and its turret's magazine, full ({turret.RoundsLeft}/{magazine})", magazine > 0 && turret.RoundsLeft == magazine);
 
         ArmsView early = market.ServeArms(me.Id, Buy(market, Heat, 1));

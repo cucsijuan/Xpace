@@ -32,8 +32,8 @@ public partial class CargoHold : Node, IShipDevice
 
     public override void _Ready()
     {
-        _ship = GetParentOrNull<ShipBody>();
-        foreach (ShipHull hull in _ship?.GetChildren().OfType<ShipHull>() ?? Enumerable.Empty<ShipHull>())
+        _ship = ShipBody.Of(this);
+        if (_ship != null && ShipBody.Part<ShipHull>(this) is ShipHull hull)
             hull.Destroyed += () => Universe.Current?.Lose(_ship);
     }
 

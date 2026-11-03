@@ -2,23 +2,18 @@
 
 [ext_resource type="Script" path="res://scripts/Space/CruiseWake.cs" id="cruise_wake"]
 [ext_resource type="Script" path="res://scripts/Net/RemoteShip.cs" id="1_remote"]
-[ext_resource type="PackedScene" uid="uid://c24bvglq01n2e" path="res://assets/synty/SM_Ship_Fighter_03.fbx" id="2_model"]
-[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="3_atlas"]
+[ext_resource type="PackedScene" path="res://scenes/ships/fighter_03_exterior.tscn" id="2_exterior"]
+[ext_resource type="Resource" path="res://assets/ship/hulls/hull_fighter.tres" id="3_hull"]
 [ext_resource type="PackedScene" path="res://scenes/ships/fighter_03_hitboxes.tscn" id="4_hitboxes"]
 [ext_resource type="Script" path="res://scripts/Space/EnginePlume.cs" id="5_plume"]
 [ext_resource type="PackedScene" path="res://assets/synty/SM_Flame_Mesh_New.fbx" id="6_flame"]
 [ext_resource type="Texture2D" path="res://assets/synty/Gradient_Boost.png" id="7_boost"]
-[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="paint_script"]
 
 [node name="RemoteFighter" type="Node3D"]
 script = ExtResource("1_remote")
+Hull = ExtResource("3_hull")
 
-[node name="Model" parent="." instance=ExtResource("2_model")]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
-
-[node name="Paint" type="Node" parent="Model"]
-script = ExtResource("paint_script")
-Material = ExtResource("3_atlas")
+[node name="Exterior" parent="." instance=ExtResource("2_exterior")]
 
 [node name="Hitboxes" parent="." instance=ExtResource("4_hitboxes")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)

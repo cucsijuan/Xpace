@@ -31,8 +31,8 @@ All of them have:
 
 - `Target`: what they work, **a path from the host**: the nearest
   `IControlHost` above them (the ship, `ShipBody`; a station later). So
-  `Rwr/RwrTone` means the ship's warning receiver's audio, wherever the
-  panel is. Sliders, switches and encoders follow their property: if
+  `Sensors/Rwr/RwrTone` means the ship's warning receiver's audio, wherever
+  the panel is. Sliders, switches and encoders follow their property: if
   something else changes it, the piece moves to match.
 - `Radius`: the clickable sphere round the root.
 - Glow (`GlowColor`, `GlowTint`, `GlowWidth`): the piece turns yellow while
@@ -50,14 +50,17 @@ or turn the wheel over them.
 
 | Path | Member | Kind |
 |---|---|---|
-| `ShipComputer` | `Reset()`, `PowerOn()`, `PowerOff()` | methods |
-| `Display` | `PressKeyOn(screen, key)`: a bezel key for a screen (`"RWR"`, 1 zoom in, 2 zoom out, 3 sound) | method |
-| `Rwr` | `Powered` | bool |
-| `Rwr/RwrTone` | `Volume` (0 to 1) | float |
-| `Radar` | `Powered` | bool |
+| `Systems/ShipComputer` | `Reset()`, `PowerOn()`, `PowerOff()` | methods |
+| `Systems/Display` | `PressKeyOn(screen, key)`: a bezel key for a screen (`"RWR"`, 1 zoom in, 2 zoom out, 3 sound) | method |
+| `Sensors/Rwr` | `Powered` | bool |
+| `Sensors/Rwr/RwrTone` | `Volume` (0 to 1) | float |
+| `Sensors/Radar` | `Powered` | bool |
 
 Any exported property or public method of a node under the ship can be
-wired the same way; these are the ones meant for it.
+wired the same way; these are the ones meant for it. A ship's equipment is
+grouped in folders: `Systems` (computer, display card, power, heat,
+shield, hold, engine, cruise), `Sensors` (radar, RWR, radio, jammer),
+`Weapons` (laser, launcher, dispenser, interdictor) and `Effects`.
 
 ## A new control
 

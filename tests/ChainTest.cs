@@ -40,11 +40,11 @@ public partial class ChainTest : Node3D
         AddChild(new Projectiles());
         _ship = GD.Load<PackedScene>("res://scenes/ships/ai_fighter.tscn").Instantiate<ShipBody>();
         _ship.GetNode("Pilot").Free();
-        var computer = _ship.GetNode<Computer.ShipComputer>("ShipComputer");
+        var computer = _ship.Find<Computer.ShipComputer>();
         computer.PowerOnAtStart = false;
         AddChild(_ship);
-        _radar = _ship.GetNode<RadarDevice>("Radar");
-        _heat = _ship.GetNode<HeatDevice>("Heat");
+        _radar = _ship.Find<RadarDevice>();
+        _heat = _ship.Find<HeatDevice>();
         byte[] disk = computer.DiskImage();
         FatDisk.Write(disk, "COOL.ASM", Godot.FileAccess.GetFileAsBytes("res://tests/fixtures/COOL.ASM"));
         computer.InsertDisk(disk);
@@ -104,7 +104,7 @@ public partial class ChainTest : Node3D
         await Command("COOL OFF");
         Check($"COOL OFF ({Chain()})", await Until(() => Chain() == before, 10));
 
-        var display = _ship.GetNode<DisplayDevice>("Display");
+        var display = _ship.Find<DisplayDevice>();
         Check("FIRECTL draws its page on the WEAPON screen", FireControl.PageDrawn(display));
         computer.Rearm();
         Check("the insurer's new computer boots", await Until(() => Screen().Contains("Power manager resident"), 60));

@@ -39,8 +39,11 @@ public partial class CruiseWake : MeshInstance3D, IOriginShift
 
     public override void _Ready()
     {
-        _hull = GetParent<Node3D>();
-        _ship = _hull as ICruiseShown;
+        // The ship it trails: the first up the tree that shows cruising (the wake may sit in a folder of effects)
+        for (Node n = GetParent(); n != null && _ship == null; n = n.GetParent())
+            if (n is ICruiseShown shown)
+                (_ship, _hull) = (shown, n as Node3D);
+        _hull ??= GetParent<Node3D>();
         TopLevel = true;
         GlobalTransform = Transform3D.Identity;
         _mesh = new ImmediateMesh();

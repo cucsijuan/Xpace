@@ -234,7 +234,7 @@ public partial class SessionSecurityTest : Node
         _origin.AddChild(station);
         var traffic = station.GetNode<StationRadio>("Radio");
         ShipBody ship = Ship("Bravo", new Vector3(0, 0, 1500), pilot: true);
-        var radio = ship.GetNode<RadioDevice>("Radio");
+        var radio = ship.Find<RadioDevice>();
         radio.Callsign = "BRAVO";
         var voice = new Xpace.Cockpit.RadioVoice { Name = "Voice" };
         radio.AddChild(voice);
@@ -282,7 +282,7 @@ public partial class SessionSecurityTest : Node
     private string LastHeard => _heard.Count > 0 ? _heard[^1].Text : "";
     private string LastSpeech => _heard.Count > 0 ? _heard[^1].Speech : "";
 
-    private static string Heard(ShipBody ship) => ship.GetNode<RadioDevice>("Radio").Heard is { Count: > 0 } h ? h[^1].Text : "";
+    private static string Heard(ShipBody ship) => ship.Find<RadioDevice>().Heard is { Count: > 0 } h ? h[^1].Text : "";
 
     private ShipBody Ship(string name, Vector3 at, float integrity = 300, bool pilot = false)
     {

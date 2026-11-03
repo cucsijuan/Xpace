@@ -52,7 +52,15 @@ rings = 16
 [node name="AiFighter" type="AnimatableBody3D"]
 script = ExtResource("1_ship")
 Spec = ExtResource("48_hull")
-HideWhenDestroyed = Array[NodePath]([NodePath("Model"), NodePath("PlumeLeft"), NodePath("PlumeRight"), NodePath("ShieldBubble")])
+HideWhenDestroyed = Array[NodePath]([NodePath("Model"), NodePath("Effects/PlumeLeft"), NodePath("Effects/PlumeRight"), NodePath("Effects/ShieldBubble")])
+
+[node name="Systems" type="Node3D" parent="."]
+
+[node name="Sensors" type="Node3D" parent="."]
+
+[node name="Weapons" type="Node3D" parent="."]
+
+[node name="Effects" type="Node3D" parent="."]
 
 [node name="NetBody" type="Node" parent="."]
 script = ExtResource("3_netbody")
@@ -70,36 +78,36 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
 [node name="Hull" type="Node" parent="."]
 script = ExtResource("7_hull")
 
-[node name="ShipComputer" type="Node" parent="."]
+[node name="ShipComputer" type="Node" parent="Systems"]
 script = ExtResource("8_computer")
 
-[node name="Display" type="Node" parent="."]
+[node name="Display" type="Node" parent="Systems"]
 script = ExtResource("9_display")
 Screens = Array[ExtResource("10_screen")]([ExtResource("11_radar_screen"), ExtResource("12_weapon_screen"), ExtResource("13_rwr_screen")])
 
-[node name="Laser" type="Node3D" parent="."]
+[node name="Laser" type="Node3D" parent="Weapons"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, -5.5)
 script = ExtResource("14_laser")
 Spec = ExtResource("spec_laser")
 
-[node name="Left" type="Marker3D" parent="Laser"]
+[node name="Left" type="Marker3D" parent="Weapons/Laser"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 0)
 
-[node name="Right" type="Marker3D" parent="Laser"]
+[node name="Right" type="Marker3D" parent="Weapons/Laser"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
 
-[node name="Radar" type="Node3D" parent="."]
+[node name="Radar" type="Node3D" parent="Sensors"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, -5.8)
 script = ExtResource("15_radar")
-TrackOriginPath = NodePath("../Laser")
+TrackOriginPath = NodePath("../../Weapons/Laser")
 EmitterPath = NodePath("Emitter")
 
-[node name="Emitter" type="Node3D" parent="Radar"]
+[node name="Emitter" type="Node3D" parent="Sensors/Radar"]
 script = ExtResource("16_emitter")
 Signature = "F"
 PowerAt1Km = 40000.0
 
-[node name="Launcher" type="Node3D" parent="."]
+[node name="Launcher" type="Node3D" parent="Weapons"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.6, -2)
 script = ExtResource("17_launcher")
 MissileScene = ExtResource("18_missile")
@@ -107,54 +115,54 @@ Missiles = 1
 HeatSeekerScene = ExtResource("19_ir_missile")
 HeatSeekers = 2
 
-[node name="Dispenser" type="Node3D" parent="."]
+[node name="Dispenser" type="Node3D" parent="Weapons"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 4)
 script = ExtResource("20_dispenser")
 Spec = ExtResource("spec_dispenser")
 
-[node name="Engine" type="Node" parent="."]
+[node name="Engine" type="Node" parent="Systems"]
 script = ExtResource("46_engine")
 Spec = ExtResource("47_d50")
 
-[node name="Jammer" type="Node3D" parent="."]
+[node name="Jammer" type="Node3D" parent="Sensors"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -1)
 script = ExtResource("44_jammer")
 Spec = ExtResource("45_nj2")
 
-[node name="Rwr" type="Node3D" parent="."]
+[node name="Rwr" type="Node3D" parent="Sensors"]
 script = ExtResource("21_rwr")
 
-[node name="Radio" type="Node3D" parent="."]
+[node name="Radio" type="Node3D" parent="Sensors"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 1)
 script = ExtResource("49_radio")
 
-[node name="Power" type="Node" parent="."]
+[node name="Power" type="Node" parent="Systems"]
 script = ExtResource("40_power")
 
-[node name="Shield" type="Node" parent="."]
+[node name="Shield" type="Node" parent="Systems"]
 script = ExtResource("41_shield")
-Bubble = NodePath("../ShieldBubble")
+Bubble = NodePath("../../Effects/ShieldBubble")
 
-[node name="ShieldBubble" type="MeshInstance3D" parent="."]
+[node name="ShieldBubble" type="MeshInstance3D" parent="Effects"]
 transform = Transform3D(12, 0, 0, 0, 4.5, 0, 0, 0, 9, 0, 0, 0)
 visible = false
 cast_shadow = 0
 mesh = SubResource("ShieldSphere")
 surface_material_override/0 = ExtResource("43_bubble")
 
-[node name="Heat" type="Node" parent="."]
+[node name="Heat" type="Node" parent="Systems"]
 script = ExtResource("42_heat")
 
 [node name="Signature" type="Node3D" parent="."]
 script = ExtResource("22_signature")
 
-[node name="PlumeLeft" type="Node3D" parent="."]
+[node name="PlumeLeft" type="Node3D" parent="Effects"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2.295, 0.075, 3.86)
 script = ExtResource("23_plume")
 FlameModel = ExtResource("24_flame")
 FlameTexture = ExtResource("25_boost")
 
-[node name="PlumeRight" type="Node3D" parent="."]
+[node name="PlumeRight" type="Node3D" parent="Effects"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2.295, 0.075, 3.86)
 script = ExtResource("23_plume")
 FlameModel = ExtResource("24_flame")
@@ -170,5 +178,5 @@ script = ExtResource("28_rock_sensor")
 [node name="Pilot" type="Node" parent="."]
 script = ExtResource("26_ai")
 
-[node name="Wake" type="MeshInstance3D" parent="."]
+[node name="Wake" type="MeshInstance3D" parent="Effects"]
 script = ExtResource("cruise_wake")

@@ -64,11 +64,11 @@ public partial class ShipSignature : Node3D, IRadarTarget, IDamageable, IHeatSou
         AddToGroup("heat_sources");
         for (Node n = GetParent(); n != null && _ship == null; n = n.GetParent())
             _ship = n as ShipBody;
-        foreach (Node n in _ship?.GetChildren() ?? new Godot.Collections.Array<Node>())
+        if (_ship != null)
         {
-            _hull ??= n as ShipHull;
-            _heat ??= n as HeatDevice;
-            _engine ??= n as EngineDevice;
+            _hull = ShipBody.Part<ShipHull>(this);
+            _heat = ShipBody.Part<HeatDevice>(this);
+            _engine = ShipBody.Part<EngineDevice>(this);
         }
     }
 

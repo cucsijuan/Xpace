@@ -32,8 +32,8 @@ public partial class TradeRunTest : Node
         _main = GD.Load<PackedScene>("res://scenes/main.tscn").Instantiate<SectorHost>();
         AddChild(_main);
         _ship = _main.Ship;
-        _radio = _ship.GetNode<RadioDevice>("Radio");
-        var hold = _ship.GetNode<CargoHold>("Hold");
+        _radio = _ship.Find<RadioDevice>();
+        var hold = _ship.Find<CargoHold>();
         PilotRecord me = universe.Me;
         long start = me.Credits;
         float empty = _ship.Mass;

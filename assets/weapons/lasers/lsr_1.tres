@@ -1,7 +1,9 @@
-[gd_resource type="Resource" script_class="LaserSpec" load_steps=2 format=3]
+[gd_resource type="Resource" script_class="LaserSpec" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/Ship/LaserSpec.cs" id="1_spec"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/lasers/laser_t1.tscn" id="2_scene"]
 
 [resource]
 script = ExtResource("1_spec")
 Model = "LSR-1"
+Scene = ExtResource("2_scene")

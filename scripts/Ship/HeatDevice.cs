@@ -48,11 +48,8 @@ public partial class HeatDevice : Node, IShipDevice, IRearmable
 
     public override void _Ready()
     {
-        foreach (Node n in GetParent().GetChildren())
-        {
-            _power ??= n as PowerDevice;
-            _hull ??= n as ShipHull;
-        }
+        _power = ShipBody.Part<PowerDevice>(this);
+        _hull = ShipBody.Part<ShipHull>(this);
         Rearm();
     }
 

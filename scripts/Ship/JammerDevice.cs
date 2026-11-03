@@ -92,11 +92,9 @@ public partial class JammerDevice : Node3D, IShipDevice, IDeceiver, IRadarEmitte
             {
                 _ship = ship;
                 foreach (Node c in ship.GetChildren())
-                {
                     Carrier ??= c as IRadarTarget;
-                    _power ??= c as PowerDevice;
-                    _heat ??= c as HeatDevice;
-                }
+                _power = ShipBody.Part<PowerDevice>(this);
+                _heat = ShipBody.Part<HeatDevice>(this);
                 break;
             }
         }

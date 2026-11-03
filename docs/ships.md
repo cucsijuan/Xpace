@@ -153,5 +153,35 @@ Every weapon and decoy is a model: a resource per model in `assets/weapons`, so 
 | `TurretSpec` | `turrets/` | `TurretDevice` |
 | `ChaffSpec`, `FlareSpec` | `decoys/` | `ChaffCloud`, `Flare`, in a scene of `scenes/weapons` |
 | `DispenserSpec` | `decoys/` | `DispenserDevice` |
+| `AmmoSpec` | `ammo/` | the turret's magazine (`TurretSpec.Ammunition`) |
+
+### Hardpoints
+
+Weapons are mounted on a hull's hardpoints: `Hardpoint` nodes (a Marker3D, facing -Z) in the ship's scene, each with
+the largest `Size` of weapon it takes and the kinds it `Accepts` (fixed weapons, turrets, or both). What they come
+with from the factory is the hull's `ShipSpec.Fitting` (hardpoint name to a `LaserSpec` or `TurretSpec`); a pilot's
+record changes it (`ShipRecord.Fittings`), and `PilotShip` mounts what the record says. A laser shows its model
+(`LaserSpec.Scene`: a scene facing -Z with a Marker3D "Muzzle") and is one more emitter of the ship's `LaserDevice`:
+the lasers fire in turn, each ready again `FireInterval` after its pulse, so three fire half as often again as two
+(and heat and drain as much more). A turret mounted on a hardpoint is the ship's `TurretDevice`; a ship has one.
+
+A hull's outside and its hardpoints are one scene, used by the ship flown here and by the ship other players see
+(`RemoteShip`, which shows its hull's factory fitting, looks only), so a hardpoint placed there looks right to both.
+The fighter's is `scenes/ships/fighter_03_exterior.tscn` (in `player_ship.tscn` as Exterior: its Model is hidden from
+the seat, its weapons are not; in `remote_fighter.tscn`). It has three T1 hardpoints: NoseLeft and NoseRight (fixed),
+and Spine (fixed or turret). It comes with a laser on each side of the nose (LSR-1, Synty's SM_Veh_Part_Misc_09) and
+the gatling turret on the spine; a laser on the spine instead makes three. To place a hardpoint by eye, set its
+`Preview` to a model: the editor shows it there (never saved, never mounted in the game). `tests/hardpoint_test`.
+
+### A ship's scene
+
+At the root of `player_ship.tscn` (and `ai_fighter.tscn`) are the ship itself: its `NetBody`, `Hitboxes`, `Exterior`
+(or `Model`), `Hull`, `Signature`, the `Cockpit` (the pilot's eye is its `Eye`), `Pilot` and `Seat`. Its equipment is
+in folders: `Systems` (the computer, the display card, power, heat, shield, cargo hold, engine, cruise generator),
+`Sensors` (radar, RWR, radio, jammer), `Weapons` (laser, missile launcher, dispenser, interdictor) and `Effects`
+(dust, wake, shield bubble, plumes). The folders are plain Node3Ds at the origin: a device keeps its position in the
+ship's frame, and a device finds its ship and the ship's other parts wherever they sit (`ShipBody.Of`,
+`ShipBody.Part`). Where some devices sit matters: missiles leave from the `Launcher` along its -Z, chaff and flares
+from the `Dispenser`, and the radar, jammer and radio send from where they are.
 
 Tiers should differ by what the hardware physically does, not by a resistance or hit-chance figure. Still to come out into data: the constants in the missiles' firmware (boost, navigation gain, assumed closing speed), and a physical quantity for telling a flare from a ship.

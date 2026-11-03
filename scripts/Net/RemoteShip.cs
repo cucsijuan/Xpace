@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Xpace.Space;
@@ -42,6 +43,8 @@ public partial class RemoteShip : Node3D, Space.ICruiseShown, INetEntity, IRadar
     [Export] public float RadarPowerAt1Km = 4e4f;
     /// <summary>Its jammer's model when the snapshots name none this machine knows.</summary>
     [Export] public Xpace.Ship.JammerSpec Jammer;
+    /// <summary>Its hull: its hardpoints show the weapons the hull comes with from the factory.</summary>
+    [Export] public Xpace.Ship.ShipSpec Hull;
 
     public RemoteTrack Track { get; } = new();
 
@@ -89,6 +92,9 @@ public partial class RemoteShip : Node3D, Space.ICruiseShown, INetEntity, IRadar
         AddChild(_jammer);
         _jammer.Follow(JamMode.Off, false, Vector3.Forward);
         _plumes = FindChildren("*", "", true, false).OfType<EnginePlume>().ToArray();
+        var fitted = Xpace.Ship.Fittings.Of(Hull);
+        foreach (Xpace.Ship.Hardpoint h in FindChildren("*", "", true, false).OfType<Xpace.Ship.Hardpoint>())
+            h.Mount(fitted.GetValueOrDefault(h.Name.ToString()), working: false);
         AddChild(new RemoteRadio { Name = "Radio" });
     }
 

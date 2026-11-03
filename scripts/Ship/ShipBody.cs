@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 using Xpace.Computer;
 using Xpace.Controls;
@@ -112,6 +113,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
 
     private double _sinceCommand = double.MaxValue;
     private readonly List<IShipDevice> _devices = new();
+    private readonly List<Hardpoint> _hardpoints = new();
     private PowerDevice _power;
     private EngineDevice _engine;
     private CruiseDevice _cruise;
@@ -127,7 +129,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
         Spec ??= new ShipSpec();
         SyncToPhysics = false;
 
-        Computer = GetNode<ShipComputer>(ComputerPath);
+        Computer = GetNodeOrNull<ShipComputer>(ComputerPath) ?? FindChildren("*", "", true, false).OfType<ShipComputer>().First();
         Computer.RunsItself = false;
         ShipBus bus = Computer.Bus;
         bus[SlotControls, 0] = TypeControls;
@@ -139,11 +141,9 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
         bus[SlotControls, 1] = 2;                   // +15: more buttons
         bus[SlotRatings, 1] = 2;                    // the whole plate in memory too
         foreach (Node node in FindChildren("*", "", true, false))
-            if (node is IShipDevice device)
-                _devices.Add(device);
-        _power = Device<PowerDevice>();
-        _engine = Device<EngineDevice>();
-        _cruise = Device<CruiseDevice>();
+            if (node is Hardpoint h)
+                _hardpoints.Add(h);
+        Fit(Fittings.Of(Spec));                     // as it came from the factory; a pilot's record may change it (PilotShip)
         foreach (Node node in GetChildren())
             _signature ??= node as ShipSignature;
 
@@ -153,6 +153,74 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
             _hitboxes = new[] { new Hitbox(Vector3.Zero, new Vector3(5, 3, 10)) };
         _bound = ShipContact.Bound(_hitboxes);
         Bounds = Hitbox.Bounds(_hitboxes);
+    }
+
+    /// <summary>The ship <paramref name="node"/> is part of (a device on a hardpoint is not its child), or null.</summary>
+    public static ShipBody Of(Node node)
+    {
+        for (Node n = node?.GetParent(); n != null; n = n.GetParent())
+            if (n is ShipBody ship)
+                return ship;
+        return null;
+    }
+
+    /// <summary>
+    /// The first <typeparamref name="T"/> on the ship <paramref name="node"/> is part of, wherever it sits in it (the
+    /// ship's nodes are grouped in folders); on no ship, the first under the node's parent.
+    /// </summary>
+    public static T Part<T>(Node node) where T : class
+    {
+        Node root = Of(node) ?? node?.GetParent();
+        return root?.FindChildren("*", "", true, false).OfType<T>().FirstOrDefault();
+    }
+
+    /// <summary>Its first <typeparamref name="T"/>, wherever it sits in the ship (ready or not).</summary>
+    public T Find<T>() where T : class => FindChildren("*", "", true, false).OfType<T>().FirstOrDefault();
+
+    /// <summary>Its hardpoints (<see cref="Hardpoint"/>), found when it is ready.</summary>
+    public IReadOnlyList<Hardpoint> Hardpoints => _hardpoints;
+
+    /// <summary>What is mounted on its hardpoints, as a key to compare (resource paths by hardpoint).</summary>
+    public string Fitted { get; private set; } = "";
+
+    /// <summary>
+    /// Mounts <paramref name="fitted"/> on its hardpoints (by name; one not listed is left empty, a model it doesn't take
+    /// is not mounted, nor a second turret) and finds its devices again. A device taken off leaves its place on the bus
+    /// empty.
+    /// </summary>
+    public void Fit(IReadOnlyDictionary<string, Resource> fitted)
+    {
+        bool hadTurret = Device<TurretDevice>() != null;
+        bool turret = false;
+        foreach (Hardpoint h in _hardpoints)
+        {
+            Resource model = fitted.GetValueOrDefault(h.Name.ToString());
+            if (model is TurretSpec && (turret || !h.Takes(model)))
+                model = null;
+            turret |= model is TurretSpec;
+            h.Mount(model);
+        }
+        Fitted = Key(fitted);
+        FindDevices();
+        if (hadTurret && Device<TurretDevice>() == null)
+            for (int i = 0; i < ShipBus.SlotSize; i++)
+                Computer.Bus[TurretDevice.Slot, i] = 0;
+    }
+
+    /// <summary>A fitting as a key to compare with <see cref="Fitted"/>.</summary>
+    public static string Key(IReadOnlyDictionary<string, Resource> fitted) =>
+        string.Join(";", fitted.Where(f => f.Value != null).OrderBy(f => f.Key, StringComparer.Ordinal).Select(f => $"{f.Key}={f.Value.ResourcePath}"));
+
+    private void FindDevices()
+    {
+        _devices.Clear();
+        foreach (Node node in FindChildren("*", "", true, false))
+            if (node is IShipDevice device)
+                _devices.Add(device);
+        _power = Device<PowerDevice>();
+        _engine = Device<EngineDevice>();
+        _cruise = Device<CruiseDevice>();
+        Device<LaserDevice>()?.Refit(this);
     }
 
     public T Device<T>() where T : class, IShipDevice

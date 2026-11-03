@@ -35,7 +35,7 @@ public partial class CruiseDust : MultiMeshInstance3D
 
     public override void _Ready()
     {
-        _ship = GetNodeOrNull<ShipBody>(ShipPath);
+        _ship = GetNodeOrNull<ShipBody>(ShipPath) ?? ShipBody.Of(this);
         _dust = GetNodeOrNull<Node3D>(DustPath);
         TopLevel = true;
         var rng = new RandomNumberGenerator { Seed = 11 };

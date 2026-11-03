@@ -26,8 +26,8 @@ namespace Xpace.Ship;
 /// D000:1B00: +0 word the rounds left (0FFFFh: a mount that never runs
 /// out)  +2 word how many the magazine holds.
 ///
-/// Its model is the one the hull comes with (<see cref="ShipSpec.Turret"/>)
-/// unless it is given its own. A player's ship keeps its rounds in the
+/// It is made by the hardpoint it is mounted on (<see cref="Hardpoint"/>),
+/// with its model. A player's ship keeps its rounds in the
 /// pilot's record (<see cref="ShipRecord.Magazine"/>), bought at a
 /// station's arms kiosk; any other ship, here.
 /// </summary>
@@ -39,7 +39,7 @@ public partial class TurretDevice : Node3D, IShipDevice, IRearmable
 
     /// <summary>The model.</summary>
     [Export] public TurretSpec Spec;
-    private TurretSpec S => Spec ?? _ship?.Spec?.Turret ?? (_default ??= new TurretSpec());
+    private TurretSpec S => Spec ?? (_default ??= new TurretSpec());
     private TurretSpec _default;
 
     public float MuzzleSpeed => S.MuzzleSpeed;
@@ -92,7 +92,7 @@ public partial class TurretDevice : Node3D, IShipDevice, IRearmable
 
     public override void _Ready()
     {
-        _ship = GetParentOrNull<ShipBody>();
+        _ship = ShipBody.Of(this);
         _rounds = Magazine;
         if (S.Scene?.Instantiate() is TurretRig rig)
         {

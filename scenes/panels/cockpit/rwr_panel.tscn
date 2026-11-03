@@ -35,5 +35,5 @@ Size = Vector2(0.1615, 0.1615)
 
 [node name="Volume" parent="." instance=ExtResource("2_slider")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.105, -0.0205, -0.0016)
-Target = NodePath("Rwr/RwrTone")
+Target = NodePath("Sensors/Rwr/RwrTone")
 Property = &"Volume"

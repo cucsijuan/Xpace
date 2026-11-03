@@ -129,7 +129,7 @@ public partial class SessionGateTest : Node
         Basis b = gate2.GlobalBasis.Orthonormalized();
         ship.State = new ShipState { Position = gate2.ToGlobal(new Vector3(0, 0, 600)), Orientation = b.GetRotationQuaternion() };
         await Run(60);
-        ship.GetNode<RadioDevice>("Radio").AskTransit();
+        ship.Find<RadioDevice>().AskTransit();
         Check($"asking for transit goes to the host ({asked.Station})",
               await Run(120, () => asked.Ship == GuestShipId && asked.Station == gate2.Radio.Sign && asked.What == (byte)RadioRequest.Transit));
 

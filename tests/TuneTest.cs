@@ -36,14 +36,14 @@ public partial class TuneTest : Node
         var main = GD.Load<PackedScene>("res://scenes/main.tscn").Instantiate<SectorHost>();
         AddChild(main);
         _ship = main.Ship;
-        _cruise = _ship.GetNode<CruiseDevice>("Cruise");
+        _cruise = _ship.Find<CruiseDevice>();
         _buoy = main.Sector.GetNode<InterdictorBuoy>("InterdictorBuoy");
         _controls = new PilotControls();
         Func<PilotControls> keys = _ship.ControlsSource;
         _ship.ControlsSource = () => _controls;
         foreach (string other in new[] { "Drone1", "Drone2", "Raider" })
             main.Sector.GetNodeOrNull(other)?.QueueFree();
-        var display = _ship.GetNode<DisplayDevice>("Display");
+        var display = _ship.Find<DisplayDevice>();
         Check("the computer boots", await Until(() => _ship.Computer.ScreenText().Contains("Radio resident"), 90));
 
         // Left alone

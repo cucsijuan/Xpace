@@ -1,0 +1,33 @@
+[gd_scene format=3 uid="uid://ccn4jfk6ho5xe"]
+
+[ext_resource type="PackedScene" uid="uid://c24bvglq01n2e" path="res://assets/synty/SM_Ship_Fighter_03.fbx" id="1_model"]
+[ext_resource type="Script" uid="uid://c70hoi0gx5bok" path="res://scripts/Space/ModelPaint.cs" id="2_paint"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="3_atlas"]
+[ext_resource type="Script" uid="uid://cwgj061n2ay4h" path="res://scripts/Ship/Hardpoint.cs" id="4_hardpoint"]
+[ext_resource type="Resource" path="res://assets/weapons/lasers/lsr_1.tres" id="5_laser"]
+[ext_resource type="Resource" path="res://assets/weapons/turrets/gun_1.tres" id="6_gun"]
+
+[node name="Fighter03" type="Node3D" unique_id=994709353]
+
+[node name="Model" parent="." unique_id=427059615 instance=ExtResource("1_model")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="Paint" type="Node" parent="Model" unique_id=1952051477]
+script = ExtResource("2_paint")
+Material = ExtResource("3_atlas")
+
+[node name="NoseLeft" type="Marker3D" parent="." unique_id=726756208]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.86, -0.8, -5.62)
+script = ExtResource("4_hardpoint")
+Preview = ExtResource("5_laser")
+
+[node name="NoseRight" type="Marker3D" parent="." unique_id=1215527321]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.85999995, -0.8, -5.62)
+script = ExtResource("4_hardpoint")
+Preview = ExtResource("5_laser")
+
+[node name="Spine" type="Marker3D" parent="." unique_id=940257066]
+transform = Transform3D(0.757, 0, 0, 0, 0.87, 0, 0, 0, 0.87, 0.017786622, 0.59871244, 0.9579325)
+script = ExtResource("4_hardpoint")
+Accepts = 3
+Preview = ExtResource("6_gun")
