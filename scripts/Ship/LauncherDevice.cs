@@ -56,8 +56,8 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
     [Export] public NodePath RadarPath = "../Radar";
     [Export] public double HeadLockSeconds = 0.3;   // heat held this long: locked on
 
-    public int MissilesLeft => Left(_radarModel, _missiles);
-    public int HeatSeekersLeft => Left(_heatModel, _heatSeekers);
+    public int MissilesLeft => Left(_radarSpec, _missiles);
+    public int HeatSeekersLeft => Left(_heatSpec, _heatSeekers);
     /// <summary>The heat seeker's head on the rail is powered (the computer selected it).</summary>
     public bool HeadPowered { get; private set; }
     /// <summary>The head on the rail sees heat: it growls.</summary>
@@ -76,7 +76,7 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
     public int Launched { get; private set; }
 
     private ShipBody _ship;
-    private string _radarModel, _heatModel;
+    private MissileSpec _radarSpec, _heatSpec;
     private int _missiles, _heatSeekers;
     private RadarDevice _radar;
     private readonly List<Missile> _inFlight = new();
@@ -96,10 +96,10 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
         _radar = GetNodeOrNull<RadarDevice>(RadarPath);
         _railHead = HeatSeekerScene?.Instantiate<Missile>();
         _railHead?.SetUpHead(_head);
-        _heatModel = _railHead?.Model;
+        _heatSpec = _railHead?.Spec;
         if (MissileScene?.Instantiate<Missile>() is Missile radar)
         {
-            _radarModel = radar.Model;
+            _radarSpec = radar.Spec;
             radar.Free();
         }
         _head.Look = -GlobalBasis.Z;
@@ -121,8 +121,8 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
 
     private PilotRecord Pilot => _ship != null ? Universe.Current?.RecordOf(_ship) : null;
 
-    private int Left(string model, int own) =>
-        model != null && Pilot is PilotRecord pilot ? pilot.Ship.Rack(model, Universe.RackSize(pilot)) : own;
+    private int Left(MissileSpec spec, int own) =>
+        spec?.Id is string model && Pilot is PilotRecord pilot ? pilot.Ship.Rack(model, Universe.RackSize(pilot)) : own;
 
     public void BeforeStep(ShipBody ship, double delta)
     {
@@ -230,16 +230,16 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
         _anyFired = true;
         if (heat)
         {
-            if (_heatModel != null && Pilot != null)
-                Universe.Current.Fired(ship, _heatModel);
+            if (_heatSpec?.Id != null && Pilot != null)
+                Universe.Current.Fired(ship, _heatSpec);
             else
                 _heatSeekers--;
             ship.Computer.Bus[Slot, 7] = 0;             // the next one's head, off
             _head.Look = -GlobalBasis.Z;
             _toneFor = 0;
         }
-        else if (_radarModel != null && Pilot != null)
-            Universe.Current.Fired(ship, _radarModel);
+        else if (_radarSpec?.Id != null && Pilot != null)
+            Universe.Current.Fired(ship, _radarSpec);
         else
             _missiles--;
         Launched++;

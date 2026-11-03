@@ -108,11 +108,11 @@ public partial class ArmsWindow : CanvasLayer, IKioskWindow
         var name = new Label { Text = offer.Name, ThemeTypeVariation = "HeaderMedium" };
         name.AddThemeColorOverride("font_color", Amber);
         about.AddChild(name);
-        about.AddChild(new Label { Text = offer.HeatSeeker ? "Heat seeker: guides itself, needs no lock" : "Radar guided: needs your radar's lock all the way" });
-        about.AddChild(new Label { Text = $"Warhead {offer.Damage:0}   Turns at {offer.Acceleration:0} m/s²   Fuel {offer.DeltaV:0} m/s", Modulate = Dim });
+        about.AddChild(new Label { Text = offer.About });
+        about.AddChild(new Label { Text = offer.Details, Modulate = Dim });
         row.AddChild(about);
 
-        var aboard = new VBoxContainer { CustomMinimumSize = new Vector2(120, 0) };
+        var aboard = new VBoxContainer { CustomMinimumSize = new Vector2(260, 0) };   // room for a dispenser's ten
         aboard.AddChild(new Label { Text = "Aboard", Modulate = Dim });
         aboard.AddChild(new Label { Text = $"{new string('■', Math.Min(offer.Aboard, offer.Rack))}{new string('□', Math.Max(0, offer.Rack - offer.Aboard))}  {offer.Aboard}/{offer.Rack}" });
         row.AddChild(aboard);

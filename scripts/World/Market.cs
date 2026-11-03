@@ -86,7 +86,7 @@ public static class Market
     public enum Result { Done, NoStock, MarketFull, NoMoney, HoldFull, NotHeld, NotTraded, RackFull }
 
     /// <summary>
-    /// The pilot buys <paramref name="count"/> of a missile, loaded straight onto a ship whose rack takes
+    /// The pilot buys <paramref name="count"/> of an outfit, loaded straight onto a ship whose rack takes
     /// <paramref name="rack"/> of them: as many as the stock, the money and the rack allow.
     /// </summary>
     public static Result BuyOutfit(StationRecord station, OutfitLine line, PilotRecord pilot, int count, int rack, out int bought, out long paid)

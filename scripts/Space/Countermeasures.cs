@@ -10,6 +10,9 @@ public interface IDropped
 
     /// <summary>Seconds since it was thrown out (one made late, for another machine's drop, starts older).</summary>
     float Age { get; set; }
+
+    /// <summary>Its model (a pilot's dispenser counts it off their record).</summary>
+    Outfit Item { get; }
 }
 
 /// <summary>Throwing chaff and flares out, here and, in a session, on every machine.</summary>

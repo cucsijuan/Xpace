@@ -2,7 +2,6 @@
 
 [ext_resource type="Resource" path="res://assets/weapons/lasers/lsr_1.tres" id="spec_laser"]
 [ext_resource type="Resource" path="res://assets/weapons/turrets/gun_1.tres" id="spec_turret"]
-[ext_resource type="Resource" path="res://assets/weapons/decoys/dispenser_1.tres" id="spec_dispenser"]
 [ext_resource type="Script" path="res://scripts/Space/CruiseWake.cs" id="cruise_wake"]
 [ext_resource type="Script" path="res://scripts/Cockpit/CruiseDust.cs" id="cruise_dust"]
 [ext_resource type="Script" path="res://scripts/Cockpit/CruiseVeil.cs" id="cruise_veil"]
@@ -220,7 +219,6 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
 [node name="Dispenser" type="Node3D" parent="." unique_id=841199006]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 4)
 script = ExtResource("37_dispenser")
-Spec = ExtResource("spec_dispenser")
 ChaffScene = ExtResource("35_chaff")
 FlareScene = ExtResource("36_flare")
 

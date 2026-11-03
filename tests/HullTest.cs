@@ -69,8 +69,9 @@ public partial class HullTest : Node
         Check($"a warhead 20 m off hurts it ({hull.Left:0} left)", hull.Left < 50 && hull.Left > 0);
         missile.Free();
 
+        int chaff = dispenser.ChaffLeft, flares = dispenser.FlaresLeft;     // a pilot's ship: the hull's load, in the record
         dispenser.Dispense(ship, true, true);          // some used before it is lost
-        Check("(the dispenser has thrown one of each)", dispenser.ChaffLeft == 3 && dispenser.FlaresLeft == 3);
+        Check("(the dispenser has thrown one of each)", dispenser.ChaffLeft == chaff - 1 && dispenser.FlaresLeft == flares - 1);
         for (int i = 0; i < 5; i++)
             rounds.Fire(new Vector3(0, -0.8f, -1100), new Vector3(0, 0, 1200), 10);
         await Frames(70);
@@ -92,7 +93,7 @@ public partial class HullTest : Node
         Check($"the insurer's new ship comes back where it started ({ship.GlobalPosition}), standing still, hull full",
               !hull.Wrecked && !ship.Wrecked && ship.GlobalPosition.DistanceTo(new Vector3(0, 0, -100)) < 0.5f &&
               ship.LinearVelocity == Vector3.Zero && hull.Left == 100);
-        Check("with a full dispenser", dispenser.ChaffLeft == 4 && dispenser.FlaresLeft == 4);
+        Check($"with a full dispenser ({dispenser.ChaffLeft}, {dispenser.FlaresLeft})", dispenser.ChaffLeft == chaff && dispenser.FlaresLeft == flares);
         Check("and its signature is back", signature.Alive && body.Snapshot(2) is { Destroyed: false });
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");

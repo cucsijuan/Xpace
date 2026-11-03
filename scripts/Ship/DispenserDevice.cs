@@ -1,6 +1,7 @@
 using Godot;
 using Xpace.Computer;
 using Xpace.Space;
+using Xpace.World;
 
 namespace Xpace.Ship;
 
@@ -15,6 +16,10 @@ namespace Xpace.Ship;
 /// Registers: +0 type 10  +2 chaff left  +3 flares left
 /// +4 write: bit 0 throw a bundle of chaff, bit 1 a flare
 /// +5 how many it has thrown, counting up (the program sees a throw by it)
+///
+/// Its model is the one the hull comes with (<see cref="ShipSpec.Dispenser"/>) unless it is given its own. A player's
+/// ship keeps its chaff and flares in the pilot's record (<see cref="Xpace.World.ShipRecord.Magazine"/>), bought at a
+/// station's arms kiosk; any other ship, here.
 /// </summary>
 public partial class DispenserDevice : Node3D, IShipDevice, IRearmable
 {
@@ -25,7 +30,8 @@ public partial class DispenserDevice : Node3D, IShipDevice, IRearmable
     [Export] public PackedScene FlareScene;
     /// <summary>The model.</summary>
     [Export] public DispenserSpec Spec;
-    private DispenserSpec S => Spec ??= new DispenserSpec();
+    private DispenserSpec S => Spec ?? _ship?.Spec?.Dispenser ?? (_default ??= new DispenserSpec());
+    private DispenserSpec _default;
 
     /// <summary>What a full load is: the model's, unless a test or a fitting says otherwise.</summary>
     public int Chaff { get => _chaff ?? S.Chaff; set => _chaff = value; }
@@ -35,9 +41,14 @@ public partial class DispenserDevice : Node3D, IShipDevice, IRearmable
     public float FlareKick => S.FlareKick;
     public double CycleSeconds => S.CycleSeconds;
 
-    public int ChaffLeft { get; private set; }
-    public int FlaresLeft { get; private set; }
+    public int ChaffLeft => Left(_chaffSpec, _chaffLeft);
+    public int FlaresLeft => Left(_flareSpec, _flaresLeft);
     public int Thrown { get; private set; }
+
+    private ShipBody _ship;
+    private ChaffSpec _chaffSpec;
+    private FlareSpec _flareSpec;
+    private int _chaffLeft, _flaresLeft;
 
     private double _chaffWait, _flareWait;
     private readonly RandomNumberGenerator _rng = new() { Seed = 4231 };
@@ -46,15 +57,41 @@ public partial class DispenserDevice : Node3D, IShipDevice, IRearmable
     {
         ChaffScene ??= GD.Load<PackedScene>("res://scenes/weapons/chaff.tscn");
         FlareScene ??= GD.Load<PackedScene>("res://scenes/weapons/flare.tscn");
-        ChaffLeft = Chaff;
-        FlaresLeft = Flares;
+        _ship = GetParentOrNull<ShipBody>();
+        _chaffSpec = ModelOf(ChaffScene) as ChaffSpec;
+        _flareSpec = ModelOf(FlareScene) as FlareSpec;
+        _chaffLeft = Chaff;
+        _flaresLeft = Flares;
     }
 
-    /// <summary>A full load again (a test, a resupply).</summary>
+    private static Outfit ModelOf(PackedScene scene)
+    {
+        if (scene?.Instantiate() is not Node made)
+            return null;
+        Outfit item = (made as IDropped)?.Item;
+        made.Free();
+        return item;
+    }
+
+    /// <summary>A full load again: the insurer's new ship, or a test.</summary>
     public void Rearm()
     {
-        ChaffLeft = Chaff;
-        FlaresLeft = Flares;
+        _chaffLeft = Chaff;
+        _flaresLeft = Flares;
+    }
+
+    private PilotRecord Pilot => _ship != null ? Universe.Current?.RecordOf(_ship) : null;
+
+    // A pilot's ship: what their record has (a model not in it, a full load); any other, its own count
+    private int Left(Outfit spec, int own) =>
+        spec?.Id is string model && Pilot is PilotRecord pilot ? pilot.Ship.Rack(model, Universe.RackSize(pilot, spec)) : own;
+
+    private void Spent(ShipBody ship, Outfit spec, ref int own)
+    {
+        if (spec?.Id != null && Pilot != null)
+            Universe.Current.Fired(ship, spec);
+        else
+            own--;
     }
 
     public void BeforeStep(ShipBody ship, double delta)
@@ -83,13 +120,13 @@ public partial class DispenserDevice : Node3D, IShipDevice, IRearmable
     {
         if (chaff && ChaffLeft > 0 && _chaffWait <= 0)
         {
-            ChaffLeft--;
+            Spent(ship, _chaffSpec, ref _chaffLeft);
             _chaffWait = CycleSeconds;
             Throw(ship, ChaffScene, ChaffKick);
         }
         if (flare && FlaresLeft > 0 && _flareWait <= 0)
         {
-            FlaresLeft--;
+            Spent(ship, _flareSpec, ref _flaresLeft);
             _flareWait = CycleSeconds;
             Throw(ship, FlareScene, FlareKick);
         }

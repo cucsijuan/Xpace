@@ -21,7 +21,8 @@ namespace Xpace.Tests;
 /// As the host: a guest's missile (its snapshots) flies here as a puppet
 /// missile; the drone's warner sees its motor, the drone breaks and drops
 /// chaff and flares that reach the guest; the guest's radar lock paints the
-/// drone; the blast the guest sends hurts it.
+/// drone; the blast the guest sends hurts it; what the guest launches and
+/// throws is counted off its pilot's record.
 ///
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/net_missile_test.tscn
 /// Exits with 0 if every check passed.
@@ -241,6 +242,11 @@ public partial class NetMissileTest : Node
                 missile = new Thing { NetId = guest.NewDynamicId(), IsLocal = true, Hitboxes = Array.Empty<Hitbox>(), Thrust = 1 };
                 guest.Spawn(missile, 0);
             }
+            if (frame == 100)
+            {
+                guest.Drop(tick, 2, ship.Position, Vector3.Zero);     // chaff and a flare, thrown by the guest's ship
+                guest.Drop(tick, 3, ship.Position, Vector3.Zero);
+            }
             if (missile != null && guest.Entity(missile.NetId) == missile && seenDrone.Track.ShownTick.HasValue)
             {
                 // Pure pursuit with lead at 700 m/s, and a proximity fuse on the drone the guest sees
@@ -291,6 +297,11 @@ public partial class NetMissileTest : Node
         Xpace.World.PilotRecord pilot = Xpace.World.Universe.Current.State.Pilot("net-guest");
         int rack = Xpace.World.Universe.RackSize(pilot);
         Check($"the host counts it off the guest's magazine ({pilot.Ship.Rack("msl_1", rack)} of {rack} left)", pilot.Ship.Rack("msl_1", rack) == rack - 1);
+        var chaff = GD.Load<ChaffSpec>("res://assets/weapons/decoys/chaff_1.tres");
+        var flare = GD.Load<FlareSpec>("res://assets/weapons/decoys/flare_1.tres");
+        int chaffRack = Xpace.World.Universe.RackSize(pilot, chaff), flareRack = Xpace.World.Universe.RackSize(pilot, flare);
+        Check($"and the chaff and flare the guest threw off its dispenser ({pilot.Ship.Rack(chaff.Id, chaffRack)} of {chaffRack}, {pilot.Ship.Rack(flare.Id, flareRack)} of {flareRack})",
+              chaffRack > 0 && pilot.Ship.Rack(chaff.Id, chaffRack) == chaffRack - 1 && pilot.Ship.Rack(flare.Id, flareRack) == flareRack - 1);
 
         origin.QueueFree();
         await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);

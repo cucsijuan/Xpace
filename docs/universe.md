@@ -84,14 +84,22 @@ came (`Market.HoursBeforeStart`) and go on working unvisited, so prices differ f
 **The first chain: iron into missiles.** Kestrel makes iron; the first station's market buys it, uses a little itself,
 and its factory makes missiles of it (`StationMarket.Outfits`, an `OutfitLine` per model: the stock wanted, how many
 an hour, the input and how much of it goes into one). The factory rests with the stock full and stops with no iron.
-The price (`MissileSpec.Price`) moves with the stock as a good's does. Commodities are traded at the market's kiosk,
+The price (`Outfit.Price`, on the model's spec) moves with the stock as a good's does. Commodities are traded at the market's kiosk,
 in tonnes, into the hold; missiles at the **arms kiosk** (`scenes/stations/props/arms_kiosk.tscn`, `ArmsWindow`), by
 the piece, straight onto the ship. Docked only; Kestrel's dealer has nothing to sell.
 
-A player's missiles are in their record (`ShipRecord.Magazine`, by model; a model not listed has what the hull's
-`ShipSpec.MissileRack` gives, so a new ship comes loaded). Docking no longer brings them back: the insurer's new ship
-is the only free load. Chaff and flares are still refilled free on docking. In a session the host owns the record: a
-guest asks through it (topic `arms`) and the host counts a guest's launch when its missile appears there.
+Chaff and flares go the same way: the first station's factory makes them of its own metals (`ChaffSpec` and
+`FlareSpec` are outfits, like `MissileSpec`), and its dealer sells them by the piece, straight into the dispenser.
+
+A player's missiles, chaff and flares are in their record (`ShipRecord.Magazine`, by model; a model not listed has
+what the hull gives: `ShipSpec.MissileRack` missiles of each model, and the chaff and flares of the dispenser it comes
+with, `ShipSpec.Dispenser`; so a new ship comes loaded). Docking brings none of them back: the insurer's new ship is
+the only free load. In a session the host owns the record: a guest asks through it (topic `arms`) and the host counts a
+guest's launch when its missile appears there, and its chaff and flares when their drops arrive.
+
+Three places hold a pilot's things, apart: what they carry on them (`PilotRecord.Items`), their locker at each station
+(`StationRecord.Lockers`), and their ship (`ShipRecord`: the hold's cargo and the magazine), which goes when it blows
+up.
 
 **Measuring the balance:** `tests/trade_balance_test.tscn` reads the goods, markets, hulls, generator, tolls and
 distances from the game's data and prints what trading pays: prices at both ends, the best run as the universe ages,

@@ -520,7 +520,7 @@ public partial class SessionNode : Node
         {
             missile.Shooter = shooter;
             Combat.Fire(shooter, shooter.GlobalPosition);
-            Xpace.World.Universe.Current?.Fired(shooter, missile.Model);
+            Xpace.World.Universe.Current?.Fired(shooter, missile.Spec);
         }
         return body;
     }
@@ -626,6 +626,9 @@ public partial class SessionNode : Node
         if (d.Scene >= Spawnables.Count || Spawnables[d.Scene] is not PackedScene scene || WorldAt(d.Place) is not Node world)
             return;
         float age = System.Math.Max(0, (int)(Now - d.Tick)) * Session.TickSeconds;
-        Countermeasures.Make(world, scene, Scene(d.Position + d.Velocity * age, d.Place), d.Velocity, age);
+        Node3D made = Countermeasures.Make(world, scene, Scene(d.Position + d.Velocity * age, d.Place), d.Velocity, age);
+        // A guest's chaff or flare was thrown by its player's ship: the host counts it off the pilot's record
+        if (Session.IsHost && d.Dropper != Session.HostPeer && made is IDropped dropped && NodeOf(NetIds.PlayerShip(d.Dropper)) is Node3D thrower)
+            Xpace.World.Universe.Current?.Fired(thrower, dropped.Item);
     }
 }

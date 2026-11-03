@@ -21,7 +21,8 @@ namespace Xpace.Tests;
 ///     high, the glow is green and the clamps still wait;
 ///   - coming down with the controls, the clamps take it and bring it,
 ///     slowly, exactly to its place; docked, the thrusters move it no more,
-///     the station shuts the door and says so;
+///     the station shuts the door and says so; the chaff thrown on the way
+///     is not given back (it is bought at the arms kiosk);
 ///   - a second ship cleared to the same hangar gets another pad: the door
 ///     opens for it, its pad lights, and shuts once it is docked too;
 ///   - REQUEST LAUNCH on COMMS: the door opens, the clamps lift the ship and
@@ -125,7 +126,7 @@ public partial class LandingPadTest : Node3D
         float turned = _ship.GlobalBasis.Z.AngleTo(rest.Basis.Z);
         Check($"exactly ({off:0.000} m, {Mathf.RadToDeg(turned):0.00} degrees off)", off < 0.01f && turned < 0.002f);
         Shot("4_docked");
-        Check($"docked, the station fills it up ({thrownChaff} chaff, now {dispenser.ChaffLeft})", thrownChaff < dispenser.Chaff && dispenser.ChaffLeft == dispenser.Chaff);
+        Check($"docking gives no chaff back: it is bought ({thrownChaff} chaff, now {dispenser.ChaffLeft})", thrownChaff < dispenser.Chaff && dispenser.ChaffLeft == thrownChaff);
         Check($"the beacon says docked (flags {Guide(0)})", (Guide(0) & (RadioDevice.PadHeld | RadioDevice.PadDocked)) == (RadioDevice.PadHeld | RadioDevice.PadDocked));
         Check("the station shuts the door and says so", await Until(() => !dock.IsOpen && dock.Door.Open == 0, 2) && Heard("Docked"));
         _controls = new PilotControls { Throttle = 1, Up = 1, Yaw = 1 };

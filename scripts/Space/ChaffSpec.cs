@@ -3,13 +3,17 @@ using Godot;
 namespace Xpace.Space;
 
 /// <summary>
-/// A model of chaff bundle (a .tres per model, in assets/weapons/decoys): the radar echo it blooms into.
+/// A model of chaff bundle (a .tres per model, in assets/weapons/decoys): the radar echo it blooms into. Bought by the
+/// bundle at an arms dealer, straight into the ship's dispenser.
 /// </summary>
 [GlobalClass]
-public partial class ChaffSpec : Resource
+public partial class ChaffSpec : Outfit
 {
-    /// <summary>The model's name, as a program or a fittings list shows it.</summary>
-    [Export] public string Model = "CHF";
+    public ChaffSpec()
+    {
+        Model = "CHF";
+        Price = 60;
+    }
 
     [ExportGroup("Echo")]
     /// <summary>m², a bit less than a light fighter.</summary>
@@ -18,4 +22,8 @@ public partial class ChaffSpec : Resource
     [Export] public float LifeSeconds = 5f;
     /// <summary>m/s: how fast the strips drift apart.</summary>
     [Export] public float SpreadSpeed = 4f;
+
+    public override string About => "Chaff: a cloud of foil a radar's tracker may take for you";
+
+    public override string Details => $"Echo {PeakCrossSection:0.#} m²   Lasts {LifeSeconds:0} s";
 }

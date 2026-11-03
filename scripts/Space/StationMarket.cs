@@ -76,15 +76,14 @@ public sealed class ArmsOffer
 {
     public string Id { get; set; }
     public string Name { get; set; }
-    public bool HeatSeeker { get; set; }
+    /// <summary>What it is for, and what it can do in figures (<see cref="Outfit.About"/>, <see cref="Outfit.Details"/>).</summary>
+    public string About { get; set; } = "";
+    public string Details { get; set; } = "";
     public int Stock { get; set; }
     /// <summary>What the next one costs (-1: none to sell).</summary>
     public long Price { get; set; }
     public int Aboard { get; set; }
     public int Rack { get; set; }
-    public float Damage { get; set; }
-    public float DeltaV { get; set; }
-    public float Acceleration { get; set; }
     /// <summary>The good its factory makes it of, and the tonnes of it the station has.</summary>
     public string MadeOf { get; set; } = "";
     public int MadeOfStock { get; set; }
@@ -306,7 +305,6 @@ public partial class StationMarket : Node
         Market.Advance(station, Goods, state.Clock, Outfits);
         Node3D ship = universe.ShipOf(pilotId);
         bool docked = Radio.DockedHere(ship);
-        int rack = Universe.RackSize(pilot);
         string message = Outfits.Length == 0 ? NoArmsText : "";
         bool changed = false;
         if (request.Do == MarketRequest.Buy)
@@ -320,7 +318,7 @@ public partial class StationMarket : Node
                 message = RefusedText;
             else
             {
-                Market.Result result = Market.BuyOutfit(station, line, pilot, request.Tonnes, rack, out int bought, out long paid);
+                Market.Result result = Market.BuyOutfit(station, line, pilot, request.Tonnes, Universe.RackSize(pilot, line.Item), out int bought, out long paid);
                 message = bought > 0 ? string.Format(LoadedText, bought, line.Item.Model, paid) : Why(result);
                 changed = bought > 0;
             }
@@ -335,10 +333,11 @@ public partial class StationMarket : Node
         {
             double stock = station.Stock.GetValueOrDefault(line.Id);
             double input = line.Input != null ? station.Stock.GetValueOrDefault(line.Input.Id) : 0;
+            int rack = Universe.RackSize(pilot, line.Item);
             view.Offers.Add(new ArmsOffer
             {
-                Id = line.Id, Name = line.Item.Model, HeatSeeker = line.Item.HeatSeeker, Stock = (int)stock, Price = Market.OutfitPrice(line, stock),
-                Aboard = pilot.Ship.Rack(line.Id, rack), Rack = rack, Damage = line.Item.Damage, DeltaV = line.Item.DeltaV, Acceleration = line.Item.MaxAcceleration,
+                Id = line.Id, Name = line.Item.Model, About = line.Item.About, Details = line.Item.Details,
+                Stock = (int)stock, Price = Market.OutfitPrice(line, stock), Aboard = pilot.Ship.Rack(line.Id, rack), Rack = rack,
                 MadeOf = line.Input?.Name ?? "", MadeOfStock = (int)input,
                 Starved = line.Input != null && stock < line.Stock && input < line.InputPerUnit,
             });

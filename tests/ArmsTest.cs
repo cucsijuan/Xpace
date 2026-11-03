@@ -11,12 +11,15 @@ namespace Xpace.Tests;
 
 /// <summary>
 /// The first chain: Kestrel's iron, carried to the station, is what the station's factory makes missiles of, and a
-/// pilot who fired theirs buys more. In the game's main scene:
+/// pilot who fired theirs buys more; chaff and flares, made of the station's metals, are bought the same way. In the
+/// game's main scene:
 ///
 ///   - the rules: the factory makes what the dealer lacks, using iron up, and stops with none;
 ///   - a new ship comes loaded; a heat seeker fired leaves one fewer, in the pilot's record, and docking doesn't bring it back;
+///     the same for chaff and flares thrown;
 ///   - at the arms kiosk, its own window, apart from the market: buying loads the ship and takes the money, and
-///     the dealer has one fewer; no more than the rack takes or the money pays for; only docked;
+///     the dealer has one fewer; no more than the rack takes or the money pays for; only docked; chaff and flares
+///     are sold there too, filling the dispenser;
 ///   - with the iron gone and the stock sold there are no more to buy, until a hold of iron sold to the market lets
 ///     the factory start again;
 ///   - the ship blown up, the insurer's new ship comes loaded again; a station with no factory sells none.
@@ -26,7 +29,7 @@ namespace Xpace.Tests;
 /// </summary>
 public partial class ArmsTest : Node
 {
-    private const string Heat = "ir_1", Radar = "msl_1";
+    private const string Heat = "ir_1", Radar = "msl_1", Chaff = "chaff_1", Flare = "flare_1";
 
     private int _failures;
     private ShipBody _ship;
@@ -42,6 +45,7 @@ public partial class ArmsTest : Node
         _ship = main.Ship;
         var radio = _ship.GetNode<RadioDevice>("Radio");
         var launcher = _ship.GetNode<LauncherDevice>("Launcher");
+        var dispenser = _ship.Device<DispenserDevice>();
         var station = main.Sector.GetNode<Node3D>("Station");
         var market = station.GetNode<StationMarket>("Market");
         HangarDock dock = station.GetNode("HangarBig1").GetNode<HangarDock>("Dock");
@@ -51,6 +55,9 @@ public partial class ArmsTest : Node
         Check("the computer boots", await Until(() => _ship.Computer.ScreenText().Contains("Radio resident"), 90));
         int rack = _ship.Spec.MissileRack;
         Check($"a new ship comes loaded ({launcher.MissilesLeft} radar, {launcher.HeatSeekersLeft} heat)", launcher.MissilesLeft == rack && launcher.HeatSeekersLeft == rack);
+        int chaffRack = _ship.Spec.Dispenser.Chaff, flareRack = _ship.Spec.Dispenser.Flares;
+        Check($"its dispenser is the hull's, full ({dispenser.ChaffLeft}/{chaffRack} chaff, {dispenser.FlaresLeft}/{flareRack} flares)",
+              chaffRack > 0 && flareRack > 0 && dispenser.ChaffLeft == chaffRack && dispenser.FlaresLeft == flareRack);
 
         ArmsView early = market.ServeArms(me.Id, Buy(market, Heat, 1));
         Check($"not docked, nothing is sold ({early.Message})", early.Message == market.NotDockedText);
@@ -63,6 +70,10 @@ public partial class ArmsTest : Node
         await Seconds(0.2);
         Check($"two heat seekers fired, two fewer, in the pilot's record ({launcher.HeatSeekersLeft})",
               launcher.Launched == 2 && launcher.HeatSeekersLeft == rack - 2 && me.Ship.Rack(Heat, rack) == rack - 2);
+        _ship.Computer.Bus.Out(DispenserDevice.Slot, 4, 3);
+        dispenser.AfterStep(_ship, 0);
+        Check($"a bundle of chaff and a flare thrown, one fewer of each, in the record ({dispenser.ChaffLeft}, {dispenser.FlaresLeft})",
+              dispenser.ChaffLeft == chaffRack - 1 && dispenser.FlaresLeft == flareRack - 1 && me.Ship.Rack(Chaff, chaffRack) == chaffRack - 1 && me.Ship.Rack(Flare, flareRack) == flareRack - 1);
 
         radio.AskDocking();
         await Until(() => radio.Dock == dock.Number && radio.Pad != 0, 5);
@@ -70,7 +81,8 @@ public partial class ArmsTest : Node
         Place(pad.GlobalTransform * pad.Rest(_ship).TranslatedLocal(new Vector3(0, 1, 0)));
         Check("docked", await Until(() => market.Radio.DockedHere(_ship), (float)pad.SettleSeconds + 3));
         await Seconds(0.2);
-        Check($"docking gives no missiles back ({launcher.HeatSeekersLeft})", launcher.HeatSeekersLeft == rack - 2);
+        Check($"docking gives no missiles back ({launcher.HeatSeekersLeft}), nor chaff or flares ({dispenser.ChaffLeft}, {dispenser.FlaresLeft})",
+              launcher.HeatSeekersLeft == rack - 2 && dispenser.ChaffLeft == chaffRack - 1 && dispenser.FlaresLeft == flareRack - 1);
 
         Input.ParseInputEvent(new InputEventAction { Action = OnFootInput.LeaveSeat, Pressed = true });
         await Seconds(0.1);
@@ -85,7 +97,7 @@ public partial class ArmsTest : Node
         kiosk.Use(walker);
         await Seconds(0.3);
         var window = kiosk.Window as ArmsWindow;
-        Check("the arms kiosk opens its own window", window?.View != null && window.View.Offers.Count == 2);
+        Check("the arms kiosk opens its own window", window?.View != null && window.View.Offers.Count == 4);
         if (window == null || window.View == null)
         {
             Finish();
@@ -106,6 +118,17 @@ public partial class ArmsTest : Node
         window.Ask(MarketRequest.Buy, Heat, 1);
         await Seconds(0.2);
         Check($"a full rack takes none ({window.View.Message})", window.View.Message == market.RackFullText);
+
+        ArmsOffer chaff = window.View.Offers.First(o => o.Id == Chaff), flare = window.View.Offers.First(o => o.Id == Flare);
+        Check($"chaff and flares are on sale, for the dispenser ({chaff.Aboard}/{chaff.Rack} at {chaff.Price}, {flare.Aboard}/{flare.Rack} at {flare.Price}; {chaff.About})",
+              chaff.Rack == chaffRack && chaff.Aboard == chaffRack - 1 && flare.Rack == flareRack && chaff.Price > 0 && flare.Price > 0 && chaff.About.Length > 0);
+        before = me.Credits;
+        window.Ask(MarketRequest.Buy, Chaff, chaffRack);
+        await Seconds(0.2);
+        window.Ask(MarketRequest.Buy, Flare, flareRack);
+        await Seconds(0.2);
+        Check($"filling them loads the dispenser and takes the money ({dispenser.ChaffLeft}, {dispenser.FlaresLeft}, {before - me.Credits} cr; {window.View.Message})",
+              dispenser.ChaffLeft == chaffRack && dispenser.FlaresLeft == flareRack && before - me.Credits == chaff.Price + flare.Price);
         Shot();
 
         me.Ship.Magazine[Radar] = 0;
@@ -142,7 +165,8 @@ public partial class ArmsTest : Node
         universe.Lose(_ship);
         launcher.Rearm();
         await Seconds(0.1);
-        Check($"the insurer's new ship comes loaded ({launcher.MissilesLeft}, {launcher.HeatSeekersLeft})", launcher.MissilesLeft == rack && launcher.HeatSeekersLeft == rack);
+        Check($"the insurer's new ship comes loaded ({launcher.MissilesLeft}, {launcher.HeatSeekersLeft}; {dispenser.ChaffLeft}, {dispenser.FlaresLeft})",
+              launcher.MissilesLeft == rack && launcher.HeatSeekersLeft == rack && dispenser.ChaffLeft == chaffRack && dispenser.FlaresLeft == flareRack);
 
         Finish();
     }

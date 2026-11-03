@@ -6,13 +6,13 @@ namespace Xpace.Space;
 /// A model of missile (a .tres per model, in assets/weapons/missiles): what it can do. What it decides to do is its firmware's.
 /// </summary>
 [GlobalClass]
-public partial class MissileSpec : Resource
+public partial class MissileSpec : Outfit
 {
-    /// <summary>The model's name, as a program or a fittings list shows it.</summary>
-    [Export] public string Model = "MSL";
-
-    /// <summary>What it costs where the market has the stock it wants.</summary>
-    [Export] public long Price = 800;
+    public MissileSpec()
+    {
+        Model = "MSL";
+        Price = 800;
+    }
 
     [ExportGroup("Motor")]
     /// <summary>m/s the fuel gives in all.</summary>
@@ -53,4 +53,8 @@ public partial class MissileSpec : Resource
     [Export] public float SeekerSlewDegrees = 60f;
     /// <summary>How far off the nose it can look.</summary>
     [Export] public float GimbalLimitDegrees = 50f;
+
+    public override string About => HeatSeeker ? "Heat seeker: guides itself, needs no lock" : "Radar guided: needs your radar's lock all the way";
+
+    public override string Details => $"Warhead {Damage:0}   Turns at {MaxAcceleration:0} m/s²   Fuel {DeltaV:0} m/s";
 }

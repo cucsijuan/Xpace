@@ -15,6 +15,7 @@ public partial class ChaffCloud : Node3D, IRadarTarget, IDropped
     /// <summary>The model.</summary>
     [Export] public ChaffSpec Spec;
     private ChaffSpec S => Spec ??= new ChaffSpec();
+    public Outfit Item => S;
 
     public float PeakCrossSection => S.PeakCrossSection;
     public float BloomSeconds => S.BloomSeconds;

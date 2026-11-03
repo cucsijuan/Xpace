@@ -66,6 +66,8 @@ public partial class ShipSpec : Resource
 
     /// <summary>Missiles of each model the hull's launcher carries when the ship has a pilot's record (its magazine).</summary>
     [Export] public int MissileRack = 4;
+    /// <summary>The countermeasures dispenser it comes with: how much chaff and how many flares it holds.</summary>
+    [Export] public DispenserSpec Dispenser;
 
     /// <summary>Tonnes the racks hold (a rack too big for its compartment isn't fitted, and holds nothing).</summary>
     public int CargoCapacity

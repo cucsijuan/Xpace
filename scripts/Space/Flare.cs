@@ -15,6 +15,7 @@ public partial class Flare : Node3D, IHeatSource, IDropped
     /// <summary>The model.</summary>
     [Export] public FlareSpec Spec;
     private FlareSpec S => Spec ??= new FlareSpec();
+    public Outfit Item => S;
 
     public float PeakHeat => S.PeakHeat;
     public float IgniteSeconds => S.IgniteSeconds;

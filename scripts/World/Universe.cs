@@ -231,18 +231,30 @@ public partial class Universe : Node
     }
 
     /// <summary>How many missiles of each model the pilot's hull carries.</summary>
-    public static int RackSize(PilotRecord pilot) =>
-        ResourceLoader.Exists(pilot.Ship.Hull) && GD.Load<ShipSpec>(pilot.Ship.Hull) is ShipSpec spec ? spec.MissileRack : 0;
+    public static int RackSize(PilotRecord pilot) => Hull(pilot)?.MissileRack ?? 0;
+
+    /// <summary>How many of <paramref name="item"/> the pilot's hull carries: missiles in its launcher, chaff and flares in its dispenser.</summary>
+    public static int RackSize(PilotRecord pilot, Outfit item) => item switch
+    {
+        MissileSpec => RackSize(pilot),
+        ChaffSpec => Hull(pilot)?.Dispenser?.Chaff ?? 0,
+        FlareSpec => Hull(pilot)?.Dispenser?.Flares ?? 0,
+        _ => 0,
+    };
+
+    private static ShipSpec Hull(PilotRecord pilot) =>
+        ResourceLoader.Exists(pilot.Ship.Hull) ? GD.Load<ShipSpec>(pilot.Ship.Hull) : null;
 
     /// <summary>
-    /// A player's ship let a missile go. The guest who fired counts it at once on its copy of the record; the host hears
-    /// of it from the missile itself, and what it then sends puts the record right.
+    /// A player's ship let one of <paramref name="item"/> go: a missile launched, chaff or a flare thrown. The guest who
+    /// did counts it at once on its copy of the record; the host hears of it from the thing itself, and what it then
+    /// sends puts the record right.
     /// </summary>
-    public void Fired(Node3D ship, string model)
+    public void Fired(Node3D ship, Outfit item)
     {
-        if (string.IsNullOrEmpty(model) || RecordOf(ship) is not PilotRecord pilot)
+        if (item?.Id is not string model || RecordOf(ship) is not PilotRecord pilot)
             return;
-        pilot.Ship.Magazine[model] = Math.Max(0, pilot.Ship.Rack(model, RackSize(pilot)) - 1);
+        pilot.Ship.Magazine[model] = Math.Max(0, pilot.Ship.Rack(model, RackSize(pilot, item)) - 1);
         if (!IsGuest)
             Touch(pilot);
     }
