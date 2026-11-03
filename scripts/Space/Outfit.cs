@@ -15,6 +15,9 @@ public partial class Outfit : Resource
     /// <summary>What it costs where the market has the stock it wants.</summary>
     [Export] public long Price = 100;
 
+    /// <summary>How many one Buy at the dealer takes (rounds come in boxes).</summary>
+    [Export] public int Lot = 1;
+
     /// <summary>Its id in records and requests: the file's name (none for one made in code).</summary>
     public string Id => string.IsNullOrEmpty(ResourcePath) ? null : ResourcePath.GetFile().GetBaseName();
 

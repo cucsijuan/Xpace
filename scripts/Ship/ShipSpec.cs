@@ -68,6 +68,8 @@ public partial class ShipSpec : Resource
     [Export] public int MissileRack = 4;
     /// <summary>The countermeasures dispenser it comes with: how much chaff and how many flares it holds.</summary>
     [Export] public DispenserSpec Dispenser;
+    /// <summary>The gun turret it comes with (none: it has none, or its turret is its own), and so its magazine.</summary>
+    [Export] public TurretSpec Turret;
 
     /// <summary>Tonnes the racks hold (a rack too big for its compartment isn't fitted, and holds nothing).</summary>
     public int CargoCapacity

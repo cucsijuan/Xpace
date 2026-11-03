@@ -11,8 +11,10 @@ namespace Xpace.Tests;
 /// <summary>
 /// FIRECTL's page on the WEAPON screen: the name of the weapon fills at least
 /// a third of the screen and changes with it; the slot under it shows the
-/// missiles left, NO AMMO in the screen's red with none, or the heat of the
-/// gun and the laser, red when too hot; the distance appears with a lock.
+/// missiles left, NO AMMO in the screen's red with none, the cannon's rounds
+/// with a short bar of its heat beside them, or the laser's heat, red when
+/// too hot; the distance appears with a lock. The cannon fires only the
+/// rounds its magazine holds.
 ///
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/weapon_page_test.tscn
 /// XPACE_PAGE_SHOTS=dir writes the pictures. Exits with 0 if every check passed.
@@ -24,6 +26,8 @@ public partial class WeaponPageTest : Node3D
     private RadarDevice _radar;
     private LaserDevice _laser;
     private LauncherDevice _launcher;
+    private TurretDevice _turret;
+    private const int Rounds = 5;
     private DisplayDevice _display;
     private Drone _drone;
     private PilotControls _controls;
@@ -44,7 +48,12 @@ public partial class WeaponPageTest : Node3D
             },
         };
         _ship.AddChild(_display);
-        _ship.AddChild(new TurretDevice { Name = "Turret", Position = new Vector3(0.9f, 0.8f, -3f) });
+        _turret = new TurretDevice
+        {
+            Name = "Turret", Position = new Vector3(0.9f, 0.8f, -3f),
+            Spec = new TurretSpec { Ammunition = new AmmoSpec(), Rounds = Rounds },
+        };
+        _ship.AddChild(_turret);
         _radar = new RadarDevice { Name = "Radar", Position = new Vector3(0, 0.5f, -5f), TrackOriginPath = "../Turret" };
         _ship.AddChild(_radar);
         _launcher = new LauncherDevice
@@ -126,11 +135,39 @@ public partial class WeaponPageTest : Node3D
         Check("next weapon goes back to the gun", FireControl.Weapon(_ship) == "GUN");
         await Seconds(0.3);
         Check("with the name it had", Name() == gun);
+        Check("its rounds in the slot", FireControl.Count(_display, 2, SlotTop, SlotBottom) > 30);
+        Check("with the frame of its heat beside them", FireControl.Count(_display, 1, SlotTop, SlotBottom) > 40);
+        Check("and nothing in red", FireControl.Count(_display, 3, SlotTop, SlotBottom) == 0);
+        Shot("gun_rounds");
+
+        _controls.Trigger = true;
+        Check($"held down on the target, it fires all the magazine holds ({_turret.RoundsFired})", await Until(() => _turret.RoundsFired == Rounds, 5));
+        await Seconds(1);
+        _controls.Trigger = false;
+        Check($"and no more ({_turret.RoundsFired}, {_turret.RoundsLeft} left)", _turret.RoundsFired == Rounds && _turret.RoundsLeft == 0);
+        Check($"the turret says so: not ready, no rounds (status {_ship.Computer.Bus[TurretDevice.Slot, 13]})",
+              (_ship.Computer.Bus[TurretDevice.Slot, 13] & 9) == 8);
+        Check($"its magazine in memory: 0 of {Rounds}", Magazine(0) == 0 && Magazine(2) == Rounds);
+        Check("NO AMMO in red", await Until(() => FireControl.Count(_display, 3, SlotTop, SlotBottom) > 200, 1));
+        Shot("gun_none");
+
+        _turret.Rearm();
+        bool clean = await Until(() => FireControl.Count(_display, 3, SlotTop, SlotBottom) == 0, 1);
+        await Seconds(0.2);
+        Check($"a full magazine again: its rounds, and no red (red {FireControl.Count(_display, 3, SlotTop, SlotBottom)}, bright {FireControl.Count(_display, 2, SlotTop, SlotBottom)}, dim {FireControl.Count(_display, 1, SlotTop, SlotBottom)})",
+              clean && FireControl.Count(_display, 2, SlotTop, SlotBottom) > 30 && FireControl.Count(_display, 1, SlotTop, SlotBottom) > 40);
+        Shot("gun_rearmed");
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GetTree().Quit(_failures == 0 ? 0 : 1);
+    }
+
+    private unsafe int Magazine(int offset)
+    {
+        byte* at = _ship.Computer.Memory + ShipMemory.Base + ShipMemory.Turret + offset;
+        return at[0] | at[1] << 8;
     }
 
     /// <summary>The pixels of the weapon's name, as a string to compare.</summary>

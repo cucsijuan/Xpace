@@ -84,6 +84,8 @@ public sealed class ArmsOffer
     public long Price { get; set; }
     public int Aboard { get; set; }
     public int Rack { get; set; }
+    /// <summary>How many one Buy takes (<see cref="Outfit.Lot"/>).</summary>
+    public int Lot { get; set; } = 1;
     /// <summary>The good its factory makes it of, and the tonnes of it the station has.</summary>
     public string MadeOf { get; set; } = "";
     public int MadeOfStock { get; set; }
@@ -338,6 +340,7 @@ public partial class StationMarket : Node
             {
                 Id = line.Id, Name = line.Item.Model, About = line.Item.About, Details = line.Item.Details,
                 Stock = (int)stock, Price = Market.OutfitPrice(line, stock), Aboard = pilot.Ship.Rack(line.Id, rack), Rack = rack,
+                Lot = System.Math.Max(1, line.Item.Lot),
                 MadeOf = line.Input?.Name ?? "", MadeOfStock = (int)input,
                 Starved = line.Input != null && stock < line.Stock && input < line.InputPerUnit,
             });

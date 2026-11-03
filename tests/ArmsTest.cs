@@ -11,15 +11,15 @@ namespace Xpace.Tests;
 
 /// <summary>
 /// The first chain: Kestrel's iron, carried to the station, is what the station's factory makes missiles of, and a
-/// pilot who fired theirs buys more; chaff and flares, made of the station's metals, are bought the same way. In the
-/// game's main scene:
+/// pilot who fired theirs buys more; chaff, flares and the cannon's rounds, made of the station's metals, are bought
+/// the same way. In the game's main scene:
 ///
 ///   - the rules: the factory makes what the dealer lacks, using iron up, and stops with none;
 ///   - a new ship comes loaded; a heat seeker fired leaves one fewer, in the pilot's record, and docking doesn't bring it back;
-///     the same for chaff and flares thrown;
+///     the same for chaff and flares thrown and cannon rounds fired;
 ///   - at the arms kiosk, its own window, apart from the market: buying loads the ship and takes the money, and
 ///     the dealer has one fewer; no more than the rack takes or the money pays for; only docked; chaff and flares
-///     are sold there too, filling the dispenser;
+///     are sold there too, filling the dispenser, and rounds by the box, filling the turret's magazine;
 ///   - with the iron gone and the stock sold there are no more to buy, until a hold of iron sold to the market lets
 ///     the factory start again;
 ///   - the ship blown up, the insurer's new ship comes loaded again; a station with no factory sells none.
@@ -29,7 +29,7 @@ namespace Xpace.Tests;
 /// </summary>
 public partial class ArmsTest : Node
 {
-    private const string Heat = "ir_1", Radar = "msl_1", Chaff = "chaff_1", Flare = "flare_1";
+    private const string Heat = "ir_1", Radar = "msl_1", Chaff = "chaff_1", Flare = "flare_1", Ammo = "rounds_1";
 
     private int _failures;
     private ShipBody _ship;
@@ -46,6 +46,7 @@ public partial class ArmsTest : Node
         var radio = _ship.GetNode<RadioDevice>("Radio");
         var launcher = _ship.GetNode<LauncherDevice>("Launcher");
         var dispenser = _ship.Device<DispenserDevice>();
+        var turret = _ship.Device<TurretDevice>();
         var station = main.Sector.GetNode<Node3D>("Station");
         var market = station.GetNode<StationMarket>("Market");
         HangarDock dock = station.GetNode("HangarBig1").GetNode<HangarDock>("Dock");
@@ -58,6 +59,8 @@ public partial class ArmsTest : Node
         int chaffRack = _ship.Spec.Dispenser.Chaff, flareRack = _ship.Spec.Dispenser.Flares;
         Check($"its dispenser is the hull's, full ({dispenser.ChaffLeft}/{chaffRack} chaff, {dispenser.FlaresLeft}/{flareRack} flares)",
               chaffRack > 0 && flareRack > 0 && dispenser.ChaffLeft == chaffRack && dispenser.FlaresLeft == flareRack);
+        int magazine = _ship.Spec.Turret.Rounds;
+        Check($"and its turret's magazine, full ({turret.RoundsLeft}/{magazine})", magazine > 0 && turret.RoundsLeft == magazine);
 
         ArmsView early = market.ServeArms(me.Id, Buy(market, Heat, 1));
         Check($"not docked, nothing is sold ({early.Message})", early.Message == market.NotDockedText);
@@ -74,6 +77,9 @@ public partial class ArmsTest : Node
         dispenser.AfterStep(_ship, 0);
         Check($"a bundle of chaff and a flare thrown, one fewer of each, in the record ({dispenser.ChaffLeft}, {dispenser.FlaresLeft})",
               dispenser.ChaffLeft == chaffRack - 1 && dispenser.FlaresLeft == flareRack - 1 && me.Ship.Rack(Chaff, chaffRack) == chaffRack - 1 && me.Ship.Rack(Flare, flareRack) == flareRack - 1);
+        _ship.Computer.Bus.Out(TurretDevice.Slot, 12, 1);
+        turret.AfterStep(_ship, 1.0 / 60);
+        Check($"a round fired, one fewer in the record ({turret.RoundsLeft})", turret.RoundsFired == 1 && turret.RoundsLeft == magazine - 1 && me.Ship.Rack(Ammo, magazine) == magazine - 1);
 
         radio.AskDocking();
         await Until(() => radio.Dock == dock.Number && radio.Pad != 0, 5);
@@ -97,7 +103,7 @@ public partial class ArmsTest : Node
         kiosk.Use(walker);
         await Seconds(0.3);
         var window = kiosk.Window as ArmsWindow;
-        Check("the arms kiosk opens its own window", window?.View != null && window.View.Offers.Count == 4);
+        Check("the arms kiosk opens its own window", window?.View != null && window.View.Offers.Count == 5);
         if (window == null || window.View == null)
         {
             Finish();
@@ -129,6 +135,21 @@ public partial class ArmsTest : Node
         await Seconds(0.2);
         Check($"filling them loads the dispenser and takes the money ({dispenser.ChaffLeft}, {dispenser.FlaresLeft}, {before - me.Credits} cr; {window.View.Message})",
               dispenser.ChaffLeft == chaffRack && dispenser.FlaresLeft == flareRack && before - me.Credits == chaff.Price + flare.Price);
+
+        me.Ship.Magazine[Ammo] = 0;
+        window.Ask(MarketRequest.Look, null, 0);
+        await Seconds(0.2);
+        ArmsOffer rounds = window.View.Offers.First(o => o.Id == Ammo);
+        Check($"rounds are sold by the box ({rounds.Lot} at {rounds.Price} each, {rounds.Aboard}/{rounds.Rack} aboard)",
+              rounds.Lot > 1 && rounds.Rack == magazine && rounds.Aboard == 0 && rounds.Price > 0 && turret.RoundsLeft == 0);
+        before = me.Credits;
+        window.Ask(MarketRequest.Buy, Ammo, rounds.Lot);
+        await Seconds(0.2);
+        Check($"a box fills the magazine that much ({turret.RoundsLeft}, {before - me.Credits} cr; {window.View.Message})",
+              turret.RoundsLeft == rounds.Lot && before - me.Credits >= rounds.Price * rounds.Lot);
+        window.Ask(MarketRequest.Buy, Ammo, magazine);
+        await Seconds(0.2);
+        Check($"filling it, up to what it holds ({turret.RoundsLeft})", turret.RoundsLeft == magazine);
         Shot();
 
         me.Ship.Magazine[Radar] = 0;
@@ -162,11 +183,13 @@ public partial class ArmsTest : Node
         window.Close();
         await Seconds(0.1);
 
+        me.Ship.Magazine[Ammo] = 3;
         universe.Lose(_ship);
         launcher.Rearm();
         await Seconds(0.1);
         Check($"the insurer's new ship comes loaded ({launcher.MissilesLeft}, {launcher.HeatSeekersLeft}; {dispenser.ChaffLeft}, {dispenser.FlaresLeft})",
-              launcher.MissilesLeft == rack && launcher.HeatSeekersLeft == rack && dispenser.ChaffLeft == chaffRack && dispenser.FlaresLeft == flareRack);
+              launcher.MissilesLeft == rack && launcher.HeatSeekersLeft == rack && dispenser.ChaffLeft == chaffRack && dispenser.FlaresLeft == flareRack
+              && turret.RoundsLeft == magazine);
 
         Finish();
     }

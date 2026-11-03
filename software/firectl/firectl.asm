@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.15 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.16 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -50,8 +50,8 @@
 ; (its entry's +9 not 0, as FLIGHT takes it to show a landing pad) the
 ; scope is left alone, and drawn afresh when the screen comes back) and
 ; a page on WEAPON (graphics, 112 x 160 or more, to be read at a glance: the
-; weapon's name, its rounds or its heat, the distance to the target, a word
-; on what is going on). Without them it works the same, unseen.
+; weapon's name, its rounds or its heat (the cannon's rounds with its heat
+; beside them), the distance to the target, a word on what is going on). Without them it works the same, unseen.
 ;
 ; The devices (16 ports each, words little-endian):
 ;
@@ -66,10 +66,12 @@
 ;                            locked, bit 1 a jammer's strobe: no range)
 ;           the track: +0 id  +2 right  +4 up  +6 forward (1/4 m, from the
 ;                            turret)  +8 SNR (dB)  +14 range (m)
-;   140h  turret             +0 type 5  +2 azimuth  +4 elevation wanted
-;                            +6 +8 now (65536 to the turn)  +10 muzzle speed
-;                            +12 fire (write 1)  +13 status (bit 2 too hot)
-;                            +15 rounds fired
+;   140h  turret             +0 type 5  +1 version  +2 azimuth  +4 elevation
+;                            wanted  +6 +8 now (65536 to the turn)  +10 muzzle
+;                            speed  +12 fire (write 1)  +13 status (bit 2 too
+;                            hot, 3 no rounds)  +14 heat  +15 rounds fired
+;           version 2, its magazine at D000:1B00: +0 rounds left (0FFFFh: a
+;                            mount that never runs out)  +2 how many it holds
 ;   150h  display card       +2 segment  +4 screen table  +6 screens
 ;                            +8 keys pressed so far  +9 the last key (1 zoom
 ;                            in, 2 zoom out)  +10 its screen
@@ -111,6 +113,8 @@ TYPE_DISPLAYS equ 6
 TYPE_LAUNCHER equ 7
 TYPE_LASER  equ 11
 TYPE_INTERDICTOR equ 21
+MAGAZINE_SEG equ 0D000h             ; the turret's magazine (version 2)
+MAGAZINE    equ 1B00h
 IRQ_VECTOR  equ 0Dh
 IRQ_BIT     equ 20h
 
@@ -148,6 +152,8 @@ STATUS_Y    equ 145
 SMALL_HEIGHT equ 13
 BAR_LEFT    equ 4                   ; the heat bar inside the slot
 BAR_WIDTH   equ 104
+GAUGE_WIDTH equ 22                  ; the cannon's heat beside its rounds, up the left of the slot
+GAUGE_HEIGHT equ SLOT_HEIGHT - 4
 MID_CELL    equ 14                  ; a digit's width
 VALUE_LEFT  equ 32                  ; five of them and their gaps, to the right
 INK_DIM     equ 55h                 ; the screen's three colours, four pixels of each
@@ -160,7 +166,7 @@ INK_RED     equ 0FFh
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPFC15'             ; 103h
+signature   db 'XPFC16'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 weapon      db 0                    ; 10Dh  0 the cannon, 1 radar missiles, 2 heat seekers, 3 the laser
 cpu_load    db 0                    ; 10Eh  % of the processor it took, last time it drew
@@ -1378,7 +1384,13 @@ draw_frame:
 
     mov si, s_ammo                  ; what the slot under the name shows
     cmp byte [weapon], 0
-    je .bar
+    jne .not_gun
+    call rounds_in_magazine         ; a cannon with a magazine: its rounds, its heat beside them
+    mov si, s_ammo
+    cmp ax, 0FFFFh
+    jne .slot
+    jmp .bar
+.not_gun:
     cmp byte [weapon], WEAPON_LASER
     jne .slot
 .bar:
@@ -1410,6 +1422,7 @@ draw_frame:
     call draw_string
 
     mov word [shown_slot], 0FFFFh   ; nothing of what comes is on the page yet
+    mov word [shown_heat], 0FFFFh
     mov word [page_status], 0
     mov ax, 2020h
     mov [shown_ammo], ax
@@ -1421,15 +1434,70 @@ draw_frame:
     pop es
     ret
 
-; The slot under the name: a missile's rounds, or the heat of the rest
+; The slot under the name: a missile's rounds, the cannon's rounds and its
+; heat, or the laser's heat
 put_slot:
-    cmp byte [weapon], 0
-    je .gun
     cmp byte [weapon], WEAPON_LASER
     je .laser
-
+    cmp byte [weapon], 0
+    je .gun
     call missiles_left
     xor ah, ah
+    jmp put_count
+
+.gun:
+    mov dx, TURRET + 13
+    in al, dx
+    mov [turret_status], al
+    call rounds_in_magazine
+    cmp ax, 0FFFFh                  ; a mount that never runs out: its heat, as the laser's
+    je .gun_heat
+    call put_count
+    cmp word [shown_slot], 0        ; none left: the slot says NO AMMO
+    je .done
+    jmp put_gauge
+.done:
+    ret
+
+.laser:
+    mov dx, LASER + 2               ; its status: bit 2 too hot, as the turret's
+    in al, dx
+    mov [turret_status], al
+    mov dx, LASER + 3
+    jmp .heat
+.gun_heat:
+    mov dx, TURRET + 14
+.heat:
+    in al, dx
+    mov cl, BAR_WIDTH
+    mul cl                          ; AH = the pixels lit: heat * width / 256
+    mov al, [turret_status]
+    and al, 4                       ; and too hot or not
+    cmp ax, [shown_slot]
+    je .done
+    mov [shown_slot], ax
+    mov bl, ah
+    xor bh, bh
+    mov ah, INK_BRIGHT
+    test al, al
+    jz .ink
+    mov ah, INK_RED
+.ink:
+    mov al, ah
+    mov si, bx
+    mov cx, BAR_LEFT
+    mov dx, SLOT_Y + 2
+    mov bp, SLOT_HEIGHT - 4
+    call fill_rect
+    add cx, si
+    mov ax, BAR_WIDTH
+    sub ax, si
+    mov si, ax
+    xor al, al
+    jmp fill_rect
+
+; The slot shows AX rounds, or NO AMMO in red with none
+put_count:
     cmp ax, [shown_slot]
     je .done
     cmp word [shown_slot], 0        ; 'NO AMMO' is wider than the numbers' place
@@ -1463,26 +1531,37 @@ put_slot:
 .done:
     ret
 
-.laser:
-    mov dx, LASER + 2               ; its status: bit 2 too hot, as the turret's
-    in al, dx
-    mov [turret_status], al
-    mov dx, LASER + 3
-    jmp .heat
-.gun:
-    mov dx, TURRET + 13
-    in al, dx
-    mov [turret_status], al
+; The cannon's heat beside its rounds: a short bar up the left of the slot,
+; filling from the bottom, red when too hot
+put_gauge:
     mov dx, TURRET + 14
-.heat:
     in al, dx
-    mov cl, BAR_WIDTH
-    mul cl                          ; AH = the pixels lit: heat * width / 256
+    mov cl, GAUGE_HEIGHT
+    mul cl                          ; AH = the rows lit
     mov al, [turret_status]
-    and al, 4                       ; and too hot or not
-    cmp ax, [shown_slot]
+    and al, 4
+    cmp ax, [shown_heat]
     je .done
-    mov [shown_slot], ax
+    cmp word [shown_heat], 0FFFFh   ; the slot was cleared: its frame first
+    mov [shown_heat], ax
+    jne .fill
+    push ax
+    mov al, INK_DIM
+    mov cx, PAGE_LEFT
+    mov si, GAUGE_WIDTH
+    mov bp, 1
+    mov dx, SLOT_Y
+    call fill_rect
+    mov dx, SLOT_Y + SLOT_HEIGHT - 1
+    call fill_rect
+    mov si, 1
+    mov bp, SLOT_HEIGHT
+    mov dx, SLOT_Y
+    call fill_rect
+    mov cx, PAGE_LEFT + GAUGE_WIDTH - 1
+    call fill_rect
+    pop ax
+.fill:
     mov bl, ah
     xor bh, bh
     mov ah, INK_BRIGHT
@@ -1490,20 +1569,44 @@ put_slot:
     jz .ink
     mov ah, INK_RED
 .ink:
-    mov al, ah
-    mov si, bx
-    mov cx, BAR_LEFT
+    mov cx, PAGE_LEFT + 2
+    mov si, GAUGE_WIDTH - 4
     mov dx, SLOT_Y + 2
-    mov bp, SLOT_HEIGHT - 4
-    call fill_rect
-    add cx, si
-    mov ax, BAR_WIDTH
-    sub ax, si
-    mov si, ax
+    mov bp, GAUGE_HEIGHT
+    sub bp, bx                      ; the dark rows above
+    jz .lit
+    push ax
     xor al, al
+    call fill_rect
+    pop ax
+.lit:
+    add dx, bp
+    mov bp, bx
+    test bp, bp
+    jz .done
+    mov al, ah
     jmp fill_rect
+.done:
+    ret
+
+; AX = the cannon's rounds left; 0FFFFh for a turret with no magazine
+; (version 1) or a mount that never runs out
+rounds_in_magazine:
+    mov dx, TURRET + 1
+    in al, dx
+    cmp al, 2
+    mov ax, 0FFFFh
+    jb .done
+    push ds
+    mov ax, MAGAZINE_SEG
+    mov ds, ax
+    mov ax, [MAGAZINE]
+    pop ds
+.done:
+    ret
 
 clear_slot:
+    mov word [shown_heat], 0FFFFh   ; whatever was beside it goes too
     mov cx, PAGE_LEFT - 1
     mov dx, SLOT_Y
     mov si, PAGE_WIDTH + 2
@@ -2162,6 +2265,7 @@ digits          db 0, 0, 0, 0, 0
 shown_ammo      db 0, 0, 0, 0, 0    ; what the page shows now
 shown_dist      db 0, 0, 0, 0, 0
 shown_slot      dw 0
+shown_heat      dw 0                ; the cannon's heat beside its rounds, as shown
 
 buttons         db 0
 pressed         db 0

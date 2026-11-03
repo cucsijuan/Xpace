@@ -497,7 +497,7 @@ COOL resident.
 <p>The tracker follows what is in its gate, a small cell of angle, range and Doppler round where the target was, moved on at the velocity it has been following. It measures the middle of all the echoes in it and keeps the lock on the strongest. Chaff that sits in the gate pulls the track toward itself and may take the lock; a repeater jammer can walk the gate away. A target lost at the edge of the cone or to a weak echo is taken back by itself if it is seen again within three seconds, near where the gate would be.</p>
 
 <h2 class="cmd">Gimballed Turret<span>140h &middot; type 5</span></h2>
-<p>A kinetic cannon on a gimbal under the ship. The program writes the angles it wants; servos turn the turret toward them, following how fast the asked-for angles move, within a top rate and an acceleration. Every round leaves a little off the bore, more when the barrel is hot, and kicks the mount.</p>
+<p>A kinetic cannon on a gimbal under the ship. The program writes the angles it wants; servos turn the turret toward them, following how fast the asked-for angles move, within a top rate and an acceleration. Every round leaves a little off the bore, more when the barrel is hot, and kicks the mount. It fires only the rounds its magazine holds; rounds are sold by the box at a station's arms dealer, and loaded straight into the magazine. Version 2.</p>
 <table class="ref">
 <tr><th>Register</th><th>Contents</th></tr>
 <tr><td>+2 word</td><td>Azimuth wanted (write; binary angle, 0 straight ahead)</td></tr>
@@ -506,9 +506,15 @@ COOL resident.
 <tr><td>+8 word</td><td>Elevation now</td></tr>
 <tr><td>+10 word</td><td>Muzzle speed (m/s)</td></tr>
 <tr><td>+12</td><td>Write 1: fire in this step</td></tr>
-<tr><td>+13</td><td>Status: bit 0 ready, bit 1 at a limit of the gimbal, bit 2 too hot to fire</td></tr>
+<tr><td>+13</td><td>Status: bit 0 ready, bit 1 at a limit of the gimbal, bit 2 too hot to fire, bit 3 no rounds left (version 2)</td></tr>
 <tr><td>+14</td><td>Barrel heat, 0 to 255</td></tr>
 <tr><td>+15</td><td>Rounds fired, counting up</td></tr>
+</table>
+<p>The magazine, in memory at D000:1B00 (version 2):</p>
+<table class="ref">
+<tr><th>Offset</th><th>Contents</th></tr>
+<tr><td>+0 word</td><td>Rounds left (0FFFFh: a mount that never runs out, as on a test bench)</td></tr>
+<tr><td>+2 word</td><td>Rounds the magazine holds</td></tr>
 </table>
 <p>The gun fires while the program writes +12 at every step. A round flies at the muzzle speed on top of the ship's own velocity; at 2 km it takes nearly two seconds to arrive, and a target that turns meanwhile is missed. Where to point is the program's to work out.</p>
 
@@ -797,7 +803,7 @@ COOL resident.
 <p>Buttons: flight assist, safe turns, parking, boost (the main engine's cooling boost).</p>
 
 <h2 class="cmd">FIRECTL<span>Fire control</span></h2>
-<p>Works the radar, the turret, the laser and the missile launcher. Target ahead locks the contact nearest the middle of the view, or lets the target go; next target locks the next one. With a target locked it smooths the radar's positions with an alpha-beta filter, which gives the target's velocity, and works out where a round fired now meets the target if it flies on straight; it points the turret there, or writes the laser's lead point. Next weapon steps through the cannon, the radar missiles, the heat seekers and the laser, as the ship has them. Its radar scope is on RADAR (left alone while another program has the screen). Its page on WEAPON, in graphics, is made to be read at a glance: the weapon's name in large letters; the rounds left, NO AMMO in red with none, or for the cannon and the laser a bar of their heat, red when too hot; the distance to the target; and a word on what is going on. About a third of the processor.</p>
+<p>Works the radar, the turret, the laser and the missile launcher. Target ahead locks the contact nearest the middle of the view, or lets the target go; next target locks the next one. With a target locked it smooths the radar's positions with an alpha-beta filter, which gives the target's velocity, and works out where a round fired now meets the target if it flies on straight; it points the turret there, or writes the laser's lead point. Next weapon steps through the cannon, the radar missiles, the heat seekers and the laser, as the ship has them. Its radar scope is on RADAR (left alone while another program has the screen). Its page on WEAPON, in graphics, is made to be read at a glance: the weapon's name in large letters; the rounds left, NO AMMO in red with none; for the cannon its rounds with a short bar of its heat beside them, for the laser a bar of its heat, red when too hot; the distance to the target; and a word on what is going on. About a third of the processor.</p>
 <p>Buttons: target ahead, next target, fire, next weapon.</p>
 
 <h2 class="cmd">RWR<span>Threat warning</span></h2>
@@ -1005,7 +1011,7 @@ msg_no_device   db 'COOL: no heat sink launcher on the bus.', 13, 10, '$'</pre>
 <tr><td>110h</td><td>Inertial unit: +2 +4 +6 pitch, roll, yaw rates; +8 +10 +12 speeds; +14 status</td></tr>
 <tr><td>120h</td><td>Thrusters: +2 to +12 commands (write); +14 take them / direct mode; +15 mode shown</td></tr>
 <tr><td>130h</td><td>Radar: +2 mode +3 contacts +4 sweeps +5 locked +6 lock id (write) +8 locked id +10 segment +12 table +14 track</td></tr>
-<tr><td>140h</td><td>Turret: +2 +4 wanted (write) +6 +8 now +10 muzzle speed +12 fire (write) +13 status +14 heat +15 rounds</td></tr>
+<tr><td>140h</td><td>Turret: +2 +4 wanted (write) +6 +8 now +10 muzzle speed +12 fire (write) +13 status +14 heat +15 rounds fired; magazine at D000:1B00</td></tr>
 <tr><td>150h</td><td>Display card: +2 segment +4 table +6 screens +7 of interest +8 keys +9 key +10 its screen</td></tr>
 <tr><td>200h</td><td>Radio: +2 contacts +3 updates +4 status +5 request (write) +6 its contact +7 messages +8 segment +10 table +12 laws +14 messages; the pad's guidance at D000:1900</td></tr>
 <tr><td>210h</td><td>Cargo hold: +2 capacity +4 carried +6 kinds +8 segment +10 list</td></tr>

@@ -1,4 +1,4 @@
-[gd_scene load_steps=43 format=3]
+[gd_scene load_steps=45 format=3]
 
 [ext_resource type="Script" path="res://scripts/Space/MediumMass.cs" id="medium_mass"]
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_01_ring_hangar.tscn" id="1_station_01_ring"]
@@ -32,6 +32,7 @@
 [ext_resource type="Resource" path="res://assets/weapons/missiles/ir_1.tres" id="33_ir"]
 [ext_resource type="Resource" path="res://assets/weapons/decoys/chaff_1.tres" id="33_chaff"]
 [ext_resource type="Resource" path="res://assets/weapons/decoys/flare_1.tres" id="33_flare"]
+[ext_resource type="Resource" path="res://assets/weapons/ammo/rounds_1.tres" id="33_rounds"]
 [ext_resource type="Resource" path="res://assets/goods/medicines.tres" id="32_medicines"]
 [ext_resource type="Resource" path="res://assets/goods/metals.tres" id="32_metals"]
 [ext_resource type="Resource" path="res://assets/goods/machinery.tres" id="32_machinery"]
@@ -69,6 +70,14 @@ Stock = 80
 PerHour = 60.0
 Input = ExtResource("32_metals")
 InputPerUnit = 0.03
+
+[sub_resource type="Resource" id="Arms_rounds"]
+script = ExtResource("33_outfit")
+Item = ExtResource("33_rounds")
+Stock = 3000
+PerHour = 3000.0
+Input = ExtResource("32_metals")
+InputPerUnit = 0.0005
 
 [sub_resource type="Resource" id="Market_water"]
 script = ExtResource("31_market_good")
@@ -201,7 +210,7 @@ Voices = Array[ExtResource("20_voice_pack")]([ExtResource("16_voice_f1"), ExtRes
 [node name="Market" type="Node" parent="."]
 script = ExtResource("30_market")
 Goods = Array[ExtResource("31_market_good")]([SubResource("Market_water"), SubResource("Market_food"), SubResource("Market_iron"), SubResource("Market_medicines"), SubResource("Market_metals"), SubResource("Market_machinery"), SubResource("Market_electronics"), SubResource("Market_hydrogen")])
-Outfits = Array[ExtResource("33_outfit")]([SubResource("Arms_msl"), SubResource("Arms_ir"), SubResource("Arms_chaff"), SubResource("Arms_flare")])
+Outfits = Array[ExtResource("33_outfit")]([SubResource("Arms_msl"), SubResource("Arms_ir"), SubResource("Arms_chaff"), SubResource("Arms_flare"), SubResource("Arms_rounds")])
 
 [node name="Lockers" type="Node" parent="."]
 script = ExtResource("40_lockers")

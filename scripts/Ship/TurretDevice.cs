@@ -2,6 +2,7 @@ using System;
 using Godot;
 using Xpace.Computer;
 using Xpace.Space;
+using Xpace.World;
 
 namespace Xpace.Ship;
 
@@ -19,15 +20,27 @@ namespace Xpace.Ship;
 /// ahead, right and up positive)  +10 muzzle speed (m/s)  +12 write 1: fire
 /// this step  +13 status: bit 0 ready, bit 1 at a limit, bit 2 too hot
 /// +14 heat (0-255)  +15 rounds fired (counts up)
+///
+/// Version 2: the magazine. It fires only the rounds it holds; with none
+/// left, status bit 3 is set and bit 0 (ready) clear. In memory, at
+/// D000:1B00: +0 word the rounds left (0FFFFh: a mount that never runs
+/// out)  +2 word how many the magazine holds.
+///
+/// Its model is the one the hull comes with (<see cref="ShipSpec.Turret"/>)
+/// unless it is given its own. A player's ship keeps its rounds in the
+/// pilot's record (<see cref="ShipRecord.Magazine"/>), bought at a
+/// station's arms kiosk; any other ship, here.
 /// </summary>
-public partial class TurretDevice : Node3D, IShipDevice
+public partial class TurretDevice : Node3D, IShipDevice, IRearmable
 {
     public const int Slot = 4;
     public const byte Type = 5;
+    public const byte Version = 2;
 
     /// <summary>The model.</summary>
     [Export] public TurretSpec Spec;
-    private TurretSpec S => Spec ??= new TurretSpec();
+    private TurretSpec S => Spec ?? _ship?.Spec?.Turret ?? (_default ??= new TurretSpec());
+    private TurretSpec _default;
 
     public float MuzzleSpeed => S.MuzzleSpeed;
     public float ServoDegreesPerSecond => S.ServoDegreesPerSecond;
@@ -44,6 +57,14 @@ public partial class TurretDevice : Node3D, IShipDevice
     public float CoolingPerSecond => S.CoolingPerSecond;
     public float HotAbove => S.HotAbove;
     public float CoolBelow => S.CoolBelow;
+    /// <summary>What its magazine holds when full.</summary>
+    public int Magazine => S.Rounds;
+
+    /// <summary>Rounds in the magazine; -1 for a mount with no ammunition given, which never runs out.</summary>
+    public int RoundsLeft =>
+        S.Ammunition is not AmmoSpec ammo ? -1
+        : ammo.Id is string model && Pilot is PilotRecord pilot ? pilot.Ship.Rack(model, Universe.RackSize(pilot, ammo))
+        : _rounds;
 
     /// <summary>Radians, right and up positive.</summary>
     public float Azimuth { get; private set; }
@@ -59,6 +80,8 @@ public partial class TurretDevice : Node3D, IShipDevice
     private OmniLight3D _flash;
     private const float FlashEnergy = 1.2f;     // near the cockpit: enough for a wink on the hull, not to light the cabin
     private TurretRig _rig;
+    private ShipBody _ship;
+    private int _rounds;
     private double _cooldown;
     private bool _registersSet;
     private float _rateAz, _rateEl, _lastWantAz, _lastWantEl, _feedAz, _feedEl;
@@ -69,6 +92,8 @@ public partial class TurretDevice : Node3D, IShipDevice
 
     public override void _Ready()
     {
+        _ship = GetParentOrNull<ShipBody>();
+        _rounds = Magazine;
         if (S.Scene?.Instantiate() is TurretRig rig)
         {
             _rig = rig;
@@ -103,21 +128,30 @@ public partial class TurretDevice : Node3D, IShipDevice
         _cradle.AddChild(_muzzle);
     }
 
-    public void BeforeStep(ShipBody ship, double delta)
+    /// <summary>A full magazine again: the insurer's new ship, or a test.</summary>
+    public void Rearm() => _rounds = Magazine;
+
+    private PilotRecord Pilot => _ship != null ? Universe.Current?.RecordOf(_ship) : null;
+
+    public unsafe void BeforeStep(ShipBody ship, double delta)
     {
         ShipBus bus = ship.Computer.Bus;
         if (!_registersSet)
         {
             _registersSet = true;
             bus[Slot, 0] = Type;
-            bus[Slot, 1] = 1;
+            bus[Slot, 1] = Version;
             bus.SetWord(Slot, 10, (int)MuzzleSpeed);
         }
+        int left = RoundsLeft;
+        ushort* magazine = (ushort*)(ship.Computer.Memory + ShipMemory.Base + ShipMemory.Turret);
+        magazine[0] = left < 0 ? (ushort)0xFFFF : (ushort)Math.Min(left, 0xFFFE);
+        magazine[1] = (ushort)Math.Clamp(Magazine, 0, 0xFFFE);
         bus.SetWord(Slot, 6, Bam(Azimuth));
         bus.SetWord(Slot, 8, Bam(Elevation));
         bool atLimit = MathF.Abs(Azimuth) >= Mathf.DegToRad(AzimuthLimit) - 1e-4f
                        || Elevation <= Mathf.DegToRad(ElevationMin) + 1e-4f || Elevation >= Mathf.DegToRad(ElevationMax) - 1e-4f;
-        bus[Slot, 13] = (byte)((TooHot ? 0 : 1) | (atLimit ? 2 : 0) | (TooHot ? 4 : 0));
+        bus[Slot, 13] = (byte)((TooHot || left == 0 ? 0 : 1) | (atLimit ? 2 : 0) | (TooHot ? 4 : 0) | (left == 0 ? 8 : 0));
         bus[Slot, 14] = (byte)Math.Clamp((int)Heat, 0, 255);
         bus[Slot, 15] = (byte)RoundsFired;
     }
@@ -151,10 +185,12 @@ public partial class TurretDevice : Node3D, IShipDevice
         _flash.LightEnergy = MathF.Max(0, _flash.LightEnergy - 60 * dt);
 
         bool fire = bus.TakeWritten(Slot, 12) && (bus[Slot, 12] & 1) != 0;
-        _rig?.Spin(fire && !TooHot, dt);
-        if (fire && _cooldown <= 0 && !TooHot)
+        bool loaded = RoundsLeft != 0;
+        _rig?.Spin(fire && !TooHot && loaded, dt);
+        if (fire && _cooldown <= 0 && !TooHot && loaded)
         {
             _cooldown = FireInterval;
+            Spent(ship);
             Heat += HeatPerShot;
             TooHot = Heat > HotAbove;
             RoundsFired++;
@@ -166,6 +202,17 @@ public partial class TurretDevice : Node3D, IShipDevice
             Projectiles.In(this)?.Fire(_muzzle.GlobalPosition, ship.LinearVelocity + direction * MuzzleSpeed, Damage, ship);
             _flash.LightEnergy = FlashEnergy;
         }
+    }
+
+    // A round out of the magazine: off the pilot's record, or this mount's own count
+    private void Spent(ShipBody ship)
+    {
+        if (S.Ammunition is not AmmoSpec ammo)
+            return;
+        if (ammo.Id != null && Pilot != null)
+            Universe.Current.Fired(ship, ammo);
+        else
+            _rounds--;
     }
 
     private float Servo(float angle, float want, float feed, ref float rate, float dt)

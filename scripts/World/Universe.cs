@@ -77,7 +77,8 @@ public partial class Universe : Node
     private readonly Dictionary<string, string> _documents = new();        // a guest: what the host sent, by topic
     private readonly Dictionary<string, Func<string, string, string>> _answers = new();
     private bool _dirty, _touched;
-    private double _sinceChange, _sinceSave, _sinceIntroduced;
+    private double _sinceChange, _sinceSave, _sinceIntroduced, _sinceFiredSent;
+    private readonly HashSet<string> _firedBy = new();                      // pilots who fired since their record was last sent
 
     public override void _EnterTree()
     {
@@ -239,8 +240,16 @@ public partial class Universe : Node
         MissileSpec => RackSize(pilot),
         ChaffSpec => Hull(pilot)?.Dispenser?.Chaff ?? 0,
         FlareSpec => Hull(pilot)?.Dispenser?.Flares ?? 0,
+        AmmoSpec => Hull(pilot)?.Turret?.Rounds ?? 0,
         _ => 0,
     };
+
+    /// <summary>The host: a guest's player ship fired a cannon round (its fire event came in); it comes off the magazine.</summary>
+    public void FiredRound(Node3D ship)
+    {
+        if (RecordOf(ship) is PilotRecord pilot && Hull(pilot)?.Turret?.Ammunition is AmmoSpec ammo)
+            Fired(ship, ammo);
+    }
 
     private static ShipSpec Hull(PilotRecord pilot) =>
         ResourceLoader.Exists(pilot.Ship.Hull) ? GD.Load<ShipSpec>(pilot.Ship.Hull) : null;
@@ -248,7 +257,8 @@ public partial class Universe : Node
     /// <summary>
     /// A player's ship let one of <paramref name="item"/> go: a missile launched, chaff or a flare thrown. The guest who
     /// did counts it at once on its copy of the record; the host hears of it from the thing itself, and what it then
-    /// sends puts the record right.
+    /// sends puts the record right. A gun fires many a second: what is sent goes out at most every
+    /// <see cref="FiredSendSeconds"/>.
     /// </summary>
     public void Fired(Node3D ship, Outfit item)
     {
@@ -256,8 +266,10 @@ public partial class Universe : Node
             return;
         pilot.Ship.Magazine[model] = Math.Max(0, pilot.Ship.Rack(model, RackSize(pilot, item)) - 1);
         if (!IsGuest)
-            Touch(pilot);
+            _firedBy.Add(pilot.Id);
     }
+
+    public const double FiredSendSeconds = 0.5;
 
     private void Destroyed(Node3D ship, Node3D by, Vector3 at) => Lose(ship);
 
@@ -393,6 +405,14 @@ public partial class Universe : Node
             foreach (string id in playing)
                 State.Pilot(id).PlayedSeconds += delta;
             _dirty = true;
+        }
+        _sinceFiredSent += delta;
+        if (_firedBy.Count > 0 && _sinceFiredSent >= FiredSendSeconds)
+        {
+            _sinceFiredSent = 0;
+            foreach (string id in _firedBy)
+                Touch(State.Pilot(id));
+            _firedBy.Clear();
         }
         _sinceChange += delta;
         _sinceSave += delta;

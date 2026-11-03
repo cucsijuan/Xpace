@@ -246,6 +246,8 @@ public partial class NetMissileTest : Node
             {
                 guest.Drop(tick, 2, ship.Position, Vector3.Zero);     // chaff and a flare, thrown by the guest's ship
                 guest.Drop(tick, 3, ship.Position, Vector3.Zero);
+                guest.Fire(tick, GuestShipId, ship.Position, new Vector3(0, 1200, 0), 10);    // a cannon round, up and away
+                guest.Fire(tick, GuestShipId, ship.Position, new Vector3(0, 1200, 0), 10, kind: 1);   // a laser pulse: no rounds
             }
             if (missile != null && guest.Entity(missile.NetId) == missile && seenDrone.Track.ShownTick.HasValue)
             {
@@ -302,6 +304,10 @@ public partial class NetMissileTest : Node
         int chaffRack = Xpace.World.Universe.RackSize(pilot, chaff), flareRack = Xpace.World.Universe.RackSize(pilot, flare);
         Check($"and the chaff and flare the guest threw off its dispenser ({pilot.Ship.Rack(chaff.Id, chaffRack)} of {chaffRack}, {pilot.Ship.Rack(flare.Id, flareRack)} of {flareRack})",
               chaffRack > 0 && pilot.Ship.Rack(chaff.Id, chaffRack) == chaffRack - 1 && pilot.Ship.Rack(flare.Id, flareRack) == flareRack - 1);
+        var ammo = GD.Load<AmmoSpec>("res://assets/weapons/ammo/rounds_1.tres");
+        int magazine = Xpace.World.Universe.RackSize(pilot, ammo);
+        Check($"and the cannon round it fired, not the laser pulse ({pilot.Ship.Rack(ammo.Id, magazine)} of {magazine})",
+              magazine > 0 && pilot.Ship.Rack(ammo.Id, magazine) == magazine - 1);
 
         origin.QueueFree();
         await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);

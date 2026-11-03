@@ -4,6 +4,7 @@
 [ext_resource type="Resource" uid="uid://o32wi1s62afr" path="res://assets/ship/thrusters/thrusters_t35.tres" id="2_thrusters"]
 [ext_resource type="Resource" path="res://assets/ship/monitors/old_green.tres" id="3_screens"]
 [ext_resource type="Resource" path="res://assets/weapons/decoys/dispenser_1.tres" id="4_dispenser"]
+[ext_resource type="Resource" path="res://assets/weapons/turrets/gun_1.tres" id="5_turret"]
 
 [resource]
 script = ExtResource("1_spec")
@@ -14,3 +15,4 @@ CargoRacks = PackedInt32Array(2, 0)
 MissileRack = 2
 Screens = ExtResource("3_screens")
 Dispenser = ExtResource("4_dispenser")
+Turret = ExtResource("5_turret")

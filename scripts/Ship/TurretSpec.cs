@@ -42,4 +42,10 @@ public partial class TurretSpec : Resource
     [Export] public float HotAbove = 250f;
     /// <summary>And starts again below this.</summary>
     [Export] public float CoolBelow = 120f;
+
+    [ExportGroup("Magazine")]
+    /// <summary>The rounds it fires, bought at an arms dealer (none: a test mount that never runs out).</summary>
+    [Export] public Xpace.Space.AmmoSpec Ammunition;
+    /// <summary>How many its magazine holds.</summary>
+    [Export] public int Rounds = 500;
 }

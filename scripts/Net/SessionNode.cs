@@ -195,6 +195,7 @@ public partial class SessionNode : Node
         Session.SpawnDynamic = SpawnPuppet;
         Session.RoundFired += Show;
         Session.RoundFired += e => Combat.Fire(NodeOf(e.Ship), Scene(e.Origin, Session.PlaceOf(e.Ship)));
+        Session.RoundFired += Counted;
         Session.HitConfirmed += Confirmed;
         Session.RadioHeard += Heard;
         Session.RadioChanged += RadioChanged;
@@ -618,6 +619,14 @@ public partial class SessionNode : Node
         public char Kind => 'S';
         public float RadioRange => float.MaxValue;
         public bool RadioOn => true;
+    }
+
+    /// <summary>The host: a guest's cannon round comes off its pilot's magazine (laser pulses cost no rounds).</summary>
+    private void Counted(FireEvent e)
+    {
+        byte owner = NetIds.Owner(e.Ship);
+        if (Session.IsHost && e.Kind == 0 && owner != Session.HostPeer && e.Ship == NetIds.PlayerShip(owner) && NodeOf(e.Ship) is Node3D ship)
+            Xpace.World.Universe.Current?.FiredRound(ship);
     }
 
     /// <summary>Someone else dropped something: it is made here, already as old as it is by now.</summary>

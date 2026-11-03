@@ -9,7 +9,7 @@ namespace Xpace.OnFoot;
 /// <summary>
 /// A station's arms dealer, as a kiosk shows it (scenes/ui/arms_window.tscn). Not a list of tonnes to trade like the
 /// market's: a card for each model, with what it can do, how many the ship has aboard, and what the dealer has left
-/// and whether its factory has anything to make more with. Buy loads one straight onto the ship, Fill as many as the
+/// and whether its factory has anything to make more with. Buy loads one (rounds, a box) straight onto the ship, Fill as many as the
 /// rack takes. Every request goes to the universe's owner (<see cref="Universe.Ask"/>), whose answer redraws the
 /// screen; on a guest it comes a moment later. Esc or Close shuts it.
 /// </summary>
@@ -114,7 +114,7 @@ public partial class ArmsWindow : CanvasLayer, IKioskWindow
 
         var aboard = new VBoxContainer { CustomMinimumSize = new Vector2(260, 0) };   // room for a dispenser's ten
         aboard.AddChild(new Label { Text = "Aboard", Modulate = Dim });
-        aboard.AddChild(new Label { Text = $"{new string('■', Math.Min(offer.Aboard, offer.Rack))}{new string('□', Math.Max(0, offer.Rack - offer.Aboard))}  {offer.Aboard}/{offer.Rack}" });
+        aboard.AddChild(new Label { Text = $"{Squares(offer.Aboard, offer.Rack)}  {offer.Aboard}/{offer.Rack}" });
         row.AddChild(aboard);
 
         var stock = new VBoxContainer { CustomMinimumSize = new Vector2(170, 0) };
@@ -129,11 +129,21 @@ public partial class ArmsWindow : CanvasLayer, IKioskWindow
         buy.AddChild(new Label { Text = offer.Price < 0 ? "Sold out" : $"{offer.Price:N0} cr", HorizontalAlignment = HorizontalAlignment.Right });
         int room = offer.Rack - offer.Aboard;
         bool can = view.Docked && offer.Price >= 0 && room > 0 && view.Credits >= offer.Price;
-        buy.AddChild(Button("Buy", offer.Id, 1, can));
+        buy.AddChild(Button(offer.Lot > 1 ? $"Buy {offer.Lot}" : "Buy", offer.Id, Math.Min(offer.Lot, room), can));
         buy.AddChild(Button("Fill", offer.Id, room, can));
         row.AddChild(buy);
         return card;
     }
+
+    // One square a piece, up to ten; a bigger rack, ten squares in proportion (a magazine of rounds)
+    private static string Squares(int aboard, int rack)
+    {
+        int full = rack <= MaxSquares ? Math.Min(aboard, rack) : (int)Math.Ceiling(aboard * (double)MaxSquares / rack);
+        int all = Math.Min(rack, MaxSquares);
+        return new string('■', Math.Min(full, all)) + new string('□', Math.Max(0, all - full));
+    }
+
+    private const int MaxSquares = 10;
 
     private Button Button(string label, string model, int count, bool enabled)
     {
