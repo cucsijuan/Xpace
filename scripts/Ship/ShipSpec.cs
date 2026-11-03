@@ -74,6 +74,12 @@ public partial class ShipSpec : Resource
     /// </summary>
     [Export] public Godot.Collections.Dictionary<string, Resource> Fitting = new();
 
+    /// <summary>
+    /// Its outside with its hardpoints (scenes/ships/*_exterior.tscn): what other players see, and where a fitting
+    /// screen reads which hardpoints the hull has.
+    /// </summary>
+    [Export] public PackedScene Exterior;
+
     /// <summary>Tonnes the racks hold (a rack too big for its compartment isn't fitted, and holds nothing).</summary>
     public int CargoCapacity
     {

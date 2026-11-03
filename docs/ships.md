@@ -172,6 +172,8 @@ the seat, its weapons are not; in `remote_fighter.tscn`). It has three T1 hardpo
 and Spine (fixed or turret). It comes with a laser on each side of the nose (LSR-1, Synty's SM_Veh_Part_Misc_09) and
 the gatling turret on the spine; a laser on the spine instead makes three. To place a hardpoint by eye, set its
 `Preview` to a model: the editor shows it there (never saved, never mounted in the game). `tests/hardpoint_test`.
+The hull's spec names this scene (`ShipSpec.Exterior`): the fitters read its hardpoints from it, and the fitting
+screen shows it (refitting at a station: docs/universe.md, `tests/arms_test`).
 
 ### A ship's scene
 

@@ -7,8 +7,11 @@
 [ext_resource type="Resource" path="res://assets/weapons/turrets/gun_1.tres" id="5_turret"]
 [ext_resource type="Resource" path="res://assets/weapons/lasers/lsr_1.tres" id="6_laser"]
 
+[ext_resource type="PackedScene" path="res://scenes/ships/fighter_03_exterior.tscn" id="7_exterior"]
+
 [resource]
 script = ExtResource("1_spec")
+Exterior = ExtResource("7_exterior")
 Thrusters = ExtResource("2_thrusters")
 VeilDrag = 0.00031
 Compartments = PackedInt32Array(3, 2)

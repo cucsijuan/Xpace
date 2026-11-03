@@ -76,11 +76,14 @@ public partial class Hardpoint : Marker3D
     }
 
     /// <summary>Whether <paramref name="model"/> may be mounted here: its kind and its size.</summary>
-    public bool Takes(Resource model) => model switch
+    public bool Takes(Resource model) => Fits(model, Size, Accepts);
+
+    /// <summary>Whether <paramref name="model"/> may be mounted on a hardpoint of <paramref name="size"/> that accepts <paramref name="accepts"/>.</summary>
+    public static bool Fits(Resource model, int size, MountKinds accepts) => model switch
     {
         null => true,
-        LaserSpec laser => (Accepts & MountKinds.Fixed) != 0 && laser.Size <= Size,
-        TurretSpec turret => (Accepts & MountKinds.Turret) != 0 && turret.Size <= Size,
+        LaserSpec laser => (accepts & MountKinds.Fixed) != 0 && laser.Size <= size,
+        TurretSpec turret => (accepts & MountKinds.Turret) != 0 && turret.Size <= size,
         _ => false,
     };
 

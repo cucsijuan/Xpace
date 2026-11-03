@@ -4,9 +4,34 @@ using Xpace.World;
 
 namespace Xpace.Ship;
 
+/// <summary>A hardpoint of a hull, as its exterior scene has it.</summary>
+public sealed record HardpointPlace(string Name, int Size, MountKinds Accepts);
+
 /// <summary>What is mounted on a ship's hardpoints: the hull's factory fitting, and what its pilot's record changed.</summary>
 public static class Fittings
 {
+    private static readonly Dictionary<string, HardpointPlace[]> _places = new();
+
+    /// <summary>A model that goes on a hardpoint (a laser, a turret), not into a rack.</summary>
+    public static bool IsPiece(Resource model) => model is LaserSpec or TurretSpec;
+
+    /// <summary>The hardpoints of <paramref name="hull"/>, read from its exterior scene (<see cref="ShipSpec.Exterior"/>; none without one).</summary>
+    public static HardpointPlace[] Places(ShipSpec hull)
+    {
+        string key = hull?.Exterior?.ResourcePath ?? "";
+        if (_places.TryGetValue(key, out HardpointPlace[] known))
+            return known;
+        var places = new List<HardpointPlace>();
+        if (hull?.Exterior?.Instantiate() is Node outside)
+        {
+            foreach (Node n in outside.FindChildren("*", "", true, false))
+                if (n is Hardpoint h)
+                    places.Add(new HardpointPlace(h.Name, h.Size, h.Accepts));
+            outside.Free();
+        }
+        return _places[key] = places.ToArray();
+    }
+
     /// <summary>
     /// The model on each hardpoint (by its name) of a ship with <paramref name="hull"/>, as <paramref name="record"/>
     /// has it (null: as it came from the factory). An empty hardpoint is not listed.

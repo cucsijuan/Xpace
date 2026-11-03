@@ -95,10 +95,21 @@ The laser needs none: it costs power and heat instead.
 
 A player's missiles, chaff and flares are in their record (`ShipRecord.Magazine`, by model; a model not listed has
 what the hull gives: `ShipSpec.MissileRack` missiles of each model, the chaff and flares of the dispenser it comes
-with, `ShipSpec.Dispenser`, and the rounds of its turret's magazine, `ShipSpec.Turret`; so a new ship comes loaded). Docking brings none of them back: the insurer's new ship is
+with, `ShipSpec.Dispenser`, and the rounds of the magazine of the turret it has fitted; so a new ship comes loaded). Docking brings none of them back: the insurer's new ship is
 the only free load. In a session the host owns the record: a guest asks through it (topic `arms`) and the host counts a
 guest's launch when its missile appears there, its chaff and flares when their drops arrive, and its cannon rounds
 when their fire events do (the record goes back to the guest at most twice a second).
+
+Lasers and turrets (`LaserSpec`, `TurretSpec`, outfits too) are pieces for hardpoints: the first station's factory
+makes them of metals, slowly, and the dealer sells them into the pilot's **locker at that station**
+(`ItemRecord.Piece`, Data = the model's resource path), not onto the ship. The kiosk's **Fitting** tab fits them
+(`FittingDesk`, topic `fitting`, served by the station's market on the host): with the ship docked there, a piece taken
+off a hardpoint goes to the locker, a piece fitted from the locker takes the hardpoint's place (what was on it goes to
+the locker). A hardpoint takes a piece of its size or smaller and of the kinds it accepts; a ship has one turret. The
+pilot's record keeps the fit (`ShipRecord.Fittings`), `PilotShip` mounts it and restarts the ship's computer, so
+FIRECTL finds the weapons it has now. The tab shows the ship's exterior turning on a stand (`ShipSpec.Exterior`,
+`TurnTable`; drag to turn it), and a piece fitted appears there in a puff of dust (`scenes/fx/fit_puff.tscn`). This
+is for now: a retrofit hangar with the ship in it comes later.
 
 Three places hold a pilot's things, apart: what they carry on them (`PilotRecord.Items`), their locker at each station
 (`StationRecord.Lockers`), and their ship (`ShipRecord`: the hold's cargo and the magazine), which goes when it blows

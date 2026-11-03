@@ -3,13 +3,21 @@ using Godot;
 namespace Xpace.Ship;
 
 /// <summary>
-/// A model of gimballed gun turret (a .tres per model, in assets/weapons/turrets).
+/// A model of gimballed gun turret (a .tres per model, in assets/weapons/turrets). Bought at an arms dealer, it goes
+/// to the pilot's locker there, to be fitted; a ship has one turret.
 /// </summary>
 [GlobalClass]
-public partial class TurretSpec : Resource
+public partial class TurretSpec : Xpace.Space.Outfit
 {
-    /// <summary>The model's name, as a program or a fittings list shows it.</summary>
-    [Export] public string Model = "GUN";
+    public TurretSpec()
+    {
+        Model = "GUN";
+        Price = 2500;
+    }
+
+    public override string About => "Gun turret: turns to follow the radar's track, fires cannon rounds from its magazine";
+
+    public override string Details => $"Size {Size}, {MuzzleSpeed:0} m/s rounds, {Rounds} in its magazine, {AzimuthLimit:0} degrees either side";
 
     /// <summary>The hardpoint size it needs.</summary>
     [Export] public int Size = 1;

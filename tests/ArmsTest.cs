@@ -103,7 +103,7 @@ public partial class ArmsTest : Node
         kiosk.Use(walker);
         await Seconds(0.3);
         var window = kiosk.Window as ArmsWindow;
-        Check("the arms kiosk opens its own window", window?.View != null && window.View.Offers.Count == 5);
+        Check("the arms kiosk opens its own window", window?.View != null && window.View.Offers.Count == 7);
         if (window == null || window.View == null)
         {
             Finish();
@@ -191,7 +191,67 @@ public partial class ArmsTest : Node
               launcher.MissilesLeft == rack && launcher.HeatSeekersLeft == rack && dispenser.ChaffLeft == chaffRack && dispenser.FlaresLeft == flareRack
               && turret.RoundsLeft == magazine);
 
+        await Fitting(kiosk, walker, market);
         Finish();
+    }
+
+    // Lasers and turrets are bought into the locker and fitted on the Fitting tab
+    private async Task Fitting(StationKiosk kiosk, Walker walker, StationMarket market)
+    {
+        PilotRecord me = Universe.Current.Me;
+        kiosk.Use(walker);
+        await Seconds(0.3);
+        if (kiosk.Window is not ArmsWindow window || window.Fit == null)
+        {
+            Check("the fitting tab answers", false);
+            return;
+        }
+        window.ShowTab(1);
+        var pilotShip = _ship.GetNode<PilotShip>("Fit");
+        FittingPlace Place(string name) => window.Fit.Places.First(p => p.Name == name);
+        Check($"it shows the hardpoints and what is on them ({string.Join(", ", window.Fit.Places.Select(p => $"{p.Name} {p.Model}"))})",
+              window.Fit.Places.Count == 3 && Place("NoseLeft").Model == "LSR-1" && Place("Spine").Model == "GUN-1");
+        Check("and the ship on its stand, with the weapons", window.Ship != null && window.Ship.FindChild("Laser", true, false) != null);
+
+        ArmsOffer lsr = window.View.Offers.First(o => o.Id == "lsr_1");
+        Check($"lasers are sold too, as pieces ({lsr.Fitted} fitted, {lsr.Kept} kept, {lsr.Price} cr; {lsr.Details})", lsr.Piece && lsr.Fitted == 2 && lsr.Kept == 0 && lsr.Price > 0);
+        long before = me.Credits;
+        window.Ask(MarketRequest.Buy, "lsr_1", 1);
+        await Seconds(0.3);
+        Check($"a laser bought waits in the locker ({window.View.Message})",
+              window.Fit.Locker.Count(p => p.Name == "LSR-1") == 1 && me.Credits == before - lsr.Price && window.View.Offers.First(o => o.Id == "lsr_1").Kept == 1);
+
+        int lasers = _ship.Device<LaserDevice>().Emitters;
+        window.AskFitting(FittingRequest.Remove, "Spine", 0);
+        await Seconds(0.3);
+        Check($"the turret taken off goes to the locker, and the ship has none ({window.Fit.Message})",
+              Place("Spine").Mounted == "" && window.Fit.Locker.Any(p => p.Name == "GUN-1") && _ship.Device<TurretDevice>() == null && pilotShip.Refits == 1);
+        int puffs = window.Puffs;
+        FittingPiece laser = window.Fit.Locker.First(p => p.Name == "LSR-1");
+        Shot("_fitting");
+        window.AskFitting(FittingRequest.Fit, "Spine", laser.Index);
+        await Seconds(0.1);
+        Shot("_puff");
+        await Seconds(0.2);
+        Check($"a laser fitted on the spine: three lasers ({lasers} -> {_ship.Device<LaserDevice>().Emitters}; {window.Fit.Message})",
+              Place("Spine").Model == "LSR-1" && _ship.Device<LaserDevice>().Emitters == lasers + 1 && pilotShip.Refits == 2);
+        Check($"it appears on the stand in a puff of dust ({window.Puffs - puffs})",
+              window.Puffs == puffs + 1 && window.Ship.GetNode("Spine").GetNodeOrNull("Laser") != null);
+
+        await Seconds(1);
+        Shot("_three");
+        FittingPiece gun = window.Fit.Locker.First(p => p.Name == "GUN-1");
+        Check($"the turret fits only the spine ({string.Join(", ", gun.FitsOn)})", gun.FitsOn.SequenceEqual(new[] { "Spine" }));
+        window.AskFitting(FittingRequest.Fit, "NoseLeft", gun.Index);
+        await Seconds(0.3);
+        Check($"not on the nose ({window.Fit.Message})", window.Fit.Message == market.NotFitText && Place("NoseLeft").Model == "LSR-1");
+        window.AskFitting(FittingRequest.Fit, "Spine", gun.Index);
+        await Seconds(0.3);
+        Check($"fitted on the spine in the laser's place, the laser back in the locker ({window.Fit.Message})",
+              Place("Spine").Model == "GUN-1" && window.Fit.Locker.Any(p => p.Name == "LSR-1") && _ship.Device<TurretDevice>() != null
+              && _ship.Device<LaserDevice>().Emitters == lasers);
+        Check("the restarted computer runs its programs again", await Until(() => _ship.Computer.ScreenText().Contains("Radio resident"), 90));
+        window.Close();
     }
 
     // The factory, on its own
@@ -224,10 +284,10 @@ public partial class ArmsTest : Node
     private void Place(Transform3D at) =>
         _ship.State = new ShipState { Position = at.Origin, Orientation = at.Basis.GetRotationQuaternion() };
 
-    private void Shot()
+    private void Shot(string suffix = "")
     {
         if (OS.GetEnvironment("XPACE_ARMS_SHOT") is { Length: > 0 } file && DisplayServer.GetName() != "headless")
-            GetViewport().GetTexture().GetImage().SavePng(file);
+            GetViewport().GetTexture().GetImage().SavePng(suffix == "" ? file : file.GetBaseName() + suffix + ".png");
     }
 
     private void Finish()

@@ -87,7 +87,7 @@ public sealed class PilotRecord
 /// <summary>Something a pilot carries on them or keeps in a station's locker: diskettes now, later weapons and more.</summary>
 public sealed class ItemRecord
 {
-    public const string Diskette = "diskette";
+    public const string Diskette = "diskette", Piece = "piece";
 
     public string Kind { get; set; } = Diskette;
     public string Name { get; set; } = "";
@@ -96,6 +96,9 @@ public sealed class ItemRecord
 
     /// <summary>The diskette the insurer gives every pilot: the ship's software as it came from the factory.</summary>
     public static ItemRecord InsurersBackup() => new() { Kind = Diskette, Name = "Insurer's backup", Data = "factory" };
+
+    /// <summary>A piece of a ship's equipment off its hardpoints (a laser, a turret): Data is the model's resource path.</summary>
+    public static ItemRecord PieceOf(Xpace.Space.Outfit model) => new() { Kind = Piece, Name = model.Model, Data = model.ResourcePath };
 }
 
 /// <summary>A pilot's ship: its hull and what its hold carries.</summary>

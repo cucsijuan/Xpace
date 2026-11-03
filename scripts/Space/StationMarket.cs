@@ -91,6 +91,11 @@ public sealed class ArmsOffer
     public int MadeOfStock { get; set; }
     /// <summary>The dealer is short of it and the factory has nothing to make more with.</summary>
     public bool Starved { get; set; }
+    /// <summary>A piece for a hardpoint (a laser, a turret): bought into the locker here, not loaded.</summary>
+    public bool Piece { get; set; }
+    /// <summary>A piece: how many are fitted to the ship, and how many wait in the locker here.</summary>
+    public int Fitted { get; set; }
+    public int Kept { get; set; }
 }
 
 /// <summary>
@@ -147,6 +152,17 @@ public partial class StationMarket : Node
     /// <summary>{0} how many, {1} the model, {2} credits.</summary>
     [Export] public string LoadedText = "Loaded {0} {1} for {2} credits.";
     [Export] public string RackFullText = "The rack is full.";
+    /// <summary>{0} the model, {1} credits.</summary>
+    [Export] public string LockedText = "{0} bought for {1} credits. It waits in your locker, to be fitted.";
+    [Export] public string RefitDockText = "Dock here to refit.";
+    [Export] public string NoSuchText = "No such hardpoint.";
+    [Export] public string EmptyText = "Nothing is fitted there.";
+    [Export] public string NothingText = "Nothing there in your locker.";
+    [Export] public string NotFitText = "It does not fit there.";
+    [Export] public string OneTurretText = "The ship has one turret: take the other off first.";
+    /// <summary>{0} the model, {1} the hardpoint.</summary>
+    [Export] public string FittedText = "{0} fitted on {1}. The ship's computer restarts.";
+    [Export] public string RemovedText = "{0} taken off {1}, into your locker. The ship's computer restarts.";
 
     public StationRadio Radio { get; private set; }
 
@@ -165,6 +181,7 @@ public partial class StationMarket : Node
         _all.Add(this);
         Universe.Current?.Answer(Topic, Desk);
         Universe.Current?.Answer(ArmsTopic, ArmsDesk);
+        Universe.Current?.Answer(FittingDesk.Topic, FitDesk);
     }
 
     public override void _ExitTree() => _all.Remove(this);
@@ -297,6 +314,22 @@ public partial class StationMarket : Node
             : null;
     }
 
+    private static string FitDesk(string pilot, string text)
+    {
+        FittingRequest request;
+        try
+        {
+            request = JsonSerializer.Deserialize<FittingRequest>(text);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+        return request != null && Of(request.Station) is StationMarket market
+            ? JsonSerializer.Serialize(FittingDesk.Serve(market, pilot, request))
+            : null;
+    }
+
     /// <summary>Does what the pilot asks of the arms dealer, if it may be done, and shows what it has after.</summary>
     public ArmsView ServeArms(string pilotId, MarketRequest request)
     {
@@ -318,6 +351,12 @@ public partial class StationMarket : Node
                 message = NotDockedText;
             else if (Radio.Security?.Refuses(ship) == true)
                 message = RefusedText;
+            else if (Fittings.IsPiece(line.Item))
+            {
+                Market.Result result = Market.BuyPiece(station, line, pilot, station.LockerOf(pilotId), out long paid);
+                message = result == Market.Result.Done ? string.Format(LockedText, line.Item.Model, paid) : Why(result);
+                changed = result == Market.Result.Done;
+            }
             else
             {
                 Market.Result result = Market.BuyOutfit(station, line, pilot, request.Tonnes, Universe.RackSize(pilot, line.Item), out int bought, out long paid);
@@ -330,14 +369,19 @@ public partial class StationMarket : Node
         else
             universe.Touch();
 
+        var fitted = Fittings.Of(ResourceLoader.Exists(pilot.Ship.Hull) ? GD.Load<ShipSpec>(pilot.Ship.Hull) : null, pilot.Ship);
         var view = new ArmsView { Station = Radio.Sign, Docked = docked, Credits = pilot.Credits, Message = message };
         foreach (OutfitLine line in Outfits.Where(o => o?.Item != null))
         {
             double stock = station.Stock.GetValueOrDefault(line.Id);
             double input = line.Input != null ? station.Stock.GetValueOrDefault(line.Input.Id) : 0;
             int rack = Universe.RackSize(pilot, line.Item);
+            bool piece = Fittings.IsPiece(line.Item);
             view.Offers.Add(new ArmsOffer
             {
+                Piece = piece,
+                Fitted = piece ? fitted.Values.Count(m => m == line.Item || m.ResourcePath == line.Item.ResourcePath) : 0,
+                Kept = piece ? station.LockerOf(pilotId).Count(i => i.Kind == ItemRecord.Piece && i.Data == line.Item.ResourcePath) : 0,
                 Id = line.Id, Name = line.Item.Model, About = line.Item.About, Details = line.Item.Details,
                 Stock = (int)stock, Price = Market.OutfitPrice(line, stock), Aboard = pilot.Ship.Rack(line.Id, rack), Rack = rack,
                 Lot = System.Math.Max(1, line.Item.Lot),

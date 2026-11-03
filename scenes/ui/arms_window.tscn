@@ -1,11 +1,21 @@
-[gd_scene load_steps=3 format=3]
+[gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/OnFoot/ArmsWindow.cs" id="1_window"]
 [ext_resource type="Theme" path="res://assets/ui/menu_theme.tres" id="2_theme"]
+[ext_resource type="Script" path="res://scripts/OnFoot/TurnTable.cs" id="3_turn"]
+[ext_resource type="PackedScene" path="res://scenes/fx/fit_puff.tscn" id="4_puff"]
+
+[sub_resource type="Environment" id="Showroom"]
+background_mode = 1
+background_color = Color(0.06, 0.045, 0.03, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.55, 0.5, 0.45, 1)
+ambient_light_energy = 0.8
 
 [node name="ArmsWindow" type="CanvasLayer"]
 layer = 5
 script = ExtResource("1_window")
+PuffScene = ExtResource("4_puff")
 
 [node name="Root" type="Control" parent="."]
 layout_mode = 3
@@ -34,7 +44,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="Root/Center"]
-custom_minimum_size = Vector2(860, 0)
+custom_minimum_size = Vector2(980, 0)
 layout_mode = 2
 
 [node name="Margin" type="MarginContainer" parent="Root/Center/Panel"]
@@ -63,10 +73,80 @@ text = "ARMS"
 unique_name_in_owner = true
 layout_mode = 2
 
-[node name="Cards" type="VBoxContainer" parent="Root/Center/Panel/Margin/Box"]
+[node name="Tabs" type="TabContainer" parent="Root/Center/Panel/Margin/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+current_tab = 0
+
+[node name="Dealer" type="VBoxContainer" parent="Root/Center/Panel/Margin/Box/Tabs"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_constants/separation = 8
+metadata/_tab_index = 0
+
+[node name="Fitting" type="HBoxContainer" parent="Root/Center/Panel/Margin/Box/Tabs"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 16
+metadata/_tab_index = 1
+
+[node name="ShipView" type="SubViewportContainer" parent="Root/Center/Panel/Margin/Box/Tabs/Fitting"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(520, 380)
+layout_mode = 2
+size_flags_horizontal = 3
+stretch = true
+
+[node name="World" type="SubViewport" parent="Root/Center/Panel/Margin/Box/Tabs/Fitting/ShipView"]
+own_world_3d = true
+handle_input_locally = false
+msaa_3d = 2
+size = Vector2i(520, 380)
+render_target_update_mode = 0
+
+[node name="Stage" type="Node3D" parent="Root/Center/Panel/Margin/Box/Tabs/Fitting/ShipView/World"]
+unique_name_in_owner = true
+
+[node name="Environment" type="WorldEnvironment" parent="Root/Center/Panel/Margin/Box/Tabs/Fitting/ShipView/World/Stage"]
+environment = SubResource("Showroom")
+
+[node name="Sun" type="DirectionalLight3D" parent="Root/Center/Panel/Margin/Box/Tabs/Fitting/ShipView/World/Stage"]
+transform = Transform3D(0.866, -0.354, 0.354, 0, 0.707, 0.707, -0.5, -0.612, 0.612, 0, 0, 0)
+light_energy = 1.2
+
+[node name="Turntable" type="Node3D" parent="Root/Center/Panel/Margin/Box/Tabs/Fitting/ShipView/World/Stage"]
+unique_name_in_owner = true
+transform = Transform3D(0.707, 0, 0.707, 0, 1, 0, -0.707, 0, 0.707, 0, 0, 0)
+script = ExtResource("3_turn")
+
+[node name="Camera3D" type="Camera3D" parent="Root/Center/Panel/Margin/Box/Tabs/Fitting/ShipView/World/Stage"]
+transform = Transform3D(1, 0, 0, 0, 0.94, 0.342, 0, -0.342, 0.94, 0, 5.4, 14.8)
+fov = 45.0
+
+[node name="Side" type="VBoxContainer" parent="Root/Center/Panel/Margin/Box/Tabs/Fitting"]
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PlacesTitle" type="Label" parent="Root/Center/Panel/Margin/Box/Tabs/Fitting/Side"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.68, 0.25, 1)
+text = "Hardpoints"
+
+[node name="Places" type="VBoxContainer" parent="Root/Center/Panel/Margin/Box/Tabs/Fitting/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LockerTitle" type="Label" parent="Root/Center/Panel/Margin/Box/Tabs/Fitting/Side"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.68, 0.25, 1)
+text = "In your locker here"
+
+[node name="Locker" type="VBoxContainer" parent="Root/Center/Panel/Margin/Box/Tabs/Fitting/Side"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_constants/separation = 6
 
 [node name="Message" type="Label" parent="Root/Center/Panel/Margin/Box"]
 unique_name_in_owner = true

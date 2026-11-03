@@ -89,6 +89,23 @@ public static class Market
     /// The pilot buys <paramref name="count"/> of an outfit, loaded straight onto a ship whose rack takes
     /// <paramref name="rack"/> of them: as many as the stock, the money and the rack allow.
     /// </summary>
+    /// <summary>
+    /// The pilot buys one piece of equipment (a laser, a turret: <see cref="Xpace.Ship.Fittings.IsPiece"/>), put in
+    /// <paramref name="locker"/> at the station to be fitted. <paramref name="paid"/> is its price.
+    /// </summary>
+    public static Result BuyPiece(StationRecord station, OutfitLine line, PilotRecord pilot, List<ItemRecord> locker, out long paid)
+    {
+        double stock = station.Stock.GetValueOrDefault(line.Id);
+        paid = OutfitPrice(line, stock);
+        if (paid < 0)
+            return Result.NoStock;
+        if (!pilot.Spend(paid))
+            return Result.NoMoney;
+        station.Stock[line.Id] = stock - 1;
+        locker.Add(ItemRecord.PieceOf(line.Item));
+        return Result.Done;
+    }
+
     public static Result BuyOutfit(StationRecord station, OutfitLine line, PilotRecord pilot, int count, int rack, out int bought, out long paid)
     {
         bought = 0;

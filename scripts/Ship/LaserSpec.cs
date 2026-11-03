@@ -4,13 +4,21 @@ namespace Xpace.Ship;
 
 /// <summary>
 /// A model of pulse laser (a .tres per model, in assets/weapons/lasers), mounted on a ship's hardpoint
-/// (<see cref="Hardpoint"/>). The ship's lasers fire in turn, as one (<see cref="LaserDevice"/>).
+/// (<see cref="Hardpoint"/>). The ship's lasers fire in turn, as one (<see cref="LaserDevice"/>). Bought at an arms
+/// dealer, it goes to the pilot's locker there, to be fitted.
 /// </summary>
 [GlobalClass]
-public partial class LaserSpec : Resource
+public partial class LaserSpec : Xpace.Space.Outfit
 {
-    /// <summary>The model's name, as a program or a fittings list shows it.</summary>
-    [Export] public string Model = "LSR";
+    public LaserSpec()
+    {
+        Model = "LSR";
+        Price = 1500;
+    }
+
+    public override string About => "Pulse laser: fixed along the nose, fires in turn with the ship's other lasers";
+
+    public override string Details => $"Size {Size}, {BoltSpeed:0} m/s bolts, {Damage:0} damage, a pulse every {FireInterval:0.##} s";
 
     /// <summary>The hardpoint size it needs.</summary>
     [Export] public int Size = 1;
