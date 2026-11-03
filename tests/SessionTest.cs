@@ -186,6 +186,36 @@ public partial class SessionTest : Node
         Check("a guest's, from the host", thick.GetValueOrDefault((Guest1, Ship1)) == 10);
         Check("and nobody else", thick.Count == 3);
 
+        // What a ship has on its hardpoints reaches everyone, from its owner, and whoever joins later
+        var fits = new Dictionary<(byte machine, ushort ship), string>();
+        void Heard(byte machine, Session m) => m.FittingChanged += (ship, fitted) => fits[(machine, ship)] = fitted;
+        foreach (var (peer, m) in machines)
+            Heard(peer, m);
+        const string ThreeLasers = "NoseLeft=res://assets/weapons/lasers/lsr_1.tres;NoseRight=res://assets/weapons/lasers/lsr_1.tres;Spine=res://assets/weapons/lasers/lsr_1.tres";
+        uint t = 960;
+        void Run(int ticks)
+        {
+            for (int i = 0; i < ticks; i++, t++)
+            {
+                net.Now = t * Dt;
+                foreach (Session s in machines.Values)
+                    s.Tick(t);
+            }
+        }
+        machines[Guest1].SetFitting(Ship1, ThreeLasers);
+        machines[Guest2].SetFitting(Ship1, "Spine=");    // not its ship: the host takes none of it
+        Run(60);
+        Check("a guest's fitting reaches the host and the other guest",
+              fits.GetValueOrDefault((Host, Ship1)) == ThreeLasers && fits.GetValueOrDefault((Guest2, Ship1)) == ThreeLasers);
+        Check("not back to its owner, and a guest can't send another's", !fits.ContainsKey((Guest1, Ship1)) && fits.Count == 2);
+        const byte Guest3 = 3;
+        var late = new Session(Guest3, net.Join(Guest3)) { TickSeconds = Dt };
+        late.SpawnRemote = id => new Fake { NetId = id, Track = new RemoteTrack { TickSeconds = Dt } };
+        machines[Guest3] = late;
+        Heard(Guest3, late);
+        Run(120);
+        Check($"a guest joining later hears it from the host ({fits.GetValueOrDefault((Guest3, Ship1)) ?? "nothing"})", fits.GetValueOrDefault((Guest3, Ship1)) == ThreeLasers);
+
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
     }

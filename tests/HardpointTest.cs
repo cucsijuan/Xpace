@@ -19,7 +19,9 @@ namespace Xpace.Tests;
 ///   - a laser on the spine instead of the turret: three lasers fire half as often again as two, and the turret's
 ///     place on the bus is empty;
 ///   - a hardpoint takes only what it accepts: no turret on the nose;
-///   - with the spine empty, the turret's magazine is none of the pilot's racks; back as it came, the turret is back.
+///   - with the spine empty, the turret's magazine is none of the pilot's racks; back as it came, the turret is back;
+///   - another machine's ship shows what its owner sends (the fitting's key), looks only; until then, the factory's;
+///     a model path that is not a weapon is not taken.
 ///
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/hardpoint_test.tscn. Exits with 0 if every check passed.
 /// </summary>
@@ -76,6 +78,24 @@ public partial class HardpointTest : Node
               && _ship.Device<TurretDevice>() == spine.Turret && bus[TurretDevice.Slot, 0] == TurretDevice.Type);
         Check($"its magazine is the pilot's rack again ({Universe.RackSize(pilot, GD.Load<AmmoSpec>("res://assets/weapons/ammo/rounds_1.tres"))})",
               Universe.RackSize(pilot, GD.Load<AmmoSpec>("res://assets/weapons/ammo/rounds_1.tres")) == spine.Turret.Magazine);
+
+        // Another machine's ship
+        _ship.Fit(new Dictionary<string, Resource> { ["NoseLeft"] = GD.Load<Resource>(Laser), ["NoseRight"] = GD.Load<Resource>(Laser), ["Spine"] = GD.Load<Resource>(Laser) });
+        string key = _ship.Fitted;
+        var remote = GD.Load<PackedScene>("res://scenes/ships/remote_fighter.tscn").Instantiate<Xpace.Net.RemoteShip>();
+        AddChild(remote);
+        Hardpoint Remote(string name) => remote.FindChildren("*", "", true, false).OfType<Hardpoint>().First(h => h.Name == name);
+        Check("another machine's ship shows the factory's fit until its owner says", Remote("Spine").Mounted is TurretSpec && Remote("NoseLeft").Mounted is LaserSpec);
+        remote.Fit(key);
+        Check($"then what its owner has: three lasers ({key})", Remote("Spine").Mounted is LaserSpec && Remote("Spine").GetNodeOrNull("Laser") != null
+              && remote.FindChildren("*", "", true, false).OfType<TurretDevice>().Count() == 0);
+        remote.Fit("NoseLeft=res://assets/ship/hulls/hull_fighter.tres;Spine=");
+        Check("a path that is not a weapon is not taken: that hardpoint shows nothing", Remote("NoseLeft").Mounted == null && Remote("Spine").Mounted == null && Remote("NoseRight").Mounted == null);
+        var late = GD.Load<PackedScene>("res://scenes/ships/remote_fighter.tscn").Instantiate<Xpace.Net.RemoteShip>();
+        late.Fit(key);
+        AddChild(late);
+        Check("a ship made after the fit was heard shows it from the start",
+              late.FindChildren("*", "", true, false).OfType<Hardpoint>().All(h => h.Mounted is LaserSpec));
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GC.Collect();

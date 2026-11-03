@@ -123,6 +123,8 @@ public partial class SessionNode : Node
     private readonly System.Collections.Generic.HashSet<ushort> _down = new();
     private readonly System.Collections.Generic.Dictionary<ushort, (IRadio Radio, string Sign, bool On)> _radios = new();
     private readonly System.Collections.Generic.Dictionary<ushort, (string Sign, bool On)> _theirRadios = new();
+    private readonly System.Collections.Generic.Dictionary<ushort, string> _fittings = new();         // sent, of the ships owned here
+    private readonly System.Collections.Generic.Dictionary<ushort, string> _theirFittings = new();    // heard, of other machines' ships
     private readonly System.Collections.Generic.Dictionary<byte, Xpace.OnFoot.RemoteWalker> _walkers = new();
 
     /// <summary>Another machine's player on foot as it walks here, or null.</summary>
@@ -199,6 +201,7 @@ public partial class SessionNode : Node
         Session.HitConfirmed += Confirmed;
         Session.RadioHeard += Heard;
         Session.RadioChanged += RadioChanged;
+        Session.FittingChanged += FittingChanged;
         Session.Requested += Requested;
         Session.DockCleared += DockCleared;
         Session.Thickened += (ship, density, band) => (NodeOf(ship.NetId) as Xpace.Ship.ShipBody)?.Device<Xpace.Ship.CruiseDevice>()?.Thicken(density, band);
@@ -338,6 +341,15 @@ public partial class SessionNode : Node
             }
             _radios[e.NetId] = radio;
         }
+
+        // What the ships owned here have on their hardpoints, when it changes
+        foreach (INetEntity e in Session.Entities)
+            if (e.IsLocal && e is NetBody { Joined: true, Ship: Xpace.Ship.ShipBody ship } && ship.Hardpoints.Count > 0
+                && (!_fittings.TryGetValue(e.NetId, out string sent) || sent != ship.Fitted))
+            {
+                _fittings[e.NetId] = ship.Fitted;
+                Session.SetFitting(e.NetId, ship.Fitted);
+            }
 
         // Ships of other machines that blew up there
         foreach (INetEntity e in Session.Entities)
@@ -492,6 +504,8 @@ public partial class SessionNode : Node
         ship.Name = $"Player{NetIds.Owner(id)}";
         ship.NetId = id;
         ship.Driven = true;
+        if (_theirFittings.TryGetValue(id, out string fitted))
+            ship.Fit(fitted);
         world.AddChild(ship);
         if (_theirRadios.TryGetValue(id, out var radio))
             ship.GetNodeOrNull<RemoteRadio>("Radio")?.Follow(radio.Sign, radio.On);
@@ -585,6 +599,14 @@ public partial class SessionNode : Node
     {
         if (Active && Session.IsHost && dock.Station != null)
             Session.Dock(dock.Station.Sign, dock.Number, dock.IsOpen);
+    }
+
+    /// <summary>Another machine's ship's fitting, as its owner has it.</summary>
+    private void FittingChanged(ushort ship, string fitted)
+    {
+        _theirFittings[ship] = fitted;              // also for when what shows it is made
+        if (NodeOf(ship) is RemoteShip remote)
+            remote.Fit(fitted);
     }
 
     /// <summary>Another machine's ship's radio, as its owner has it.</summary>

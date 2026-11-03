@@ -166,7 +166,10 @@ the lasers fire in turn, each ready again `FireInterval` after its pulse, so thr
 (and heat and drain as much more). A turret mounted on a hardpoint is the ship's `TurretDevice`; a ship has one.
 
 A hull's outside and its hardpoints are one scene, used by the ship flown here and by the ship other players see
-(`RemoteShip`, which shows its hull's factory fitting, looks only), so a hardpoint placed there looks right to both.
+(`RemoteShip`, looks only), so a hardpoint placed there looks right to both. In a session the owner of a ship sends
+what is on its hardpoints whenever it changes (`ShipBody.Fitted`, hardpoint=model path pairs: `Session.SetFitting`,
+reliable, kept by the host for whoever joins later), and other machines mount it on their copy (`RemoteShip.Fit`;
+only weapon models under assets/weapons are taken); until then a copy shows its hull's factory fitting.
 The fighter's is `scenes/ships/fighter_03_exterior.tscn` (in `player_ship.tscn` as Exterior: its Model is hidden from
 the seat, its weapons are not; in `remote_fighter.tscn`). It has three T1 hardpoints: NoseLeft and NoseRight (fixed),
 and Spine (fixed or turret). It comes with a laser on each side of the nose (LSR-1, Synty's SM_Veh_Part_Misc_09) and

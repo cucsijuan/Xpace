@@ -92,10 +92,26 @@ public partial class RemoteShip : Node3D, Space.ICruiseShown, INetEntity, IRadar
         AddChild(_jammer);
         _jammer.Follow(JamMode.Off, false, Vector3.Forward);
         _plumes = FindChildren("*", "", true, false).OfType<EnginePlume>().ToArray();
-        var fitted = Xpace.Ship.Fittings.Of(Hull);
+        // As its owner has it, or as it came from the factory until its owner says
+        Mount(Fitted == null ? Xpace.Ship.Fittings.Of(Hull) : Xpace.Ship.Fittings.Parse(Fitted));
+        AddChild(new RemoteRadio { Name = "Radio" });
+    }
+
+    /// <summary>What its owner has on its hardpoints (<see cref="Xpace.Ship.ShipBody.Fitted"/>), as last heard; null: not heard yet.</summary>
+    public string Fitted { get; private set; }
+
+    /// <summary>Shows what its owner has on its hardpoints (<see cref="Xpace.Ship.ShipBody.Fitted"/>): looks only.</summary>
+    public void Fit(string fitted)
+    {
+        Fitted = fitted ?? "";
+        if (IsInsideTree())
+            Mount(Xpace.Ship.Fittings.Parse(Fitted));
+    }
+
+    private void Mount(System.Collections.Generic.Dictionary<string, Resource> fitted)
+    {
         foreach (Xpace.Ship.Hardpoint h in FindChildren("*", "", true, false).OfType<Xpace.Ship.Hardpoint>())
             h.Mount(fitted.GetValueOrDefault(h.Name.ToString()), working: false);
-        AddChild(new RemoteRadio { Name = "Radio" });
     }
 
     public void Paint() { }

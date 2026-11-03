@@ -103,7 +103,10 @@ public sealed class Session
     private const byte KindSnapshot = 1, KindFire = 2, KindHit = 3, KindPing = 4, KindPong = 5,
                        KindSpawn = 6, KindDespawn = 7, KindBlast = 8, KindDrop = 9, KindDelta = 10, KindAck = 11, KindRadio = 12,
                        KindRadioState = 13, KindRequest = 14, KindCleared = 15, KindDock = 16, KindPilot = 17, KindDocument = 18,
-                       KindAsk = 19, KindWalker = 20, KindPlace = 21, KindThicken = 22;
+                       KindAsk = 19, KindWalker = 20, KindPlace = 21, KindThicken = 22, KindFitting = 23;
+
+    /// <summary>The longest fitting message taken (hardpoint names and model paths).</summary>
+    public const int MaxFittingBytes = 1024;
 
     /// <summary>A document for a guest goes in parts of at most this many bytes (EOS carries 1170 a packet).</summary>
     public const int PartBytes = 1000;
@@ -160,6 +163,9 @@ public sealed class Session
     /// <summary>A ship's radio, as its owner has it (the ship, callsign, on).</summary>
     public event Action<ushort, string, bool> RadioChanged;
 
+    /// <summary>What is on a ship's hardpoints, as its owner has it (the ship, <see cref="Xpace.Ship.ShipBody.Fitted"/>).</summary>
+    public event Action<ushort, string> FittingChanged;
+
     /// <summary>The host: another machine's ship asks a station (the ship, the station's callsign, what).</summary>
     public event Action<ushort, string, byte> Requested;
 
@@ -213,6 +219,7 @@ public sealed class Session
     private readonly Dictionary<(byte Peer, ushort Id), uint> _acked = new();         // the newest each peer has of each
     private readonly Dictionary<byte, Dictionary<ushort, uint>> _toAck = new();       // to tell each peer: what came of theirs
     private readonly Dictionary<ushort, byte[]> _radios = new();           // the host: each ship's radio state, as sent
+    private readonly Dictionary<ushort, byte[]> _fittings = new();         // the host: each ship's fitting, as sent
     private readonly Dictionary<(string Station, int Dock), bool> _docks = new();   // the host: docks open
     private readonly Dictionary<ushort, byte[][]> _parts = new();          // a guest: documents still coming, by number
     private readonly Dictionary<byte, WalkerState> _walkers = new();      // others on foot, by peer
@@ -347,6 +354,7 @@ public sealed class Session
         _entities.Remove(id);
         _places.Remove(id);
         _radios.Remove(id);
+        _fittings.Remove(id);
         _histories.Remove(id);
         _heard.Remove(id);
         _sent.Remove(id);
@@ -490,6 +498,24 @@ public sealed class Session
         }
         else
             Send(HostPeer, KindRadioState, bytes, reliable: true);
+    }
+
+    /// <summary>
+    /// A ship owned here: what is on its hardpoints (<see cref="Xpace.Ship.ShipBody.Fitted"/>: hardpoint=model path
+    /// pairs; send when it changes). It goes reliably, and the host keeps it for whoever joins later.
+    /// </summary>
+    public void SetFitting(ushort ship, string fitted)
+    {
+        var body = new List<byte>(BitConverter.GetBytes(ship));
+        body.AddRange(System.Text.Encoding.UTF8.GetBytes(fitted ?? ""));
+        byte[] bytes = body.ToArray();
+        if (IsHost)
+        {
+            _fittings[ship] = bytes;
+            Broadcast(KindFitting, bytes, reliable: true, except: null);
+        }
+        else
+            Send(HostPeer, KindFitting, bytes, reliable: true);
     }
 
     /// <summary>This machine's player on foot as they are now (each tick), or null: not on foot.</summary>
@@ -749,6 +775,9 @@ public sealed class Session
                 foreach ((ushort id, byte[] radio) in _radios)
                     if (NetIds.Owner(id) != peer)
                         Send(peer, KindRadioState, radio, reliable: true);
+                foreach ((ushort id, byte[] fitting) in _fittings)
+                    if (NetIds.Owner(id) != peer)
+                        Send(peer, KindFitting, fitting, reliable: true);
                 foreach ((string station, int dock) in _docks.Keys)
                     Send(peer, KindDock, DockBody(station, dock, true), reliable: true);
             }
@@ -981,6 +1010,21 @@ public sealed class Session
                         Broadcast(KindRadioState, body, reliable: true, except: peer);
                     }
                     RadioChanged?.Invoke(id, Text(body, 3, body.Length).TrimEnd(), body[2] != 0);
+                }
+                break;
+
+            case KindFitting:
+                if (body.Length >= 2 && body.Length <= MaxFittingBytes)
+                {
+                    ushort id = BitConverter.ToUInt16(body, 0);
+                    if (!theirs(id) || NetIds.Owner(id) == LocalPeer)
+                        return;
+                    if (IsHost)
+                    {
+                        _fittings[id] = body;
+                        Broadcast(KindFitting, body, reliable: true, except: peer);
+                    }
+                    FittingChanged?.Invoke(id, System.Text.Encoding.UTF8.GetString(body, 2, body.Length - 2));
                 }
                 break;
 

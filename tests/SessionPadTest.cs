@@ -23,7 +23,10 @@ namespace Xpace.Tests;
 ///     pad: the station here shuts the door, everywhere, and tells the guest;
 ///   - docked, the guest's pilot trades at the station's market through the
 ///     host: the host's universe takes the credits and loads the hold, and
-///     sends the guest the market's answer and the pilot's record;
+///     sends the guest the market's answer and the pilot's record; it refits
+///     there through the host too (the turret off the spine, into its locker);
+///   - what the guest's ship has on its hardpoints, as the guest sends it,
+///     shows on its ship here;
 ///   - the guest asks to launch: the door opens everywhere, the guest is
 ///     told; once its ship is out of the hangar the door shuts and its
 ///     clearance is over.
@@ -32,7 +35,9 @@ namespace Xpace.Tests;
 ///   - cleared by the host, the pad here takes the ship and docks it (only
 ///     this machine moves its own ship);
 ///   - asking to launch goes to the host; the clamps hold the ship until
-///     the host opens the door, then lift it and let it go.
+///     the host opens the door, then lift it and let it go;
+///   - what the ship has on its hardpoints goes to the host, and again when
+///     it is refitted.
 ///
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/session_pad_test.tscn
 /// Exits with 0 if every check passed.
@@ -79,7 +84,7 @@ public partial class SessionPadTest : Node
     {
         Universe.Current.Forget();
         HangarDock dock = World();
-        var hostNode = new SessionNode();
+        var hostNode = new SessionNode { RemoteShipScene = GD.Load<PackedScene>("res://scenes/ships/remote_fighter.tscn") };
         _origin.AddChild(hostNode);
         await Frames(1);
 
@@ -138,6 +143,19 @@ public partial class SessionPadTest : Node
         Check("and the guest's copy of the record has it",
               await Until(() => documents[Universe.PilotTopic].Contains("\"ir_1\":1"), 1));
 
+        _other.Ask(FittingDesk.Topic, System.Text.Json.JsonSerializer.Serialize(
+            new FittingRequest { Station = "HAVEN", Do = FittingRequest.Remove, Place = "Spine" }));
+        Check("the guest refits through the host", await Until(() => documents.ContainsKey(FittingDesk.Topic), 2));
+        FittingView fit = System.Text.Json.JsonSerializer.Deserialize<FittingView>(documents.GetValueOrDefault(FittingDesk.Topic) ?? "{}");
+        Check($"the host takes the turret off on the pilot's record, into the locker here ({fit.Message})",
+              ace.Ship.Fittings.GetValueOrDefault("Spine") == "" && Universe.Current.State.Station("HAVEN").LockerOf("ace-pilot").Any(i => i.Name == "GUN-1")
+              && fit.Places.First(p => p.Name == "Spine").Mounted == "");
+        Hardpoint spine = player.FindChildren("*", "", true, false).OfType<Hardpoint>().First(h => h.Name == "Spine");
+        Check("the guest's ship shows the factory's fit here until the guest says", spine.Mounted is TurretSpec);
+        _other.SetFitting(GuestShipId, "Spine=res://assets/weapons/lasers/lsr_1.tres");
+        Check("then what the guest says it has: a laser on the spine, nothing on the nose",
+              await Until(() => spine.Mounted is LaserSpec, 2) && player.FindChildren("*", "", true, false).OfType<Hardpoint>().Count(h => h.Mounted != null) == 1);
+
         _other.Request(GuestShipId, "HAVEN", (byte)RadioRequest.Launch);
         Check("asking to launch: the door opens, everywhere", await Until(() => dock.IsOpen && _doors[^1] == ("HAVEN", dock.Number, true), 2));
         Check($"the guest is told ({Last})", await Until(() => Last.Contains("launch"), 1));
@@ -162,6 +180,7 @@ public partial class SessionPadTest : Node
         var ship = new ShipBody { Name = "Bravo", Spec = GD.Load<ShipSpec>("res://assets/ship/hulls/hull_fighter.tres") };
         ship.AddChild(new ShipComputer { Name = "ShipComputer", PowerOnAtStart = false });
         ship.AddChild(GD.Load<PackedScene>("res://scenes/ships/fighter_03_hitboxes.tscn").Instantiate());
+        ship.AddChild(GD.Load<PackedScene>("res://scenes/ships/fighter_03_exterior.tscn").Instantiate());
         var radio = new RadioDevice { Name = "Radio", Callsign = "BRAVO" };
         ship.AddChild(radio);
         ship.AddChild(new NetBody { OwnedBy = NetOwner.Pilot });
@@ -176,6 +195,8 @@ public partial class SessionPadTest : Node
         host.Add(new Thing { NetId = GuestShipId, Track = new RemoteTrack { TickSeconds = Dt } });
         var asked = new List<(ushort Ship, string Station, byte What)>();
         host.Requested += (id, at, what) => asked.Add((id, at, what));
+        var fittings = new List<string>();
+        host.FittingChanged += (id, fitted) => { if (id == GuestShipId) fittings.Add(fitted); };
         guestNode.Start(GuestPeer, _net.Join(GuestPeer));
         _other = host;
         await Frames(60);
@@ -201,6 +222,12 @@ public partial class SessionPadTest : Node
         host.Dock("HAVEN", dock.Number, true);
         Check("the host opens the door: the clamps lift it", await Until(() => pad.State == LandingPad.PadState.Launching, 1));
         Check("and let it go", await Until(() => !ship.Held, (float)pad.LaunchSeconds + 1));
+
+        Check($"what the ship has on its hardpoints went to the host ({(fittings.Count > 0 ? fittings[^1] : "nothing")})",
+              fittings.Count > 0 && fittings[^1] == ship.Fitted && ship.Fitted.Contains("Spine=res://assets/weapons/turrets/gun_1.tres"));
+        var laser = GD.Load<Resource>("res://assets/weapons/lasers/lsr_1.tres");
+        ship.Fit(new Dictionary<string, Resource> { ["NoseLeft"] = laser, ["NoseRight"] = laser, ["Spine"] = laser });
+        Check("refitted, it goes again", await Until(() => fittings.Count > 0 && fittings[^1] == ship.Fitted && ship.Fitted.Contains("Spine=res://assets/weapons/lasers"), 2));
 
         _origin.QueueFree();
         _other = null;
