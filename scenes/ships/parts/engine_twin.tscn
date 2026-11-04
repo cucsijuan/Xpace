@@ -1,0 +1,44 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/ShipPart.cs" id="1_part"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Veh_Part_Engine_03.fbx" id="2_model"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="3_paint"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="4_atlas"]
+[ext_resource type="Script" path="res://scripts/Space/HitArea.cs" id="5_area"]
+
+[ext_resource type="Script" path="res://scripts/Space/EnginePlume.cs" id="6_plume"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Flame_Mesh_New.fbx" id="7_flame"]
+[ext_resource type="Texture2D" path="res://assets/synty/Gradient_Boost.png" id="8_boost"]
+
+[sub_resource type="BoxShape3D" id="box"]
+size = Vector3(7.506, 3.277, 10.747)
+
+[node name="EngineTwin" type="Node3D"]
+script = ExtResource("1_part")
+Mass = 10000.0
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+transform = Transform3D(-1.8, 0, 0, 0, 1.8, 0, 0, 0, -1.8, 0, 0, 0)
+
+[node name="Paint" type="Node" parent="Model"]
+script = ExtResource("3_paint")
+Material = ExtResource("4_atlas")
+
+[node name="Hit" type="Area3D" parent="."]
+script = ExtResource("5_area")
+
+[node name="Box" type="CollisionShape3D" parent="Hit"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.000, 0.000, -0.000)
+shape = SubResource("box")
+
+[node name="PlumeLeft" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1.9, 0, 5.4)
+script = ExtResource("6_plume")
+FlameModel = ExtResource("7_flame")
+FlameTexture = ExtResource("8_boost")
+
+[node name="PlumeRight" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1.9, 0, 5.4)
+script = ExtResource("6_plume")
+FlameModel = ExtResource("7_flame")
+FlameTexture = ExtResource("8_boost")

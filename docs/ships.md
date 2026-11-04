@@ -13,6 +13,16 @@ The player's ship is `Ship` in `scenes/main.tscn`; the AI fighter is `scenes/shi
 
 To make a new tier: duplicate a `.tres` in the editor (or copy the file), change its numbers and its `Model` name, and fit it on a ship. A new jammer model must also be added to the `Jammers` list of `SessionNode` in `main.tscn`, so other players' machines know it in a network session.
 
+## Ships from parts
+
+A hull needs no model of its own: its exterior can be a scene of parts, placed in the editor like the freighter's (`scenes/ships/freighter_01_exterior.tscn`, used by `hull_freighter.tres`). Synty's parts have no sockets, so they are lined up by eye. This is for designers: players buy factory hulls.
+
+A part is a scene in `scenes/ships/parts`: a `ShipPart` root with `Mass` (kg), the model with its paint, and a `HitArea` with one or more box shapes, which are its hitboxes. An engine part also has its `EnginePlume` nodes: Synty's flame particles, tuned to burn steady (`Life`, `Flames`, `SizeVariation`), their length following the push within `ResponseSeconds`, the same random numbers in all the engines of a ship. For another size, make another part scene: don't scale an instance.
+
+To build a ship: make a scene with parts and `Hardpoint` nodes, point a hull's `Exterior` at it, and run `tools/ship_mass/ship_mass_tool.tscn` (F6 in the editor, or headless). It writes each such hull's `Mass` and `Inertia`, spreading each part's mass over its boxes, and prints the centre of mass: keep it near the scene's origin, where the ship turns. Run it again after changing parts. Push, veil and cargo stay in the hull, and `tests/ship_parts_test` fails if the freighter's numbers are stale. A ship to park on a small pad must fit 24 x 24 x 12 m (`LandingPad.MaxFootprint`, `MaxHeight`), measured by its boxes.
+
+`scenes/ships/ai_freighter.tscn` is the freighter with the AI's systems, painted by its `Theme` node (`PaintTheme`). It only patrols for now.
+
 ## The physics in one paragraph
 
 Ships fly on their generator: the engines push against the **veil**, a field that holds on to the sector's thin medium, and the veil pulls back with the square of the speed, like air. So every direction has a **top speed**, where the push meets the drag, and every axis of turning has a **top turn rate**. The veil grips much harder across the hull than along its nose, so a slide bleeds off and the path follows the nose, more the faster the ship goes; that is what lets a ship turn without sliding. Missiles are rockets and feel none of it.

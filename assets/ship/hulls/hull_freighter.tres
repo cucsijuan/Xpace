@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="ShipSpec" format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="1_spec"]
+[ext_resource type="Resource" path="res://assets/ship/thrusters/thrusters_h20.tres" id="2_thrusters"]
+[ext_resource type="Resource" path="res://assets/weapons/decoys/dispenser_1.tres" id="3_dispenser"]
+[ext_resource type="Resource" path="res://assets/weapons/lasers/lsr_1.tres" id="4_laser"]
+[ext_resource type="PackedScene" path="res://scenes/ships/freighter_01_exterior.tscn" id="5_exterior"]
+
+[resource]
+script = ExtResource("1_spec")
+Mass = 74000.0
+Thrusters = ExtResource("2_thrusters")
+VeilDrag = 0.0005
+VeilCross = Vector2(0.004, 0.004)
+VeilSpin = Vector3(2.5, 3, 1.5)
+RatedAcceleration = 40.0
+Compartments = PackedInt32Array(4, 4)
+CargoRacks = PackedInt32Array(4, 4)
+MissileRack = 0
+Dispenser = ExtResource("3_dispenser")
+Fitting = Dictionary[String, Resource]({
+"NoseLeft": ExtResource("4_laser"),
+"NoseRight": ExtResource("4_laser")
+})
+Exterior = ExtResource("5_exterior")
+Inertia = Vector3(2418233.5, 4388891, 2511889.3)

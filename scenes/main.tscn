@@ -48,6 +48,7 @@
 
 [ext_resource type="PackedScene" path="res://scenes/ships/police_fighter.tscn" id="83_police"]
 [ext_resource type="PackedScene" path="res://scenes/ships/ai_miner.tscn" id="84_miner"]
+[ext_resource type="PackedScene" path="res://scenes/ships/ai_freighter.tscn" id="85_freighter"]
 
 
 [node name="Main" type="Node"]
@@ -60,7 +61,7 @@ ShipScene = ExtResource("3_ship")
 script = ExtResource("33_session")
 RemoteShipScene = ExtResource("38_remote_fighter")
 KeepSceneShips = false
-Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_missile"), ExtResource("35_chaff"), ExtResource("36_flare"), ExtResource("41_ai_fighter"), ExtResource("83_police"), ExtResource("84_miner")])
+Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_missile"), ExtResource("35_chaff"), ExtResource("36_flare"), ExtResource("41_ai_fighter"), ExtResource("83_police"), ExtResource("84_miner"), ExtResource("85_freighter")])
 Jammers = Array[ExtResource("69_jammer_spec")]([ExtResource("66_nj1"), ExtResource("67_nj2"), ExtResource("68_dj3")])
 
 

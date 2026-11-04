@@ -1,0 +1,48 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ships/parts/body_hub.tscn" id="body_hub"]
+[ext_resource type="PackedScene" path="res://scenes/ships/parts/cargo_pod.tscn" id="cargo_pod"]
+[ext_resource type="PackedScene" path="res://scenes/ships/parts/cockpit_wide.tscn" id="cockpit_wide"]
+[ext_resource type="PackedScene" path="res://scenes/ships/parts/engine_twin.tscn" id="engine_twin"]
+[ext_resource type="Script" path="res://scripts/Ship/Hardpoint.cs" id="hardpoint"]
+[ext_resource type="Resource" path="res://assets/weapons/lasers/lsr_1.tres" id="laser"]
+
+[node name="Freighter01" type="Node3D"]
+
+[node name="Body" parent="." instance=ExtResource("body_hub")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, -1.0)
+
+[node name="Cockpit" parent="." instance=ExtResource("cockpit_wide")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.9, -5.2)
+
+[node name="PodLeft1" parent="." instance=ExtResource("cargo_pod")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.3, 0, -3.2)
+
+[node name="PodRight1" parent="." instance=ExtResource("cargo_pod")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.3, 0, -3.2)
+
+[node name="PodLeft2" parent="." instance=ExtResource("cargo_pod")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7.3, 0, 5.2)
+
+[node name="PodRight2" parent="." instance=ExtResource("cargo_pod")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7.3, 0, 5.2)
+
+[node name="Engine" parent="." instance=ExtResource("engine_twin")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 6.3)
+
+[node name="NoseLeft" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.4, -1.6, -9.5)
+script = ExtResource("hardpoint")
+Preview = ExtResource("laser")
+
+[node name="NoseRight" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.4, -1.6, -9.5)
+script = ExtResource("hardpoint")
+Preview = ExtResource("laser")
+
+[node name="Top" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.4, 5)
+script = ExtResource("hardpoint")
+Accepts = 3
+Preview = ExtResource("laser")
+

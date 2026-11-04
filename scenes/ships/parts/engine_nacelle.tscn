@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/ShipPart.cs" id="1_part"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Veh_Part_Engine_04.fbx" id="2_model"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="3_paint"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="4_atlas"]
+[ext_resource type="Script" path="res://scripts/Space/HitArea.cs" id="5_area"]
+
+[sub_resource type="BoxShape3D" id="box"]
+size = Vector3(5.337, 5.875, 15.399)
+
+[node name="EngineNacelle" type="Node3D"]
+script = ExtResource("1_part")
+Mass = 9000.0
+
+[node name="Model" parent="." instance=ExtResource("2_model")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="Paint" type="Node" parent="Model"]
+script = ExtResource("3_paint")
+Material = ExtResource("4_atlas")
+
+[node name="Hit" type="Area3D" parent="."]
+script = ExtResource("5_area")
+
+[node name="Box" type="CollisionShape3D" parent="Hit"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.000, 0.000, -0.000)
+shape = SubResource("box")

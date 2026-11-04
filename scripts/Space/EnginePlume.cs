@@ -8,16 +8,18 @@ namespace Xpace.Space;
 /// An engine's flame, as hard as the engine pushes, the way Synty's
 /// FX_Flame_Booster_Round makes it: a few flame meshes on top of each other,
 /// each born at the nozzle with a turn of its own, spinning about its length,
-/// swelling and shrinking over its short life, blue going to white as it
-/// fades in and out, added on top of what is behind (glowing gas: it
-/// lights, it does not hide). The texture's streaks run along the flame,
-/// bright at the nozzle.
+/// blue going to white as it fades in and out, added on top of what is
+/// behind (glowing gas: it lights, it does not hide). The texture's streaks
+/// run along the flame, bright at the nozzle. Unlike Synty's, the flames are
+/// short lived and hold their size, so the whole burns steady and trembles
+/// at a fixed push, and all the engines of a ship share their random numbers,
+/// so they burn alike.
 ///
 /// Put the node at the nozzle with its +Z pointing aft. On a ship it reads
 /// the ship's main motor; otherwise whoever knows the push sets
 /// <see cref="Thrust"/> (a remote ship from its owner's snapshots):
-/// nothing burns with the engine idle, more flames and a longer
-/// one the harder it pushes. Without the flame model it falls back to a
+/// nothing burns with the engine idle, a longer flame the harder it
+/// pushes. Without the flame model it falls back to a
 /// cone.
 /// </summary>
 public partial class EnginePlume : Node3D
@@ -25,17 +27,23 @@ public partial class EnginePlume : Node3D
     [Export] public PackedScene FlameModel;                 // its first mesh is the flame (along -Y, the nozzle at 0)
     [Export] public Texture2D FlameTexture;
     [Export] public float FlameSize = 14f;                  // the mesh's scale at the flames' fullest
-    [Export] public int Flames = 12;                        // at full push
-    [Export] public float Life = 1f;                        // s, the longest a flame lives (the shortest half that)
+    [Export] public int Flames = 16;                        // alive at once
+    [Export] public float Life = 0.35f;                     // s, how long a flame lives
+    [Export(PropertyHint.Range, "0,1")] public float SizeVariation = 0.08f;  // how much smaller a flame may be than FlameSize
+    [Export] public float ResponseSeconds = 0.12f;          // how soon the flame's length follows the push
     [Export] public float SpinDegrees = 900f;               // a second, about the flame's length
     [Export] public float LongestAtFull = 2.5f;             // how much longer the flames are at full push than at the least
     [Export] public float MinThrust = 0.03f;                // below this, nothing burns
     [Export] public Color Hot = new(0f, 0.5f, 1f);          // the young flame's colour (it ends white)
+    [Export] public float Brightness = 0.4f;                // each flame's: there are many on top of each other
     [Export] public float LightEnergy = 1.2f;
     [Export] public float LightRange = 12f;
 
     /// <summary>0 to 1: the engine's push, of the most it gives.</summary>
     public float Thrust { get; set; }
+
+    /// <summary>The push the flame shows now: it follows <see cref="Thrust"/>.</summary>
+    public float Shown { get; private set; }
 
     private GpuParticles3D _flames;
     private OmniLight3D _light;
@@ -70,17 +78,20 @@ public partial class EnginePlume : Node3D
             _looked = true;
             for (Node n = GetParent(); n != null && _ship == null; n = n.GetParent())
                 _ship = n as Ship.ShipBody;
+            Node whole = (Node)_ship ?? Owner ?? this;
+            _flames.UseFixedSeed = true;
+            _flames.Seed = (uint)(whole.GetInstanceId() % 1_000_003);
         }
         if (_ship != null)
             Thrust = _ship.EngineThrust;
         float push = Math.Clamp(Thrust, 0, 1);
         bool burning = push >= MinThrust;
+        Shown += ((burning ? push : 0) - Shown) * (1 - MathF.Exp(-(float)delta / ResponseSeconds));
         if (_flames.Emitting != burning)
             _flames.Emitting = burning;
-        _flames.AmountRatio = Math.Max(push, 0.2f);
-        float length = 1 + (LongestAtFull - 1) * push;
+        float length = 1 + (LongestAtFull - 1) * Shown;
         _flames.Scale = new Vector3(1, length, 1);
-        _light.LightEnergy = burning ? LightEnergy * push : 0;
+        _light.LightEnergy = burning ? LightEnergy * Shown : 0;
     }
 
     private Mesh Flame()
@@ -98,10 +109,11 @@ public partial class EnginePlume : Node3D
 
     private ParticleProcessMaterial Process()
     {
-        var swell = new Curve();                        // nothing at birth, fullest halfway, nothing at death
-        swell.AddPoint(new Vector2(0, 0));
-        swell.AddPoint(new Vector2(0.5f, 1));
-        swell.AddPoint(new Vector2(1, 0));
+        var swell = new Curve();                        // at its size almost at once, until it goes
+        swell.AddPoint(new Vector2(0, 0.6f));
+        swell.AddPoint(new Vector2(0.15f, 1));
+        swell.AddPoint(new Vector2(0.85f, 1));
+        swell.AddPoint(new Vector2(1, 0.6f));
         var colour = new Gradient
         {
             Offsets = new[] { 0f, 0.33f, 0.54f, 1f },
@@ -119,13 +131,13 @@ public partial class EnginePlume : Node3D
             Gravity = Vector3.Zero,
             InitialVelocityMin = 0,
             InitialVelocityMax = 0,
-            LifetimeRandomness = 0.5f,
+            LifetimeRandomness = 0.1f,
             ParticleFlagRotateY = true,                 // turns about the flame's length
             AngleMin = 0,
             AngleMax = 360,
             AngularVelocityMin = SpinDegrees,
             AngularVelocityMax = SpinDegrees,
-            ScaleMin = FlameSize * 0.5f,
+            ScaleMin = FlameSize * (1 - SizeVariation),
             ScaleMax = FlameSize,
             ScaleCurve = new CurveTexture { Curve = swell },
             ColorRamp = new GradientTexture1D { Gradient = colour },
@@ -141,6 +153,6 @@ public partial class EnginePlume : Node3D
         CullMode = BaseMaterial3D.CullModeEnum.Disabled,
         VertexColorUseAsAlbedo = true,
         AlbedoTexture = FlameTexture,
-        AlbedoColor = new Color(1.6f, 1.6f, 1.6f),          // bright as Synty's (emission 2.18), less our glow
+        AlbedoColor = new Color(Brightness, Brightness, Brightness),
     };
 }

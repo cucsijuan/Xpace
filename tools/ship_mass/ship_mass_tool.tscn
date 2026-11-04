@@ -1,0 +1,6 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/Tools/ShipMassTool.cs" id="1_tool"]
+
+[node name="ShipMassTool" type="Node"]
+script = ExtResource("1_tool")

@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ThrusterSpec" format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/ThrusterSpec.cs" id="1_spec"]
+
+[resource]
+script = ExtResource("1_spec")
+Model = "H-20"
+ReverseThrust = 500000.0
+LateralThrust = 500000.0
+VerticalThrust = 800000.0
+Torque = Vector3(1.2e+06, 1.2e+06, 1.2e+06)

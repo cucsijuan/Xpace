@@ -56,6 +56,15 @@ set(MODELS
   SM_Ship_Station_06
   SM_Prop_Turret_Base_Single_01
   SM_Veh_Part_Misc_09
+  SM_Veh_Part_Cockpit_05
+  SM_Veh_Part_Misc_020
+  SM_Veh_Part_Misc_012
+  SM_Veh_Part_Body_03
+  SM_Veh_Part_Engine_03
+  SM_Veh_Part_Engine_04
+  SM_Veh_Part_Engine_05
+  SM_Veh_Part_Wing_015
+  SM_Veh_Part_Misc_014
   SM_Prop_Turret_Base_Double_06
   SM_Prop_Turret_Base_Double_08
   SM_Prop_SpaceWalk_Tube_01

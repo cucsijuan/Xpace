@@ -27,12 +27,15 @@ public partial class HitArea : Area3D, IDamageable
 
     private IDamageable Receiver()
     {
-        Node ship = GetParent();
-        if (ship is IDamageable d)
-            return d;
-        foreach (Node n in ship?.GetChildren() ?? new Godot.Collections.Array<Node>())
-            if (n is IDamageable other && n is not HitArea)
-                return other;
+        // A ship's own, or one of the parts it is built of: up to the first that has something to take it
+        for (Node ship = GetParent(); ship != null; ship = ship.GetParent())
+        {
+            if (ship is IDamageable d)
+                return d;
+            foreach (Node n in ship.GetChildren())
+                if (n is IDamageable other && n is not HitArea)
+                    return other;
+        }
         return null;
     }
 }
