@@ -36,7 +36,7 @@ public partial class OnFootTest : Node
         var seat = _ship.GetNode<ShipSeat>("Seat");
         var pilot = _ship.GetNode<Pilot>("Pilot");
         var radio = _ship.Find<RadioDevice>();
-        Node3D station = main.Sector.GetNode<Node3D>("Station");
+        Node3D station = main.Sector.GetNode<Node3D>("MiltecAlpha");
         HangarDock dock = station.GetNode("HangarBig1").GetNode<HangarDock>("Dock");
 
         Check("the computer boots", await Until(() => _ship.Computer.ScreenText().Contains("Radio resident"), 90));

@@ -47,7 +47,7 @@ public partial class SunShadowsTest : Node
               Near(sun.DirectionalShadowMaxDistance, reach.Far) && Near(sun.DirectionalShadowSplit1 * reach.Far, reach.Middle));
         settings.Shadows = was;
 
-        var hangar = main.Sector.GetNode("Station").FindChildren("*", "Node3D", true, false).OfType<HangarDock>().First().GetParent();
+        var hangar = main.Sector.GetNode("MiltecAlpha").FindChildren("*", "Node3D", true, false).OfType<HangarDock>().First().GetParent();
         float range = hangar.GetNode<DetailRange>("Detail").Range;
         var floor = hangar.GetNode("Floor").FindChildren("*", "MeshInstance3D", true, false).OfType<MeshInstance3D>().FirstOrDefault()
             ?? hangar.GetNode<MeshInstance3D>("Floor");

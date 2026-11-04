@@ -7,7 +7,8 @@
 [ext_resource type="Resource" path="res://assets/organisations/kestrel_mining.tres" id="o_kestrel_mining"]
 [ext_resource type="Resource" path="res://assets/organisations/quartz_works.tres" id="o_quartz_works"]
 [ext_resource type="Resource" path="res://assets/organisations/gate_authority.tres" id="o_gate_authority"]
+[ext_resource type="Resource" path="res://assets/organisations/drydock_yards.tres" id="o_drydock_yards"]
 
 [resource]
 script = ExtResource("1_c")
-Organisations = Array[ExtResource("1_o")]([ExtResource("o_miltec"), ExtResource("o_hkp"), ExtResource("o_kestrel_mining"), ExtResource("o_quartz_works"), ExtResource("o_gate_authority")])
+Organisations = Array[ExtResource("1_o")]([ExtResource("o_miltec"), ExtResource("o_hkp"), ExtResource("o_kestrel_mining"), ExtResource("o_quartz_works"), ExtResource("o_gate_authority"), ExtResource("o_drydock_yards")])

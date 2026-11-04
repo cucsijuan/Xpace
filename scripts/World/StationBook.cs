@@ -14,7 +14,7 @@ public sealed class StationBook
 {
     public sealed class Station
     {
-        public string Sign, Sector, Owner;
+        public string Id, Title, Sector, Owner;
         public Vector3 At;
         /// <summary>How far round it a passing ship keeps clear, metres.</summary>
         public float Radius;
@@ -23,6 +23,7 @@ public sealed class StationBook
         public OutfitLine[] Outfits;
         public FactoryLine[] Factories;
         public FleetLine[] Fleet;
+        public ShipModel[] Shipyard;
         public double Upkeep;
     }
 
@@ -38,7 +39,7 @@ public sealed class StationBook
 
     public sealed class Gate
     {
-        public string Sign, Name, Sector, Leads, Exit, Owner;
+        public string Id, Name, Sector, Leads, Exit, Owner;
         public Vector3 At;
         public long Toll;
         public double TransitSeconds;
@@ -48,7 +49,7 @@ public sealed class StationBook
     public readonly List<Gate> Gates = new();
     public readonly Dictionary<string, Voyage.Space> Space = new();
 
-    public Station Find(string sign) => Stations.FirstOrDefault(s => s.Sign == sign);
+    public Station Find(string id) => Stations.FirstOrDefault(s => s.Id == id);
 
     public static StationBook Read(SectorMap map)
     {
@@ -79,15 +80,15 @@ public sealed class StationBook
             if (parent is JumpGate gate)
                 Gates.Add(new Gate
                 {
-                    Sign = radio.Sign, Name = gate.Name, Sector = sector, Leads = gate.Destination, Exit = gate.ExitGate, At = at, Owner = radio.OwnedBy?.Id ?? "",
+                    Id = radio.Id, Name = gate.Name, Sector = sector, Leads = gate.Destination, Exit = gate.ExitGate, At = at, Owner = radio.OwnedBy?.Id ?? "",
                     Toll = radio.Laws?.Toll ?? 0, TransitSeconds = gate.TransitSeconds,
                 });
             else if (parent.GetNodeOrNull<StationMarket>("Market") is StationMarket market)
                 Stations.Add(new Station
                 {
                     Pads = PadsOf(parent), Radius = RadiusOf(parent, at),
-                    Sign = radio.Sign, Sector = sector, At = at, Owner = radio.OwnedBy?.Id ?? "", Upkeep = market.UpkeepPerHour,
-                    Goods = market.Goods.Where(g => g?.Good != null).ToArray(), Outfits = market.Outfits, Factories = market.Factories, Fleet = market.Fleet,
+                    Id = radio.Id, Title = radio.ShownName, Sector = sector, At = at, Owner = radio.OwnedBy?.Id ?? "", Upkeep = market.UpkeepPerHour,
+                    Goods = market.Goods.Where(g => g?.Good != null).ToArray(), Outfits = market.Outfits, Factories = market.Factories, Fleet = market.Fleet, Shipyard = market.Shipyard,
                 });
         }
     }
@@ -239,14 +240,14 @@ public sealed class StationBook
         {
             legs.Add(Stretch(sector, at, gate.At, model, tonnes, 0, gate.TransitSeconds));
             legs[^1].Open = true;
-            legs[^1].Own = from.Sign;
+            legs[^1].Own = from.Id;
             sector = gate.Leads;
             at = Gates.FirstOrDefault(g => g.Sector == sector && g.Name == gate.Exit)?.At ?? Vector3.Zero;
         }
         contact = Contact(to, at, model);
         legs.Add(Stretch(sector, at, contact, model, tonnes));
         legs[^1].Open = true;
-        legs[^1].Own = from.Sign;
+        legs[^1].Own = from.Id;
         return legs;
     }
 
@@ -300,7 +301,7 @@ public sealed class StationBook
     // Out in the open a line can cross a station: the ship goes over it instead
     private Vector3 Clear(Leg leg, Vector3 at)
     {
-        foreach (Station station in Stations.Where(s => s.Sector == leg.Sector && s.Sign != leg.Own))
+        foreach (Station station in Stations.Where(s => s.Sector == leg.Sector && s.Id != leg.Own))
         {
             float off = station.At.DistanceTo(at), reach = station.Radius * 1.5f;
             if (off < reach)

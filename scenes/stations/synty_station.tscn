@@ -48,7 +48,6 @@
 
 [ext_resource type="Script" path="res://scripts/World/FactoryLine.cs" id="factory_line"]
 [ext_resource type="Resource" path="res://assets/recipes/hydrogen.tres" id="recipe_hydrogen"]
-[ext_resource type="Resource" path="res://assets/recipes/metals.tres" id="recipe_metals"]
 [ext_resource type="Resource" path="res://assets/recipes/machinery.tres" id="recipe_machinery"]
 [ext_resource type="Resource" path="res://assets/recipes/electronics.tres" id="recipe_electronics"]
 [ext_resource type="Resource" path="res://assets/recipes/msl_1.tres" id="recipe_msl_1"]
@@ -64,11 +63,6 @@
 script = ExtResource("factory_line")
 Recipe = ExtResource("recipe_hydrogen")
 PerHour = 34.0
-
-[sub_resource type="Resource" id="Works_metals"]
-script = ExtResource("factory_line")
-Recipe = ExtResource("recipe_metals")
-PerHour = 57.5
 
 [sub_resource type="Resource" id="Works_machinery"]
 script = ExtResource("factory_line")
@@ -299,7 +293,7 @@ TrafficVoices = Array[ExtResource("20_voice_pack")]([ExtResource("pilot_m1"), Ex
 script = ExtResource("30_market")
 Goods = Array[ExtResource("31_market_good")]([SubResource("Market_water"), SubResource("Market_food"), SubResource("Market_iron"), SubResource("Market_medicines"), SubResource("Market_metals"), SubResource("Market_machinery"), SubResource("Market_chips"), SubResource("Market_copper"), SubResource("Market_electronics"), SubResource("Market_hydrogen")])
 Outfits = Array[ExtResource("33_outfit")]([SubResource("Arms_msl"), SubResource("Arms_ir"), SubResource("Arms_chaff"), SubResource("Arms_flare"), SubResource("Arms_rounds"), SubResource("Arms_lsr"), SubResource("Arms_gun"), SubResource("Arms_pyl")])
-Factories = Array[ExtResource("factory_line")]([SubResource("Works_hydrogen"), SubResource("Works_metals"), SubResource("Works_machinery"), SubResource("Works_electronics"), SubResource("Works_msl_1"), SubResource("Works_ir_1"), SubResource("Works_chaff_1"), SubResource("Works_flare_1"), SubResource("Works_lsr_1"), SubResource("Works_gun_1"), SubResource("Works_pyl_1"), SubResource("Works_rounds_1")])
+Factories = Array[ExtResource("factory_line")]([SubResource("Works_hydrogen"), SubResource("Works_machinery"), SubResource("Works_electronics"), SubResource("Works_msl_1"), SubResource("Works_ir_1"), SubResource("Works_chaff_1"), SubResource("Works_flare_1"), SubResource("Works_lsr_1"), SubResource("Works_gun_1"), SubResource("Works_pyl_1"), SubResource("Works_rounds_1")])
 
 [node name="Lockers" type="Node" parent="."]
 script = ExtResource("40_lockers")

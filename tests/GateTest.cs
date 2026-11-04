@@ -44,7 +44,7 @@ public partial class GateTest : Node
         radio.AskTransit();
         await Seconds(4);
         Check($"asked from too far, the radio says no one answered ({Heard(radio)})",
-              Heard(radio) == $"No answer from {gate2.Radio.Sign}." && !gate2.Cleared(_ship));
+              Heard(radio) == $"No answer from {gate2.Radio.Id}." && !gate2.Cleared(_ship));
 
         // Cleared through the first sector's gate, the toll paid
         Place(gate2, 600, 0);

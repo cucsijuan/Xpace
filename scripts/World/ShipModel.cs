@@ -18,6 +18,14 @@ public partial class ShipModel : Resource
     /// <summary>The ship as it flies, when someone is there to see it.</summary>
     [Export] public PackedScene Scene;
 
+    [ExportGroup("Building")]
+    /// <summary>What a shipyard builds it of.</summary>
+    [Export] public Recipe Recipe;
+    /// <summary>What the yard asks for its work, on top of the materials and the pieces fitted.</summary>
+    [Export] public long BuildFee = 250_000;
+    /// <summary>How long it takes on the slip, hours of universe time.</summary>
+    [Export] public double BuildHours = 6;
+
     [ExportGroup("Crew")]
     /// <summary>A voyage's time at the crew's hands: launch and door, spooling, approach, docking.</summary>
     [Export] public double HandlingSeconds = 240;

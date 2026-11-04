@@ -41,7 +41,7 @@ public partial class OwnersTest : Node
         var iron = GD.Load<Good>("res://assets/goods/iron.tres");
         var line = new MarketGood { Good = iron, Stock = 100 };
         var goods = new[] { line };
-        var station = new StationRecord { Callsign = "TEST" };
+        var station = new StationRecord { Id = "TEST" };
         Market.Advance(station, goods, 0);
         var owner = new OrganisationRecord { Id = "o", Name = "O", Credits = 1000 };
         var pilot = new PilotRecord { Id = "p", Credits = 10_000 };
@@ -56,7 +56,7 @@ public partial class OwnersTest : Node
         Check("an owner with no money buys nothing", result == Market.Result.NoCash && sold == 0 && pilot.Ship.Holds("iron") == 5);
 
         var people = new MarketGood { Good = iron, Stock = 100, Uses = 10 };
-        var town = new StationRecord { Callsign = "TOWN", UpdatedAt = 0, Stock = { ["iron"] = 100 } };
+        var town = new StationRecord { Id = "TOWN", UpdatedAt = 0, Stock = { ["iron"] = 100 } };
         var landlord = new OrganisationRecord { Credits = 0 };
         Market.Advance(town, new[] { people }, 3600, null, null, landlord, 0);
         Check($"its people pay for what they use ({landlord.Credits})", landlord.Credits == 10 * iron.BasePrice);
@@ -70,7 +70,7 @@ public partial class OwnersTest : Node
         var outLine = new MarketGood { Good = electronics, Stock = 100 };
         var factory = new[] { new FactoryLine { Recipe = recipe, PerHour = 1 } };
         var maker = new OrganisationRecord { Credits = 1000, Margin = 0.2 };
-        var plant = new StationRecord { Callsign = "PLANT", UpdatedAt = 0, Stock = { ["chips"] = 100, ["electronics"] = 300 } };
+        var plant = new StationRecord { Id = "PLANT", UpdatedAt = 0, Stock = { ["chips"] = 100, ["electronics"] = 300 } };
         Market.Advance(plant, new[] { chipLine, outLine }, 1, null, factory, maker, 0);
         long plenty = Market.BuyPrice(plant, outLine);
         Check($"it won't sell under cost and its margin, however much it has ({plenty}, chips at {chips.BasePrice})", plenty == (long)Math.Ceiling(chips.BasePrice * 1.2));
@@ -86,12 +86,43 @@ public partial class OwnersTest : Node
         IAccount corporation = universe.Account("miltec");
         Check($"an organisation's record starts as it was set up ({corporation?.Name})", corporation is OrganisationRecord { Name: "MilTec" } && corporation.Credits == miltec.StartingCredits);
 
+        // A station is known by its id: its name, callsign and owner can change in play and nothing else does
+        var radio = new StationRadio { StationId = "ANVIL", Callsign = "OLDNAME", Title = "Old Name" };
+        var parent = new Node { Name = "Place" };
+        parent.AddChild(radio);
+        AddChild(parent);
+        universe.State.Station("ANVIL").Stock["iron"] = 12;
+        universe.State.Station("ANVIL").Owner = "miltec";
+        var worker = new CargoShipRecord { Id = "w", Home = "ANVIL", Owner = "miltec" };
+        universe.State.CargoShips["w"] = worker;
+        Check("it starts as its scene says", radio.Sign == "OLDNAME" && radio.ShownName == "Old Name" && radio.Id == "ANVIL");
+        universe.Rename("ANVIL", "New Name", "fresh name");
+        Check($"renamed, it answers to the new name ({radio.Sign}, {radio.ShownName})", radio.Sign == "FRESH NA" && radio.ShownName == "New Name");
+        Check("and it is the same station", radio.Id == "ANVIL" && StationRadio.Called("ANVIL") == radio && universe.State.Station(radio.Id).Stock["iron"] == 12);
+        universe.Transfer("ANVIL", "hkp");
+        Check("sold, it has a new owner, with the ships that work for it", radio.OwnerId == "hkp" && worker.Owner == "hkp" && radio.Cash?.Name == "HKP");
+        universe.State.CargoShips.Remove("w");
+        parent.Free();
+
         string folder = Path.Combine(OS.GetUserDataDir(), "test_owners");
         state.Organisation("x", () => new OrganisationRecord { Id = "x", Name = "X", Credits = 42, Parent = "miltec" });
         state.Station("TEST").Owner = "x";
         UniverseStore.Save(state, folder);
         UniverseState back = UniverseStore.Load(folder);
         Check("organisations and owners are kept", back.Organisations["x"].Credits == 42 && back.Organisations["x"].Parent == "miltec" && back.Stations["TEST"].Owner == "x");
+        Directory.Delete(folder, true);
+
+        // A universe saved when stations went by their callsigns
+        Directory.CreateDirectory(Path.Combine(folder, "stations"));
+        Directory.CreateDirectory(Path.Combine(folder, "cargo_ships"));
+        File.WriteAllText(Path.Combine(folder, "universe.json"), "{\"Version\":1,\"Clock\":5}");
+        File.WriteAllText(Path.Combine(folder, "stations", "STATION.json"), "{\"Version\":1,\"Callsign\":\"STATION\",\"Stock\":{\"iron\":7},\"Mustered\":true}");
+        File.WriteAllText(Path.Combine(folder, "cargo_ships", "x.json"), "{\"Version\":1,\"Id\":\"x\"}");
+        UniverseState old = UniverseStore.Load(folder);
+        Check("an older universe comes up to date: the station under its id, the fleets to start again",
+              old.Stations.TryGetValue("ALPHA", out StationRecord alpha) && alpha.Stock["iron"] == 7 && !alpha.Mustered && old.CargoShips.Count == 0);
+        UniverseStore.Save(old, folder);
+        Check("and its old document goes", !File.Exists(Path.Combine(folder, "stations", "STATION.json")) && UniverseStore.Load(folder).Stations.ContainsKey("ALPHA"));
         Directory.Delete(folder, true);
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");

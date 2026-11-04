@@ -1,4 +1,4 @@
-; comms.asm - Radio Contacts 1.3 (COMMS.COM)
+; comms.asm - Radio Contacts 1.5 (COMMS.COM)
 ;
 ;   COMMS       stays resident and works the radio from the ship's COMMS
 ;               screen (32 x 12 text) and its keys
@@ -92,7 +92,7 @@ ATTR_CURSOR equ 70h
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPCM14'             ; 103h
+signature   db 'XPCM15'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -153,6 +153,9 @@ keys:
 
 ; AL the key
 press:
+    push ax
+    call refresh                    ; the list may have moved since the last drawing
+    pop ax
     cmp al, KEY_UP                  ; zoom in, zoom out, sound: up, down, select
     jae .mapped
     add al, KEY_UP - 1
@@ -257,6 +260,20 @@ remember:
     pop ds
     ret
 
+; The list as the radio has it now, the cursor on the remembered contact
+refresh:
+    mov dx, RADIO + 2
+    in al, dx
+    cmp al, 16
+    jbe .counted
+    mov al, 16
+.counted:
+    mov [count], al
+    mov dx, RADIO + 8
+    in ax, dx
+    mov [table_seg], ax
+    jmp follow
+
 ; The cursor follows the remembered contact as the list's order changes; one
 ; gone leaves the cursor where it was, within the list
 follow:
@@ -303,20 +320,10 @@ follow:
 ; ---------- the screen ----------
 
 draw:
-    mov dx, RADIO + 2
-    in al, dx
-    cmp al, 16
-    jbe .counted
-    mov al, 16
-.counted:
-    mov [count], al
     mov dx, RADIO + 4
     in al, dx
     mov [status], al
-    mov dx, RADIO + 8
-    in ax, dx
-    mov [table_seg], ax
-    call follow
+    call refresh
 
     mov es, [screen_seg]
     mov di, FIRST_ROW * COLS * 2    ; clear all but the title and the heading

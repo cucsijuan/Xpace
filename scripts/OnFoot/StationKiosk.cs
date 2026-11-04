@@ -32,7 +32,7 @@ public partial class StationKiosk : Node3D, IWalkerUse
 
     public override void _Ready() => AddToGroup(Walker.UsesGroup);
 
-    private string Station => StationRadio.Above(this)?.Sign;
+    private string Station => StationRadio.Above(this)?.Id;
 
     public string Offer(Walker walker) =>
         Window == null && WindowScene != null && Station != null &&

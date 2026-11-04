@@ -6,7 +6,7 @@ namespace Xpace.World;
 
 /// <summary>
 /// Everything the game keeps of the universe between plays, as plain data: no nodes, nothing of Godot's, keyed by
-/// ids that outlive any scene (a pilot's id, a station's callsign). Whoever owns the universe (the host; alone, the
+/// ids that outlive any scene (a pilot's id, a station's id). Whoever owns the universe (the host; alone, the
 /// player's own machine) holds it and changes it; the scene's nodes read and write it through <see cref="Universe"/>.
 ///
 /// It is the universe's whole state, so that it can grow into one: each kind of thing has its own records, each
@@ -17,7 +17,7 @@ namespace Xpace.World;
 public sealed class UniverseState
 {
     /// <summary>The documents' format; older ones are brought up to it as they load (<see cref="UniverseStore"/>).</summary>
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -28,6 +28,7 @@ public sealed class UniverseState
     public Dictionary<string, StationRecord> Stations { get; set; } = new();
     public Dictionary<string, OrganisationRecord> Organisations { get; set; } = new();
     public Dictionary<string, CargoShipRecord> CargoShips { get; set; } = new();
+    public Dictionary<string, ShipOrderRecord> ShipOrders { get; set; } = new();
 
     /// <summary>A pilot's record, made the first time the pilot comes (with what a new pilot has).</summary>
     public PilotRecord Pilot(string id, string name = null)
@@ -55,12 +56,12 @@ public sealed class UniverseState
     }
 
     /// <summary>A station's record, made the first time it is needed.</summary>
-    public StationRecord Station(string callsign)
+    public StationRecord Station(string id)
     {
-        if (string.IsNullOrEmpty(callsign))
+        if (string.IsNullOrEmpty(id))
             return null;
-        if (!Stations.TryGetValue(callsign, out StationRecord station))
-            Stations[callsign] = station = new StationRecord { Callsign = callsign, UpdatedAt = Clock };
+        if (!Stations.TryGetValue(id, out StationRecord station))
+            Stations[id] = station = new StationRecord { Id = id, UpdatedAt = Clock };
         return station;
     }
 }
@@ -108,8 +109,26 @@ public sealed class CargoShipRecord
     /// <summary>What it is after or carrying, and the tonnes aboard.</summary>
     public string Good { get; set; } = "";
     public int Tonnes { get; set; }
+    /// <summary>What is fitted on it, if other than what its hull comes with: hardpoint name to the piece's resource path.</summary>
+    public Dictionary<string, string> Fittings { get; set; } = new();
     /// <summary>Tonnes it has brought home in all.</summary>
     public long Delivered { get; set; }
+}
+
+/// <summary>A ship ordered from a shipyard, to take the place of one lost.</summary>
+public sealed class ShipOrderRecord
+{
+    public string Id { get; set; }
+    /// <summary>Its <see cref="ShipModel"/>, by resource path.</summary>
+    public string Model { get; set; }
+    public string Owner { get; set; }
+    /// <summary>The station it will work for, and the one building it.</summary>
+    public string Home { get; set; }
+    public string Yard { get; set; }
+    /// <summary>What the buyer wants fitted: hardpoint name to the piece's resource path.</summary>
+    public Dictionary<string, string> Fittings { get; set; } = new();
+    /// <summary>The universe time it will be ready (0: not started: waiting for materials or money).</summary>
+    public double Ready { get; set; }
 }
 
 /// <summary>Whoever can own things and pay for them: a pilot or an organisation, the same to a market.</summary>
@@ -242,7 +261,12 @@ public sealed class ShipRecord
 /// <summary>A station: what it holds against each pilot, and later its market and lockers.</summary>
 public sealed class StationRecord
 {
-    public string Callsign { get; set; }
+    /// <summary>What it is known by, for good, whoever owns it and whatever it is called.</summary>
+    public string Id { get; set; }
+
+    /// <summary>What it has been renamed in play, as people read it and on the radio (empty: as its scene says).</summary>
+    public string Title { get; set; } = "";
+    public string Callsign { get; set; } = "";
 
     /// <summary>The universe time this station was last brought up to date.</summary>
     public double UpdatedAt { get; set; }
@@ -258,6 +282,12 @@ public sealed class StationRecord
 
     /// <summary>The pads taken by cargo ships, as "dock:pad", and by which.</summary>
     public Dictionary<string, string> CargoPads { get; set; } = new();
+
+    /// <summary>Its fleet has come into being, once: from then on ships are built, not given.</summary>
+    public bool Mustered { get; set; }
+
+    /// <summary>How many ships it has ordered in all.</summary>
+    public int Ordered { get; set; }
 
     /// <summary>Pads a ship just left, as "dock:pad", and the universe time they can be given again.</summary>
     public Dictionary<string, double> PadsResting { get; set; } = new();

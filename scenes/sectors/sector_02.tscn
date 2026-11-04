@@ -1,8 +1,12 @@
 [gd_scene format=3]
 
+[ext_resource type="PackedScene" path="res://scenes/stations/keel_station_three.tscn" id="keel_three"]
+[ext_resource type="Resource" path="res://assets/organisations/kestrel_mining.tres" id="owner_kestrel"]
+[ext_resource type="Resource" path="res://assets/recipes/metals.tres" id="recipe_metals"]
+[ext_resource type="Script" path="res://scripts/World/ShipModel.cs" id="ship_model_script"]
 [ext_resource type="Resource" path="res://assets/ship/models/freighter.tres" id="freighter_model"]
 [ext_resource type="Script" path="res://scripts/World/FleetLine.cs" id="fleet_line"]
-[ext_resource type="Resource" path="res://assets/organisations/kestrel_mining.tres" id="owner_kestrel_mining"]
+[ext_resource type="Resource" path="res://assets/organisations/drydock_yards.tres" id="owner_drydock"]
 [ext_resource type="PackedScene" path="res://scenes/stations/synty_station.tscn" id="10_station"]
 
 [ext_resource type="Script" uid="uid://fx37j1uvmpsi" path="res://scripts/Space/Projectiles.cs" id="15_rounds"]
@@ -21,9 +25,9 @@
 
 [ext_resource type="Script" path="res://scripts/Menu/QualityEnvironment.cs" id="q_env"]
 
-[ext_resource type="Script" path="res://scripts/World/MarketGood.cs" id="kestrel_market_good"]
+[ext_resource type="Script" path="res://scripts/World/MarketGood.cs" id="drydock_market_good"]
 
-[ext_resource type="Script" path="res://scripts/World/OutfitLine.cs" id="kestrel_outfit"]
+[ext_resource type="Script" path="res://scripts/World/OutfitLine.cs" id="drydock_outfit"]
 
 [ext_resource type="Resource" path="res://assets/goods/water.tres" id="good_water"]
 
@@ -80,96 +84,56 @@ script = ExtResource("8_region")
 Size = Vector3(6000, 1500, 6000)
 Falloff = 800.0
 
-[sub_resource type="Resource" id="Kestrel_works_water"]
+[sub_resource type="Resource" id="Drydock_works_water"]
 script = ExtResource("factory_line")
 Recipe = ExtResource("recipe_water")
 PerHour = 109.0
 
-[sub_resource type="Resource" id="Kestrel_works_iron_ore"]
-script = ExtResource("factory_line")
-Recipe = ExtResource("recipe_iron_ore")
-PerHour = 80.0
-
-[sub_resource type="Resource" id="Kestrel_works_iron"]
-script = ExtResource("factory_line")
-Recipe = ExtResource("recipe_iron")
-PerHour = 40.0
-
-[sub_resource type="Resource" id="Kestrel_works_food"]
+[sub_resource type="Resource" id="Drydock_works_food"]
 script = ExtResource("factory_line")
 Recipe = ExtResource("recipe_food")
 PerHour = 50.0
 
-[sub_resource type="Resource" id="Kestrel_works_medicines"]
+[sub_resource type="Resource" id="Drydock_works_medicines"]
 script = ExtResource("factory_line")
 Recipe = ExtResource("recipe_medicines")
 PerHour = 8.0
 
-[sub_resource type="Resource" id="Kestrel_works_silicon"]
-script = ExtResource("factory_line")
-Recipe = ExtResource("recipe_silicon")
-PerHour = 4.0
-
-[sub_resource type="Resource" id="Kestrel_works_copper"]
-script = ExtResource("factory_line")
-Recipe = ExtResource("recipe_copper")
-PerHour = 8.0
-
-[sub_resource type="Resource" id="Kestrel_silicon"]
-script = ExtResource("kestrel_market_good")
-Good = ExtResource("good_silicon")
-Stock = 100
-
-[sub_resource type="Resource" id="Kestrel_copper"]
-script = ExtResource("kestrel_market_good")
-Good = ExtResource("good_copper")
-Stock = 150
-
-[sub_resource type="Resource" id="Kestrel_iron_ore"]
-script = ExtResource("kestrel_market_good")
-Good = ExtResource("good_iron_ore")
-Stock = 100
-
-[sub_resource type="Resource" id="Kestrel_water"]
-script = ExtResource("kestrel_market_good")
+[sub_resource type="Resource" id="Drydock_water"]
+script = ExtResource("drydock_market_good")
 Good = ExtResource("good_water")
 Stock = 500
 
-[sub_resource type="Resource" id="Kestrel_food"]
-script = ExtResource("kestrel_market_good")
+[sub_resource type="Resource" id="Drydock_food"]
+script = ExtResource("drydock_market_good")
 Good = ExtResource("good_food")
 Stock = 400
 
-[sub_resource type="Resource" id="Kestrel_iron"]
-script = ExtResource("kestrel_market_good")
-Good = ExtResource("good_iron")
-Stock = 300
-
-[sub_resource type="Resource" id="Kestrel_medicines"]
-script = ExtResource("kestrel_market_good")
+[sub_resource type="Resource" id="Drydock_medicines"]
+script = ExtResource("drydock_market_good")
 Good = ExtResource("good_medicines")
 Stock = 80
 
-[sub_resource type="Resource" id="Kestrel_metals"]
-script = ExtResource("kestrel_market_good")
+[sub_resource type="Resource" id="Drydock_metals"]
+script = ExtResource("drydock_market_good")
 Good = ExtResource("good_metals")
 Stock = 200
-Uses = 40.0
+Uses = 30.0
 
-[sub_resource type="Resource" id="Kestrel_machinery"]
-script = ExtResource("kestrel_market_good")
+[sub_resource type="Resource" id="Drydock_machinery"]
+script = ExtResource("drydock_market_good")
 Good = ExtResource("good_machinery")
 Stock = 100
 Uses = 12.0
 
-[sub_resource type="Resource" id="Kestrel_electronics"]
-script = ExtResource("kestrel_market_good")
+[sub_resource type="Resource" id="Drydock_electronics"]
+script = ExtResource("drydock_market_good")
 Good = ExtResource("good_electronics")
 Stock = 60
 Uses = 6.0
 
-[sub_resource type="Resource" id="Kestrel_hydrogen"]
-script = ExtResource("kestrel_market_good")
+[sub_resource type="Resource" id="Drydock_hydrogen"]
+script = ExtResource("drydock_market_good")
 Good = ExtResource("good_hydrogen")
 Stock = 200
 Uses = 30.0
@@ -195,10 +159,77 @@ ssil_enabled = true
 ssil_radius = 8.0
 glow_enabled = true
 
-[sub_resource type="Resource" id="fleet_Kestrel"]
+[sub_resource type="Resource" id="fleet_Drydock"]
 script = ExtResource("fleet_line")
 Model = ExtResource("freighter_model")
 Count = 3
+
+[sub_resource type="Resource" id="Kestrel_ore"]
+script = ExtResource("drydock_market_good")
+Good = ExtResource("good_iron_ore")
+Stock = 150
+
+[sub_resource type="Resource" id="Kestrel_iron"]
+script = ExtResource("drydock_market_good")
+Good = ExtResource("good_iron")
+Stock = 300
+
+[sub_resource type="Resource" id="Kestrel_metals"]
+script = ExtResource("drydock_market_good")
+Good = ExtResource("good_metals")
+Stock = 300
+
+[sub_resource type="Resource" id="Kestrel_silicon"]
+script = ExtResource("drydock_market_good")
+Good = ExtResource("good_silicon")
+Stock = 100
+
+[sub_resource type="Resource" id="Kestrel_copper"]
+script = ExtResource("drydock_market_good")
+Good = ExtResource("good_copper")
+Stock = 150
+
+[sub_resource type="Resource" id="Kestrel_water"]
+script = ExtResource("drydock_market_good")
+Good = ExtResource("good_water")
+Stock = 80
+Uses = 12.0
+
+[sub_resource type="Resource" id="Kestrel_food"]
+script = ExtResource("drydock_market_good")
+Good = ExtResource("good_food")
+Stock = 60
+Uses = 8.0
+
+[sub_resource type="Resource" id="Kestrel_works_ore"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_iron_ore")
+PerHour = 170.0
+
+[sub_resource type="Resource" id="Kestrel_works_iron"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_iron")
+PerHour = 40.0
+
+[sub_resource type="Resource" id="Kestrel_works_metals"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_metals")
+PerHour = 62.0
+
+[sub_resource type="Resource" id="Kestrel_works_silicon"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_silicon")
+PerHour = 4.0
+
+[sub_resource type="Resource" id="Kestrel_works_copper"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_copper")
+PerHour = 8.0
+
+[sub_resource type="Resource" id="fleet_Kestrel"]
+script = ExtResource("fleet_line")
+Model = ExtResource("freighter_model")
+Count = 2
 
 [node name="Sector" type="Node3D"]
 script = ExtResource("18_origin")
@@ -222,19 +253,34 @@ script = ExtResource("sun_shadows")
 Flying = ExtResource("shadows_flying")
 OnFoot = ExtResource("shadows_on_foot")
 
-[node name="Kestrel" parent="." instance=ExtResource("10_station")]
+[node name="Drydock" parent="." instance=ExtResource("10_station")]
 transform = Transform3D(-0.5, 0, -0.866025, 0, 1, 0, 0.866025, 0, -0.5, -70000, 2000, -100000)
 
+[node name="Radio" parent="Drydock"]
+StationId = "DRYDOCK"
+OwnedBy = ExtResource("owner_drydock")
+
+[node name="Market" parent="Drydock"]
+Shipyard = Array[ExtResource("ship_model_script")]([ExtResource("freighter_model")])
+Fleet = Array[ExtResource("fleet_line")]([SubResource("fleet_Drydock")])
+UpkeepPerHour = 12000.0
+Goods = Array[ExtResource("drydock_market_good")]([SubResource("Drydock_water"), SubResource("Drydock_food"), SubResource("Drydock_medicines"), SubResource("Drydock_metals"), SubResource("Drydock_machinery"), SubResource("Drydock_electronics"), SubResource("Drydock_hydrogen")])
+Outfits = Array[ExtResource("drydock_outfit")]([])
+Factories = Array[ExtResource("factory_line")]([SubResource("Drydock_works_water"), SubResource("Drydock_works_food"), SubResource("Drydock_works_medicines")])
+Factor = true
+
+[node name="Kestrel" parent="." instance=ExtResource("keel_three")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85000, 2000, -100000)
+
 [node name="Radio" parent="Kestrel"]
-OwnedBy = ExtResource("owner_kestrel_mining")
+StationId = "KESTREL"
+OwnedBy = ExtResource("owner_kestrel")
 
 [node name="Market" parent="Kestrel"]
 Fleet = Array[ExtResource("fleet_line")]([SubResource("fleet_Kestrel")])
-UpkeepPerHour = 12000.0
-Goods = Array[ExtResource("kestrel_market_good")]([SubResource("Kestrel_water"), SubResource("Kestrel_food"), SubResource("Kestrel_iron"), SubResource("Kestrel_iron_ore"), SubResource("Kestrel_silicon"), SubResource("Kestrel_copper"), SubResource("Kestrel_medicines"), SubResource("Kestrel_metals"), SubResource("Kestrel_machinery"), SubResource("Kestrel_electronics"), SubResource("Kestrel_hydrogen")])
-Outfits = Array[ExtResource("kestrel_outfit")]([])
-Factories = Array[ExtResource("factory_line")]([SubResource("Kestrel_works_water"), SubResource("Kestrel_works_iron_ore"), SubResource("Kestrel_works_silicon"), SubResource("Kestrel_works_copper"), SubResource("Kestrel_works_iron"), SubResource("Kestrel_works_food"), SubResource("Kestrel_works_medicines")])
-Factor = true
+UpkeepPerHour = 6000.0
+Goods = Array[ExtResource("drydock_market_good")]([SubResource("Kestrel_ore"), SubResource("Kestrel_iron"), SubResource("Kestrel_metals"), SubResource("Kestrel_silicon"), SubResource("Kestrel_copper"), SubResource("Kestrel_water"), SubResource("Kestrel_food")])
+Factories = Array[ExtResource("factory_line")]([SubResource("Kestrel_works_ore"), SubResource("Kestrel_works_iron"), SubResource("Kestrel_works_metals"), SubResource("Kestrel_works_silicon"), SubResource("Kestrel_works_copper")])
 
 [node name="Projectiles" type="MultiMeshInstance3D" parent="." unique_id=1887929994]
 script = ExtResource("15_rounds")
@@ -243,6 +289,9 @@ Looks = Array[ExtResource("48_look")]([ExtResource("46_cannon_look"), ExtResourc
 [node name="Gate1" parent="." instance=ExtResource("gate_scene")]
 Destination = "sector_01"
 ExitGate = "Gate2"
+
+[node name="Radio" parent="Gate1"]
+StationId = "GATE1"
 
 [node name="Belt" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76270, 2000, -109020)

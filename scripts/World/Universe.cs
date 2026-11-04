@@ -135,6 +135,50 @@ public partial class Universe : Node
         CargoShips.Muster(State, Book, Account);
     }
 
+    /// <summary>A station or gate's new name and callsign (empty: leave it). Other machines are told.</summary>
+    public void Rename(string station, string title, string callsign)
+    {
+        StationRecord record = State.Station(station);
+        if (!string.IsNullOrEmpty(title))
+            record.Title = title;
+        if (!string.IsNullOrEmpty(callsign))
+            record.Callsign = Xpace.Space.Radio.Callsign(callsign, null);
+        Touch();
+        Renamed?.Invoke(station, record.Callsign, record.Title);
+    }
+
+    /// <summary>A station changes hands, with the ships that work for it.</summary>
+    public void Transfer(string station, string owner)
+    {
+        StationRecord record = State.Station(station);
+        foreach (CargoShipRecord ship in State.CargoShips.Values.Where(s => s.Home == station && s.Owner == record.Owner))
+            ship.Owner = owner;
+        foreach (ShipOrderRecord order in State.ShipOrders.Values.Where(o => o.Home == station && o.Owner == record.Owner))
+            order.Owner = owner;
+        record.Owner = owner;
+        Touch();
+    }
+
+    /// <summary>A station was renamed: its id, callsign and title.</summary>
+    public event Action<string, string, string> Renamed;
+
+    private readonly Dictionary<string, (string Callsign, string Title)> _names = new();
+
+    /// <summary>A guest: what the host says a station is called now.</summary>
+    public void ShowName(string station, string callsign, string title) => _names[station] = (callsign, title);
+
+    /// <summary>The callsign a station was given in play (empty: none).</summary>
+    public string CallsignOf(string station) =>
+        IsGuest ? _names.GetValueOrDefault(station).Callsign : State.Stations.GetValueOrDefault(station ?? "")?.Callsign;
+
+    /// <summary>The name a station was given in play (empty: none).</summary>
+    public string TitleOf(string station) =>
+        IsGuest ? _names.GetValueOrDefault(station).Title : State.Stations.GetValueOrDefault(station ?? "")?.Title;
+
+    /// <summary>A station's name on screens, loaded or not.</summary>
+    public string NameOf(string station) =>
+        TitleOf(station) is { Length: > 0 } given ? given : Book?.Find(station)?.Title ?? station;
+
     /// <summary>The account of an owner (<see cref="StationRecord.Owner"/>): a pilot's, or an organisation's as it was set up; none for no owner.</summary>
     public IAccount Account(string owner)
     {

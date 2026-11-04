@@ -24,6 +24,8 @@ public sealed class MarketRequest
 public sealed class MarketView
 {
     public string Station { get; set; }
+    /// <summary>The station's name as people read it.</summary>
+    public string Title { get; set; } = "";
     /// <summary>Who owns the station, by name.</summary>
     public string Owner { get; set; } = "";
     public bool Docked { get; set; }
@@ -47,6 +49,8 @@ public sealed class MarketView
 public sealed class DebtLine
 {
     public string Station { get; set; }
+    /// <summary>The station's name as people read it.</summary>
+    public string Title { get; set; } = "";
     public long Owed { get; set; }
     public long Cost { get; set; }
 }
@@ -67,6 +71,8 @@ public sealed class MarketLine
 public sealed class ArmsView
 {
     public string Station { get; set; }
+    /// <summary>The station's name as people read it.</summary>
+    public string Title { get; set; } = "";
     public bool Docked { get; set; }
     public long Credits { get; set; }
     /// <summary>What came of the request (empty for a look; with nothing on sale, says so).</summary>
@@ -129,6 +135,9 @@ public partial class StationMarket : Node
     /// <summary>The ships working for this station when a universe starts.</summary>
     [Export] public FleetLine[] Fleet = System.Array.Empty<FleetLine>();
 
+    /// <summary>The ships its yard can build (none: no shipyard here).</summary>
+    [Export] public ShipModel[] Shipyard = System.Array.Empty<ShipModel>();
+
     /// <summary>What running the station costs its owner an hour.</summary>
     [Export] public double UpkeepPerHour;
 
@@ -187,7 +196,7 @@ public partial class StationMarket : Node
 
     private static readonly List<StationMarket> _all = new();
 
-    public static StationMarket Of(string callsign) => _all.FirstOrDefault(m => m.Radio?.Sign == callsign);
+    public static StationMarket Of(string id) => _all.FirstOrDefault(m => m.Radio?.Id == id);
 
     public override void _Ready()
     {
@@ -227,11 +236,11 @@ public partial class StationMarket : Node
     {
         Universe universe = Universe.Current;
         UniverseState state = universe.State;
-        StationRecord station = state.Station(Radio.Sign);
+        StationRecord station = state.Station(Radio.Id);
         PilotRecord pilot = state.Pilot(pilotId);
         Market.Advance(station, Goods, state.Clock, Outfits, Factories, Radio.Cash, UpkeepPerHour);
         Node3D ship = universe.ShipOf(pilotId);
-        bool docked = Radio.DockedHere(ship), present = docked || Radio.Inside(ship) || universe.OnFootAt(pilotId) == Radio.Sign;
+        bool docked = Radio.DockedHere(ship), present = docked || Radio.Inside(ship) || universe.OnFootAt(pilotId) == Radio.Id;
         CrimeRecord crimes = station.CrimesOf(pilotId);
         string message = "";
         bool changed = false;
@@ -299,14 +308,14 @@ public partial class StationMarket : Node
 
         var view = new MarketView
         {
-            Station = Radio.Sign, Owner = Radio.Cash?.Name ?? "", Docked = docked, Present = present, Credits = pilot.Credits, Capacity = Capacity(ship, pilot),
+            Station = Radio.Id, Title = Radio.ShownName, Owner = Radio.Cash?.Name ?? "", Docked = docked, Present = present, Credits = pilot.Credits, Capacity = Capacity(ship, pilot),
             Carried = pilot.Ship.Tonnes, Fines = crimes.Fines, Bounty = crimes.Bounty, Impounded = station.Impounded.ContainsKey(pilotId),
             Message = message,
         };
         if (Factor)
             foreach ((string callsign, StationRecord other) in state.Stations.OrderBy(kv => kv.Key, System.StringComparer.Ordinal))
-                if (callsign != Radio.Sign && other.Crimes.TryGetValue(pilotId, out CrimeRecord owed) && owed.Owed > 0)
-                    view.Elsewhere.Add(new DebtLine { Station = callsign, Owed = owed.Owed, Cost = FactorCost(owed.Owed) });
+                if (callsign != Radio.Id && other.Crimes.TryGetValue(pilotId, out CrimeRecord owed) && owed.Owed > 0)
+                    view.Elsewhere.Add(new DebtLine { Station = callsign, Title = Universe.Current.NameOf(callsign), Owed = owed.Owed, Cost = FactorCost(owed.Owed) });
         foreach (MarketGood line in Goods.Where(g => g?.Good != null))
         {
             double stock = station.Stock.GetValueOrDefault(line.Good.Id);
@@ -357,7 +366,7 @@ public partial class StationMarket : Node
     {
         Universe universe = Universe.Current;
         UniverseState state = universe.State;
-        StationRecord station = state.Station(Radio.Sign);
+        StationRecord station = state.Station(Radio.Id);
         PilotRecord pilot = state.Pilot(pilotId);
         Market.Advance(station, Goods, state.Clock, Outfits, Factories, Radio.Cash, UpkeepPerHour);
         Node3D ship = universe.ShipOf(pilotId);
@@ -399,7 +408,7 @@ public partial class StationMarket : Node
             universe.Touch();
 
         var fitted = Fittings.Of(ResourceLoader.Exists(pilot.Ship.Hull) ? GD.Load<ShipSpec>(pilot.Ship.Hull) : null, pilot.Ship);
-        var view = new ArmsView { Station = Radio.Sign, Docked = docked, Credits = pilot.Credits, Message = message };
+        var view = new ArmsView { Station = Radio.Id, Title = Radio.ShownName, Docked = docked, Credits = pilot.Credits, Message = message };
         foreach (OutfitLine line in Outfits.Where(o => o?.Item != null))
         {
             double stock = station.Stock.GetValueOrDefault(line.Id);
@@ -436,7 +445,7 @@ public partial class StationMarket : Node
     {
         if (Universe.Current is not Universe universe || Goods.FirstOrDefault(g => g?.Good?.Id == good?.Id) is not MarketGood line)
             return;
-        StationRecord station = universe.State.Station(Radio.Sign);
+        StationRecord station = universe.State.Station(Radio.Id);
         Market.Advance(station, Goods, universe.State.Clock, Outfits, Factories, Radio.Cash, UpkeepPerHour);
         station.Stock[line.Good.Id] = System.Math.Min(Market.Full * line.Stock, station.Stock.GetValueOrDefault(line.Good.Id) + tonnes);
         universe.Touch();
@@ -451,7 +460,7 @@ public partial class StationMarket : Node
             return NoFactorText;
         if (!present)
             return NotPresentText;
-        if (station == Radio.Sign || !Universe.Current.State.Stations.TryGetValue(station ?? "", out StationRecord other) ||
+        if (station == Radio.Id || !Universe.Current.State.Stations.TryGetValue(station ?? "", out StationRecord other) ||
             !other.Crimes.TryGetValue(pilot.Id, out CrimeRecord record) || record.Owed == 0)
             return NoFinesText;
         long cost = FactorCost(record.Owed);
@@ -463,13 +472,13 @@ public partial class StationMarket : Node
         Receive(cost - record.Owed);
         record.Fines = record.Bounty = 0;
         changed = true;
-        return string.Format(FactorText, station, cost);
+        return string.Format(FactorText, Universe.Current.NameOf(station), cost);
     }
 
     /// <summary>Seized cargo: what the market buys of it at its prices, the rest at half its base price.</summary>
     private long Seize(ShipRecord ship)
     {
-        StationRecord station = Universe.Current.State.Station(Radio.Sign);
+        StationRecord station = Universe.Current.State.Station(Radio.Id);
         var holder = new PilotRecord { Ship = ship };
         foreach ((string id, int tonnes) in ship.Cargo.ToList())
             if (Goods.FirstOrDefault(g => g?.Good?.Id == id) is MarketGood line)

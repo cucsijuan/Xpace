@@ -180,13 +180,16 @@ Kinds = Array[ExtResource("8_kind")]([ExtResource("8_rock_01"), ExtResource("8_r
 CellSize = 400.0
 RocksPerCell = 10
 
-[node name="Station" parent="." unique_id=1661568946 instance=ExtResource("10_station")]
+[node name="MiltecAlpha" parent="." unique_id=1661568946 instance=ExtResource("10_station")]
 transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 450, 60, -1200)
 
-[node name="Radio" parent="Station"]
+[node name="Radio" parent="MiltecAlpha"]
+StationId = "ALPHA"
+Callsign = "MT-ALPHA"
+Title = "Miltec - Alpha"
 OwnedBy = ExtResource("owner_miltec")
 
-[node name="Market" parent="Station"]
+[node name="Market" parent="MiltecAlpha"]
 Fleet = Array[ExtResource("fleet_line")]([SubResource("fleet_Station")])
 UpkeepPerHour = 8000.0
 
@@ -194,6 +197,7 @@ UpkeepPerHour = 8000.0
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25000, 2000, 60000)
 
 [node name="Radio" parent="Quartz"]
+StationId = "QUARTZ"
 OwnedBy = ExtResource("owner_quartz_works")
 
 [node name="Market" parent="Quartz"]
@@ -256,6 +260,9 @@ script = ExtResource("interdictor_buoy")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 90000, 5000, 90000)
 Destination = "sector_02"
 ExitGate = "Gate1"
+
+[node name="Radio" parent="Gate2"]
+StationId = "GATE2"
 
 [node name="Mass" type="Node3D" parent="Planet"]
 script = ExtResource("medium_mass")

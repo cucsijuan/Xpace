@@ -133,6 +133,7 @@ public partial class ArmsWindow : CanvasLayer, IKioskWindow
     private void Show(ArmsView view)
     {
         View = view;
+        _title.Text = $"{view.Title} ARMS";
         _credits.Text = $"Credits  {view.Credits:N0}";
         _message.Text = view.Message;
         foreach (Node n in _cards.GetChildren())

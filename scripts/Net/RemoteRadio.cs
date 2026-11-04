@@ -43,7 +43,7 @@ public partial class RemoteRadio : Node3D, IRadioReceiver
     public void Cleared(StationRadio from, int dock, int pad)
     {
         if (GetParent() is RemoteShip ship && SessionNode.Instance?.Session is Session session)
-            session.Cleared(ship.NetId, from.Sign, dock, pad);
+            session.Cleared(ship.NetId, from.Id, dock, pad);
     }
 
     public void Hear(IRadio from, string text, string speech)

@@ -48,7 +48,7 @@ public partial class TradeBalanceTest : Node
     private const double WorkStepSeconds = 30;
 
     private int _failures;
-    private End _a, _b, _works;
+    private End _a, _b, _mines, _works;
     private StationBook _book;
     private UniverseState _state;
     private ShipSpec _fighter, _courtesy;
@@ -59,7 +59,7 @@ public partial class TradeBalanceTest : Node
     private sealed class End
     {
         public string Name;
-        public string Sign => Name.ToUpperInvariant();
+        public string Sign;
         public MarketGood[] Goods;
         public FactoryLine[] Factories;
         public StationRecord Record;
@@ -82,8 +82,9 @@ public partial class TradeBalanceTest : Node
         _courtesy = GD.Load<ShipSpec>(ShipRecord.CourtesyHull);
         _generator = GD.Load<GeneratorSpec>("res://assets/ship/generators/generator_g1.tres");
         _engineThrust = GD.Load<EngineSpec>("res://assets/ship/engines/engine_d50.tres").RatedThrust;
-        _a = Read("res://scenes/sectors/sector_01.tscn", "Station", "Gate2");
-        _b = Read("res://scenes/sectors/sector_02.tscn", "Kestrel", "Gate1");
+        _a = Read("res://scenes/sectors/sector_01.tscn", "MiltecAlpha", "Gate2");
+        _b = Read("res://scenes/sectors/sector_02.tscn", "Drydock", "Gate1");
+        _mines = Read("res://scenes/sectors/sector_02.tscn", "Kestrel", "Gate1");
         _works = Read("res://scenes/sectors/sector_01.tscn", "Quartz", "Gate2");
         _book = StationBook.Read(GD.Load<SectorMap>("res://assets/sectors/map.tres"));
         Reset();
@@ -163,7 +164,7 @@ public partial class TradeBalanceTest : Node
         Career career = Live(_fighter, PilotRecord.StartingCredits, 0, "fighter, new pilot");
         Check($"a new pilot's first paying run comes within {MaxHoursToFirstPayingRun:0} h ({career.FirstPaying:0.00} h)",
               career.FirstPaying >= 0 && career.FirstPaying <= MaxHoursToFirstPayingRun);
-        Check($"a career earns between {MinCreditsPerHour:0} and {MaxCreditsPerHour:0} credits an hour by its end ({career.LastHour:0})",
+        Check($"a career earns between {MinCreditsPerHour:0} and {MaxCreditsPerHour:0} credits an hour over its last 5 hours ({career.LastHour:0})",
               career.LastHour >= MinCreditsPerHour && career.LastHour <= MaxCreditsPerHour);
         Live(_courtesy, PilotRecord.StartingCredits, 0, "courtesy ship, new pilot's money");
         Live(_courtesy, 200, 0, "courtesy ship, 200 credits left");
@@ -185,15 +186,17 @@ public partial class TradeBalanceTest : Node
         End here = _a, there = _b;
         int runs = 0;
         double waited = 0, end = startClock + CareerHours * 3600, nextMark = startClock + 3600;
-        long lastMark = credits, before = credits;
+        long before = credits;
         var marks = new List<string>();
+        var hours = new List<long> { credits };
         while (clock < end)
         {
+            there = Across(here).OrderByDescending(e => Best(here, e, hull, pilot.Credits, clock)?.Profit ?? long.MinValue).First();
             Run run = Best(here, there, hull, pilot.Credits, clock);
             if (run != null && run.Profit > 0)
             {
                 Market.Buy(here.Record, Line(here, run.Good), pilot, run.Tonnes, run.Tonnes, out int bought, out _, Account(_state.Station(here.Sign).Owner));
-                pilot.Credits -= here.Toll;
+                pilot.Credits -= Toll(here, there);
                 clock += LegSeconds(here, there, hull, bought);
                 AdvanceBoth(clock);
                 Market.Sell(there.Record, Line(there, run.Good), pilot, bought, out _, out _, Account(_state.Station(there.Sign).Owner));
@@ -203,11 +206,11 @@ public partial class TradeBalanceTest : Node
                     career.FirstPaying = (clock - startClock) / 3600;
                 (here, there) = (there, here);
             }
-            else if (Best(there, here, hull, pilot.Credits - here.Toll, clock + LegSeconds(here, there, hull, 0)) is { Profit: > 0 } back &&
-                     back.Profit > here.Toll && pilot.Credits >= here.Toll)
+            else if (Best(there, here, hull, pilot.Credits - Toll(here, there), clock + LegSeconds(here, there, hull, 0)) is { Profit: > 0 } back &&
+                     back.Profit > Toll(here, there) && pilot.Credits >= Toll(here, there))
             {
                 // Nothing pays from here, but something does from the other end: worth flying over empty
-                pilot.Credits -= here.Toll;
+                pilot.Credits -= Toll(here, there);
                 clock += LegSeconds(here, there, hull, 0);
                 AdvanceBoth(clock);
                 (here, there) = (there, here);
@@ -221,8 +224,8 @@ public partial class TradeBalanceTest : Node
             while (clock >= nextMark && nextMark <= end)
             {
                 double hour = (nextMark - startClock) / 3600;
-                career.LastHour = pilot.Credits - lastMark;
-                lastMark = pilot.Credits;
+                hours.Add(pilot.Credits);
+                career.LastHour = (hours[^1] - hours[Math.Max(0, hours.Count - 6)]) / (double)Math.Min(5, hours.Count - 1);
                 if (hour is 1 or 2 or 5 or 10 or 20)
                     marks.Add($"{hour:0} h {pilot.Credits}");
                 nextMark += 3600;
@@ -256,13 +259,11 @@ public partial class TradeBalanceTest : Node
     private void Complementary()
     {
         var alone = new List<string>();
-        foreach (string good in Goods())
-        {
-            MarketGood a = Line(_a, good), b = Line(_b, good);
-            if (a == null || b == null || Math.Sign(Market.Net(good, _a.Goods, _a.Factories)) == Math.Sign(Market.Net(good, _b.Goods, _b.Factories)))
+        foreach (string good in _book.Stations.SelectMany(s => s.Goods).Select(g => g.Good.Id).Distinct())
+            if (!_book.Stations.Any(s => s.Factories.Any(f => Recipe.IdOf(f?.Recipe?.Output) == good)) ||
+                !_book.Stations.Any(s => s.Goods.Any(g => g.Good.Id == good && g.Uses > 0) || s.Factories.Any(f => f?.Recipe?.Inputs.Any(p => Recipe.IdOf(p?.Item) == good) == true)))
                 alone.Add(good);
-        }
-        Check($"every good is made at one end and used at the other ({(alone.Count == 0 ? "all" : "not: " + string.Join(", ", alone))})", alone.Count == 0);
+        Check($"every good is made somewhere and used somewhere ({(alone.Count == 0 ? "all" : "not: " + string.Join(", ", alone))})", alone.Count == 0);
     }
 
     private void WorthCarrying()
@@ -316,8 +317,8 @@ public partial class TradeBalanceTest : Node
         StationRecord works = _state.Station(_works.Sign);
         foreach (var (from, fromGoods, fromRecord, to, toGoods, toRecord, good) in new[]
         {
-            (_b.Name, _b.Goods, _b.Record, _works.Name, _works.Goods, works, "silicon"),
-            (_b.Name, _b.Goods, _b.Record, _works.Name, _works.Goods, works, "copper"),
+            (_mines.Name, _mines.Goods, _state.Station(_mines.Sign), _works.Name, _works.Goods, works, "silicon"),
+            (_mines.Name, _mines.Goods, _state.Station(_mines.Sign), _works.Name, _works.Goods, works, "copper"),
             (_works.Name, _works.Goods, works, _a.Name, _a.Goods, _a.Record, "chips"),
         })
         {
@@ -347,7 +348,7 @@ public partial class TradeBalanceTest : Node
     private Run Best(End from, End to, ShipSpec hull, long credits, double clock)
     {
         Run best = null;
-        foreach (string good in Goods())
+        foreach (string good in Shared(from, to))
         {
             Run run = Try(from, to, good, hull, credits, clock);
             if (run != null && (best == null || run.Profit > best.Profit))
@@ -360,23 +361,26 @@ public partial class TradeBalanceTest : Node
     // is paid before the cargo can be sold
     private Run Try(End from, End to, string good, ShipSpec hull, long credits, double clock)
     {
-        if (credits < from.Toll)
+        long toll = Toll(from, to);
+        if (credits < toll)
             return null;
         var seller = Copy(from.Record);
         var buyer = Copy(to.Record);
-        var pilot = new PilotRecord { Credits = credits - from.Toll };
+        var pilot = new PilotRecord { Credits = credits - toll };
         int hold = hull.CargoCapacity;
         Market.Buy(seller, Line(from, good), pilot, hold, hold, out int bought, out long paid);
         if (bought == 0)
             return null;
         Market.Advance(buyer, to.Goods, clock + LegSeconds(from, to, hull, bought), null, to.Factories);
         Market.Sell(buyer, Line(to, good), pilot, bought, out _, out long earned);
-        return new Run { Good = good, Tonnes = bought, Paid = paid, Earned = earned, Profit = earned - paid - from.Toll };
+        return new Run { Good = good, Tonnes = bought, Paid = paid, Earned = earned, Profit = earned - paid - toll };
     }
 
     private double LegSeconds(End from, End to, ShipSpec hull, int tonnes)
     {
         float mass = hull.Mass + tonnes * CargoHold.KilogramsPerTonne;
+        if (from.Gate == to.Gate)
+            return HandlingSeconds + Flight(from, from.Station, to.Station, hull, mass);
         return HandlingSeconds + Flight(from, from.Station, from.Gate, hull, mass) + Flight(to, to.Gate, to.Station, hull, mass);
     }
 
@@ -398,6 +402,7 @@ public partial class TradeBalanceTest : Node
         var end = new End
         {
             Name = station,
+            Sign = stationNode.GetNode<StationRadio>("Radio").Id,
             Goods = stationNode.GetNode<StationMarket>("Market").Goods.Where(g => g?.Good != null).ToArray(),
             Factories = stationNode.GetNode<StationMarket>("Market").Factories,
             Station = At(stationNode as Node3D),
@@ -406,7 +411,7 @@ public partial class TradeBalanceTest : Node
             SpeedRadius = laws.SpeedRadius,
             SpeedLimit = laws.SpeedLimit,
             Toll = root.GetNode(gate).GetNode<StationRadio>("Radio").Laws.Toll,
-            Record = new StationRecord { Callsign = station },
+            Record = new StationRecord { Id = station },
         };
         root.Free();
         return end;
@@ -430,6 +435,15 @@ public partial class TradeBalanceTest : Node
         return t.Origin;
     }
 
+    private static IEnumerable<string> Shared(End from, End to) =>
+        from.Goods.Select(g => g.Good.Id).Where(g => Line(to, g) != null);
+
+    // The stations it can go to from this one
+    private IEnumerable<End> Across(End here) => new[] { _a, _b, _mines }.Where(e => e != here);
+
+    // In the same sector there is no gate to pay for
+    private static long Toll(End from, End to) => from.Gate == to.Gate ? 0 : from.Toll;
+
     private IEnumerable<string> Goods() =>
         _a.Goods.Select(g => g.Good.Id).Union(_b.Goods.Select(g => g.Good.Id)).Where(g => Line(_a, g) != null && Line(_b, g) != null);
 
@@ -438,7 +452,7 @@ public partial class TradeBalanceTest : Node
     private static double Stock(End end, string good) => end.Record.Stock.TryGetValue(good, out double s) ? s : 0;
 
     private static StationRecord Copy(StationRecord r) =>
-        new() { Callsign = r.Callsign, UpdatedAt = r.UpdatedAt, Stock = new Dictionary<string, double>(r.Stock), Floors = new Dictionary<string, double>(r.Floors) };
+        new() { Id = r.Id, UpdatedAt = r.UpdatedAt, Stock = new Dictionary<string, double>(r.Stock), Floors = new Dictionary<string, double>(r.Floors) };
 
     // The universe as it stands when new: the game's own stations, owners and cargo ships...
     private void Reset()
@@ -446,7 +460,7 @@ public partial class TradeBalanceTest : Node
         _state = new UniverseState();
         CargoShips.Muster(_state, _book, Account);
         CargoShips.Tick(_state, _book, Account);
-        foreach (End end in new[] { _a, _b })
+        foreach (End end in new[] { _a, _b, _mines })
             end.Record = _state.Station(end.Sign);
     }
 

@@ -47,7 +47,7 @@ public partial class ArmsTest : Node
         var launcher = _ship.Find<LauncherDevice>();
         var dispenser = _ship.Device<DispenserDevice>();
         var turret = _ship.Device<TurretDevice>();
-        var station = main.Sector.GetNode<Node3D>("Station");
+        var station = main.Sector.GetNode<Node3D>("MiltecAlpha");
         var market = station.GetNode<StationMarket>("Market");
         HangarDock dock = station.GetNode("HangarBig1").GetNode<HangarDock>("Dock");
         var kiosk = dock.GetParent().GetNode<StationKiosk>("ArmsKiosk");
@@ -160,7 +160,7 @@ public partial class ArmsTest : Node
         me.Credits = 1_000_000;
 
         // The dealer sold out, and the station out of iron: nothing until iron comes
-        StationRecord record = universe.State.Station(market.Radio.Sign);
+        StationRecord record = universe.State.Station(market.Radio.Id);
         record.Stock[Radar] = 0;
         record.Stock["iron"] = 0;
         universe.State.Clock += 3600;
@@ -173,7 +173,7 @@ public partial class ArmsTest : Node
         Check($"none to buy ({window.View.Message})", window.View.Message == market.NoStockText && launcher.MissilesLeft == 0);
 
         me.Ship.Load("iron", 10);
-        MarketView unloaded = market.Serve(me.Id, new MarketRequest { Station = market.Radio.Sign, Do = MarketRequest.Sell, Good = "iron", Tonnes = 10 });
+        MarketView unloaded = market.Serve(me.Id, new MarketRequest { Station = market.Radio.Id, Do = MarketRequest.Sell, Good = "iron", Tonnes = 10 });
         Check($"a hold of iron sold to the market ({unloaded.Message})", me.Ship.Holds("iron") == 0 && record.Stock["iron"] >= 10);
         universe.State.Clock += 3600;
         window.Ask(MarketRequest.Buy, Radar, 1);
@@ -256,7 +256,7 @@ public partial class ArmsTest : Node
               Place("Spine").Model == "GUN-1" && window.Fit.Locker.Any(p => p.Name == "LSR-1") && _ship.Device<TurretDevice>() != null
               && _ship.Device<LaserDevice>().Emitters == lasers);
         ArmsOffer spare = window.View.Offers.First(o => o.Id == "lsr_1");
-        StationRecord here = Universe.Current.State.Station(market.Radio.Sign);
+        StationRecord here = Universe.Current.State.Station(market.Radio.Id);
         double stock = here.Stock["lsr_1"];
         long credits = me.Credits;
         window.Ask(MarketRequest.Sell, "lsr_1", 1);
@@ -298,7 +298,7 @@ public partial class ArmsTest : Node
     }
 
     private static MarketRequest Buy(StationMarket market, string model, int count) =>
-        new() { Station = market.Radio.Sign, Do = MarketRequest.Buy, Good = model, Tonnes = count };
+        new() { Station = market.Radio.Id, Do = MarketRequest.Buy, Good = model, Tonnes = count };
 
     private void Place(Transform3D at) =>
         _ship.State = new ShipState { Position = at.Origin, Orientation = at.Basis.GetRotationQuaternion() };

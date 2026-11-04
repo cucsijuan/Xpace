@@ -66,7 +66,7 @@ public partial class UniverseTest : Node
               File.Exists(Path.Combine(folder, "stations", "HAVEN.json")));
         Check("an id that is no file name is written as one", File.Exists(Path.Combine(folder, "pilots", "odd%2fid.json")));
         Check("no document left half written", !Directory.EnumerateFiles(folder, "*.new", SearchOption.AllDirectories).Any());
-        Check("each document says its format", File.ReadAllText(Path.Combine(folder, "pilots", "p1.json")).Contains("\"Version\": 1"));
+        Check("each document says its format", File.ReadAllText(Path.Combine(folder, "pilots", "p1.json")).Contains($"\"Version\": {UniverseState.CurrentVersion}"));
 
         UniverseState back = UniverseStore.Load(folder);
         PilotRecord again = back.Pilots.GetValueOrDefault("p1");

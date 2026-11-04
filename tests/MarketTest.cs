@@ -47,7 +47,7 @@ public partial class MarketTest : Node
         var seat = _ship.GetNode<ShipSeat>("Seat");
         var radio = _ship.Find<RadioDevice>();
         var hold = _ship.Find<CargoHold>();
-        Node3D station = main.Sector.GetNode<Node3D>("Station");
+        Node3D station = main.Sector.GetNode<Node3D>("MiltecAlpha");
         StationMarket market = station.GetNode<StationMarket>("Market");
         HangarDock dock = station.GetNode("HangarBig1").GetNode<HangarDock>("Dock");
         var kiosk = dock.GetParent().GetNode<StationKiosk>("MarketKiosk");
@@ -55,7 +55,7 @@ public partial class MarketTest : Node
 
         Check($"the fighter's racks hold {hold.Capacity} t", hold.Capacity == _ship.Spec.CargoCapacity && hold.Capacity > 0);
         Check("the computer boots", await Until(() => _ship.Computer.ScreenText().Contains("Radio resident"), 90));
-        var request = new MarketRequest { Station = market.Radio.Sign, Do = MarketRequest.Buy, Good = "food", Tonnes = 1 };
+        var request = new MarketRequest { Station = market.Radio.Id, Do = MarketRequest.Buy, Good = "food", Tonnes = 1 };
         Check("not docked: nothing traded", market.Serve(me.Id, request).Message == market.NotDockedText && me.Ship.Tonnes == 0);
 
         Place(dock.GlobalTransform * new Transform3D(Basis.Identity, new Vector3(0, 0, 300)));
@@ -134,16 +134,16 @@ public partial class MarketTest : Node
         await Seconds(0.2);
         Check($"none left to sell ({window.View.Message})", window.View.Message == market.NotHeldText);
 
-        universe.State.Station(market.Radio.Sign).CrimesOf(me.Id).Fines = 200;
+        universe.State.Station(market.Radio.Id).CrimesOf(me.Id).Fines = 200;
         before = me.Credits;
         window.Ask(MarketRequest.Pay, null, 0);
         await Seconds(0.2);
         Check($"fines are paid at the market ({window.View.Message})",
-              universe.State.Station(market.Radio.Sign).CrimesOf(me.Id).Fines == 0 && me.Credits == before - 200);
+              universe.State.Station(market.Radio.Id).CrimesOf(me.Id).Fines == 0 && me.Credits == before - 200);
         Shot("2_traded");
 
         // Wanted here, with no money to pay: held, then surrendering
-        CrimeRecord crimes = universe.State.Station(market.Radio.Sign).CrimesOf(me.Id);
+        CrimeRecord crimes = universe.State.Station(market.Radio.Id).CrimesOf(me.Id);
         crimes.Bounty = 5000;
         universe.Touch(me);
         window.Ask(MarketRequest.Buy, "water", 2);
@@ -162,7 +162,7 @@ public partial class MarketTest : Node
         window.Ask(MarketRequest.Surrender, null, 0);
         await Seconds(0.3);
         Check($"surrendering: cargo seized, ship impounded ({window.View.Message})",
-              universe.State.Station(market.Radio.Sign).Impounded.ContainsKey(me.Id) && me.Ship.Tonnes == 0 && me.Credits == 0 &&
+              universe.State.Station(market.Radio.Id).Impounded.ContainsKey(me.Id) && me.Ship.Tonnes == 0 && me.Credits == 0 &&
               crimes.Owed > 0 && window.View.Impounded);
         Check($"the insurer's courtesy ship instead: its hull ({_ship.Spec.ResourcePath}), its hold ({hold.Capacity} t)",
               _ship.Spec.ResourcePath == ShipRecord.CourtesyHull && hold.Capacity == _ship.Spec.CargoCapacity && hold.Capacity < 10);
@@ -174,7 +174,7 @@ public partial class MarketTest : Node
         window.Ask(MarketRequest.Pay, null, 0);
         await Seconds(0.3);
         Check($"paying it all releases the ship ({window.View.Message})",
-              crimes.Owed == 0 && !universe.State.Station(market.Radio.Sign).Impounded.ContainsKey(me.Id) &&
+              crimes.Owed == 0 && !universe.State.Station(market.Radio.Id).Impounded.ContainsKey(me.Id) &&
               _ship.Spec.ResourcePath == ShipRecord.StarterHull && Tube().A == 0);
 
         window.Ask(MarketRequest.Buy, "water", 2);
@@ -199,7 +199,7 @@ public partial class MarketTest : Node
         locker.Ask(LockerRequest.Store, 0);
         await Seconds(0.2);
         Check($"stored: in the locker here, not carried ({locker.View.Message})",
-              me.Items.Count == 0 && universe.State.Station(market.Radio.Sign).LockerOf(me.Id).Count == 1 && locker.View.Locker.Count == 1);
+              me.Items.Count == 0 && universe.State.Station(market.Radio.Id).LockerOf(me.Id).Count == 1 && locker.View.Locker.Count == 1);
         for (int i = 0; i < PilotRecord.InventorySlots; i++)
             me.Items.Add(new ItemRecord { Name = $"Disk {i}" });
         locker.Ask(LockerRequest.Take, 0);

@@ -170,7 +170,7 @@ public partial class StationSecurity : Node
     /// <summary>Its pilot is wanted here: held on the pad until the bounty is paid (or the ship impounded for it).</summary>
     public bool Holds(Node3D ship) =>
         Jurisdiction(ship) is (PilotRecord pilot, CrimeRecord record) && Justice.Wanted(record) &&
-        !Universe.Current.State.Station(Radio.Sign).Impounded.ContainsKey(pilot.Id);
+        !Universe.Current.State.Station(Radio.Id).Impounded.ContainsKey(pilot.Id);
 
     /// <summary>Its pilot's infamy here is too high: refused and attacked on sight.</summary>
     public bool Notorious(Node3D ship) => Jurisdiction(ship) is (PilotRecord pilot, CrimeRecord record) && Justice.IsNotorious(record, pilot);
@@ -181,7 +181,7 @@ public partial class StationSecurity : Node
         if (Radio == null || ship == null || Universe.Current is not Universe universe || universe.IsGuest ||
             !Identified(ship) || universe.PilotOf(ship) is not PilotRecord pilot)
             return null;
-        return (pilot, universe.State.Station(Radio.Sign).CrimesOf(pilot.Id));
+        return (pilot, universe.State.Station(Radio.Id).CrimesOf(pilot.Id));
     }
 
     private static bool Identified(Node3D ship) =>

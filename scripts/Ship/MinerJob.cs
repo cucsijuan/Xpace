@@ -188,6 +188,6 @@ public partial class MinerJob : Node, IPilotJob, IOriginShift
     {
         World3D world = _ship.GetWorld3D();
         return StationRadio.All.Where(r => r.World == world && r.Gate == null).OrderBy(r => r.GlobalPosition.DistanceSquaredTo(_ship.GlobalPosition))
-                           .Select(r => StationMarket.Of(r.Sign)).FirstOrDefault(m => m?.Deals(Ore) == true);
+                           .Select(r => StationMarket.Of(r.Id)).FirstOrDefault(m => m?.Deals(Ore) == true);
     }
 }

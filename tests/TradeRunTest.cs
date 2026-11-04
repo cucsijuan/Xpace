@@ -10,7 +10,7 @@ namespace Xpace.Tests;
 /// <summary>
 /// A trade run from end to end in the game's main scene (the sign of milestone M5): docked at the first sector's
 /// station the pilot buys what it makes, gets clearance to launch, pays the gate's toll, goes through to the second
-/// sector with the cargo aboard and weighing on the ship, docks at Kestrel and sells. The money at the end is what it
+/// sector with the cargo aboard and weighing on the ship, docks at the Drydock and sells. The money at the end is what it
 /// was, less what was paid and the toll, plus what was earned, and in a new universe, with a new pilot's money, the run pays.
 /// The flying between is skipped (the ship is placed): how long it takes and what it pays is trade_balance_test's.
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/trade_run_test.tscn
@@ -39,7 +39,7 @@ public partial class TradeRunTest : Node
         float empty = _ship.Mass;
         Check("the computer boots", await Until(() => _ship.Computer.ScreenText().Contains("Radio resident"), 90));
 
-        var station = _main.Sector.GetNode<Node3D>("Station");
+        var station = _main.Sector.GetNode<Node3D>("MiltecAlpha");
         var market = station.GetNode<StationMarket>("Market");
 
         if (!await Dock(station, market))
@@ -49,9 +49,9 @@ public partial class TradeRunTest : Node
         }
         // As many as the money allows, keeping the gate's toll
         long keep = _main.Sector.GetNode<JumpGate>("Gate2").Radio.Laws.Toll;
-        MarketView bought = market.Serve(me.Id, new MarketRequest { Station = market.Radio.Sign });
+        MarketView bought = market.Serve(me.Id, new MarketRequest { Station = market.Radio.Id });
         while (bought.Carried < hold.Capacity && bought.Lines.Find(l => l.Good == Cargo).Buy is var price and >= 0 && me.Credits - price >= keep)
-            bought = market.Serve(me.Id, new MarketRequest { Station = market.Radio.Sign, Do = MarketRequest.Buy, Good = Cargo, Tonnes = 1 });
+            bought = market.Serve(me.Id, new MarketRequest { Station = market.Radio.Id, Do = MarketRequest.Buy, Good = Cargo, Tonnes = 1 });
         int tonnes = me.Ship.Holds(Cargo);
         long paid = start - me.Credits;
         await Seconds(0.1);
@@ -76,7 +76,7 @@ public partial class TradeRunTest : Node
         Check($"the cargo came along ({hold.Contents.Holds(Cargo)} t), and still weighs",
               hold.Contents.Holds(Cargo) == tonnes && Mathf.IsEqualApprox(_ship.Mass - empty, tonnes * CargoHold.KilogramsPerTonne));
 
-        var kestrel = _main.Sector.GetNode<Node3D>("Kestrel");
+        var kestrel = _main.Sector.GetNode<Node3D>("Drydock");
         var there = kestrel.GetNode<StationMarket>("Market");
         if (!await Dock(kestrel, there))
         {
@@ -84,10 +84,10 @@ public partial class TradeRunTest : Node
             return;
         }
         long beforeSale = me.Credits;
-        MarketView sold = there.Serve(me.Id, new MarketRequest { Station = there.Radio.Sign, Do = MarketRequest.Sell, Good = Cargo, Tonnes = tonnes });
+        MarketView sold = there.Serve(me.Id, new MarketRequest { Station = there.Radio.Id, Do = MarketRequest.Sell, Good = Cargo, Tonnes = tonnes });
         long earned = me.Credits - beforeSale;
         await Seconds(0.1);
-        Check($"sold it all at {there.Radio.Sign} for {earned} ({sold.Message})", me.Ship.Holds(Cargo) == 0 && earned > 0);
+        Check($"sold it all at {there.Radio.Id} for {earned} ({sold.Message})", me.Ship.Holds(Cargo) == 0 && earned > 0);
         Check("the ship weighs what it did", Mathf.IsEqualApprox(_ship.Mass, empty));
         Check($"the money adds up ({start} - {paid} - {toll} + {earned} = {me.Credits})", me.Credits == start - paid - toll + earned);
         Check($"and the run paid ({me.Credits - start:+0;-0})", me.Credits > start);
@@ -103,13 +103,13 @@ public partial class TradeRunTest : Node
         await Seconds(1.5);
         _radio.AskDocking();
         bool cleared = await Until(() => _radio.Dock == dock.Number && _radio.Pad != 0, 5);
-        Check($"cleared to a pad at {market.Radio.Sign}", cleared);
+        Check($"cleared to a pad at {market.Radio.Id}", cleared);
         if (!cleared)
             return false;
         LandingPad pad = dock.PadNumbered(_radio.Pad);
         Place(pad.GlobalTransform * pad.Rest(_ship).TranslatedLocal(new Vector3(0, 1, 0)));
         bool docked = await Until(() => market.Radio.DockedHere(_ship), (float)pad.SettleSeconds + 3);
-        Check($"docked at {market.Radio.Sign}", docked);
+        Check($"docked at {market.Radio.Id}", docked);
         return docked;
     }
 

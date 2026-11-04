@@ -23,11 +23,15 @@ public partial class CargoView : Node
     /// <summary>How long after anyone last dealt with a ship its computer goes on running, seconds.</summary>
     [Export] public double RestAfterSeconds = 60;
 
+    /// <summary>How long a destroyed ship's wreck stays, seconds.</summary>
+    [Export] public double WreckSeconds = 60;
+
     /// <summary>The ships shown now, by the record's id.</summary>
     public IReadOnlyDictionary<string, ShipBody> Shown => _shown;
 
     private readonly Dictionary<string, ShipBody> _shown = new();
     private readonly Dictionary<string, double> _dealt = new();
+    private readonly Dictionary<ShipBody, double> _wrecks = new();
     private readonly HashSet<ShipBody> _struck = new();
     private double _wait;
 
@@ -37,8 +41,16 @@ public partial class CargoView : Node
         if (_wait > 0 || Universe.Current is not Universe universe || universe.IsGuest || universe.Book == null || SectorHost.Current is not SectorHost host)
             return;
         _wait = LookEverySeconds;
-        foreach (CargoShipRecord record in universe.State.CargoShips.Values)
+        foreach (CargoShipRecord record in universe.State.CargoShips.Values.ToList())
             Look(record, universe, host);
+        foreach (ShipBody wreck in _wrecks.Keys.ToList())
+            if (!IsInstanceValid(wreck))
+                _wrecks.Remove(wreck);
+            else if ((_wrecks[wreck] -= LookEverySeconds) <= 0)
+            {
+                wreck.QueueFree();
+                _wrecks.Remove(wreck);
+            }
     }
 
     private void Look(CargoShipRecord record, Universe universe, SectorHost host)
@@ -48,6 +60,15 @@ public partial class CargoView : Node
         {
             _shown.Remove(record.Id);
             ship = null;
+        }
+        // Destroyed where it can be seen, it is gone from the universe: the wreck stays a while
+        if (ship?.Find<ShipHull>()?.Wrecked == true)
+        {
+            CargoShips.Lose(universe.State, record.Id);
+            _shown.Remove(record.Id);
+            _wrecks[ship] = WreckSeconds;
+            universe.Touch();
+            return;
         }
         ShipModel model = ResourceLoader.Exists(record.Model) ? GD.Load<ShipModel>(record.Model) : null;
         if (model == null)
@@ -111,6 +132,8 @@ public partial class CargoView : Node
         if (model.Scene.Instantiate() is not ShipBody ship)
             return null;
         ship.Name = $"Cargo_{record.Id}";
+        if (ship.FindChild("Radio", true, false) is RadioDevice radio)
+            radio.Callsign = CargoShips.CallsignOf(record.Id);
         var parts = ship.FindChildren("*", "", true, false).ToList();
         foreach (NetBody body in parts.OfType<NetBody>())
             body.Spawned = true;
@@ -119,6 +142,9 @@ public partial class CargoView : Node
         var run = new CargoRun(record, model, fix, root);
         ship.Transform = run.Pose(fix);
         ship.Holder = run;
+        foreach ((string place, string piece) in record.Fittings)
+            if (ResourceLoader.Exists(piece))
+                ship.Loadout[place] = GD.Load<Resource>(piece);
         if (ship.FindChild("ShipComputer", true, false) is Xpace.Computer.ShipComputer computer)
             computer.PowerOnAtStart = false;
         root.AddChild(ship);

@@ -40,7 +40,12 @@ namespace Xpace.Space;
 public partial class StationRadio : Node3D, IRadio
 {
     /// <summary>Up to 8 characters; empty: the station's node name.</summary>
+    /// <summary>What the universe knows it by, for good: up to 8 characters, whatever it comes to be called (none: its callsign here).</summary>
+    [Export] public string StationId { get; set; } = "";
+    /// <summary>The callsign it starts with; it can be changed in play (<see cref="Universe.Rename"/>).</summary>
     [Export] public string Callsign { get; set; } = "";
+    /// <summary>The name it starts with, as people read it (none: its callsign).</summary>
+    [Export] public string Title = "";
     /// <summary>How far a plain receiver hears it, metres.</summary>
     [Export] public float Range = 500000f;
     [Export] public StationLaws Laws;
@@ -135,7 +140,13 @@ public partial class StationRadio : Node3D, IRadio
     public JumpGate Gate { get; private set; }
 
     /// <summary>Its callsign, as radios send it.</summary>
-    public string Sign => Radio.Callsign(Callsign, GetParent() ?? this);
+    public string Sign => Xpace.World.Universe.Current?.CallsignOf(Id) is { Length: > 0 } given ? given : Radio.Callsign(Callsign, GetParent() ?? this);
+
+    /// <summary>What the universe's records and other machines know it by. It never changes.</summary>
+    public string Id => Radio.Callsign(string.IsNullOrEmpty(StationId) ? Callsign : StationId, GetParent() ?? this);
+
+    /// <summary>Its name on screens.</summary>
+    public string ShownName => Xpace.World.Universe.Current?.TitleOf(Id) is { Length: > 0 } given ? given : string.IsNullOrEmpty(Title) ? Sign : Title;
 
     public IReadOnlyList<HangarDock> Docks => _docks;
 
@@ -144,7 +155,7 @@ public partial class StationRadio : Node3D, IRadio
     {
         get
         {
-            Xpace.World.StationRecord record = Xpace.World.Universe.Current?.State.Station(Sign);
+            Xpace.World.StationRecord record = Xpace.World.Universe.Current?.State.Station(Id);
             if (record == null)
                 return OwnedBy?.Id ?? "";
             if (string.IsNullOrEmpty(record.Owner))
@@ -243,10 +254,10 @@ public partial class StationRadio : Node3D, IRadio
     }
 
     /// <summary>The station of that callsign, if there is one here.</summary>
-    public static StationRadio Called(string callsign) => All.FirstOrDefault(s => s.Sign == callsign);
+    public static StationRadio Called(string id) => All.FirstOrDefault(s => s.Id == id);
 
     /// <summary>The voice its operator speaks with (null: none).</summary>
-    public RadioVoicePack Operator => Voice ?? RadioVoicePack.Pick(Voices, Sign);
+    public RadioVoicePack Operator => Voice ?? RadioVoicePack.Pick(Voices, Id);
 
     /// <summary>Says something to a ship's radio (if it hears the station): the words, and the operator's lines for them ({0}... from <paramref name="args"/>).</summary>
     public void Say(IRadioReceiver to, string text, string lines = "", params object[] args)
@@ -427,7 +438,7 @@ public partial class StationRadio : Node3D, IRadio
 
     /// <summary>A cargo ship has that pad (the universe's record says so).</summary>
     private bool CargoOn(HangarDock dock, LandingPad pad) =>
-        Xpace.World.Universe.Current is Xpace.World.Universe universe && Xpace.World.CargoShips.Taken(universe.State, Sign, dock.Number, pad.Number);
+        Xpace.World.Universe.Current is Xpace.World.Universe universe && Xpace.World.CargoShips.Taken(universe.State, Id, dock.Number, pad.Number);
 
     /// <summary>A ship passing through a hangar: the door stays open for it, and pilots can still be cleared there.</summary>
     public void OpenFor(int dock, Node3D ship, double seconds)

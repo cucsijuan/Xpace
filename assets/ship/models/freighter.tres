@@ -5,6 +5,7 @@
 [ext_resource type="Resource" path="res://assets/ship/engines/engine_d50.tres" id="3_engine"]
 [ext_resource type="Resource" path="res://assets/ship/generators/generator_g1.tres" id="4_generator"]
 [ext_resource type="PackedScene" path="res://scenes/ships/ai_freighter.tscn" id="5_scene"]
+[ext_resource type="Resource" path="res://assets/recipes/freighter.tres" id="6_recipe"]
 
 [resource]
 script = ExtResource("1_model")
@@ -13,4 +14,5 @@ Hull = ExtResource("2_hull")
 Engine = ExtResource("3_engine")
 Generator = ExtResource("4_generator")
 Scene = ExtResource("5_scene")
-RestockBelow = 0.5
+Recipe = ExtResource("6_recipe")
+RestockBelow = 0.4

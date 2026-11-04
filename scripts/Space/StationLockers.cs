@@ -52,7 +52,7 @@ public partial class StationLockers : Node
 
     private static readonly List<StationLockers> _all = new();
 
-    public static StationLockers Of(string callsign) => _all.FirstOrDefault(m => m.Radio?.Sign == callsign);
+    public static StationLockers Of(string callsign) => _all.FirstOrDefault(m => m.Radio?.Id == callsign);
 
     public override void _Ready()
     {
@@ -89,9 +89,9 @@ public partial class StationLockers : Node
     {
         Universe universe = Universe.Current;
         PilotRecord pilot = universe.State.Pilot(pilotId);
-        List<ItemRecord> locker = universe.State.Station(Radio.Sign).LockerOf(pilotId);
+        List<ItemRecord> locker = universe.State.Station(Radio.Id).LockerOf(pilotId);
         Node3D ship = universe.ShipOf(pilotId);
-        bool present = Radio.DockedHere(ship) || Radio.Inside(ship) || universe.OnFootAt(pilotId) == Radio.Sign;
+        bool present = Radio.DockedHere(ship) || Radio.Inside(ship) || universe.OnFootAt(pilotId) == Radio.Id;
         string message = "";
         if (request.Do is LockerRequest.Store or LockerRequest.Take)
         {
@@ -114,7 +114,7 @@ public partial class StationLockers : Node
         }
         return new LockerView
         {
-            Station = Radio.Sign, Present = present, Slots = PilotRecord.InventorySlots,
+            Station = Radio.Id, Present = present, Slots = PilotRecord.InventorySlots,
             Carried = pilot.Items.ToList(), Locker = locker.ToList(), Message = message,
         };
     }

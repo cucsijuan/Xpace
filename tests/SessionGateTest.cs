@@ -84,13 +84,13 @@ public partial class SessionGateTest : Node
         Check("the guest's ship is by the first sector's gate here", puppet != null && ace != null);
 
         long before = ace?.Credits ?? 0;
-        _code.Request(GuestShipId, gate2.Radio.Sign, (byte)RadioRequest.Transit);
+        _code.Request(GuestShipId, gate2.Radio.Id, (byte)RadioRequest.Transit);
         Check($"asking for transit: the host's gate clears it ({_heard})", await Run(90, () => gate2.Cleared(puppet)));
         Check($"the toll comes out of the guest's pilot's credits ({before - ace?.Credits})", before - ace?.Credits == gate2.Radio.Laws.Toll);
         Check("the guest hears it", await Run(60, () => _heard.StartsWith("Cleared for transit")));
 
         await Through(node, gate2, 0, -100);
-        Check($"through, cleared: no fine ({ace?.Credits})", Universe.Current.State.Station(gate2.Radio.Sign).CrimesOf("ace-pilot").Fines == 0);
+        Check($"through, cleared: no fine ({ace?.Credits})", Universe.Current.State.Station(gate2.Radio.Id).CrimesOf("ace-pilot").Fines == 0);
 
         // On the other side: the host runs the second sector for it, and it comes back without clearance
         _code.Move(1);
@@ -102,7 +102,7 @@ public partial class SessionGateTest : Node
         Check("the guest's ship is there, by its gate", main.Root("sector_02")?.GetNodeOrNull<RemoteShip>($"Player{GuestPeer}") != null);
         await Through(node, gate1, 1, 100);
         Check($"back through without clearance: the host fines its pilot ({_heard})",
-              await Run(60, () => Universe.Current.State.Station(gate1.Radio.Sign).CrimesOf("ace-pilot").Fines > 0));
+              await Run(60, () => Universe.Current.State.Station(gate1.Radio.Id).CrimesOf("ace-pilot").Fines > 0));
         _code.Move(0);
         await Run(30);
         main.QueueFree();
@@ -131,7 +131,7 @@ public partial class SessionGateTest : Node
         await Run(60);
         ship.Find<RadioDevice>().AskTransit();
         Check($"asking for transit goes to the host ({asked.Station})",
-              await Run(120, () => asked.Ship == GuestShipId && asked.Station == gate2.Radio.Sign && asked.What == (byte)RadioRequest.Transit));
+              await Run(120, () => asked.Ship == GuestShipId && asked.Station == gate2.Radio.Id && asked.What == (byte)RadioRequest.Transit));
 
         ship.State = new ShipState { Position = gate2.ToGlobal(new Vector3(0, 0, 30)), Orientation = b.GetRotationQuaternion(), Velocity = b * new Vector3(0, 0, -100) };
         Check("through the gate, its ship jumps on its own machine", await Run(120, () => main.Here.Id == "sector_02"));

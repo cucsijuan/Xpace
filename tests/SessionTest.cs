@@ -186,6 +186,22 @@ public partial class SessionTest : Node
         Check("a guest's, from the host", thick.GetValueOrDefault((Guest1, Ship1)) == 10);
         Check("and nobody else", thick.Count == 3);
 
+        // A station renamed: the host tells every machine
+        var named = new Dictionary<byte, string>();
+        foreach (var (peer, m) in machines)
+        {
+            byte machine = peer;
+            m.StationNamed += (station, callsign, title) => named[machine] = $"{station}|{callsign}|{title}";
+        }
+        machines[Host].NameStation("ALPHA", "MT-ALPHA", "Miltec - Alpha");
+        for (uint tick = 960; tick < 980; tick++)
+        {
+            net.Now = tick * Dt;
+            foreach (Session s in machines.Values)
+                s.Tick(tick);
+        }
+        Check($"a new name reaches the guests ({named.GetValueOrDefault(Guest1)})", named.GetValueOrDefault(Guest1) == "ALPHA|MT-ALPHA|Miltec - Alpha" && named.GetValueOrDefault(Guest2) == named.GetValueOrDefault(Guest1));
+
         // What a ship has on its hardpoints reaches everyone, from its owner, and whoever joins later
         var fits = new Dictionary<(byte machine, ushort ship), string>();
         void Heard(byte machine, Session m) => m.FittingChanged += (ship, fitted) => fits[(machine, ship)] = fitted;

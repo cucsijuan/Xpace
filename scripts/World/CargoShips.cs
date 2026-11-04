@@ -15,19 +15,24 @@ namespace Xpace.World;
 /// </summary>
 public static class CargoShips
 {
-    /// <summary>Makes the ships of the stations' fleets that the universe doesn't have yet.</summary>
+    /// <summary>Gives each station the fleet it starts with, once: after that, ships are ordered and built.</summary>
     public static void Muster(UniverseState state, StationBook book, Func<string, IAccount> account)
     {
         foreach (StationBook.Station station in book.Stations)
+        {
+            StationRecord record = state.Station(station.Id);
+            if (record.Mustered)
+                continue;
+            record.Mustered = true;
             for (int line = 0; line < (station.Fleet?.Length ?? 0); line++)
                 for (int n = 0; station.Fleet[line]?.Model != null && n < station.Fleet[line].Count; n++)
                 {
-                    string id = $"{station.Sign}-{line + 1}-{n + 1}";
+                    string id = $"{station.Id}-{line + 1}-{n + 1}";
                     if (state.CargoShips.ContainsKey(id))
                         continue;
                     var ship = new CargoShipRecord
                     {
-                        Id = id, Model = station.Fleet[line].Model.ResourcePath, Owner = OwnerOf(state, station), Home = station.Sign, At = station.Sign,
+                        Id = id, Model = station.Fleet[line].Model.ResourcePath, Owner = OwnerOf(state, station), Home = station.Id, At = station.Id,
                         NextLook = state.Clock + n * 60,
                     };
                     state.CargoShips[id] = ship;
@@ -35,15 +40,127 @@ public static class CargoShips
                     if (station.Pads.LastOrDefault(p => book.Fits(p, station.Fleet[line].Model) && Free(station, p, state)) is StationBook.Pad pad)
                         Take(ship, station, pad, state);
                 }
+        }
+    }
+
+    /// <summary>A ship is gone, and what it carried with it: its owner has one less, and its pad is free.</summary>
+    public static void Lose(UniverseState state, string id)
+    {
+        if (!state.CargoShips.Remove(id, out CargoShipRecord ship) || ship.Dock == 0)
+            return;
+        state.Station(ship.Phase == CargoShipRecord.Landing ? ship.Going : ship.At).CargoPads.Remove(Key(ship.Dock, ship.Pad));
+    }
+
+    // An owner short of the fleet a station needs orders what is missing from the nearest yard that builds it
+    private static void Order(UniverseState state, StationBook book)
+    {
+        foreach (StationBook.Station station in book.Stations)
+            foreach (FleetLine line in station.Fleet ?? Array.Empty<FleetLine>())
+            {
+                if (line?.Model == null)
+                    continue;
+                string model = line.Model.ResourcePath;
+                int have = state.CargoShips.Values.Count(s => s.Home == station.Id && s.Model == model) + state.ShipOrders.Values.Count(o => o.Home == station.Id && o.Model == model);
+                StationBook.Station yard = book.Stations.Where(s => s.Shipyard?.Contains(line.Model) == true && book.Way(station.Sector, s.Sector) != null)
+                    .OrderBy(s => book.Way(station.Sector, s.Sector).Count).ThenBy(s => s.At.DistanceTo(station.At)).FirstOrDefault();
+                for (; yard != null && have < line.Count; have++)
+                {
+                    StationRecord record = state.Station(station.Id);
+                    string id = $"{station.Id}-R{++record.Ordered}";
+                    var wanted = line.Fitting.Count > 0 ? line.Fitting : line.Model.Hull.Fitting;
+                    state.ShipOrders[id] = new ShipOrderRecord
+                    {
+                        Id = id, Model = model, Owner = OwnerOf(state, station), Home = station.Id, Yard = yard.Id,
+                        Fittings = wanted.Where(f => f.Value != null).ToDictionary(f => f.Key, f => f.Value.ResourcePath),
+                    };
+                }
+            }
+    }
+
+    // A yard starts on an order when it has the materials and the buyer the money, and hands the ship over on a free pad
+    private static void Build(UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        foreach (ShipOrderRecord order in state.ShipOrders.Values.OrderBy(o => o.Id, StringComparer.Ordinal).ToList())
+        {
+            if (book.Find(order.Yard) is not StationBook.Station yard || !ResourceLoader.Exists(order.Model) || GD.Load<ShipModel>(order.Model) is not ShipModel model || model.Recipe == null)
+                continue;
+            if (order.Ready == 0)
+                Start(order, yard, model, state, book, account);
+            else if (state.Clock >= order.Ready && yard.Pads.FirstOrDefault(p => book.Fits(p, model) && Free(yard, p, state)) is StationBook.Pad pad)
+            {
+                var ship = new CargoShipRecord
+                {
+                    Id = order.Id, Model = order.Model, Owner = order.Owner, Home = order.Home, At = yard.Id, NextLook = state.Clock,
+                    State = order.Home == yard.Id ? CargoShipRecord.Waiting : CargoShipRecord.Returning, Fittings = order.Fittings,
+                };
+                state.CargoShips[ship.Id] = ship;
+                Take(ship, yard, pad, state);
+                state.ShipOrders.Remove(order.Id);
+            }
+        }
+    }
+
+    // The yard buys what the buyer wants fitted from whoever makes it: no pieces, no start. So what the buyers choose is what the arms makers sell
+    private static void Start(ShipOrderRecord order, StationBook.Station yard, ShipModel model, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        StationRecord record = state.Station(yard.Id);
+        double cost = 0;
+        foreach (RecipePart part in model.Recipe.Inputs)
+        {
+            if (yard.Goods.FirstOrDefault(g => g.Good.Id == Recipe.IdOf(part.Item)) is not MarketGood line || record.Stock.GetValueOrDefault(line.Good.Id) < part.Amount)
+                return;
+            cost += part.Amount * Market.Price(line, record.Stock[line.Good.Id]);
+        }
+        var pieces = new List<(StationBook.Station Maker, OutfitLine Line, long Price)>();
+        foreach (string path in order.Fittings.Values)
+        {
+            var sold = book.Stations.SelectMany(s => (s.Outfits ?? Array.Empty<OutfitLine>()).Where(o => o?.Item?.ResourcePath == path).Select(o => (Maker: s, Line: o)))
+                .Select(o => (o.Maker, o.Line, Price: Market.OutfitPrice(Bring(state, o.Maker, account), o.Line) ))
+                .Where(o => o.Price >= 0 && state.Station(o.Maker.Id).Stock.GetValueOrDefault(o.Line.Id) >= 1 + pieces.Count(p => p.Line == o.Line))
+                .OrderBy(o => o.Price).ToList();
+            if (sold.Count == 0)
+                return;
+            pieces.Add(sold[0]);
+        }
+        IAccount buyer = account(order.Owner), builder = account(OwnerOf(state, yard));
+        long price = (long)Math.Ceiling(cost * (1 + (builder?.Margin ?? 0))) + model.BuildFee;
+        long total = (ReferenceEquals(buyer, builder) ? 0 : price) + pieces.Sum(p => p.Price);
+        if (buyer == null || buyer.Credits < total)
+            return;
+        if (!ReferenceEquals(buyer, builder))
+        {
+            buyer.Credits -= price;
+            if (builder != null)
+                builder.Credits += price;
+        }
+        foreach ((StationBook.Station maker, OutfitLine line, long paid) in pieces)
+        {
+            buyer.Credits -= paid;
+            if (account(OwnerOf(state, maker)) is IAccount seller)
+                seller.Credits += paid;
+            state.Station(maker.Id).Stock[line.Id] -= 1;
+        }
+        foreach (RecipePart part in model.Recipe.Inputs)
+            record.Stock[Recipe.IdOf(part.Item)] -= part.Amount;
+        order.Ready = state.Clock + model.BuildHours * 3600;
     }
 
     // How it calls itself on the radio
-    private static string Sign(CargoShipRecord ship) => $"Freighter {ship.Id}";
+    private static string Sign(CargoShipRecord ship) => $"Freighter {CallsignOf(ship.Id)}";
+
+    /// <summary>A ship's callsign: short, its own, and the same on every machine.</summary>
+    public static string CallsignOf(string id)
+    {
+        uint hash = 2166136261;                 // FNV-1a: string.GetHashCode differs between runs
+        foreach (char c in id)
+            hash = (hash ^ c) * 16777619;
+        return $"FR-{hash % 65536:X4}";
+    }
 
     /// <summary>The owner of a station now.</summary>
     public static string OwnerOf(UniverseState state, StationBook.Station station)
     {
-        StationRecord record = state.Station(station.Sign);
+        StationRecord record = state.Station(station.Id);
         if (string.IsNullOrEmpty(record.Owner))
             record.Owner = station.Owner;
         return record.Owner;
@@ -56,11 +173,13 @@ public static class CargoShips
             Bring(state, station, account);
         foreach (CargoShipRecord ship in state.CargoShips.Values.OrderBy(s => s.Id, StringComparer.Ordinal))
             Work(ship, state, book, account);
+        Order(state, book);
+        Build(state, book, account);
     }
 
     private static StationRecord Bring(UniverseState state, StationBook.Station station, Func<string, IAccount> account)
     {
-        StationRecord record = state.Station(station.Sign);
+        StationRecord record = state.Station(station.Id);
         Market.Advance(record, station.Goods, state.Clock, station.Outfits, station.Factories, account(OwnerOf(state, station)), station.Upkeep);
         return record;
     }
@@ -99,7 +218,7 @@ public static class CargoShips
 
     /// <summary>Whether a pad is free: no cargo ship has it, and no pilot was cleared to it.</summary>
     private static bool Free(StationBook.Station station, StationBook.Pad pad, UniverseState state) =>
-        !Taken(state, station.Sign, pad.Dock, pad.Number) && Xpace.Space.StationRadio.Called(station.Sign)?.PilotOn(pad.Dock, pad.Number) != true;
+        !Taken(state, station.Id, pad.Dock, pad.Number) && Xpace.Space.StationRadio.Called(station.Id)?.PilotOn(pad.Dock, pad.Number) != true;
 
     /// <summary>A cargo ship has that pad, or has only just left it.</summary>
     public static bool Taken(UniverseState state, string station, int dock, int pad)
@@ -118,7 +237,7 @@ public static class CargoShips
             return;
         Vector3 at = ship.ContactPoint;
         StationBook.Pad pad = station.Pads.Where(p => book.Fits(p, model) && Free(station, p, state)).OrderBy(p => p.Door.DistanceTo(at)).ThenBy(p => p.Pose.Origin.DistanceTo(at)).FirstOrDefault();
-        Xpace.Space.StationRadio radio = Xpace.Space.StationRadio.Called(station.Sign);
+        Xpace.Space.StationRadio radio = Xpace.Space.StationRadio.Called(station.Id);
         if (pad == null)
         {
             if (!ship.AskedHold)
@@ -137,7 +256,7 @@ public static class CargoShips
 
     private static void Take(CargoShipRecord ship, StationBook.Station station, StationBook.Pad pad, UniverseState state)
     {
-        state.Station(station.Sign).CargoPads[Key(pad.Dock, pad.Number)] = ship.Id;
+        state.Station(station.Id).CargoPads[Key(pad.Dock, pad.Number)] = ship.Id;
         ship.Dock = pad.Dock;
         ship.Pad = pad.Number;
     }
@@ -165,7 +284,7 @@ public static class CargoShips
     {
         if (book.Find(ship.Home) is not StationBook.Station home)
             return false;
-        StationRecord record = state.Station(home.Sign);
+        StationRecord record = state.Station(home.Id);
         IAccount money = account(ship.Owner);
         foreach (MarketGood line in home.Goods.Where(g => Market.Net(g.Good.Id, home.Goods, home.Factories) < 0)
                      .OrderBy(g => record.Stock.GetValueOrDefault(g.Good.Id) / Math.Max(g.Stock, 1)))
@@ -212,16 +331,16 @@ public static class CargoShips
                 if (account(gate.Owner) is IAccount keeper)
                     keeper.Credits += gate.Toll;
             }
-        if (Xpace.Space.StationRadio.Called(from.Sign) is Xpace.Space.StationRadio radio)
+        if (Xpace.Space.StationRadio.Called(from.Id) is Xpace.Space.StationRadio radio)
             radio.Traffic(Sign(ship), radio.TrafficLaunchAskText, radio.TrafficLaunchAskSpeech, radio.TrafficLaunchText, radio.TrafficLaunchSpeech);
-        StationRecord leaving = state.Station(from.Sign);
+        StationRecord leaving = state.Station(from.Id);
         if (leaving.CargoPads.Remove(Key(ship.Dock, ship.Pad)))
             leaving.PadsResting[Key(ship.Dock, ship.Pad)] = state.Clock + model.PadRestSeconds;
-        ship.From = from.Sign;
+        ship.From = from.Id;
         ship.LeftDock = ship.Dock;
         ship.LeftPad = ship.Pad;
         ship.Dock = ship.Pad = 0;
-        ship.Going = to.Sign;
+        ship.Going = to.Id;
         ship.Phase = CargoShipRecord.Flying;
         ship.Left = state.Clock;
         ship.Arrives = state.Clock + book.Departure(from, StationBook.PadOf(from, ship.LeftDock, ship.LeftPad), to, model, ship.Tonnes, out Vector3 contact).Sum(l => l.Seconds + l.Transit);

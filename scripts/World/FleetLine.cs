@@ -8,4 +8,6 @@ public partial class FleetLine : Resource
 {
     [Export] public ShipModel Model;
     [Export] public int Count = 1;
+    /// <summary>What the owner has fitted on ships it orders: hardpoint name to piece (none: what the hull comes with).</summary>
+    [Export] public Godot.Collections.Dictionary<string, Resource> Fitting = new();
 }

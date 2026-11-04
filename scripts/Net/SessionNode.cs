@@ -207,9 +207,16 @@ public partial class SessionNode : Node
         Session.Thickened += (ship, density, band) => (NodeOf(ship.NetId) as Xpace.Ship.ShipBody)?.Device<Xpace.Ship.CruiseDevice>()?.Thicken(density, band);
         Session.DockChanged += (station, number, open) =>
             StationRadio.Called(station)?.Docks.FirstOrDefault(d => d.Number == number)?.Show(open);
+        Session.StationNamed += (station, callsign, title) => Xpace.World.Universe.Current?.ShowName(station, callsign, title);
         if (Session.IsHost)
         {
             HangarDock.Changed += DockChanged;
+            if (Xpace.World.Universe.Current is Xpace.World.Universe universe)
+            {
+                universe.Renamed += Session.NameStation;
+                foreach (Xpace.World.StationRecord record in universe.State.Stations.Values.Where(r => r.Title != "" || r.Callsign != ""))
+                    Session.NameStation(record.Id, record.Callsign, record.Title);
+            }
             foreach (StationRadio station in StationRadio.All)
                 foreach (HangarDock dock in station.Docks.Where(d => d.IsOpen))
                     DockChanged(dock);
@@ -577,7 +584,7 @@ public partial class SessionNode : Node
     public void Request(IRadioReceiver from, StationRadio station, RadioRequest what)
     {
         if (IdOf(from as Node) is ushort ship)
-            Session.Request(ship, station.Sign, (byte)what);
+            Session.Request(ship, station.Id, (byte)what);
     }
 
     /// <summary>The host: another machine's ship asks one of the stations here.</summary>
@@ -600,7 +607,7 @@ public partial class SessionNode : Node
     private void DockChanged(HangarDock dock)
     {
         if (Active && Session.IsHost && dock.Station != null)
-            Session.Dock(dock.Station.Sign, dock.Number, dock.IsOpen);
+            Session.Dock(dock.Station.Id, dock.Number, dock.IsOpen);
     }
 
     /// <summary>Another machine's ship's fitting, as its owner has it.</summary>

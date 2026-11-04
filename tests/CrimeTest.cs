@@ -130,15 +130,15 @@ public partial class CrimeTest : Node3D
         state.Pilot("bob").Credits = 10_000;
         await Seconds(0.5);
         long owed = Of("bob").Owed;
-        MarketView view = factor.Serve("bob", new MarketRequest { Station = factor.Radio.Sign, Do = MarketRequest.Look });
+        MarketView view = factor.Serve("bob", new MarketRequest { Station = factor.Radio.Id, Do = MarketRequest.Look });
         DebtLine debt = view.Elsewhere.FirstOrDefault(l => l.Station == _station.Sign);
         Check($"a factor shows what is owed elsewhere ({debt?.Owed}), and asks half as much again ({debt?.Cost})",
               debt != null && debt.Owed == owed && debt.Cost == owed * 3 / 2);
-        view = factor.Serve("bob", new MarketRequest { Station = factor.Radio.Sign, Do = MarketRequest.Factor, Good = _station.Sign });
+        view = factor.Serve("bob", new MarketRequest { Station = factor.Radio.Id, Do = MarketRequest.Factor, Good = _station.Sign });
         Check($"and settles it ({view.Message})", Of("bob").Owed == 0 && state.Pilot("bob").Credits == 10_000 - owed * 3 / 2);
         StationMarket plain = _station.GetParent().GetNode<StationMarket>("Market");
         Check("a station with no factor settles nothing of others'",
-              plain.Serve("bob", new MarketRequest { Station = _station.Sign, Do = MarketRequest.Factor, Good = factor.Radio.Sign }).Message == plain.NoFactorText);
+              plain.Serve("bob", new MarketRequest { Station = _station.Sign, Do = MarketRequest.Factor, Good = factor.Radio.Id }).Message == plain.NoFactorText);
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);

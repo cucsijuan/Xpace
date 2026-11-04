@@ -95,7 +95,7 @@ public partial class MarketWindow : CanvasLayer, IKioskWindow
     private void Show(MarketView view)
     {
         View = view;
-        _title.Text = string.IsNullOrEmpty(view.Owner) ? $"{view.Station} MARKET" : $"{view.Station} MARKET  -  {view.Owner}";
+        _title.Text = string.IsNullOrEmpty(view.Owner) ? $"{view.Title} MARKET" : $"{view.Title} MARKET  -  {view.Owner}";
         _credits.Text = $"Credits  {view.Credits:N0}";
         _hold.Text = $"Hold  {view.Carried} / {view.Capacity} t";
         _fines.Text = view.Owed == 0 ? view.Impounded ? "Ship impounded here" : "Nothing owed"
@@ -132,7 +132,7 @@ public partial class MarketWindow : CanvasLayer, IKioskWindow
             _factor.AddChild(new Label { Text = head, ThemeTypeVariation = "HeaderSmall" });
         foreach (DebtLine debt in view.Elsewhere)
         {
-            _factor.AddChild(new Label { Text = debt.Station });
+            _factor.AddChild(new Label { Text = debt.Title });
             _factor.AddChild(Number(debt.Owed.ToString("N0")));
             _factor.AddChild(Number(debt.Cost.ToString("N0")));
             var settle = new Button { Text = "Settle", Disabled = !view.Present || view.Credits < debt.Cost, FocusMode = Control.FocusModeEnum.None };

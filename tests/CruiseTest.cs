@@ -45,7 +45,7 @@ public partial class CruiseTest : Node
             _main.Sector.GetNodeOrNull(ship)?.QueueFree();
         _ship.ControlsSource = () => _controls;
         JumpGate gate = _main.Sector.GetNode<JumpGate>("Gate2");
-        Node3D station = _main.Sector.GetNode<Node3D>("Station");
+        Node3D station = _main.Sector.GetNode<Node3D>("MiltecAlpha");
 
         Check("the software is running", await Until(() => _ship.Computer.ScreenText().Contains("Comm") || radio.Contacts.Count > 1, 90));
         await Seconds(25);
@@ -56,7 +56,10 @@ public partial class CruiseTest : Node
         await Button();
         Check("and the generator will not start", !_cruise.Charging && !_cruise.On);
 
-        // A course for the gate, on COMMS
+        // A course for the gate, on COMMS: with the cargo ships at rest, so the list stays still under the keys
+        foreach (Xpace.World.CargoShipRecord ship in Xpace.World.Universe.Current.State.CargoShips.Values)
+            ship.NextLook = 1e12;
+        await Seconds(2);
         for (int i = radio.Contacts.ToList().IndexOf(gate.Radio); i > 0; i--)
             await Key(display, DisplayKey.Down);
         await Key(display, DisplayKey.Select);

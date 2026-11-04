@@ -124,7 +124,7 @@ public partial class TuneTest : Node
 
         // A mass is another matter
         _buoy.QueueFree();
-        Node3D station = main.Sector.GetNode<Node3D>("Station");
+        Node3D station = main.Sector.GetNode<Node3D>("MiltecAlpha");
         Point(station.GlobalPosition + new Vector3(1, 0, 0.3f).Normalized() * 60000, station.GlobalPosition, 0);
         _cruise.Rearm();
         await Cruising(_ship.GlobalPosition);

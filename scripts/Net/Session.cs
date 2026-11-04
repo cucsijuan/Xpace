@@ -103,7 +103,7 @@ public sealed class Session
     private const byte KindSnapshot = 1, KindFire = 2, KindHit = 3, KindPing = 4, KindPong = 5,
                        KindSpawn = 6, KindDespawn = 7, KindBlast = 8, KindDrop = 9, KindDelta = 10, KindAck = 11, KindRadio = 12,
                        KindRadioState = 13, KindRequest = 14, KindCleared = 15, KindDock = 16, KindPilot = 17, KindDocument = 18,
-                       KindAsk = 19, KindWalker = 20, KindPlace = 21, KindThicken = 22, KindFitting = 23;
+                       KindAsk = 19, KindWalker = 20, KindPlace = 21, KindThicken = 22, KindFitting = 23, KindName = 24;
 
     /// <summary>The longest fitting message taken (hardpoint names and model paths).</summary>
     public const int MaxFittingBytes = 1024;
@@ -128,6 +128,9 @@ public sealed class Session
     public byte Place { get; private set; }
 
     /// <summary>Something went to another sector (its id, its sector), this machine's player included.</summary>
+    /// <summary>A guest: a station's id, new callsign and title.</summary>
+    public event Action<string, string, string> StationNamed;
+
     public event Action<ushort, byte> Moved;
 
     /// <summary>Something shown here is in another sector now (or, on a guest, this machine's player is): take what shows it away.</summary>
@@ -221,6 +224,7 @@ public sealed class Session
     private readonly Dictionary<ushort, byte[]> _radios = new();           // the host: each ship's radio state, as sent
     private readonly Dictionary<ushort, byte[]> _fittings = new();         // the host: each ship's fitting, as sent
     private readonly Dictionary<(string Station, int Dock), bool> _docks = new();   // the host: docks open
+    private readonly Dictionary<string, (string Callsign, string Title)> _names = new();    // the host: stations renamed
     private readonly Dictionary<ushort, byte[][]> _parts = new();          // a guest: documents still coming, by number
     private readonly Dictionary<byte, WalkerState> _walkers = new();      // others on foot, by peer
     private readonly Dictionary<byte, uint> _walkerTicks = new();           // the newest of each peer's, by their tick
@@ -574,6 +578,23 @@ public sealed class Session
         Broadcast(KindDock, DockBody(station, dock, open), reliable: true, except: null);
     }
 
+    /// <summary>The host: a station has a new name: every machine is told, and whoever comes later.</summary>
+    public void NameStation(string station, string callsign, string title)
+    {
+        if (!IsHost)
+            return;
+        _names[station] = (callsign, title);
+        Broadcast(KindName, NameBody(station, callsign, title), reliable: true, except: null);
+    }
+
+    private static byte[] NameBody(string station, string callsign, string title)
+    {
+        var body = new List<byte>(Sign(station));
+        body.AddRange(Sign(callsign));
+        body.AddRange(Ascii(title ?? ""));
+        return body.ToArray();
+    }
+
     private static byte[] DockBody(string station, int dock, bool open)
     {
         var body = new List<byte>(Sign(station)) { (byte)Math.Clamp(dock, 0, 255), (byte)(open ? 1 : 0) };
@@ -780,6 +801,8 @@ public sealed class Session
                         Send(peer, KindFitting, fitting, reliable: true);
                 foreach ((string station, int dock) in _docks.Keys)
                     Send(peer, KindDock, DockBody(station, dock, true), reliable: true);
+                foreach ((string station, (string callsign, string title)) in _names)
+                    Send(peer, KindName, NameBody(station, callsign, title), reliable: true);
             }
     }
 
@@ -1054,6 +1077,13 @@ public sealed class Session
                     DockCleared?.Invoke(cleared, Text(body, 2, 2 + Radio.CallsignLength).TrimEnd(), body[^2], body[^1]);
                 break;
 
+            case KindName:
+                if (peer == HostPeer && body.Length >= 2 * Radio.CallsignLength)
+                {
+                    string Text(int at, int length) => System.Text.Encoding.ASCII.GetString(body, at, length).Trim();
+                    StationNamed?.Invoke(Text(0, Radio.CallsignLength), Text(Radio.CallsignLength, Radio.CallsignLength), Text(2 * Radio.CallsignLength, body.Length - 2 * Radio.CallsignLength));
+                }
+                break;
             case KindDock:
                 if (!IsHost && peer == HostPeer && body.Length == 2 + Radio.CallsignLength)
                     DockChanged?.Invoke(Text(body, 0, Radio.CallsignLength).TrimEnd(), body[^2], body[^1] != 0);

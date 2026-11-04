@@ -71,7 +71,7 @@ public static class FittingDesk
     {
         Universe universe = Universe.Current;
         PilotRecord pilot = universe.State.Pilot(pilotId);
-        List<ItemRecord> locker = universe.State.Station(market.Radio.Sign).LockerOf(pilotId);
+        List<ItemRecord> locker = universe.State.Station(market.Radio.Id).LockerOf(pilotId);
         Node3D ship = universe.ShipOf(pilotId);
         bool docked = market.Radio.DockedHere(ship);
         ShipSpec hull = ResourceLoader.Exists(pilot.Ship.Hull) ? GD.Load<ShipSpec>(pilot.Ship.Hull) : null;
@@ -121,7 +121,7 @@ public static class FittingDesk
             fitted = Fittings.Of(hull, pilot.Ship);
         }
 
-        var view = new FittingView { Station = market.Radio.Sign, Docked = docked, Hull = pilot.Ship.Hull, Message = message };
+        var view = new FittingView { Station = market.Radio.Id, Docked = docked, Hull = pilot.Ship.Hull, Message = message };
         foreach (HardpointPlace p in places)
         {
             Outfit on = fitted.GetValueOrDefault(p.Name) as Outfit;

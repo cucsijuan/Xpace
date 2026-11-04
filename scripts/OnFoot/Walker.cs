@@ -117,7 +117,7 @@ public partial class Walker : CharacterBody3D
         Basis facing = (Body ?? (Node3D)this).GlobalBasis;
         return new Net.WalkerState
         {
-            Station = radio.Sign,
+            Station = radio.Id,
             Position = into * GlobalPosition,
             Facing = (into.Basis * facing).Orthonormalized().GetRotationQuaternion(),
             Velocity = into.Basis * Velocity,

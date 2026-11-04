@@ -12,8 +12,8 @@ namespace Xpace.World;
 [GlobalClass]
 public partial class Recipe : Resource
 {
-    /// <summary>What it makes: a good or a model of outfit.</summary>
-    [Export(PropertyHint.ResourceType, "Good,Outfit")] public Resource Output;
+    /// <summary>What it makes: a good, a model of outfit or a ship.</summary>
+    [Export(PropertyHint.ResourceType, "Good,Outfit,ShipModel")] public Resource Output;
 
     /// <summary>Tonnes of a good, or pieces of an outfit, that one run makes.</summary>
     [Export] public float OutputAmount = 1f;
@@ -37,6 +37,7 @@ public partial class Recipe : Resource
     {
         Good good => good.Name,
         Outfit outfit => outfit.Model,
+        ShipModel ship => ship.Name,
         _ => "",
     };
 }

@@ -27,7 +27,7 @@ the whole universe (sectors, ships, factories, factions), one kind of record at 
 user://universe/
     universe.json            the format's version and the universe's clock
     pilots/{id}.json         one for each pilot
-    stations/{callsign}.json one for each station
+    stations/{id}.json       one for each station
 ```
 
 Each document is written whole to a new file that then replaces the old one, so a crash leaves one or the other. Each
@@ -59,6 +59,10 @@ any record from its stamp, lazily, without the game running every station all th
 - **Character inventory and lockers:** a pilot carries up to 8 things on them (`PilotRecord.Items`: diskettes now) and
   has a locker at each station (`StationRecord.Lockers`), each its own.
 
+## Stations' names
+
+A station or gate is known for good by its `StationId` (on its `Radio`; up to 8 characters; none: its callsign): records, ships' routes, kiosks and other machines all go by it. `Title` and `Callsign` are what it starts with. In play `Universe.Rename` gives it a new name and callsign, and `Universe.Transfer` a new owner, with the ships that work for it; nothing else changes. Hosts tell guests what stations are called now.
+
 ## Owners and money
 
 Every station and gate has an owner: an organisation or a pilot. An organisation is set up in a resource (`Organisation`, a .tres in assets/organisations, listed in its catalog.tres: name, kind, personality, parent, starting credits, `Permanent`), and a `Personality` is a resource too (assets/personalities). To add one, make a .tres, put it in the catalog, and set a station's `OwnedBy` (on its `Radio`, in the sector's scene).
@@ -85,7 +89,9 @@ To do this without the sectors loaded, `StationBook` reads every station, gate a
 
 **Detail levels.** A ship nobody deals with is at level 1 (`ShipBody.Dormant`): its computer, devices and AI rest, and its holder alone moves it. Radar and rounds still find it. Locked on by any radar, or hit, it goes to level 0 and its computer runs, until `CargoView.RestAfterSeconds` after the last time. Measured (headless, physics time): about 1 ms a frame for a ship at level 0, 0.04 ms at level 1. It applies to held ships: cargo ships. Ships that fly by themselves (miners, raiders, police) stay at level 0 for now.
 
-**Talk.** A cargo ship and the station say what they do on the radio, heard by the ships in the station's zone (`StationRadio.Traffic`): texts and speeches in its Traffic group, pilots' voices in `TrafficVoices`. After a ship leaves a pad, `ShipModel.PadRestSeconds` pass before it is given to anyone. Ships can't be lost yet.
+**Talk.** A cargo ship and the station say what they do on the radio, heard by the ships in the station's zone (`StationRadio.Traffic`): texts and speeches in its Traffic group, pilots' voices in `TrafficVoices`. After a ship leaves a pad, `ShipModel.PadRestSeconds` pass before it is given to anyone. 
+
+**Losses.** A ship destroyed is gone: its record, what it carried, and its pad is free again (`CargoShips.Lose`; its wreck stays `CargoView.WreckSeconds`). Fleets are given once (`StationRecord.Mustered`); after that an owner short of what `Fleet` says orders a ship (`ShipOrderRecord`) from the nearest yard that builds it (`StationMarket.Shipyard`). The yard starts when it has the materials (`ShipModel.Recipe`), the pieces and the buyer the money: the materials at its market's prices with its owner's margin and its fee (`ShipModel.BuildFee`), nothing of that to the same owner. The buyer chooses what is fitted (`FleetLine.Fitting`; none: what the hull comes with), and each piece is bought from whoever sells it, so what arms makers sell depends on what buyers choose. It takes `ShipModel.BuildHours`, comes off on a free pad, and flies to its home.
 
 ## Markets
 
@@ -105,9 +111,9 @@ A pilot is present at a station when their ship is docked there or inside one of
 foot there. The market and the lockers both check this. The host's universe knows where each pilot is on foot: the
 local player's walker, or a guest's as the guest's machine reports it in the walker states (`Universe.OnFootAt`).
 
-There are two stations with complementary markets, a gate apart: the first sector's (industry: metals, machinery,
-hydrogen) and Kestrel, in the second sector (water, food, iron, silicon, copper, medicines). A third, Quartz, in the first
-sector, makes only chips. Stations were at work before any pilot
+There are four stations. In the first sector Miltec - Alpha (machinery, hydrogen, electronics and arms) and Quartz (chips). A gate
+away, Kestrel (a small station with three hangars: mines and smelts ore into iron and metals, mines silicon and copper) and
+the Drydock (a big one: water, food, medicines, and the shipyard). Stations were at work before any pilot
 came (`Market.HoursBeforeStart`) and go on working unvisited, so prices differ from a new universe's first minute.
 
 **The first chain: ore into iron into missiles.** Kestrel mines ore and smelts iron; the first station's market buys it,
