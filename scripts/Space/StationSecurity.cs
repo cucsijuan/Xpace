@@ -116,6 +116,10 @@ public partial class StationSecurity : Node
     [Export] public string EngageSpeech = "engage";
     [Export] public string DestroyedSpeech = "destroyed";
     [Export] public string FineSpeech = "fined";
+    [Export] public string UnpaidTransitSpeech = "unpaid_transit";
+    [Export] public string UnpaidAgainSpeech = "unpaid_again";
+    [Export] public string AssaultSpeech = "assault";
+    [Export] public string NotoriousSpeech = "notorious";
 
     private sealed class Record
     {
@@ -219,7 +223,7 @@ public partial class StationSecurity : Node
             return;
         _assaults[(by, victim)] = _now;
         Owe(by, 0, DamageBounty, 0);
-        Engage(by, string.Format(AssaultText, Callsign(victim), DamageBounty), EngageSpeech, force: true);
+        Engage(by, string.Format(AssaultText, Callsign(victim), DamageBounty), AssaultSpeech, force: true);
     }
 
     private void OnDestroyed(Node3D victim, Node3D by, Vector3 at)
@@ -337,12 +341,12 @@ public partial class StationSecurity : Node
         if (Jurisdiction(ship) is (_, CrimeRecord record) && record.Fines > 0)
         {
             Owe(ship, 0, UnpaidTransitBounty, 0);
-            Engage(ship, string.Format(UnpaidAgainText, UnpaidTransitBounty), "", force: true);
+            Engage(ship, string.Format(UnpaidAgainText, UnpaidTransitBounty), UnpaidAgainSpeech, force: true);
         }
         else
         {
             Owe(ship, UnpaidTransitFine, 0, 0);
-            Say(ship, string.Format(UnpaidTransitText, UnpaidTransitFine), "");
+            Say(ship, string.Format(UnpaidTransitText, UnpaidTransitFine), UnpaidTransitSpeech);
         }
     }
 
@@ -364,7 +368,7 @@ public partial class StationSecurity : Node
         foreach (Node node in Sectors.InGroup(this, Space.Radio.Group))
             if (Combat.ShipOf(node) is Node3D ship && Combat.IsAlive(ship) && !IsPolice(ship) &&
                 Radio.Protects(ship.GlobalPosition) && StandingOf(ship) != Standing.Hostile && Notorious(ship))
-                Engage(ship, NotoriousText, EngageSpeech);
+                Engage(ship, NotoriousText, NotoriousSpeech);
     }
 
     private static Vector3? Velocity(Node3D ship) => ship switch

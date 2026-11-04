@@ -1,9 +1,11 @@
 [gd_scene format=3]
 
+[ext_resource type="Resource" path="res://assets/ship/models/freighter.tres" id="freighter_model"]
+[ext_resource type="Script" path="res://scripts/World/FleetLine.cs" id="fleet_line"]
+[ext_resource type="Resource" path="res://assets/organisations/quartz_works.tres" id="owner_quartz_works"]
+[ext_resource type="Resource" path="res://assets/organisations/miltec.tres" id="owner_miltec"]
 [ext_resource type="Script" path="res://scripts/Space/MediumMass.cs" id="medium_mass"]
 [ext_resource type="Script" path="res://scripts/Space/DistantBody.cs" id="distant_body"]
-[ext_resource type="Script" path="res://scripts/Space/ShipSpawner.cs" id="ship_spawner"]
-[ext_resource type="PackedScene" path="res://scenes/ships/ai_freighter.tscn" id="ai_freighter"]
 [ext_resource type="Shader" path="res://assets/materials/planet_surface.gdshader" id="planet_surface"]
 [ext_resource type="PackedScene" path="res://scenes/stations/keel_station.tscn" id="keel_station"]
 [ext_resource type="Script" path="res://scripts/World/MarketGood.cs" id="quartz_market_good"]
@@ -129,7 +131,17 @@ Stock = 100
 [sub_resource type="Resource" id="Quartz_works_chips"]
 script = ExtResource("quartz_factory_line")
 Recipe = ExtResource("recipe_chips")
-PerHour = 4.0
+PerHour = 4.2
+
+[sub_resource type="Resource" id="fleet_Station"]
+script = ExtResource("fleet_line")
+Model = ExtResource("freighter_model")
+Count = 2
+
+[sub_resource type="Resource" id="fleet_Quartz"]
+script = ExtResource("fleet_line")
+Model = ExtResource("freighter_model")
+Count = 1
 
 [node name="Sector" type="Node3D"]
 script = ExtResource("18_origin")
@@ -171,21 +183,24 @@ RocksPerCell = 10
 [node name="Station" parent="." unique_id=1661568946 instance=ExtResource("10_station")]
 transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 450, 60, -1200)
 
+[node name="Radio" parent="Station"]
+OwnedBy = ExtResource("owner_miltec")
+
+[node name="Market" parent="Station"]
+Fleet = Array[ExtResource("fleet_line")]([SubResource("fleet_Station")])
+UpkeepPerHour = 8000.0
+
 [node name="Quartz" parent="." instance=ExtResource("keel_station")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25000, 2000, 60000)
 
+[node name="Radio" parent="Quartz"]
+OwnedBy = ExtResource("owner_quartz_works")
+
 [node name="Market" parent="Quartz"]
+Fleet = Array[ExtResource("fleet_line")]([SubResource("fleet_Quartz")])
+UpkeepPerHour = 400.0
 Goods = Array[ExtResource("quartz_market_good")]([SubResource("Quartz_silicon"), SubResource("Quartz_copper"), SubResource("Quartz_chips")])
 Factories = Array[ExtResource("quartz_factory_line")]([SubResource("Quartz_works_chips")])
-
-[node name="Freighters" type="Node3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1450, 60, -1200)
-script = ExtResource("ship_spawner")
-Scene = ExtResource("ai_freighter")
-Count = 1
-FirstSeconds = 3.0
-IntervalSeconds = 60.0
-Radius = 200.0
 
 [node name="Projectiles" type="MultiMeshInstance3D" parent="." unique_id=1887929994]
 script = ExtResource("15_rounds")

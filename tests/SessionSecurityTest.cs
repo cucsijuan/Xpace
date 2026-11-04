@@ -155,7 +155,7 @@ public partial class SessionSecurityTest : Node
         HangarDock dock = traffic.Docks.FirstOrDefault(d => d.Number == number);
         await Frames(10);
         Check($"told in words ({LastHeard})", LastHeard.Contains($"hangar {number}"));
-        Check($"and in the operator's voice, the hangar's number its own clip ({LastSpeech})", LastSpeech.EndsWith($":cleared hangar_{number} follow_lights"));
+        Check($"and in the operator's voice, the hangar's number its own clip ({LastSpeech})", LastSpeech.Contains($":cleared hangar_{number} pad_") && LastSpeech.EndsWith(" follow_lights"));
         Check($"hangar {number} opens on the host, for the guest's ship", dock != null && dock.IsOpen &&
               (dock.Pads.Count == 0 ? dock.ClearedFor == player : dock.Pads.Any(p => p.AssignedTo == player)));
         Check("and on the guest's machine", _doors.Contains(("HAVEN", number, true)));

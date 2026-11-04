@@ -12,6 +12,7 @@ namespace Xpace.Tests;
 /// What trading pays, measured from the game's own data and market rules: the goods, each station's market, the
 /// hulls, the generator, the tolls and where the sector's stations, gates and masses are. Change any of them and run
 /// this again: nothing here is a copy of a value, only the targets below are this test's own.
+/// The markets are the universe's own, with its cargo ships at work (<see cref="CargoShips"/>) and no scene loaded.
 ///
 /// It prints:
 ///   - each good's price on both ends, in a new universe and once the markets have settled;
@@ -21,7 +22,7 @@ namespace Xpace.Tests;
 ///   - what a settled market pays before a pilot wears the difference out.
 ///
 /// It fails when the economy breaks the targets: buying and selling back gains at some stock; a good with no maker
-/// or no user across the gate; a good not worth carrying once settled; a new pilot waiting too long to earn, or
+/// or no user across the gate; too few goods worth carrying once settled; an owner losing money just working; a new pilot waiting too long to earn, or
 /// earning too little or far too much; a market that can be milked for ever with no time passing.
 ///
 /// A leg's time: the flight at the top speed the hull and the generator give at each point of the way (the medium
@@ -36,16 +37,20 @@ public partial class TradeBalanceTest : Node
     private const double MaxHoursToFirstPayingRun = 0.5;
     private const double MinCreditsPerHour = 2_000, MaxCreditsPerHour = 100_000;
     private const int MaxLegsToWearOut = 2_000;
+    private const double MinPayingShare = 0.5;
 
     /// <summary>A leg's time at the pilot's hands: launch and door, spooling, approach, docking, the walk to the kiosk and back.</summary>
     private const double HandlingSeconds = 240;
     private const double WaitSeconds = 600;
     private const double SettledHours = 24;
     private const double CareerHours = 20;
-    private const float CruiseCap = 4096;
+    private const double OwnerHours = 100;
+    private const double WorkStepSeconds = 30;
 
     private int _failures;
     private End _a, _b, _works;
+    private StationBook _book;
+    private UniverseState _state;
     private ShipSpec _fighter, _courtesy;
     private GeneratorSpec _generator;
     private float _engineThrust;
@@ -54,6 +59,7 @@ public partial class TradeBalanceTest : Node
     private sealed class End
     {
         public string Name;
+        public string Sign => Name.ToUpperInvariant();
         public MarketGood[] Goods;
         public FactoryLine[] Factories;
         public StationRecord Record;
@@ -79,6 +85,8 @@ public partial class TradeBalanceTest : Node
         _a = Read("res://scenes/sectors/sector_01.tscn", "Station", "Gate2");
         _b = Read("res://scenes/sectors/sector_02.tscn", "Kestrel", "Gate1");
         _works = Read("res://scenes/sectors/sector_01.tscn", "Quartz", "Gate2");
+        _book = StationBook.Read(GD.Load<SectorMap>("res://assets/sectors/map.tres"));
+        Reset();
 
         Route();
         Prices();
@@ -89,6 +97,7 @@ public partial class TradeBalanceTest : Node
         WorthCarrying();
         WearsOut();
         ChipsChain();
+        Owners();
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
@@ -116,8 +125,8 @@ public partial class TradeBalanceTest : Node
             GD.Print($"  {"good",-12}{_a.Name + " buy",12}{_b.Name + " pays",14}{"margin",8}   {_b.Name + " buy",12}{_a.Name + " pays",14}{"margin",8}");
             foreach (string good in Goods())
             {
-                long ab = Market.BuyPrice(Line(_a, good), Stock(_a, good)), bp = Market.SellPrice(Line(_b, good), Stock(_b, good));
-                long ba = Market.BuyPrice(Line(_b, good), Stock(_b, good)), ap = Market.SellPrice(Line(_a, good), Stock(_a, good));
+                long ab = Market.BuyPrice(_a.Record, Line(_a, good)), bp = Market.SellPrice(Line(_b, good), Stock(_b, good));
+                long ba = Market.BuyPrice(_b.Record, Line(_b, good)), ap = Market.SellPrice(Line(_a, good), Stock(_a, good));
                 GD.Print($"  {good,-12}{Shown(ab),12}{Shown(bp),14}{Margin(ab, bp),8}   {Shown(ba),12}{Shown(ap),14}{Margin(ba, ap),8}");
             }
         }
@@ -183,11 +192,11 @@ public partial class TradeBalanceTest : Node
             Run run = Best(here, there, hull, pilot.Credits, clock);
             if (run != null && run.Profit > 0)
             {
-                Market.Buy(here.Record, Line(here, run.Good), pilot, run.Tonnes, run.Tonnes, out int bought, out _);
+                Market.Buy(here.Record, Line(here, run.Good), pilot, run.Tonnes, run.Tonnes, out int bought, out _, Account(_state.Station(here.Sign).Owner));
                 pilot.Credits -= here.Toll;
                 clock += LegSeconds(here, there, hull, bought);
                 AdvanceBoth(clock);
-                Market.Sell(there.Record, Line(there, run.Good), pilot, bought, out _, out _);
+                Market.Sell(there.Record, Line(there, run.Good), pilot, bought, out _, out _, Account(_state.Station(there.Sign).Owner));
                 pilot.Ship.Cargo.Clear();
                 runs++;
                 if (career.FirstPaying < 0)
@@ -268,7 +277,9 @@ public partial class TradeBalanceTest : Node
                 dull.Add(good);
         }
         Reset();
-        Check($"once settled, a full hold of every good pays its toll ({(dull.Count == 0 ? "all do" : "not: " + string.Join(", ", dull))})", dull.Count == 0);
+        int goods = Goods().Count();
+        Check($"once settled, the cargo ships leave work for pilots: most goods pay a hold's toll ({goods - dull.Count} of {goods}{(dull.Count == 0 ? "" : "; not " + string.Join(", ", dull))})",
+              goods - dull.Count >= goods * MinPayingShare);
     }
 
     private void WearsOut()
@@ -301,9 +312,8 @@ public partial class TradeBalanceTest : Node
     // The goods that go by way of the chip works, none of them dealt in at both ends of the route
     private void ChipsChain()
     {
-        var works = new StationRecord { Callsign = _works.Name };
-        Market.Advance(works, _works.Goods, SettledHours * 3600, null, _works.Factories);
         Advance(SettledHours * 3600);
+        StationRecord works = _state.Station(_works.Sign);
         foreach (var (from, fromGoods, fromRecord, to, toGoods, toRecord, good) in new[]
         {
             (_b.Name, _b.Goods, _b.Record, _works.Name, _works.Goods, works, "silicon"),
@@ -312,8 +322,22 @@ public partial class TradeBalanceTest : Node
         })
         {
             MarketGood seller = fromGoods.First(g => g.Good.Id == good), buyer = toGoods.First(g => g.Good.Id == good);
-            long buy = Market.BuyPrice(seller, fromRecord.Stock[good]), sell = Market.SellPrice(buyer, toRecord.Stock[good]);
+            long buy = Market.BuyPrice(fromRecord, seller), sell = Market.SellPrice(buyer, toRecord.Stock[good]);
             Check($"{good} from {from} ({fromRecord.Stock[good]:0} t, {buy}) sells at {to} ({toRecord.Stock[good]:0} t, {sell})", buy >= 0 && sell > buy);
+        }
+        Reset();
+    }
+
+    // What each owner has after so long with no pilot trading: its people pay, its ships buy, its upkeep costs
+    private void Owners()
+    {
+        GD.Print($"\nOwners, no pilot trading (credits after {OwnerHours:0} h):");
+        Advance(OwnerHours * 3600);
+        foreach (OrganisationRecord owner in _state.Organisations.Values.OrderBy(o => o.Id, StringComparer.Ordinal))
+        {
+            long start = OrganisationCatalog.Find(owner.Id).StartingCredits;
+            GD.Print($"  {owner.Name}: {start} to {owner.Credits}");
+            Check($"{owner.Name} doesn't lose money just working", owner.Credits >= start);
         }
         Reset();
     }
@@ -356,26 +380,10 @@ public partial class TradeBalanceTest : Node
         return HandlingSeconds + Flight(from, from.Station, from.Gate, hull, mass) + Flight(to, to.Gate, to.Station, hull, mass);
     }
 
-    // At each point of the way the ship flies at the top its hull and generator give there
     private double Flight(End end, Vector3 a, Vector3 b, ShipSpec hull, float mass)
     {
-        const float step = 200;
-        double seconds = 0;
-        float length = a.DistanceTo(b);
-        for (float d = 0; d < length; d += step)
-        {
-            Vector3 at = a.Lerp(b, d / length);
-            float density = 1;
-            foreach ((Vector3 massAt, float reach) in end.Masses)
-                density += reach * reach / Mathf.Max(massAt.DistanceSquaredTo(at), 1);
-            float top = density < _generator.Thinning
-                ? Mathf.Min(hull.TopSpeed(_generator.Push * hull.Mass / mass, hull.VeilDrag * density / _generator.Thinning), CruiseCap)
-                : hull.TopSpeed(_engineThrust * hull.Mass / mass);
-            if (end.Station.DistanceTo(at) < end.SpeedRadius)
-                top = Mathf.Min(top, end.SpeedLimit);
-            seconds += step / top;
-        }
-        return seconds;
+        var space = new Voyage.Space { Masses = end.Masses, Limits = { (end.Station, end.SpeedRadius, end.SpeedLimit) } };
+        return Voyage.Seconds(space, a, b, hull, mass, _generator, _engineThrust);
     }
 
     // ---- The game's data ----
@@ -430,19 +438,25 @@ public partial class TradeBalanceTest : Node
     private static double Stock(End end, string good) => end.Record.Stock.TryGetValue(good, out double s) ? s : 0;
 
     private static StationRecord Copy(StationRecord r) =>
-        new() { Callsign = r.Callsign, UpdatedAt = r.UpdatedAt, Stock = new Dictionary<string, double>(r.Stock) };
+        new() { Callsign = r.Callsign, UpdatedAt = r.UpdatedAt, Stock = new Dictionary<string, double>(r.Stock), Floors = new Dictionary<string, double>(r.Floors) };
 
-    // Both markets as they stand in a new universe...
+    // The universe as it stands when new: the game's own stations, owners and cargo ships...
     private void Reset()
     {
+        _state = new UniverseState();
+        CargoShips.Muster(_state, _book, Account);
+        CargoShips.Tick(_state, _book, Account);
         foreach (End end in new[] { _a, _b })
-        {
-            end.Record = new StationRecord { Callsign = end.Name };
-            Market.Advance(end.Record, end.Goods, 0, null, end.Factories);
-        }
+            end.Record = _state.Station(end.Sign);
     }
 
-    // ...and as they stand so long after it, nobody trading
+    private IAccount Account(string owner) => string.IsNullOrEmpty(owner) ? null : _state.Organisation(owner, () =>
+    {
+        Organisation spec = OrganisationCatalog.Find(owner);
+        return new OrganisationRecord { Id = owner, Name = spec.Name, Credits = spec.StartingCredits, Margin = spec.Personality?.Margin ?? 0.15 };
+    });
+
+    // ...and as it stands so long after it, its ships at work and no pilot trading
     private void Advance(double clock)
     {
         Reset();
@@ -451,8 +465,11 @@ public partial class TradeBalanceTest : Node
 
     private void AdvanceBoth(double clock)
     {
-        Market.Advance(_a.Record, _a.Goods, clock, null, _a.Factories);
-        Market.Advance(_b.Record, _b.Goods, clock, null, _b.Factories);
+        while (_state.Clock < clock)
+        {
+            _state.Clock = Math.Min(clock, _state.Clock + WorkStepSeconds);
+            CargoShips.Tick(_state, _book, Account);
+        }
     }
 
     private void Check(string what, bool ok)

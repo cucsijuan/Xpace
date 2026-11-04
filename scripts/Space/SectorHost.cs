@@ -79,6 +79,7 @@ public partial class SectorHost : Node
         Ship = ShipScene.Instantiate<ShipBody>();
         Ship.Name = "Ship";
         _here = Load(start, Ship);
+        Xpace.World.Universe.Current?.Run(Map);
         Show(_here);
         if (GameSettings.Current is GameSettings s)
             s.Changed += ApplySettings;

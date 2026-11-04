@@ -1,5 +1,7 @@
 [gd_scene format=3]
 
+[ext_resource type="Resource" path="res://assets/voices/pilot_m1/voice.tres" id="pilot_m1"]
+[ext_resource type="Resource" path="res://assets/voices/pilot_f1/voice.tres" id="pilot_f1"]
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_05_keel.tscn" id="keel"]
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_06_tower.tscn" id="tower"]
 [ext_resource type="PackedScene" path="res://scenes/stations/props/hangar_pod.tscn" id="pod"]
@@ -40,6 +42,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 80, 0)
 script = ExtResource("radio")
 Laws = ExtResource("laws")
 Voices = Array[ExtResource("voice_pack")]([ExtResource("voice_f1"), ExtResource("voice_f2"), ExtResource("voice_m1"), ExtResource("voice_m2")])
+TrafficVoices = Array[ExtResource("voice_pack")]([ExtResource("pilot_m1"), ExtResource("pilot_f1")])
 
 [node name="Market" type="Node" parent="."]
 script = ExtResource("market")

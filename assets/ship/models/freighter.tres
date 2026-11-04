@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="ShipModel" format=3]
+
+[ext_resource type="Script" path="res://scripts/World/ShipModel.cs" id="1_model"]
+[ext_resource type="Resource" path="res://assets/ship/hulls/hull_freighter.tres" id="2_hull"]
+[ext_resource type="Resource" path="res://assets/ship/engines/engine_d50.tres" id="3_engine"]
+[ext_resource type="Resource" path="res://assets/ship/generators/generator_g1.tres" id="4_generator"]
+[ext_resource type="PackedScene" path="res://scenes/ships/ai_freighter.tscn" id="5_scene"]
+
+[resource]
+script = ExtResource("1_model")
+Name = "Freighter"
+Hull = ExtResource("2_hull")
+Engine = ExtResource("3_engine")
+Generator = ExtResource("4_generator")
+Scene = ExtResource("5_scene")
+RestockBelow = 0.5

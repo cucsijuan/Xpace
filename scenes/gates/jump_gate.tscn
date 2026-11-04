@@ -1,5 +1,9 @@
 [gd_scene load_steps=16 format=3]
 
+[ext_resource type="Script" path="res://scripts/Space/RadioVoicePack.cs" id="gate_voice_pack"]
+[ext_resource type="Resource" path="res://assets/voices/operator_f2/voice.tres" id="gate_f2"]
+[ext_resource type="Resource" path="res://assets/voices/operator_m2/voice.tres" id="gate_m2"]
+[ext_resource type="Resource" path="res://assets/organisations/gate_authority.tres" id="gate_owner"]
 [ext_resource type="Script" path="res://scripts/Space/MediumMass.cs" id="medium_mass"]
 [ext_resource type="Script" path="res://scripts/Space/JumpGate.cs" id="1_gate"]
 [ext_resource type="PackedScene" path="res://scenes/fx/transit_tunnel.tscn" id="2_transit"]
@@ -62,6 +66,8 @@ Shape = ExtResource("14_inner_collision")
 [node name="Radio" type="Node3D" parent="."]
 script = ExtResource("15_radio")
 Laws = ExtResource("16_laws")
+OwnedBy = ExtResource("gate_owner")
+Voices = Array[ExtResource("gate_voice_pack")]([ExtResource("gate_f2"), ExtResource("gate_m2")])
 WelcomeText = "Gate control. No weapons within {0} km. Ask for transit before you go through."
 DeniedText = "This is a gate: no docking here."
 

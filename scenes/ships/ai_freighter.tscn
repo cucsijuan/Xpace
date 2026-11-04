@@ -156,9 +156,6 @@ script = ExtResource("28_rock_sensor")
 [node name="Pilot" type="Node" parent="."]
 script = ExtResource("26_ai")
 Peaceful = true
-RespectsZones = false
-PatrolRadius = 500.0
-PatrolSpeed = 60.0
 
 [node name="Wake" type="MeshInstance3D" parent="Effects"]
 script = ExtResource("cruise_wake")

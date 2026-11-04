@@ -1,0 +1,28 @@
+using Godot;
+
+namespace Xpace.World;
+
+/// <summary>
+/// How an organisation behaves, a .tres in assets/personalities: the same rules for all, with these numbers telling
+/// them apart when they meet damage or competition. Each 0 to 1.
+/// </summary>
+[GlobalClass]
+public partial class Personality : Resource
+{
+    [Export] public string Name = "";
+
+    /// <summary>How readily it answers with force.</summary>
+    [Export(PropertyHint.Range, "0,1,0.01")] public float Aggression = 0.5f;
+
+    /// <summary>How readily it talks and pays its way out instead.</summary>
+    [Export(PropertyHint.Range, "0,1,0.01")] public float Diplomacy = 0.5f;
+
+    /// <summary>How far outside the law it will go.</summary>
+    [Export(PropertyHint.Range, "0,1,0.01")] public float Shadiness = 0.1f;
+
+    /// <summary>What it asks on top of what a thing costs it to make, of that cost.</summary>
+    [Export(PropertyHint.Range, "0,1,0.01")] public float Margin = 0.15f;
+
+    /// <summary>How much of its money it risks to grow.</summary>
+    [Export(PropertyHint.Range, "0,1,0.01")] public float Ambition = 0.5f;
+}

@@ -14,6 +14,8 @@ namespace Xpace.World;
 ///   universe.json            the format's version and the universe's clock
 ///   pilots/{id}.json         one for each pilot
 ///   stations/{callsign}.json one for each station
+///   organisations/{id}.json  one for each organisation
+///   cargo_ships/{id}.json    one for each cargo ship
 ///
 /// Each document is written whole to a new file that then takes the old one's place, so a crash leaves the old one or
 /// the new one, never half of either. A document written by an older version is brought up to the current format
@@ -27,11 +29,17 @@ public static class UniverseStore
     {
         Directory.CreateDirectory(Path.Combine(folder, "pilots"));
         Directory.CreateDirectory(Path.Combine(folder, "stations"));
+        Directory.CreateDirectory(Path.Combine(folder, "organisations"));
+        Directory.CreateDirectory(Path.Combine(folder, "cargo_ships"));
         Write(Path.Combine(folder, "universe.json"), new JsonObject { ["Version"] = state.Version, ["Clock"] = state.Clock });
         foreach (PilotRecord pilot in state.Pilots.Values)
             Write(Path.Combine(folder, "pilots", FileName(pilot.Id)), Stamped(pilot, state.Version));
         foreach (StationRecord station in state.Stations.Values)
             Write(Path.Combine(folder, "stations", FileName(station.Callsign)), Stamped(station, state.Version));
+        foreach (OrganisationRecord organisation in state.Organisations.Values)
+            Write(Path.Combine(folder, "organisations", FileName(organisation.Id)), Stamped(organisation, state.Version));
+        foreach (CargoShipRecord ship in state.CargoShips.Values)
+            Write(Path.Combine(folder, "cargo_ships", FileName(ship.Id)), Stamped(ship, state.Version));
     }
 
     /// <summary>The universe kept in <paramref name="folder"/>, or a new one if there is none.</summary>
@@ -52,6 +60,12 @@ public static class UniverseStore
         foreach (StationRecord station in Documents<StationRecord>(Path.Combine(folder, "stations"), "station"))
             if (!string.IsNullOrEmpty(station.Callsign))
                 state.Stations[station.Callsign] = station;
+        foreach (OrganisationRecord organisation in Documents<OrganisationRecord>(Path.Combine(folder, "organisations"), "organisation"))
+            if (!string.IsNullOrEmpty(organisation.Id))
+                state.Organisations[organisation.Id] = organisation;
+        foreach (CargoShipRecord ship in Documents<CargoShipRecord>(Path.Combine(folder, "cargo_ships"), "cargo ship"))
+            if (!string.IsNullOrEmpty(ship.Id))
+                state.CargoShips[ship.Id] = ship;
         return state;
     }
 

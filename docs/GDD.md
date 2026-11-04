@@ -231,12 +231,20 @@ Engines are products: a manufacturer can close a flaw in a newer firmware, so an
   - To build in M6; M5 only keeps the way open: sectors and bubbles are worlds of their own, and the records are the truth that scenes show.
 - **Players can steer the economy, with consequences.** Supplying, starving or blockading a chain changes what stations can make and what things cost downstream: cutting off a shipyard's metal stops its ships, flooding a market sinks its prices.
 
-### 8.2 Corporations
+### 8.2 Organisations
 
-- Many companies sell hulls, modules, CPUs and software.
-- Each has its own style and its manufacturer ID on the bus.
-- **CucsiCorp** fits as the hardware and operating system giant.
-- They compete: they launch products, have scandals and ship patches.
+- **It is a sandbox: everyone plays by the same rules.** An organisation (a company, corporation, guild or faction) and a pilot are the same kind of actor: they own things and have money. The AI gets no free money and no free ships.
+- **Everything has an owner, and the owner gains or loses.** Stations, gates, ships and factories belong to someone: what a station sells goes to its owner, what it buys comes out of its owner's money, and a station with no money stops buying.
+- **All of it is data.** Organisations and personalities are resources a designer adds and edits (`assets/organisations`, `assets/personalities`): nothing about any of them is in code.
+- **Organisations come and go.** New ones can appear: a rich independent, a player, or one rising by itself where the economy leaves a gap (a condition, not dice). Anyone can own more than one station. Some factions are commercial corporations. Competition is left to arise naturally.
+- **MilTec** makes weapons and owns the first station; **CucsiCorp** is the hardware and operating system giant. Many companies sell hulls, modules, CPUs and software, each with its own style and its manufacturer ID on the bus; they launch products, have scandals and ship patches.
+- **Bankruptcy.** Any company can go under. The main corporations can't disappear (`Permanent`). Procedural companies that grew to a corporation's size can, and they can join or leave factions. A pilot can work for MilTec without being MilTec. A bankrupt station can be bought at a good price.
+- **Personality.** Organisations defend themselves from any damage or competition, each in its own way: more aggressive, mediating or shady. Same rules, other numbers.
+- **The player can damage them, and can be one of them.** Everything keeps a natural balance. The player can own ships flown by crews (X4 style), stations, a corporation or a faction, or join another; a pirate base, smuggling, or a corporation as a front for piracy are all fair.
+- **Trade information is earned.** Commercial buoys must be visited and spoken to for the commercial information of that sector or those near it. Each actor knows what it learned, dated. Later a galaxy map shows it, brought up to date when you or one of your ships visits a buoy.
+- **Money.** A station's people pay for what they use up (money coming in); upkeep and ships take it out.
+
+**Order of work (M6):** owners and money; cargo ships as records that travel out of sight; the real ship shown when a player is there; losses and replacements; buoys and what each actor knows; personality and reactions; companies born, bankrupt and sold, and crews on the player's ships.
 
 ### 8.3 Factions and politics
 
@@ -417,6 +425,7 @@ Missiles, blasts and countermeasures (`tests/net_missile_test.tscn`, from both s
 | Inventory | The character carries a few things (diskettes, later weapons); each station has a locker of its own for each pilot. |
 | Trade | At a kiosk in the hangar for now; later a market zone inside the station and a separate retrofit hangar. |
 | Saving | The owner of the universe (the host, or the player alone) keeps its whole state as a folder of documents, one for each record, stamped with universe time so that what nobody looks at can be simulated later. A guest's pilot lives in the host's universe. |
+| Organisations | A sandbox: organisations and pilots are the same kind of actor, under the same rules. Everything has an owner with money. Set up as data. See 8.2. |
 | Name | Codename Xpace. |
 
 ### Pending

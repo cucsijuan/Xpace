@@ -255,8 +255,46 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
                 Space.Explosion.Fade(part, gone);
     }
 
+    /// <summary>
+    /// Detail level 1: nobody is dealing with this ship, so its computer and devices rest and its holder alone says
+    /// where it is. It is still there for radar and rounds. <see cref="Wake"/> takes it to level 0.
+    /// </summary>
+    public bool Dormant { get; private set; }
+
+    /// <summary>To detail level 1: only a held ship can do without its computer.</summary>
+    public void Rest()
+    {
+        if (Holder == null || Dormant)
+            return;
+        Dormant = true;
+        Computer.PowerOnAtStart = false;
+        foreach (FighterAi pilot in FindChildren("*", "", true, false).OfType<FighterAi>())
+            pilot.SetPhysicsProcess(false);
+        foreach (Space.RadarEmitter emitter in FindChildren("*", "", true, false).OfType<Space.RadarEmitter>())
+            emitter.SetPhysicsProcess(false);
+    }
+
+    /// <summary>To detail level 0: its computer runs, as any ship's.</summary>
+    public void Wake()
+    {
+        if (!Dormant)
+            return;
+        Dormant = false;
+        Computer.PowerOn();
+        foreach (FighterAi pilot in FindChildren("*", "", true, false).OfType<FighterAi>())
+            pilot.SetPhysicsProcess(true);
+        foreach (Space.RadarEmitter emitter in FindChildren("*", "", true, false).OfType<Space.RadarEmitter>())
+            emitter.SetPhysicsProcess(true);
+    }
+
     public override void _PhysicsProcess(double delta)
     {
+        if (Dormant)
+        {
+            if (Holder != null)
+                State = Holder.Hold(this, delta);
+            return;
+        }
         ShipBus bus = Computer.Bus;
         Controls = ControlsSource?.Invoke() ?? default;
         if (Wrecked)
@@ -347,6 +385,13 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
 
     /// <summary>How much of the medium it stirs in cruise, 0 to 1 (a puppet: what its owner's snapshots say).</summary>
     public float WakeLevel => Wrecked ? 0 : _shownWake ?? _cruise?.Wake ?? 0;
+
+    /// <summary>What its holder makes it show: how hard its motor pushes, and how much of the medium it stirs.</summary>
+    public void Show(float thrust, float wake)
+    {
+        _shownThrust = thrust;
+        _shownWake = wake;
+    }
 
     private float? _shownWake;
     private float? _shownThrust;

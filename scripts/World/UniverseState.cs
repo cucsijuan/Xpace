@@ -26,6 +26,8 @@ public sealed class UniverseState
 
     public Dictionary<string, PilotRecord> Pilots { get; set; } = new();
     public Dictionary<string, StationRecord> Stations { get; set; } = new();
+    public Dictionary<string, OrganisationRecord> Organisations { get; set; } = new();
+    public Dictionary<string, CargoShipRecord> CargoShips { get; set; } = new();
 
     /// <summary>A pilot's record, made the first time the pilot comes (with what a new pilot has).</summary>
     public PilotRecord Pilot(string id, string name = null)
@@ -42,6 +44,16 @@ public sealed class UniverseState
         return pilot;
     }
 
+    /// <summary>An organisation's record, made the first time it is needed, as <paramref name="found"/> sets it up.</summary>
+    public OrganisationRecord Organisation(string id, Func<OrganisationRecord> found)
+    {
+        if (string.IsNullOrEmpty(id))
+            return null;
+        if (!Organisations.TryGetValue(id, out OrganisationRecord record))
+            Organisations[id] = record = found();
+        return record;
+    }
+
     /// <summary>A station's record, made the first time it is needed.</summary>
     public StationRecord Station(string callsign)
     {
@@ -53,9 +65,81 @@ public sealed class UniverseState
     }
 }
 
-/// <summary>A pilot: a player, wherever they play from, known by an id of their own (<see cref="Universe.LocalPilotId"/>).</summary>
-public sealed class PilotRecord
+/// <summary>A working cargo ship: it exists here, wherever it is and whether anyone sees it or not (<see cref="CargoShips"/>).</summary>
+public sealed class CargoShipRecord
 {
+    public const string Waiting = "waiting", Fetching = "fetching", Returning = "returning";
+    public const string Parked = "parked", Flying = "flying", Holding = "holding", Landing = "landing";
+
+    public string Id { get; set; }
+    /// <summary>Its <see cref="ShipModel"/>, by resource path.</summary>
+    public string Model { get; set; }
+    /// <summary>Who owns it, as <see cref="StationRecord.Owner"/>.</summary>
+    public string Owner { get; set; }
+    /// <summary>The station it works for, and the one it last stood at.</summary>
+    public string Home { get; set; }
+    public string At { get; set; }
+    /// <summary>The job in hand: <see cref="Waiting"/>, <see cref="Fetching"/> or <see cref="Returning"/>.</summary>
+    public string State { get; set; } = Waiting;
+    /// <summary>What it is doing now: <see cref="Parked"/>, <see cref="Flying"/>, <see cref="Holding"/> or <see cref="Landing"/>.</summary>
+    public string Phase { get; set; } = Parked;
+    /// <summary>Its pad: the dock and pad numbers it stands on or is cleared to (0: none).</summary>
+    public int Dock { get; set; }
+    public int Pad { get; set; }
+    /// <summary>It has asked here and been told to hold.</summary>
+    public bool AskedHold { get; set; }
+    /// <summary>The station and pad it set out from on this voyage.</summary>
+    public string From { get; set; } = "";
+    public int LeftDock { get; set; }
+    public int LeftPad { get; set; }
+    /// <summary>Where it asked for a pad on this voyage, in its sector.</summary>
+    public double[] Contact { get; set; } = new double[3];
+    [JsonIgnore] public Godot.Vector3 ContactPoint
+    {
+        get => new((float)Contact[0], (float)Contact[1], (float)Contact[2]);
+        set => Contact = new double[] { value.X, value.Y, value.Z };
+    }
+    /// <summary>Where it is going, and the universe times it left and gets there.</summary>
+    public string Going { get; set; } = "";
+    public double Left { get; set; }
+    public double Arrives { get; set; }
+    /// <summary>When it next looks for something to do.</summary>
+    public double NextLook { get; set; }
+    /// <summary>What it is after or carrying, and the tonnes aboard.</summary>
+    public string Good { get; set; } = "";
+    public int Tonnes { get; set; }
+    /// <summary>Tonnes it has brought home in all.</summary>
+    public long Delivered { get; set; }
+}
+
+/// <summary>Whoever can own things and pay for them: a pilot or an organisation, the same to a market.</summary>
+public interface IAccount
+{
+    string Name { get; }
+    long Credits { get; set; }
+    /// <summary>What it asks on top of what a thing costs it to make, of that cost.</summary>
+    double Margin { get; }
+}
+
+/// <summary>A company, corporation, guild or faction as it stands now, known by an id (for one set up by hand, its <see cref="Organisation"/>'s).</summary>
+public sealed class OrganisationRecord : IAccount
+{
+    public string Id { get; set; }
+    public string Name { get; set; }
+    public long Credits { get; set; }
+    public double Margin { get; set; } = 0.15;
+    /// <summary>The organisation it belongs to now (empty: its own). It can join and leave.</summary>
+    public string Parent { get; set; } = "";
+}
+
+/// <summary>A pilot: a player, wherever they play from, known by an id of their own (<see cref="Universe.LocalPilotId"/>).</summary>
+public sealed class PilotRecord : IAccount
+{
+    /// <summary>A pilot as the owner of something (<see cref="StationRecord.Owner"/>): this and their id.</summary>
+    public const string OwnerPrefix = "pilot:";
+
+    [JsonIgnore] public double Margin => 0.15;
+
     /// <summary>What a new pilot has to start with.</summary>
     public const long StartingCredits = 1000;
 
@@ -162,6 +246,24 @@ public sealed class StationRecord
 
     /// <summary>The universe time this station was last brought up to date.</summary>
     public double UpdatedAt { get; set; }
+
+    /// <summary>Who owns it: an organisation's id, or a pilot's with <see cref="PilotRecord.OwnerPrefix"/> (empty: as its scene says).</summary>
+    public string Owner { get; set; } = "";
+
+    /// <summary>
+    /// The least its owner sells each thing for, by id, as of <see cref="UpdatedAt"/>: what it costs to make here, with
+    /// its share of the upkeep and the owner's margin (<see cref="Market.Advance"/>). Nothing for what it doesn't make.
+    /// </summary>
+    public Dictionary<string, double> Floors { get; set; } = new();
+
+    /// <summary>The pads taken by cargo ships, as "dock:pad", and by which.</summary>
+    public Dictionary<string, string> CargoPads { get; set; } = new();
+
+    /// <summary>Pads a ship just left, as "dock:pad", and the universe time they can be given again.</summary>
+    public Dictionary<string, double> PadsResting { get; set; } = new();
+
+    /// <summary>Credits it is yet to pay or be paid, less than one: what its people use comes a little at a time.</summary>
+    public double CashCarry { get; set; }
 
     /// <summary>Tonnes of each good its market has (by the good's id), as of <see cref="UpdatedAt"/>.</summary>
     public Dictionary<string, double> Stock { get; set; } = new();

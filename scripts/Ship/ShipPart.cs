@@ -55,6 +55,26 @@ public partial class ShipPart : Node3D
         return new Sum(mass, inertia, mass > 0 ? centre / mass : Vector3.Zero, parts);
     }
 
+    /// <summary>The box round the parts under an exterior, in its frame.</summary>
+    public static Aabb Bounds(Node3D exterior)
+    {
+        Aabb all = default;
+        bool first = true;
+        foreach (ShipPart part in exterior.FindChildren("*", "", true, false).OfType<ShipPart>())
+            foreach (CollisionShape3D box in part.FindChildren("*", nameof(CollisionShape3D), true, false).OfType<CollisionShape3D>().Where(s => s.Shape is BoxShape3D))
+            {
+                Transform3D at = From(exterior, box);
+                Vector3 half = ((BoxShape3D)box.Shape).Size / 2;
+                for (int i = 0; i < 8; i++)
+                {
+                    Vector3 p = at * new Vector3((i & 1) != 0 ? half.X : -half.X, (i & 2) != 0 ? half.Y : -half.Y, (i & 4) != 0 ? half.Z : -half.Z);
+                    all = first ? new Aabb(p, Vector3.Zero) : all.Expand(p);
+                    first = false;
+                }
+            }
+        return all;
+    }
+
     private static float Volume(CollisionShape3D box)
     {
         Vector3 size = ((BoxShape3D)box.Shape).Size;

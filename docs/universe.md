@@ -59,6 +59,34 @@ any record from its stamp, lazily, without the game running every station all th
 - **Character inventory and lockers:** a pilot carries up to 8 things on them (`PilotRecord.Items`: diskettes now) and
   has a locker at each station (`StationRecord.Lockers`), each its own.
 
+## Owners and money
+
+Every station and gate has an owner: an organisation or a pilot. An organisation is set up in a resource (`Organisation`, a .tres in assets/organisations, listed in its catalog.tres: name, kind, personality, parent, starting credits, `Permanent`), and a `Personality` is a resource too (assets/personalities). To add one, make a .tres, put it in the catalog, and set a station's `OwnedBy` (on its `Radio`, in the sector's scene).
+
+What it is now is its `OrganisationRecord`, made from the resource the first time it is needed: money and parent. An owner is an id in `StationRecord.Owner`, which can change hands; a pilot as owner is `pilot:` and their id, and both are an `IAccount` (`Universe.Account`, `StationRadio.Cash`).
+
+What pilots pay a station goes to its owner, tolls, fines and bounties too; what it pays comes from its owner, and with no money left it buys nothing. Its people pay for what they use up (`MarketGood.Uses`, at the market's price): that is where money comes from. `StationMarket.UpkeepPerHour` is where it goes. A station with no owner trades as if its money had no end (tests' stations). Today a station's money moves only when someone deals with it (`Market.Advance`).
+
+## Cargo ships
+
+The universe works by itself while anyone plays, on the host (`CargoShips`, every `Universe.WorkEverySeconds`): every station is brought up to date, and every cargo ship does its job, seen or not. A cargo ship is a record (`CargoShipRecord`), not a scene.
+
+What a ship is, is a `ShipModel` (a .tres in assets/ship/models: hull, engine, generator, its scene, and how its crew works: `RestockBelow`, `TakeShare`, `WaitSeconds`, `HandlingSeconds`). A station's `Fleet` (on its `Market`) says how many work for it when a universe starts; they belong to its owner.
+
+A ship looks at what its home uses up (a good whose `Market.Net` is negative), takes the one it is shortest of, goes to the cheapest station that makes it, pays that market's prices, and brings it back, paying every gate's toll on the way. It uses its owner's money, by the same rules as a pilot: no money, no trip. Its voyage takes what `Voyage` reckons from its hull, generator, engine, cargo, the medium and the speed limits.
+
+**Prices follow costs.** An owner won't sell what its station makes under what that costs: the inputs at the prices they have there, its share of the upkeep, and the margin its personality asks (`Personality.Margin`). So when chips go up, electronics go up, and then missiles. A ship won't fetch what costs more than it is worth at its home's market, so a price that nobody can pay leaves the stock to fill up, the factory rests, it stops buying, and its inputs get cheaper: the chain finds its level by itself.
+
+To do this without the sectors loaded, `StationBook` reads every station, gate and mass from the sectors' scenes once, at the start. `tests/cargo_ships_test` runs 200 hours of it with no scene at all. 
+
+**Pads.** Coming near a station (`ShipModel.AskAtMeters`) a ship asks it for a pad: the free one nearest to it that it fits, whichever hangar that is. With none free it holds there and asks again. It goes in and lands on that pad, stands on it while its crew works, and leaves from it. All of that is in its record (`Dock`, `Pad`, `Phase`; `StationRecord.CargoPads` keeps who has which), so it happens the same whether anyone is there or not, and pilots and cargo ships never get the same pad.
+
+**Seen.** Where a sector is loaded (a player is there), `CargoView` (in main.tscn) shows the real ship of every record there, from the model's `Scene`, held where the record says (`CargoRun`, an `IShipHold`): parked on its pad, holding off a station, or on its way. It is a true ship to radar, weapons and other players. Its station opens the door for it (`StationRadio.OpenFor`). A line that would cross a station goes over it. The record is the truth; the scene only shows it.
+
+**Detail levels.** A ship nobody deals with is at level 1 (`ShipBody.Dormant`): its computer, devices and AI rest, and its holder alone moves it. Radar and rounds still find it. Locked on by any radar, or hit, it goes to level 0 and its computer runs, until `CargoView.RestAfterSeconds` after the last time. Measured (headless, physics time): about 1 ms a frame for a ship at level 0, 0.04 ms at level 1. It applies to held ships: cargo ships. Ships that fly by themselves (miners, raiders, police) stay at level 0 for now.
+
+**Talk.** A cargo ship and the station say what they do on the radio, heard by the ships in the station's zone (`StationRadio.Traffic`): texts and speeches in its Traffic group, pilots' voices in `TrafficVoices`. After a ship leaves a pad, `ShipModel.PadRestSeconds` pass before it is given to anyone. Ships can't be lost yet.
+
 ## Markets
 
 A station's market (`StationMarket`, beside its radio in the station's scene) deals in the goods listed on it

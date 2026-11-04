@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="Personality" format=3]
+
+[ext_resource type="Script" path="res://scripts/World/Personality.cs" id="1_p"]
+
+[resource]
+script = ExtResource("1_p")
+Name = "Shady"
+Aggression = 0.5
+Diplomacy = 0.4
+Shadiness = 0.9
+Ambition = 0.7

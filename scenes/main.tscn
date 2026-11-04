@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://5wj6kcjm7jnh"]
 
 
+[ext_resource type="Script" path="res://scripts/Space/CargoView.cs" id="cargo_view"]
 [ext_resource type="Script" path="res://scripts/Space/SectorHost.cs" id="1_host"]
 
 [ext_resource type="Resource" path="res://assets/sectors/map.tres" id="2_map"]
@@ -65,6 +66,9 @@ Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_m
 Jammers = Array[ExtResource("69_jammer_spec")]([ExtResource("66_nj1"), ExtResource("67_nj2"), ExtResource("68_dj3")])
 
 
+
+[node name="CargoView" type="Node" parent="."]
+script = ExtResource("cargo_view")
 
 [node name="NetLauncher" type="Node" parent="."]
 script = ExtResource("34_launcher")

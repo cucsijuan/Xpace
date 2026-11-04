@@ -120,6 +120,35 @@ public partial class Universe : Node
         _dirty = _touched = false;
     }
 
+    /// <summary>How often the universe's work is brought up to date (<see cref="CargoShips"/>), seconds of universe time.</summary>
+    [Export] public double WorkEverySeconds = 5;
+
+    /// <summary>What the universe's stations are; with it, the universe works by itself (<see cref="CargoShips"/>).</summary>
+    public StationBook Book { get; private set; }
+
+    private double _sinceWork;
+
+    /// <summary>Starts the universe's work, for the sectors of <paramref name="map"/>.</summary>
+    public void Run(Xpace.Space.SectorMap map)
+    {
+        Book ??= StationBook.Read(map);
+        CargoShips.Muster(State, Book, Account);
+    }
+
+    /// <summary>The account of an owner (<see cref="StationRecord.Owner"/>): a pilot's, or an organisation's as it was set up; none for no owner.</summary>
+    public IAccount Account(string owner)
+    {
+        if (string.IsNullOrEmpty(owner))
+            return null;
+        if (owner.StartsWith(PilotRecord.OwnerPrefix))
+            return State.Pilot(owner[PilotRecord.OwnerPrefix.Length..]);
+        return State.Organisation(owner, () =>
+        {
+            Organisation spec = OrganisationCatalog.Find(owner);
+            return new OrganisationRecord { Id = owner, Name = spec?.Name ?? owner, Credits = spec?.StartingCredits ?? 0, Margin = spec?.Personality?.Margin ?? 0.15, Parent = spec?.Parent?.Id ?? "" };
+        });
+    }
+
     /// <summary>A new universe kept only in memory.</summary>
     public void Forget()
     {
@@ -451,6 +480,13 @@ public partial class Universe : Node
             foreach (string id in playing)
                 State.Pilot(id).PlayedSeconds += delta;
             _dirty = true;
+            _sinceWork += delta;
+            if (Book != null && _sinceWork >= WorkEverySeconds)
+            {
+                _sinceWork = 0;
+                CargoShips.Muster(State, Book, Account);
+                CargoShips.Tick(State, Book, Account);
+            }
         }
         _sinceFiredSent += delta;
         if (_firedBy.Count > 0 && _sinceFiredSent >= FiredSendSeconds)

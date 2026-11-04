@@ -44,6 +44,8 @@ public partial class StationRadio : Node3D, IRadio
     /// <summary>How far a plain receiver hears it, metres.</summary>
     [Export] public float Range = 500000f;
     [Export] public StationLaws Laws;
+    /// <summary>Who owns it when a universe starts: its money and its name are theirs (<see cref="Cash"/>).</summary>
+    [Export] public Xpace.World.Organisation OwnedBy;
     /// <summary>How long traffic control takes to answer a ship that asks.</summary>
     [Export] public double ReplySeconds = 0.5;
     [Export] public double ClearanceSeconds = 300;
@@ -82,14 +84,36 @@ public partial class StationRadio : Node3D, IRadio
     [ExportGroup("Speech")]
     [Export] public string WelcomeSpeech = "welcome";
     [Export] public string ClearedSpeech = "cleared hangar_{0} follow_lights";
+    /// <summary>{0} the dock's number, {1} the pad's.</summary>
+    [Export] public string ClearedPadSpeech = "cleared hangar_{0} pad_{1} follow_lights";
     [Export] public string NoDockSpeech = "no_dock";
     [Export] public string DeniedSpeech = "denied";
     [Export] public string ExpiredSpeech = "expired";
-    [Export] public string DockedSpeech = "";
-    [Export] public string LaunchSpeech = "";
-    [Export] public string NotDockedSpeech = "";
-    [Export] public string HeldSpeech = "";
-    [Export] public string DepartedSpeech = "";
+    [Export] public string DockedSpeech = "docked";
+    [Export] public string LaunchSpeech = "launch";
+    [Export] public string NotDockedSpeech = "not_docked";
+    [Export] public string HeldSpeech = "held";
+    [Export] public string DepartedSpeech = "departed";
+    [Export] public string TransitSpeech = "transit";
+    [Export] public string TollSpeech = "toll_short";
+    [Export] public string TransitDeniedSpeech = "transit_denied";
+    [Export] public string NoGateSpeech = "no_gate";
+
+    [ExportGroup("Traffic")]
+    /// <summary>The voices cargo ships' pilots use on the station's channel, one by callsign.</summary>
+    [Export] public Godot.Collections.Array<RadioVoicePack> TrafficVoices = new();
+    /// <summary>{0} the ship.</summary>
+    [Export] public string TrafficAskText = "{0}, inbound. Requesting a pad.";
+    [Export] public string TrafficAskSpeech = "ship_request";
+    /// <summary>{0} the ship, {1} the dock's number, {2} the pad's.</summary>
+    [Export] public string TrafficClearedText = "{0}, cleared to land, hangar {1}, pad {2}.";
+    [Export] public string TrafficClearedSpeech = "traffic_cleared hangar_{1} pad_{2}";
+    [Export] public string TrafficHoldText = "{0}, no pads free. Hold outside.";
+    [Export] public string TrafficHoldSpeech = "traffic_hold";
+    [Export] public string TrafficLaunchAskText = "{0}, on the pad. Requesting launch.";
+    [Export] public string TrafficLaunchAskSpeech = "ship_launch";
+    [Export] public string TrafficLaunchText = "{0}, cleared for launch.";
+    [Export] public string TrafficLaunchSpeech = "traffic_launch";
 
     public static readonly List<StationRadio> All = new();
 
@@ -101,7 +125,7 @@ public partial class StationRadio : Node3D, IRadio
         public IRadioReceiver Ship;
         public Node3D Held;
         public double Until;
-        public bool Docked, Departing;
+        public bool Docked, Departing, Passing;
     }
 
     /// <summary>Its security, if the station has one (beside it in the station's scene).</summary>
@@ -114,6 +138,23 @@ public partial class StationRadio : Node3D, IRadio
     public string Sign => Radio.Callsign(Callsign, GetParent() ?? this);
 
     public IReadOnlyList<HangarDock> Docks => _docks;
+
+    /// <summary>The owner's id now: its record's, which can change hands; until then what the scene says.</summary>
+    public string OwnerId
+    {
+        get
+        {
+            Xpace.World.StationRecord record = Xpace.World.Universe.Current?.State.Station(Sign);
+            if (record == null)
+                return OwnedBy?.Id ?? "";
+            if (string.IsNullOrEmpty(record.Owner))
+                record.Owner = OwnedBy?.Id ?? "";
+            return record.Owner;
+        }
+    }
+
+    /// <summary>The account its takings go to and its bills come from (none: nobody's). Only on the universe's owner.</summary>
+    public Xpace.World.IAccount Cash => Xpace.World.Universe.Current?.Account(OwnerId);
 
     string IRadio.Callsign => Sign;
     char IRadio.Kind => Gate != null ? 'G' : 'S';
@@ -294,7 +335,7 @@ public partial class StationRadio : Node3D, IRadio
         Doors(c.Dock);
         ship.Cleared(this, c.Dock.Number, c.Pad?.Number ?? 0);
         int number = c.Pad?.Number ?? 0;
-        Say(ship, string.Format(c.Pad != null ? ClearedPadText : ClearedText, c.Dock.Number, number), ClearedSpeech, c.Dock.Number, number);
+        Say(ship, string.Format(c.Pad != null ? ClearedPadText : ClearedText, c.Dock.Number, number), c.Pad != null ? ClearedPadSpeech : ClearedSpeech, c.Dock.Number, number);
     }
 
     // The dock can take the ship: not held for the station's own ships; a pad that fits it and is no one else's, or
@@ -302,11 +343,11 @@ public partial class StationRadio : Node3D, IRadio
     private bool Free(HangarDock dock, Node3D ship, out LandingPad pad)
     {
         pad = null;
-        if (_cleared.Any(c => c.Dock == dock && (c.Ship == null || c.Pad == null)))
+        if (_cleared.Any(c => c.Dock == dock && !c.Passing && (c.Ship == null || c.Pad == null)))
             return false;
         if (dock.Pads.Count == 0)
             return true;
-        pad = dock.Pads.FirstOrDefault(p => p.Fits(ship) && _cleared.All(c => c.Pad != p));
+        pad = dock.Pads.FirstOrDefault(p => p.Fits(ship) && _cleared.All(c => c.Pad != p) && !CargoOn(dock, p));
         return pad != null;
     }
 
@@ -315,13 +356,13 @@ public partial class StationRadio : Node3D, IRadio
     {
         if (Gate == null)
         {
-            Say(ship, NoGateText);
+            Say(ship, NoGateText, NoGateSpeech);
             return;
         }
         Node3D body = ShipOf(ship);
         if (Security?.Refuses(body) == true)
         {
-            Say(ship, TransitDeniedText);
+            Say(ship, TransitDeniedText, TransitDeniedSpeech);
             return;
         }
         long toll = Laws?.Toll ?? 0;
@@ -330,16 +371,18 @@ public partial class StationRadio : Node3D, IRadio
         {
             if (pilot.Credits < toll)
             {
-                Say(ship, string.Format(TollText, toll));
+                Say(ship, string.Format(TollText, toll), TollSpeech);
                 return;
             }
             pilot.Credits -= toll;
+            if (Cash is Xpace.World.IAccount cash)
+                cash.Credits += toll;
             universe.Touch(pilot);
         }
         else
             toll = 0;
         Gate.Clear(body, ClearanceSeconds);
-        Say(ship, string.Format(TransitText, Gate.Leads, toll));
+        Say(ship, string.Format(TransitText, Gate.Leads, toll), TransitSpeech);
     }
 
     private void Launch(IRadioReceiver ship)
@@ -366,6 +409,37 @@ public partial class StationRadio : Node3D, IRadio
     /// <summary>The ship is docked here, on the pad it was cleared to (and not leaving).</summary>
     public bool DockedHere(Node3D ship) =>
         ship != null && _cleared.Any(c => c.Docked && !c.Departing && c.Ship is GodotObject o && IsInstanceValid(o) && ShipOf(c.Ship) == ship);
+
+    /// <summary>What a cargo ship and the station say to each other, heard by the ships in its zone.</summary>
+    public void Traffic(string ship, string ask, string askSpeech, string answer, string answerSpeech, int dock = 0, int pad = 0)
+    {
+        RadioVoicePack pilot = RadioVoicePack.Pick(TrafficVoices, ship);
+        foreach (IRadioReceiver to in _inside.Where(r => r is GodotObject o && IsInstanceValid(o)))
+        {
+            if (ask != null && Radio.Hears(to, this))
+                to.Hear(this, string.Format(ask, ship), pilot?.Speech(askSpeech) ?? "");
+            Say(to, string.Format(answer, ship, dock, pad), answerSpeech, ship, dock, pad);
+        }
+    }
+
+    /// <summary>A pilot's ship is cleared to that pad.</summary>
+    public bool PilotOn(int dock, int pad) => _cleared.Any(c => c.Ship != null && c.Dock.Number == dock && c.Pad?.Number == pad);
+
+    /// <summary>A cargo ship has that pad (the universe's record says so).</summary>
+    private bool CargoOn(HangarDock dock, LandingPad pad) =>
+        Xpace.World.Universe.Current is Xpace.World.Universe universe && Xpace.World.CargoShips.Taken(universe.State, Sign, dock.Number, pad.Number);
+
+    /// <summary>A ship passing through a hangar: the door stays open for it, and pilots can still be cleared there.</summary>
+    public void OpenFor(int dock, Node3D ship, double seconds)
+    {
+        if (_docks.FirstOrDefault(d => d.Number == dock) is not HangarDock door)
+            return;
+        if (_cleared.FirstOrDefault(c => c.Dock == door && c.Passing && c.Held == ship) is Clearance held)
+            held.Until = _now + seconds;
+        else
+            _cleared.Add(new Clearance { Dock = door, Held = ship, Passing = true, Until = _now + seconds });
+        Doors(door);
+    }
 
     /// <summary>A dock the station's own ships use (its police): opened for them, not given to anyone else meanwhile.</summary>
     public void Hold(HangarDock dock, Node3D ship, double seconds)
@@ -429,7 +503,7 @@ public partial class StationRadio : Node3D, IRadio
         {
             if (c.Dock != dock)
                 continue;
-            if (c.Ship == null || c.Pad == null)
+            if (!c.Passing && (c.Ship == null || c.Pad == null))
                 user = c.Held ?? ShipOf(c.Ship);
             open |= c.Ship == null || c.Pad == null || !c.Docked || c.Departing;
         }

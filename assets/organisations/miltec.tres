@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Organisation" format=3]
+
+[ext_resource type="Script" path="res://scripts/World/Organisation.cs" id="1_o"]
+[ext_resource type="Resource" path="res://assets/personalities/aggressive.tres" id="2_p"]
+[ext_resource type="Texture2D" path="res://assets/corporations/miltec/logo.svg" id="3_l"]
+
+[resource]
+script = ExtResource("1_o")
+Name = "MilTec"
+Kind = "Corporation"
+About = "Weapons and military ship software."
+Logo = ExtResource("3_l")
+Personality = ExtResource("2_p")
+StartingCredits = 20000000
+Permanent = true

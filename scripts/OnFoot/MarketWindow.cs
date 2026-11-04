@@ -95,6 +95,7 @@ public partial class MarketWindow : CanvasLayer, IKioskWindow
     private void Show(MarketView view)
     {
         View = view;
+        _title.Text = string.IsNullOrEmpty(view.Owner) ? $"{view.Station} MARKET" : $"{view.Station} MARKET  -  {view.Owner}";
         _credits.Text = $"Credits  {view.Credits:N0}";
         _hold.Text = $"Hold  {view.Carried} / {view.Capacity} t";
         _fines.Text = view.Owed == 0 ? view.Impounded ? "Ship impounded here" : "Nothing owed"

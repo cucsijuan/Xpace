@@ -1,5 +1,8 @@
 [gd_scene format=3]
 
+[ext_resource type="Resource" path="res://assets/ship/models/freighter.tres" id="freighter_model"]
+[ext_resource type="Script" path="res://scripts/World/FleetLine.cs" id="fleet_line"]
+[ext_resource type="Resource" path="res://assets/organisations/kestrel_mining.tres" id="owner_kestrel_mining"]
 [ext_resource type="PackedScene" path="res://scenes/stations/synty_station.tscn" id="10_station"]
 
 [ext_resource type="Script" uid="uid://fx37j1uvmpsi" path="res://scripts/Space/Projectiles.cs" id="15_rounds"]
@@ -192,6 +195,11 @@ ssil_enabled = true
 ssil_radius = 8.0
 glow_enabled = true
 
+[sub_resource type="Resource" id="fleet_Kestrel"]
+script = ExtResource("fleet_line")
+Model = ExtResource("freighter_model")
+Count = 3
+
 [node name="Sector" type="Node3D"]
 script = ExtResource("18_origin")
 
@@ -217,7 +225,12 @@ OnFoot = ExtResource("shadows_on_foot")
 [node name="Kestrel" parent="." instance=ExtResource("10_station")]
 transform = Transform3D(-0.5, 0, -0.866025, 0, 1, 0, 0.866025, 0, -0.5, -70000, 2000, -100000)
 
+[node name="Radio" parent="Kestrel"]
+OwnedBy = ExtResource("owner_kestrel_mining")
+
 [node name="Market" parent="Kestrel"]
+Fleet = Array[ExtResource("fleet_line")]([SubResource("fleet_Kestrel")])
+UpkeepPerHour = 12000.0
 Goods = Array[ExtResource("kestrel_market_good")]([SubResource("Kestrel_water"), SubResource("Kestrel_food"), SubResource("Kestrel_iron"), SubResource("Kestrel_iron_ore"), SubResource("Kestrel_silicon"), SubResource("Kestrel_copper"), SubResource("Kestrel_medicines"), SubResource("Kestrel_metals"), SubResource("Kestrel_machinery"), SubResource("Kestrel_electronics"), SubResource("Kestrel_hydrogen")])
 Outfits = Array[ExtResource("kestrel_outfit")]([])
 Factories = Array[ExtResource("factory_line")]([SubResource("Kestrel_works_water"), SubResource("Kestrel_works_iron_ore"), SubResource("Kestrel_works_silicon"), SubResource("Kestrel_works_copper"), SubResource("Kestrel_works_iron"), SubResource("Kestrel_works_food"), SubResource("Kestrel_works_medicines")])
