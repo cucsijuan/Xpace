@@ -103,7 +103,7 @@ public partial class ArmsTest : Node
         kiosk.Use(walker);
         await Seconds(0.3);
         var window = kiosk.Window as ArmsWindow;
-        Check("the arms kiosk opens its own window", window?.View != null && window.View.Offers.Count == 7);
+        Check("the arms kiosk opens its own window", window?.View != null && window.View.Offers.Count == 8);
         if (window == null || window.View == null)
         {
             Finish();
@@ -210,7 +210,7 @@ public partial class ArmsTest : Node
         var pilotShip = _ship.GetNode<PilotShip>("Fit");
         FittingPlace Place(string name) => window.Fit.Places.First(p => p.Name == name);
         Check($"it shows the hardpoints and what is on them ({string.Join(", ", window.Fit.Places.Select(p => $"{p.Name} {p.Model}"))})",
-              window.Fit.Places.Count == 3 && Place("NoseLeft").Model == "LSR-1" && Place("Spine").Model == "GUN-1");
+              window.Fit.Places.Count == 5 && Place("NoseLeft").Model == "LSR-1" && Place("WingLeft").Model == "PYL-1" && Place("Spine").Model == "GUN-1");
         Check("and the ship on its stand, with the weapons", window.Ship != null && window.Ship.FindChild("Laser", true, false) != null);
 
         ArmsOffer lsr = window.View.Offers.First(o => o.Id == "lsr_1");
@@ -220,6 +220,11 @@ public partial class ArmsTest : Node
         await Seconds(0.3);
         Check($"a laser bought waits in the locker ({window.View.Message})",
               window.Fit.Locker.Count(p => p.Name == "LSR-1") == 1 && me.Credits == before - lsr.Price && window.View.Offers.First(o => o.Id == "lsr_1").Kept == 1);
+
+        window.AskFitting(FittingRequest.Remove, "WingLeft", 0);
+        await Seconds(0.3);
+        Check($"a pylon whose missiles the other rails can't take stays on ({Universe.MissilesAboard(me)} aboard; {window.Fit.Message})",
+              Place("WingLeft").Model == "PYL-1" && window.Fit.Message.StartsWith("The ship has 8 missiles aboard") && _ship.Device<LauncherDevice>().Rails.Count == 8);
 
         int lasers = _ship.Device<LaserDevice>().Emitters;
         window.AskFitting(FittingRequest.Remove, "Spine", 0);
@@ -250,6 +255,18 @@ public partial class ArmsTest : Node
         Check($"fitted on the spine in the laser's place, the laser back in the locker ({window.Fit.Message})",
               Place("Spine").Model == "GUN-1" && window.Fit.Locker.Any(p => p.Name == "LSR-1") && _ship.Device<TurretDevice>() != null
               && _ship.Device<LaserDevice>().Emitters == lasers);
+        ArmsOffer spare = window.View.Offers.First(o => o.Id == "lsr_1");
+        StationRecord here = Universe.Current.State.Station(market.Radio.Sign);
+        double stock = here.Stock["lsr_1"];
+        long credits = me.Credits;
+        window.Ask(MarketRequest.Sell, "lsr_1", 1);
+        await Seconds(0.3);
+        Check($"the dealer buys the spare laser back from the locker ({spare.SellPrice} cr, under its price {spare.Price}; stock {stock:0.00} -> {here.Stock["lsr_1"]:0.00}, credits +{me.Credits - credits}, kept {spare.Kept}; {window.View.Message})",
+              spare.Kept == 1 && spare.SellPrice > 0 && spare.SellPrice < spare.Price && me.Credits == credits + spare.SellPrice
+              && Math.Abs(here.Stock["lsr_1"] - (stock + 1)) < 0.05 && !window.Fit.Locker.Any(p => p.Name == "LSR-1"));
+        window.Ask(MarketRequest.Sell, "lsr_1", 1);
+        await Seconds(0.3);
+        Check($"none left to sell ({window.View.Message})", window.View.Message == market.NoPieceText && me.Credits == credits + spare.SellPrice);
         Check("the restarted computer runs its programs again", await Until(() => _ship.Computer.ScreenText().Contains("Radio resident"), 90));
         window.Close();
     }

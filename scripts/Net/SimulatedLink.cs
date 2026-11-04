@@ -14,6 +14,8 @@ public sealed class SimulatedLink
     public double Latency = 0.1;            // seconds, one way
     public double Jitter = 0.02;            // seconds, spread either side
     public double Loss = 0.05;              // fraction of packets lost
+    /// <summary>Packets arrive in the order sent, a late one holding back those after it (a reliable channel's).</summary>
+    public bool Ordered;
 
     public int Sent { get; private set; }
     public int Lost { get; private set; }
@@ -21,6 +23,7 @@ public sealed class SimulatedLink
 
     private readonly Random _random;
     private readonly List<(double due, byte[] packet)> _flying = new();
+    private double _last;
 
     public SimulatedLink(int seed = 1) { _random = new Random(seed); }
 
@@ -34,13 +37,18 @@ public sealed class SimulatedLink
             return;
         }
         double delay = Math.Max(0, Latency + (_random.NextDouble() * 2 - 1) * Jitter);
-        _flying.Add((now + delay, packet));
+        double due = now + delay;
+        if (Ordered)
+            _last = due = Math.Max(due, _last);
+        _flying.Add((due, packet));
     }
 
     /// <summary>The packets due by <paramref name="now"/>, in the order they arrive.</summary>
     public IEnumerable<byte[]> Receive(double now)
     {
-        _flying.Sort((a, b) => a.due.CompareTo(b.due));
+        var sorted = new List<(double due, byte[] packet)>(_flying);
+        _flying.Clear();
+        _flying.AddRange(System.Linq.Enumerable.OrderBy(sorted, f => f.due));      // stable: equal times keep the order sent
         int due = 0;
         while (due < _flying.Count && _flying[due].due <= now)
             due++;

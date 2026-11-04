@@ -224,10 +224,10 @@ public partial class SessionPadTest : Node
         Check("and let it go", await Until(() => !ship.Held, (float)pad.LaunchSeconds + 1));
 
         Check($"what the ship has on its hardpoints went to the host ({(fittings.Count > 0 ? fittings[^1] : "nothing")})",
-              fittings.Count > 0 && fittings[^1] == ship.Fitted && ship.Fitted.Contains("Spine=res://assets/weapons/turrets/gun_1.tres"));
+              fittings.Count > 0 && fittings[^1] == ship.Fitted + "|" && ship.Fitted.Contains("Spine=res://assets/weapons/turrets/gun_1.tres"));
         var laser = GD.Load<Resource>("res://assets/weapons/lasers/lsr_1.tres");
         ship.Fit(new Dictionary<string, Resource> { ["NoseLeft"] = laser, ["NoseRight"] = laser, ["Spine"] = laser });
-        Check("refitted, it goes again", await Until(() => fittings.Count > 0 && fittings[^1] == ship.Fitted && ship.Fitted.Contains("Spine=res://assets/weapons/lasers"), 2));
+        Check("refitted, it goes again", await Until(() => fittings.Count > 0 && fittings[^1] == ship.Fitted + "|" && ship.Fitted.Contains("Spine=res://assets/weapons/lasers"), 2));
 
         _origin.QueueFree();
         _other = null;

@@ -60,6 +60,13 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
     public float Mass => Spec.Mass + CargoMass;
 
     [Export] public NodePath ComputerPath = "ShipComputer";
+
+    /// <summary>
+    /// What this ship has on its hardpoints in place of its hull's factory fitting (<see cref="ShipSpec.Fitting"/>),
+    /// by hardpoint name: a raider with lasers only. A hardpoint not listed is empty; none listed: the factory's.
+    /// A pilot's record changes it again (<see cref="PilotShip"/>).
+    /// </summary>
+    [Export] public Godot.Collections.Dictionary<string, Resource> Loadout = new();
     [Export] public double WatchdogSeconds = 0.1;
     /// <summary>What goes when it blows up, fading into the fire and smoke (its outside: model, plumes), until it comes back.</summary>
     [Export] public Godot.Collections.Array<NodePath> HideWhenDestroyed = new();
@@ -143,7 +150,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
         foreach (Node node in FindChildren("*", "", true, false))
             if (node is Hardpoint h)
                 _hardpoints.Add(h);
-        Fit(Fittings.Of(Spec));                     // as it came from the factory; a pilot's record may change it (PilotShip)
+        Fit(Loadout.Count > 0 ? new Dictionary<string, Resource>(Loadout) : Fittings.Of(Spec));     // a pilot's record may change it (PilotShip)
         foreach (Node node in GetChildren())
             _signature ??= node as ShipSignature;
 
@@ -221,6 +228,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
         _engine = Device<EngineDevice>();
         _cruise = Device<CruiseDevice>();
         Device<LaserDevice>()?.Refit(this);
+        Device<LauncherDevice>()?.Refit(this);
     }
 
     public T Device<T>() where T : class, IShipDevice

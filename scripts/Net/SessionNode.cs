@@ -342,13 +342,15 @@ public partial class SessionNode : Node
             _radios[e.NetId] = radio;
         }
 
-        // What the ships owned here have on their hardpoints, when it changes
+        // What the ships owned here have on their hardpoints and their rails, when it changes
         foreach (INetEntity e in Session.Entities)
-            if (e.IsLocal && e is NetBody { Joined: true, Ship: Xpace.Ship.ShipBody ship } && ship.Hardpoints.Count > 0
-                && (!_fittings.TryGetValue(e.NetId, out string sent) || sent != ship.Fitted))
+            if (e.IsLocal && e is NetBody { Joined: true, Ship: Xpace.Ship.ShipBody ship } && ship.Hardpoints.Count > 0)
             {
-                _fittings[e.NetId] = ship.Fitted;
-                Session.SetFitting(e.NetId, ship.Fitted);
+                string fitted = $"{ship.Fitted}|{ship.Device<Xpace.Ship.LauncherDevice>()?.Loads}";
+                if (_fittings.TryGetValue(e.NetId, out string sent) && sent == fitted)
+                    continue;
+                _fittings[e.NetId] = fitted;
+                Session.SetFitting(e.NetId, fitted);
             }
 
         // Ships of other machines that blew up there

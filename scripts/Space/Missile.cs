@@ -223,6 +223,8 @@ public partial class Missile : Node3D, INetShip
     /// inside the step and within the fuse's reach. Only solid things set it
     /// off: chaff is foil, it does not. Flying into rock sets it off too.
     /// </summary>
+    private bool _clearOfShooter;
+
     private bool Fuse(float dt)
     {
         float best = float.MaxValue, bestT = 0;
@@ -230,6 +232,13 @@ public partial class Missile : Node3D, INetShip
         {
             if (node is not IRadarTarget t || !t.Alive || node is not IDamageable)
                 continue;
+            // The ship that fired it doesn't set it off until it has flown clear of it; after that it is a ship like any other
+            if (!_clearOfShooter && Shooter != null && Combat.ShipOf(node) == Shooter)
+            {
+                _clearOfShooter = t.GlobalPosition.DistanceTo(GlobalPosition) > FuseRadius;
+                if (!_clearOfShooter)
+                    continue;
+            }
             (float d, float at) = Closest(t, dt);
             if (t == Target)
                 ClosestApproach = MathF.Min(ClosestApproach, d);

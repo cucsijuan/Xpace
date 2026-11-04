@@ -42,6 +42,8 @@ public sealed class RemoteTrack
         public byte JamModel;
         public bool JamAimed;
         public Vector3 JamAim;
+        public bool Turret;
+        public float TurretAzimuth, TurretElevation;
         public bool Extrapolated;
     }
 
@@ -151,6 +153,9 @@ public sealed class RemoteTrack
             JamModel = u < 0.5f ? a.JamModel : b.JamModel,
             JamAimed = u < 0.5f ? a.JamAimed : b.JamAimed,
             JamAim = u < 0.5f ? a.JamAim : b.JamAim,
+            Turret = a.Turret && b.Turret,
+            TurretAzimuth = Mathf.LerpAngle(a.TurretAzimuth, b.TurretAzimuth, u),
+            TurretElevation = Mathf.Lerp(a.TurretElevation, b.TurretElevation, u),
         };
     }
 
@@ -183,5 +188,8 @@ public sealed class RemoteTrack
         JamModel = s.JamModel,
         JamAimed = s.JamAimed,
         JamAim = s.JamAim,
+        Turret = s.Turret,
+        TurretAzimuth = s.TurretAzimuth,
+        TurretElevation = s.TurretElevation,
     };
 }

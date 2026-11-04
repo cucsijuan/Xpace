@@ -8,6 +8,11 @@
 
 [ext_resource type="PackedScene" path="res://scenes/ships/fighter_03_exterior.tscn" id="7_exterior"]
 
+[ext_resource type="Resource" path="res://assets/weapons/pylons/pyl_1.tres" id="8_pylon"]
+[ext_resource type="Script" path="res://scripts/Space/MissileSpec.cs" id="11_mspec"]
+[ext_resource type="Resource" path="res://assets/weapons/missiles/msl_1.tres" id="9_msl"]
+[ext_resource type="Resource" path="res://assets/weapons/missiles/ir_1.tres" id="10_ir"]
+
 [resource]
 script = ExtResource("1_spec")
 Exterior = ExtResource("7_exterior")
@@ -19,5 +24,8 @@ Dispenser = ExtResource("4_dispenser")
 Fitting = Dictionary[String, Resource]({
 "NoseLeft": ExtResource("6_laser"),
 "NoseRight": ExtResource("6_laser"),
-"Spine": ExtResource("5_turret")
+"Spine": ExtResource("5_turret"),
+"WingLeft": ExtResource("8_pylon"),
+"WingRight": ExtResource("8_pylon")
 })
+FactoryMissiles = Array[ExtResource("11_mspec")]([ExtResource("9_msl"), ExtResource("10_ir")])

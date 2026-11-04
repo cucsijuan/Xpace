@@ -189,6 +189,17 @@ public partial class ArmsWindow : CanvasLayer, IKioskWindow
         buy.AddChild(Button(offer.Lot > 1 ? $"Buy {offer.Lot}" : "Buy", offer.Id, Math.Min(offer.Lot, room), can));
         if (!offer.Piece)
             buy.AddChild(Button("Fill", offer.Id, room, can));
+        else
+        {
+            var sell = new Button
+            {
+                Text = offer.SellPrice >= 0 ? $"Sell {offer.SellPrice:N0}" : "Sell", FocusMode = Control.FocusModeEnum.None,
+                Disabled = !view.Docked || offer.Kept == 0 || offer.SellPrice < 0,
+                TooltipText = "Sell one from your locker here",
+            };
+            sell.Pressed += () => Ask(MarketRequest.Sell, offer.Id, 1);
+            buy.AddChild(sell);
+        }
         row.AddChild(buy);
         return card;
     }

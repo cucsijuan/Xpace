@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="PylonSpec" format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/PylonSpec.cs" id="1_spec"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/pylons/pylon_t1.tscn" id="2_scene"]
+[ext_resource type="PackedScene" path="res://scenes/weapons/missiles/msl_1_look.tscn" id="3_preview"]
+
+[resource]
+script = ExtResource("1_spec")
+Model = "PYL-1"
+Price = 600
+Scene = ExtResource("2_scene")
+PreviewLoad = ExtResource("3_preview")
+Rails = 4

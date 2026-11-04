@@ -70,6 +70,22 @@ public partial class NetTest : Node
         Check($"position within {position * 1000:0.00} mm, 2,000 km out", position <= 0.5 / ShipSnapshot.PositionScale + 1e-9);
         Check($"orientation within {angle:0.000} deg, q or -q", angle < 0.12);
         Check($"velocity within {velocity:0.000} m/s, angular velocity within {rate:0.0000} rad/s", velocity <= 4096.0 / 65535 / 2 + 1e-4 && rate <= 16.0 / 32767 / 2 + 1e-6);
+
+        // A turret: where it points, within a step, and in deltas too
+        var armed = new ShipSnapshot { Tick = 100, Orientation = Quaternion.Identity, Turret = true, TurretAzimuth = -2.5f, TurretElevation = 0.6f };
+        ShipSnapshot back = ShipSnapshot.Read(new BitReader(armed.ToBytes()));
+        Check($"a turret's aim comes back within a step ({back.TurretAzimuth:0.000}, {back.TurretElevation:0.000}), {armed.ToBytes().Length} bytes",
+              back.Turret && MathF.Abs(back.TurretAzimuth + 2.5f) <= MathF.Tau / 1024 + 1e-4f && MathF.Abs(back.TurretElevation - 0.6f) <= MathF.PI / 2 / 254 + 1e-4f
+              && armed.ToBytes().Length == ShipSnapshot.Bytes + 2);
+        var turned = armed;
+        turned.Tick = 101;
+        turned.TurretAzimuth = 1f;
+        var turnWriter = new BitWriter();
+        turned.Encode().WriteDelta(turnWriter, armed.Encode());
+        var turnReader = new BitReader(turnWriter.ToArray());
+        (uint turnTick, _) = ShipSnapshot.Wire.ReadDeltaHeader(turnReader, 101);
+        ShipSnapshot moved = ShipSnapshot.Wire.ReadDelta(turnReader, turnTick, armed.Encode()).Decode();
+        Check($"a turret turning goes in a delta ({moved.TurretAzimuth:0.000})", moved.Turret && MathF.Abs(moved.TurretAzimuth - 1f) <= MathF.Tau / 1024 + 1e-4f);
     }
 
     /// <summary>

@@ -6,7 +6,7 @@
 [ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="1_ship"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipSpec.cs" id="2_spec"]
 [ext_resource type="Script" path="res://scripts/Net/NetBody.cs" id="3_netbody"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Ship_Fighter_03.fbx" id="4_model"]
+[ext_resource type="PackedScene" path="res://scenes/ships/fighter_03_exterior.tscn" id="4_model"]
 [ext_resource type="Material" path="res://assets/materials/paint_raider.tres" id="5_paint"]
 [ext_resource type="PackedScene" path="res://scenes/ships/fighter_03_hitboxes.tscn" id="6_hitboxes"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipHull.cs" id="7_hull"]
@@ -40,7 +40,7 @@
 [ext_resource type="Script" path="res://scripts/Ship/EngineDevice.cs" id="46_engine"]
 [ext_resource type="Resource" path="res://assets/ship/engines/engine_d50.tres" id="47_d50"]
 [ext_resource type="Resource" path="res://assets/ship/hulls/hull_fighter.tres" id="48_hull"]
-[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="paint_script"]
+[ext_resource type="Resource" path="res://assets/weapons/pylons/pyl_1.tres" id="50_pylon"]
 [ext_resource type="Script" path="res://scripts/Ship/RadioDevice.cs" id="49_radio"]
 
 [sub_resource type="SphereMesh" id="ShieldSphere"]
@@ -52,7 +52,13 @@ rings = 16
 [node name="AiFighter" type="AnimatableBody3D"]
 script = ExtResource("1_ship")
 Spec = ExtResource("48_hull")
-HideWhenDestroyed = Array[NodePath]([NodePath("Model"), NodePath("Effects/PlumeLeft"), NodePath("Effects/PlumeRight"), NodePath("Effects/ShieldBubble")])
+Loadout = Dictionary[String, Resource]({
+"NoseLeft": ExtResource("spec_laser"),
+"NoseRight": ExtResource("spec_laser"),
+"WingLeft": ExtResource("50_pylon"),
+"WingRight": ExtResource("50_pylon")
+})
+HideWhenDestroyed = Array[NodePath]([NodePath("Exterior"), NodePath("Effects/PlumeLeft"), NodePath("Effects/PlumeRight"), NodePath("Effects/ShieldBubble")])
 
 [node name="Systems" type="Node3D" parent="."]
 
@@ -65,11 +71,9 @@ HideWhenDestroyed = Array[NodePath]([NodePath("Model"), NodePath("Effects/PlumeL
 [node name="NetBody" type="Node" parent="."]
 script = ExtResource("3_netbody")
 
-[node name="Model" parent="." instance=ExtResource("4_model")]
-transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+[node name="Exterior" parent="." instance=ExtResource("4_model")]
 
-[node name="Paint" type="Node" parent="Model"]
-script = ExtResource("paint_script")
+[node name="Paint" parent="Exterior/Model"]
 Material = ExtResource("5_paint")
 
 [node name="Hitboxes" parent="." instance=ExtResource("6_hitboxes")]
@@ -88,13 +92,6 @@ Screens = Array[ExtResource("10_screen")]([ExtResource("11_radar_screen"), ExtRe
 [node name="Laser" type="Node3D" parent="Weapons"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, -5.5)
 script = ExtResource("14_laser")
-Spec = ExtResource("spec_laser")
-
-[node name="Left" type="Marker3D" parent="Weapons/Laser"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -1, 0, 0)
-
-[node name="Right" type="Marker3D" parent="Weapons/Laser"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
 
 [node name="Radar" type="Node3D" parent="Sensors"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, -5.8)
@@ -108,7 +105,7 @@ Signature = "F"
 PowerAt1Km = 40000.0
 
 [node name="Launcher" type="Node3D" parent="Weapons"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -1.6, -2)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2.17, -3)
 script = ExtResource("17_launcher")
 MissileScene = ExtResource("18_missile")
 Missiles = 1
@@ -116,7 +113,7 @@ HeatSeekerScene = ExtResource("19_ir_missile")
 HeatSeekers = 2
 
 [node name="Dispenser" type="Node3D" parent="Weapons"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.8, 4)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.22, 5.3)
 script = ExtResource("20_dispenser")
 Spec = ExtResource("spec_dispenser")
 

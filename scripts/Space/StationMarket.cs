@@ -96,6 +96,8 @@ public sealed class ArmsOffer
     /// <summary>A piece: how many are fitted to the ship, and how many wait in the locker here.</summary>
     public int Fitted { get; set; }
     public int Kept { get; set; }
+    /// <summary>A piece: what the dealer pays for one from the locker (-1: it takes no more).</summary>
+    public long SellPrice { get; set; } = -1;
 }
 
 /// <summary>
@@ -155,11 +157,16 @@ public partial class StationMarket : Node
     /// <summary>{0} the model, {1} credits.</summary>
     [Export] public string LockedText = "{0} bought for {1} credits. It waits in your locker, to be fitted.";
     [Export] public string RefitDockText = "Dock here to refit.";
+    /// <summary>{0} the model, {1} credits.</summary>
+    [Export] public string PieceSoldText = "{0} sold from your locker for {1} credits.";
+    [Export] public string NoPieceText = "None of it in your locker here.";
     [Export] public string NoSuchText = "No such hardpoint.";
     [Export] public string EmptyText = "Nothing is fitted there.";
     [Export] public string NothingText = "Nothing there in your locker.";
     [Export] public string NotFitText = "It does not fit there.";
     [Export] public string OneTurretText = "The ship has one turret: take the other off first.";
+    /// <summary>{0} missiles aboard, {1} rails there would be.</summary>
+    [Export] public string RailsFullText = "The ship has {0} missiles aboard and would have rails for {1}: fire some first.";
     /// <summary>{0} the model, {1} the hardpoint.</summary>
     [Export] public string FittedText = "{0} fitted on {1}. The ship's computer restarts.";
     [Export] public string RemovedText = "{0} taken off {1}, into your locker. The ship's computer restarts.";
@@ -342,7 +349,7 @@ public partial class StationMarket : Node
         bool docked = Radio.DockedHere(ship);
         string message = Outfits.Length == 0 ? NoArmsText : "";
         bool changed = false;
-        if (request.Do == MarketRequest.Buy)
+        if (request.Do is MarketRequest.Buy or MarketRequest.Sell)
         {
             OutfitLine line = Outfits.FirstOrDefault(o => o?.Item != null && o.Id == request.Good);
             if (line == null)
@@ -351,6 +358,13 @@ public partial class StationMarket : Node
                 message = NotDockedText;
             else if (Radio.Security?.Refuses(ship) == true)
                 message = RefusedText;
+            else if (Fittings.IsPiece(line.Item) && request.Do == MarketRequest.Sell)
+            {
+                Market.Result result = Market.SellPiece(station, line, pilot, station.LockerOf(pilotId), out long paid);
+                message = result == Market.Result.Done ? string.Format(PieceSoldText, line.Item.Model, paid)
+                    : result == Market.Result.NotHeld ? NoPieceText : Why(result);
+                changed = result == Market.Result.Done;
+            }
             else if (Fittings.IsPiece(line.Item))
             {
                 Market.Result result = Market.BuyPiece(station, line, pilot, station.LockerOf(pilotId), out long paid);
@@ -359,7 +373,7 @@ public partial class StationMarket : Node
             }
             else
             {
-                Market.Result result = Market.BuyOutfit(station, line, pilot, request.Tonnes, Universe.RackSize(pilot, line.Item), out int bought, out long paid);
+                Market.Result result = Market.BuyOutfit(station, line, pilot, request.Tonnes, Universe.RackSize(pilot, line.Item), Universe.Factory(pilot, line.Item), out int bought, out long paid);
                 message = bought > 0 ? string.Format(LoadedText, bought, line.Item.Model, paid) : Why(result);
                 changed = bought > 0;
             }
@@ -382,8 +396,9 @@ public partial class StationMarket : Node
                 Piece = piece,
                 Fitted = piece ? fitted.Values.Count(m => m == line.Item || m.ResourcePath == line.Item.ResourcePath) : 0,
                 Kept = piece ? station.LockerOf(pilotId).Count(i => i.Kind == ItemRecord.Piece && i.Data == line.Item.ResourcePath) : 0,
+                SellPrice = piece ? Market.PieceSellPrice(line, stock) : -1,
                 Id = line.Id, Name = line.Item.Model, About = line.Item.About, Details = line.Item.Details,
-                Stock = (int)stock, Price = Market.OutfitPrice(line, stock), Aboard = pilot.Ship.Rack(line.Id, rack), Rack = rack,
+                Stock = (int)stock, Price = Market.OutfitPrice(line, stock), Aboard = Universe.Aboard(pilot, line.Item), Rack = rack,
                 Lot = System.Math.Max(1, line.Item.Lot),
                 MadeOf = line.Input?.Name ?? "", MadeOfStock = (int)input,
                 Starved = line.Input != null && stock < line.Stock && input < line.InputPerUnit,

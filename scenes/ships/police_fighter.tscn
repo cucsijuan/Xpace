@@ -5,7 +5,7 @@
 
 [node name="PoliceFighter" instance=ExtResource("1_fighter")]
 
-[node name="Paint" parent="Model"]
+[node name="Paint" parent="Exterior/Model"]
 Material = ExtResource("2_paint")
 
 [node name="Datalink" parent="."]

@@ -31,8 +31,8 @@ public static class Fittings
         return fitted;
     }
 
-    /// <summary>A model that goes on a hardpoint (a laser, a turret), not into a rack.</summary>
-    public static bool IsPiece(Resource model) => model is LaserSpec or TurretSpec;
+    /// <summary>A model that goes on a hardpoint (a laser, a turret, a pylon), not into a rack.</summary>
+    public static bool IsPiece(Resource model) => model is LaserSpec or TurretSpec or PylonSpec;
 
     /// <summary>The hardpoints of <paramref name="hull"/>, read from its exterior scene (<see cref="ShipSpec.Exterior"/>; none without one).</summary>
     public static HardpointPlace[] Places(ShipSpec hull)

@@ -26,7 +26,7 @@ public interface INetTransport
 /// <summary>
 /// Several machines in one process, joined by <see cref="SimulatedLink"/>s:
 /// every pair has an unreliable link with the given faults and a reliable
-/// one with the same latency and jitter and no loss. Set <see cref="Now"/>
+/// one with the same latency and jitter, no loss, and in order. Set <see cref="Now"/>
 /// before each step.
 /// </summary>
 public sealed class SimulatedNetwork
@@ -57,7 +57,7 @@ public sealed class SimulatedNetwork
         if (!_links.TryGetValue((from, to, reliable), out SimulatedLink link))
             _links[(from, to, reliable)] = link = new SimulatedLink(_seed++)
             {
-                Latency = Latency, Jitter = Jitter, Loss = reliable ? 0 : Loss,
+                Latency = Latency, Jitter = Jitter, Loss = reliable ? 0 : Loss, Ordered = reliable,
             };
         return link;
     }

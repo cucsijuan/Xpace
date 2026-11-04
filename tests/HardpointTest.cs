@@ -20,8 +20,10 @@ namespace Xpace.Tests;
 ///     place on the bus is empty;
 ///   - a hardpoint takes only what it accepts: no turret on the nose;
 ///   - with the spine empty, the turret's magazine is none of the pilot's racks; back as it came, the turret is back;
-///   - another machine's ship shows what its owner sends (the fitting's key), looks only; until then, the factory's;
-///     a model path that is not a weapon is not taken.
+///   - a pylon under each wing: missiles hang on the rails (radar ones first, heat seekers from the back), and each
+///     leaves from its own rail, gone from it;
+///   - another machine's ship shows what its owner sends (the fitting's key, then the missiles on its rails), looks
+///     only; until then, the factory's; a model path that is not a weapon is not taken.
 ///
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/hardpoint_test.tscn. Exits with 0 if every check passed.
 /// </summary>
@@ -42,7 +44,7 @@ public partial class HardpointTest : Node
         var laser = _ship.Device<LaserDevice>();
 
         Hardpoint left = Point("NoseLeft"), right = Point("NoseRight"), spine = Point("Spine");
-        Check($"the ship has its three hardpoints ({_ship.Hardpoints.Count})", _ship.Hardpoints.Count == 3 && left != null && right != null && spine != null);
+        Check($"the ship has its five hardpoints ({_ship.Hardpoints.Count})", _ship.Hardpoints.Count == 5 && left != null && right != null && spine != null);
         Check("as it came: a laser on each side of the nose, its model there", left.Mounted is LaserSpec && right.Mounted is LaserSpec
               && left.Emitter?.Name == "Muzzle" && left.GetNodeOrNull("Laser/Model") != null);
         Check("the turret on the spine, the ship's turret", spine.Turret != null && _ship.Device<TurretDevice>() == spine.Turret);
@@ -51,6 +53,26 @@ public partial class HardpointTest : Node
         Check($"two lasers ({laser.Emitters}); the laser and the turret at their places on the bus",
               laser.Emitters == 2 && bus[LaserDevice.Slot, 0] == LaserDevice.Type && bus[TurretDevice.Slot, 0] == TurretDevice.Type);
         int two = Pulses(laser, 1.0);
+
+        // Missiles hang on the pylons' rails and leave from them
+        var launcher = _ship.Device<LauncherDevice>();
+        Hardpoint wingLeft = Point("WingLeft"), wingRight = Point("WingRight");
+        int Loaded() => launcher.Rails.Count(r => r.GetNodeOrNull("Load") != null);
+        string On(int rail) => launcher.Rails[rail].GetNodeOrNull("Load")?.GetMeta("look", "").AsString() ?? "";
+        Check($"a pylon under each wing: {launcher.Rails.Count} rails, a missile on each ({Loaded()})",
+              wingLeft.Mounted is PylonSpec && wingRight.Mounted is PylonSpec && launcher.Rails.Count == 8 && Loaded() == 8);
+        Check($"radar missiles from the first rail on, heat seekers from the last back, the wings in turn ({On(0).GetFile()}, {On(7).GetFile()})",
+              launcher.Rails[0].GetParent().GetParent() == wingLeft && launcher.Rails[1].GetParent().GetParent() == wingRight
+              && On(0).Contains("msl_1") && On(3).Contains("msl_1") && On(4).Contains("ir_1") && On(7).Contains("ir_1"));
+        Node3D next = launcher.Rails[4];
+        Vector3 railAt = next.GlobalPosition;
+        launcher.BeforeStep(_ship, Step);
+        bus.Out(LauncherDevice.Slot, 6, 2);
+        launcher.AfterStep(_ship, Step);
+        Missile fired = launcher.Newest;
+        Check($"a heat seeker leaves from its rail ({(fired != null ? fired.GlobalPosition.DistanceTo(railAt) : -1):0.00} m off), and is gone from it",
+              fired != null && fired.GlobalPosition.DistanceTo(railAt) < 0.01 && next.GetNodeOrNull("Load") == null && Loaded() == 7 && launcher.HeatSeekersLeft == 3);
+        fired?.QueueFree();
 
         var record = new ShipRecord { Hull = _ship.Spec.ResourcePath };
         record.Fittings["Spine"] = Laser;
@@ -95,7 +117,16 @@ public partial class HardpointTest : Node
         late.Fit(key);
         AddChild(late);
         Check("a ship made after the fit was heard shows it from the start",
-              late.FindChildren("*", "", true, false).OfType<Hardpoint>().All(h => h.Mounted is LaserSpec));
+              late.FindChildren("*", "", true, false).OfType<Hardpoint>().Where(h => !h.Name.ToString().StartsWith("Wing")).All(h => h.Mounted is LaserSpec));
+        Check($"as it came from the factory, another machine's ship shows its pylons full ({late.Rails.Count} rails)",
+              remote.Rails.Count == 0 && GD.Load<PackedScene>("res://scenes/ships/remote_fighter.tscn").Instantiate<Xpace.Net.RemoteShip>() is var fresh
+              && AddedRails(fresh) == (8, 8));
+        remote.Fit("WingLeft=res://assets/weapons/pylons/pyl_1.tres;WingRight=res://assets/weapons/pylons/pyl_1.tres"
+                   + "|res://assets/weapons/missiles/msl_1.tres=1;res://assets/weapons/missiles/ir_1.tres=2");
+        Check($"and what its owner says hangs on the rails: one radar missile first, two heat seekers last ({remote.Rails.Count(r => r.GetNodeOrNull("Load") != null)})",
+              remote.Rails.Count == 8 && remote.Rails.Count(r => r.GetNodeOrNull("Load") != null) == 3
+              && remote.Rails[0].GetNode("Load").GetMeta("look").AsString().Contains("msl_1") && remote.Rails[7].GetNode("Load").GetMeta("look").AsString().Contains("ir_1")
+              && remote.Rails[6].GetNodeOrNull("Load") != null && remote.Rails[1].GetNodeOrNull("Load") == null);
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GC.Collect();
@@ -104,6 +135,13 @@ public partial class HardpointTest : Node
     }
 
     private const double Step = 1.0 / 60;
+
+    // A copy of another machine's ship, added: its rails and the missiles on them
+    private (int Rails, int Loaded) AddedRails(Xpace.Net.RemoteShip ship)
+    {
+        AddChild(ship);
+        return (ship.Rails.Count, ship.Rails.Count(r => r.GetNodeOrNull("Load") != null));
+    }
 
     private Hardpoint Point(string name) => _ship.Hardpoints.FirstOrDefault(h => h.Name == name);
 

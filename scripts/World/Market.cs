@@ -75,6 +75,10 @@ public static class Market
     /// <summary>What the next one of an outfit costs a pilot (none in stock: -1).</summary>
     public static long OutfitPrice(OutfitLine line, double stock) => stock >= 1 ? Price(line.Item.Price, line.Stock, stock - 1) : -1;
 
+    /// <summary>What the dealer pays a pilot for a piece of equipment (it takes no more: -1), as the market pays for a tonne.</summary>
+    public static long PieceSellPrice(OutfitLine line, double stock) =>
+        stock + 1 <= Full * line.Stock ? (long)Math.Floor(Price(line.Item.Price, line.Stock, stock + 1) * SellShare) : -1;
+
     /// <summary>What the next tonne costs a pilot (none in stock: -1).</summary>
     public static long BuyPrice(MarketGood line, double stock) => stock >= 1 ? Price(line, stock - 1) : -1;
 
@@ -85,10 +89,6 @@ public static class Market
     /// <summary>Why a trade didn't happen (or <see cref="Done"/>).</summary>
     public enum Result { Done, NoStock, MarketFull, NoMoney, HoldFull, NotHeld, NotTraded, RackFull }
 
-    /// <summary>
-    /// The pilot buys <paramref name="count"/> of an outfit, loaded straight onto a ship whose rack takes
-    /// <paramref name="rack"/> of them: as many as the stock, the money and the rack allow.
-    /// </summary>
     /// <summary>
     /// The pilot buys one piece of equipment (a laser, a turret: <see cref="Xpace.Ship.Fittings.IsPiece"/>), put in
     /// <paramref name="locker"/> at the station to be fitted. <paramref name="paid"/> is its price.
@@ -106,7 +106,31 @@ public static class Market
         return Result.Done;
     }
 
-    public static Result BuyOutfit(StationRecord station, OutfitLine line, PilotRecord pilot, int count, int rack, out int bought, out long paid)
+    /// <summary>
+    /// The pilot sells one piece of equipment of <paramref name="line"/>'s model from <paramref name="locker"/> to the
+    /// dealer, which puts it back in its stock. <paramref name="paid"/> is what the pilot gets.
+    /// </summary>
+    public static Result SellPiece(StationRecord station, OutfitLine line, PilotRecord pilot, List<ItemRecord> locker, out long paid)
+    {
+        double stock = station.Stock.GetValueOrDefault(line.Id);
+        paid = PieceSellPrice(line, stock);
+        int index = locker.FindIndex(i => i.Kind == ItemRecord.Piece && i.Data == line.Item.ResourcePath);
+        if (index < 0)
+            return Result.NotHeld;
+        if (paid < 0)
+            return Result.MarketFull;
+        locker.RemoveAt(index);
+        station.Stock[line.Id] = stock + 1;
+        pilot.Credits += paid;
+        return Result.Done;
+    }
+
+    /// <summary>
+    /// The pilot buys <paramref name="count"/> of an outfit, loaded straight onto a ship whose rack takes
+    /// <paramref name="rack"/> of them: as many as the stock, the money and the rack allow. With none of it in the
+    /// pilot's record, the ship has <paramref name="factory"/> aboard (what a new ship comes with).
+    /// </summary>
+    public static Result BuyOutfit(StationRecord station, OutfitLine line, PilotRecord pilot, int count, int rack, int factory, out int bought, out long paid)
     {
         bought = 0;
         paid = 0;
@@ -114,7 +138,7 @@ public static class Market
         {
             double stock = station.Stock.GetValueOrDefault(line.Id);
             long price = OutfitPrice(line, stock);
-            int aboard = pilot.Ship.Rack(line.Id, rack);
+            int aboard = pilot.Ship.Rack(line.Id, factory);
             if (price < 0)
                 return Result.NoStock;
             if (aboard >= rack)

@@ -2,7 +2,10 @@
 
 [ext_resource type="Script" path="res://scripts/Space/MissileSpec.cs" id="1_spec"]
 
+[ext_resource type="PackedScene" path="res://scenes/weapons/missiles/msl_1_look.tscn" id="2_look"]
+
 [resource]
 script = ExtResource("1_spec")
+Look = ExtResource("2_look")
 Model = "MSL-1"
 Price = 800

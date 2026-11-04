@@ -14,6 +14,9 @@ public partial class MissileSpec : Outfit
         Price = 800;
     }
 
+    /// <summary>What it looks like on a pylon's rail before it is fired: a scene centred on the rail, nose along -Z.</summary>
+    [Export] public PackedScene Look;
+
     [ExportGroup("Motor")]
     /// <summary>m/s the fuel gives in all.</summary>
     [Export] public float DeltaV = 1500f;

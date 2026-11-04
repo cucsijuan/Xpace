@@ -209,6 +209,7 @@ public partial class NetBody : Node, INetEntity
         bool destroyed = !(_signature?.Alive ?? true);
         RadarMode radar = destroyed ? RadarMode.Off : _radar?.Mode ?? RadarMode.Off;
         JamMode jam = destroyed ? JamMode.Off : _jammer?.Mode ?? JamMode.Off;
+        Xpace.Ship.TurretDevice turret = (Ship as Xpace.Ship.ShipBody)?.Device<Xpace.Ship.TurretDevice>();
         ushort tracked = ShipSnapshot.NoTarget;
         if (radar == RadarMode.Track && SessionNode.Instance?.IdOf(_radar.Tracked) is ushort id)
             tracked = id;
@@ -219,6 +220,7 @@ public partial class NetBody : Node, INetEntity
             Radar = radar, RadarTarget = tracked, RadarGuiding = radar == RadarMode.Track && _radar.Guiding,
             Jam = jam, JamModel = SessionNode.Instance?.JammerIndex(_jammer?.Spec) ?? ShipSnapshot.NoModel,
             JamAimed = jam != JamMode.Off && _jammer.Aimed, JamAim = _jammer?.Aim ?? Vector3.Forward,
+            Turret = turret != null, TurretAzimuth = turret?.Azimuth ?? 0, TurretElevation = turret?.Elevation ?? 0,
         };
     }
 

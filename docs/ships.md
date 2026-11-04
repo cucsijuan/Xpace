@@ -169,12 +169,25 @@ A hull's outside and its hardpoints are one scene, used by the ship flown here a
 (`RemoteShip`, looks only), so a hardpoint placed there looks right to both. In a session the owner of a ship sends
 what is on its hardpoints whenever it changes (`ShipBody.Fitted`, hardpoint=model path pairs: `Session.SetFitting`,
 reliable, kept by the host for whoever joins later), and other machines mount it on their copy (`RemoteShip.Fit`;
-only weapon models under assets/weapons are taken); until then a copy shows its hull's factory fitting.
+only weapon models under assets/weapons are taken); until then a copy shows its hull's factory fitting. A turret
+points on every copy where its owner's points: the snapshot carries its azimuth and elevation (17 bits, only for a
+ship that has one).
 The fighter's is `scenes/ships/fighter_03_exterior.tscn` (in `player_ship.tscn` as Exterior: its Model is hidden from
-the seat, its weapons are not; in `remote_fighter.tscn`). It has three T1 hardpoints: NoseLeft and NoseRight (fixed),
-and Spine (fixed or turret). It comes with a laser on each side of the nose (LSR-1, Synty's SM_Veh_Part_Misc_09) and
-the gatling turret on the spine; a laser on the spine instead makes three. To place a hardpoint by eye, set its
-`Preview` to a model: the editor shows it there (never saved, never mounted in the game). `tests/hardpoint_test`.
+the seat, its weapons are not; in `remote_fighter.tscn`). It has five T1 hardpoints: NoseLeft and NoseRight (fixed),
+Spine (fixed or turret), and WingLeft and WingRight under the wings (missiles). It comes with a laser on each side of
+the nose (LSR-1, Synty's SM_Veh_Part_Misc_09), the gatling turret on the spine and a missile pylon under each wing; a
+laser on the spine instead makes three. To place a hardpoint by eye, set its `Preview` to a model: the editor shows it
+there (never saved, never mounted in the game; a pylon shows a missile on each rail). `tests/hardpoint_test`.
+
+Missiles hang on pylons (`PylonSpec`, assets/weapons/pylons: PYL-1 has four rails, markers Rail1-Rail4 in
+scenes/weapons/pylons/pylon_t1.tscn; its mesh comes from tools/pylon/build_pylon.py, which paints it from cells of the
+Synty atlas). A ship carries as many missiles as its pylons have rails, of any models; a new
+ship comes with `ShipSpec.MissileRack` of each of `ShipSpec.FactoryMissiles` (as many as the rails take). Radar
+missiles load from the first rail on and heat seekers from the last one back, the rails taken across the pylons in
+turn (`MissileRails`), so each launch takes one off the end of its run; the missile shows on its rail
+(`MissileSpec.Look`, scenes/weapons/missiles) until it leaves from there. A ship with no pylons fires from its
+`Launcher` node. Another machine's copy of a ship shows the same: the fitting message carries the missiles left on the
+rails after the hardpoints (`LauncherDevice.Loads`). A pylon whose missiles the other rails can't take can't come off.
 The hull's spec names this scene (`ShipSpec.Exterior`): the fitters read its hardpoints from it, and the fitting
 screen shows it (refitting at a station: docs/universe.md, `tests/arms_test`).
 

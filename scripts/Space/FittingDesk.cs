@@ -56,7 +56,8 @@ public sealed class FittingPiece
 /// A station's fitters, at its arms dealer for now (a retrofit hangar later): with the ship docked here, a pilot
 /// takes a piece off a hardpoint into their locker here (<see cref="StationRecord.Lockers"/>), or fits one from the
 /// locker (what was on that hardpoint goes to the locker). A hardpoint takes a piece of its size or smaller, of the
-/// kinds it accepts (<see cref="Hardpoint.Fits"/>); a ship has one turret. The pilot's record keeps what is fitted
+/// kinds it accepts (<see cref="Hardpoint.Fits"/>); a ship has one turret, and keeps rails for the missiles it has
+/// aboard (a pylon carrying them can't come off). The pilot's record keeps what is fitted
 /// (<see cref="ShipRecord.Fittings"/>), and the ship follows it (<see cref="PilotShip"/>, which restarts the ship's
 /// computer so its programs see the new fit). Only the universe's owner does it, like the market.
 /// </summary>
@@ -90,6 +91,8 @@ public static class FittingDesk
             {
                 if (fitted.GetValueOrDefault(place.Name) is not Outfit old)
                     message = market.EmptyText;
+                else if (RailsWith(fitted, place.Name, null) < Universe.MissilesAboard(pilot))
+                    message = string.Format(market.RailsFullText, Universe.MissilesAboard(pilot), RailsWith(fitted, place.Name, null));
                 else
                 {
                     locker.Add(ItemRecord.PieceOf(old));
@@ -104,6 +107,8 @@ public static class FittingDesk
                 message = market.NotFitText;
             else if (piece is TurretSpec && fitted.Any(f => f.Key != place.Name && f.Value is TurretSpec))
                 message = market.OneTurretText;
+            else if (RailsWith(fitted, place.Name, piece) < Universe.MissilesAboard(pilot))
+                message = string.Format(market.RailsFullText, Universe.MissilesAboard(pilot), RailsWith(fitted, place.Name, piece));
             else
             {
                 locker.RemoveAt(request.Index);
@@ -130,6 +135,13 @@ public static class FittingDesk
                     FitsOn = places.Where(p => Hardpoint.Fits(piece, p.Size, p.Accepts)).Select(p => p.Name).ToList(),
                 });
         return view;
+    }
+
+    // The missile rails the ship would have with this piece (or none) in place of what is on that hardpoint
+    private static int RailsWith(Dictionary<string, Resource> fitted, string place, Resource piece)
+    {
+        var after = new Dictionary<string, Resource>(fitted) { [place] = piece };
+        return after.Values.OfType<PylonSpec>().Sum(p => p.Rails);
     }
 
     // The model a locker item is, if it is a piece of equipment

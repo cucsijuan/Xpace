@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace Xpace.Ship;
@@ -11,6 +13,8 @@ public enum MountKinds
     Fixed = 1,
     /// <summary>A gimballed turret.</summary>
     Turret = 2,
+    /// <summary>A missile pylon (<see cref="PylonSpec"/>).</summary>
+    Missile = 4,
 }
 
 /// <summary>
@@ -22,7 +26,8 @@ public enum MountKinds
 /// A laser mounted here shows its model (<see cref="LaserSpec.Scene"/>) and fires from its muzzle (a Marker3D named
 /// "Muzzle" in that scene, else the hardpoint itself), as one more emitter of the ship's laser (<see cref="LaserDevice"/>,
 /// whose lasers fire in turn). A turret mounted here is the ship's turret (<see cref="TurretDevice"/>, made here). A
-/// ship has one turret (one place on the bus): a second one is not mounted.
+/// ship has one turret (one place on the bus): a second one is not mounted. A pylon mounted here hangs its rails
+/// (<see cref="Rails"/>), from which the ship's launcher fires its missiles.
 ///
 /// In the editor it shows <see cref="Preview"/> where a mounted model would be, to place the hardpoint by eye; the
 /// preview is never saved with the scene, nor mounted in the game.
@@ -42,12 +47,15 @@ public partial class Hardpoint : Marker3D
     /// <summary>The turret mounted here, or null.</summary>
     public TurretDevice Turret { get; private set; }
 
+    /// <summary>The rails of the pylon mounted here, in order (none: no pylon).</summary>
+    public IReadOnlyList<Node3D> Rails { get; private set; } = Array.Empty<Node3D>();
+
     private Node _content;
     private Resource _preview;
     private Node _previewNode;
 
     /// <summary>The editor only: a model (a laser's or a turret's spec) to show here while placing the hardpoint.</summary>
-    [Export(PropertyHint.ResourceType, "LaserSpec,TurretSpec")]
+    [Export(PropertyHint.ResourceType, "LaserSpec,TurretSpec,PylonSpec")]
     public Resource Preview
     {
         get => _preview;
@@ -72,6 +80,11 @@ public partial class Hardpoint : Marker3D
         {
             _previewNode = look;
             AddChild(look, false, InternalMode.Back);
+            // A pylon: a missile on every rail, to see how they hang
+            if (_preview.Get("PreviewLoad").AsGodotObject() is PackedScene load)
+                foreach (Node3D rail in RailsOf(look))
+                    if (load.Instantiate() is Node missile)
+                        rail.AddChild(missile, false, InternalMode.Back);
         }
     }
 
@@ -84,6 +97,7 @@ public partial class Hardpoint : Marker3D
         null => true,
         LaserSpec laser => (accepts & MountKinds.Fixed) != 0 && laser.Size <= size,
         TurretSpec turret => (accepts & MountKinds.Turret) != 0 && turret.Size <= size,
+        PylonSpec pylon => (accepts & MountKinds.Missile) != 0 && pylon.Size <= size,
         _ => false,
     };
 
@@ -104,6 +118,7 @@ public partial class Hardpoint : Marker3D
         _content = null;
         Emitter = null;
         Turret = null;
+        Rails = Array.Empty<Node3D>();
         Mounted = Takes(model) ? model : null;
         switch (Mounted)
         {
@@ -124,6 +139,17 @@ public partial class Hardpoint : Marker3D
                 _content.Name = "Turret";
                 AddChild(_content);
                 break;
+            case PylonSpec pylon:
+                _content = pylon.Scene?.Instantiate<Node3D>() ?? new Node3D();
+                _content.Name = "Pylon";
+                AddChild(_content);
+                Rails = RailsOf(_content);
+                break;
         }
     }
+
+    // A pylon's rails: its markers named Rail1, Rail2..., in that order
+    private static List<Node3D> RailsOf(Node pylon) =>
+        pylon.GetChildren().OfType<Marker3D>().Where(m => m.Name.ToString().StartsWith("Rail"))
+             .OrderBy(m => m.Name.ToString().Length).ThenBy(m => m.Name.ToString(), StringComparer.Ordinal).Cast<Node3D>().ToList();
 }

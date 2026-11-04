@@ -64,8 +64,13 @@ public partial class ShipSpec : Resource
     /// <summary>The cargo racks the hull comes with from the factory: a size for each compartment (0 or less: none).</summary>
     [Export] public int[] CargoRacks = System.Array.Empty<int>();
 
-    /// <summary>Missiles of each model the hull's launcher carries when the ship has a pilot's record (its magazine).</summary>
+    /// <summary>
+    /// A pilot's new ship comes with this many missiles of each model in <see cref="FactoryMissiles"/>, on its pylons'
+    /// rails (<see cref="PylonSpec"/>): how many it can carry in all is how many rails its pylons have.
+    /// </summary>
     [Export] public int MissileRack = 4;
+    /// <summary>The missile models a new ship comes loaded with (<see cref="MissileRack"/> of each).</summary>
+    [Export] public Xpace.Space.MissileSpec[] FactoryMissiles = System.Array.Empty<Xpace.Space.MissileSpec>();
     /// <summary>The countermeasures dispenser it comes with: how much chaff and how many flares it holds.</summary>
     [Export] public DispenserSpec Dispenser;
     /// <summary>

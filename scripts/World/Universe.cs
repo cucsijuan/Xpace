@@ -231,13 +231,55 @@ public partial class Universe : Node
         }
     }
 
-    /// <summary>How many missiles of each model the pilot's hull carries.</summary>
+    /// <summary>How many missiles of each of its factory models the pilot's new ship comes with.</summary>
     public static int RackSize(PilotRecord pilot) => Hull(pilot)?.MissileRack ?? 0;
 
-    /// <summary>How many of <paramref name="item"/> the pilot's hull carries: missiles in its launcher, chaff and flares in its dispenser.</summary>
+    /// <summary>How many missile rails the pilot's ship has: the rails of the pylons fitted (<see cref="PylonSpec"/>).</summary>
+    public static int Rails(PilotRecord pilot) =>
+        Hull(pilot) is ShipSpec hull ? Fittings.Of(hull, pilot.Ship).Values.OfType<PylonSpec>().Sum(p => p.Rails) : 0;
+
+    /// <summary>
+    /// How many of <paramref name="item"/> the pilot's ship has aboard: what the record says, or with nothing there,
+    /// what a new ship comes with (<see cref="Factory"/>).
+    /// </summary>
+    public static int Aboard(PilotRecord pilot, Outfit item) => item?.Id is string id ? pilot.Ship.Rack(id, Factory(pilot, item)) : 0;
+
+    /// <summary>
+    /// How many of <paramref name="item"/> a new ship comes with: the hull's missiles of each factory model (none of
+    /// another model, and never more than its rails take), a full dispenser and magazine.
+    /// </summary>
+    public static int Factory(PilotRecord pilot, Outfit item) => item switch
+    {
+        MissileSpec m => Hull(pilot) is ShipSpec hull && hull.FactoryMissiles.Any(f => f?.ResourcePath == m.ResourcePath)
+            ? Math.Min(hull.MissileRack, Rails(pilot) / Math.Max(1, hull.FactoryMissiles.Length)) : 0,
+        _ => RackSize(pilot, item),
+    };
+
+    // The missile models the pilot's ship may have aboard: its hull's factory models and any in its record
+    private static IEnumerable<MissileSpec> MissileModels(PilotRecord pilot)
+    {
+        var models = new Dictionary<string, MissileSpec>();
+        foreach (MissileSpec m in Hull(pilot)?.FactoryMissiles ?? Array.Empty<MissileSpec>())
+            if (m?.Id is string id)
+                models[id] = m;
+        foreach (string id in pilot.Ship.Magazine.Keys)
+            if (!models.ContainsKey(id) && MissilesDir + id + ".tres" is string path && ResourceLoader.Exists(path) && GD.Load<Resource>(path) is MissileSpec m)
+                models[id] = m;
+        return models.Values;
+    }
+
+    private const string MissilesDir = "res://assets/weapons/missiles/";
+
+    /// <summary>How many missiles the pilot's ship has aboard, of every model.</summary>
+    public static int MissilesAboard(PilotRecord pilot) => MissileModels(pilot).Sum(m => Aboard(pilot, m));
+
+    /// <summary>
+    /// How many of <paramref name="item"/> the pilot's ship can carry: missiles on the rails the others leave free,
+    /// chaff and flares in its dispenser, rounds in its turret's magazine.
+    /// </summary>
     public static int RackSize(PilotRecord pilot, Outfit item) => item switch
     {
-        MissileSpec => RackSize(pilot),
+        MissileSpec m => Math.Max(Aboard(pilot, m), Rails(pilot) - MissileModels(pilot).Where(o => o.Id != m.Id).Sum(o => Aboard(pilot, o))),
         ChaffSpec => Hull(pilot)?.Dispenser?.Chaff ?? 0,
         FlareSpec => Hull(pilot)?.Dispenser?.Flares ?? 0,
         AmmoSpec => FittedTurret(pilot)?.Rounds ?? 0,
@@ -268,7 +310,7 @@ public partial class Universe : Node
     {
         if (item?.Id is not string model || RecordOf(ship) is not PilotRecord pilot)
             return;
-        pilot.Ship.Magazine[model] = Math.Max(0, pilot.Ship.Rack(model, RackSize(pilot, item)) - 1);
+        pilot.Ship.Magazine[model] = Math.Max(0, Aboard(pilot, item) - 1);
         if (!IsGuest)
             _firedBy.Add(pilot.Id);
     }

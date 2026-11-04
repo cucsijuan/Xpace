@@ -29,6 +29,9 @@ public enum RadarMode : byte { Off, Search, Track }
 ///                        <see cref="SessionNode.Jammers"/>; 15: not
 ///                        there) and 1 bit: aimed; aimed, then 8 bits of
 ///                        azimuth and 7 of elevation (ship axes)
+///   turret               1 bit: has one; then 9 bits of azimuth (a turn
+///                        in 512) and 8 of elevation (±90 degrees), where
+///                        it points
 ///
 /// Anything that flies is sent this way: ships, missiles. Or as a delta
 /// (<see cref="Wire.WriteDelta"/>) from an older snapshot the other end
@@ -36,7 +39,7 @@ public enum RadarMode : byte { Off, Search, Track }
 /// </summary>
 public struct ShipSnapshot
 {
-    public const int Bytes = 35, MaxBytes = 40;
+    public const int Bytes = 35, MaxBytes = 42;
     public const byte NoModel = 15;
     public const ushort NoTarget = 0xFFFF;
     public const double PositionScale = 1024, VelocityRange = 4096, AngularRange = 16;
@@ -59,6 +62,8 @@ public struct ShipSnapshot
     public byte JamModel;                   // sending: its place in the session's list of models
     public bool JamAimed;
     public Vector3 JamAim;                  // aimed: where, ship axes (-Z ahead)
+    public bool Turret;                     // it has a turret: where it points
+    public float TurretAzimuth, TurretElevation;    // radians, right and up positive
 
     public void Write(BitWriter w) => Encode().Write(w);
 
@@ -112,6 +117,12 @@ public struct ShipSnapshot
                 s.Jam |= (uint)azimuth << 7 | (uint)elevation << 15;
             }
         }
+        if (Turret)
+        {
+            int azimuth = (int)MathF.Round(Mathf.Wrap(TurretAzimuth, 0, MathF.Tau) / MathF.Tau * 512) & 511;
+            int elevation = Math.Clamp((int)MathF.Round(TurretElevation / (MathF.PI / 2) * 127), -127, 127) + 128;
+            s.Gun = 1 | (uint)azimuth << 1 | (uint)elevation << 10;
+        }
         return s;
 
         static int Fixed(double x) => (int)Math.Round(Math.Clamp(x * PositionScale, int.MinValue, int.MaxValue));
@@ -143,6 +154,7 @@ public struct ShipSnapshot
         public int W0, W1, W2;
         public uint Flags;                  // destroyed (bit 0), thrust (1-4), radar (5-6), heat (7-10), tracked (11-26), guiding (27)
         public uint Jam;                    // mode (bits 0-1), model (2-5), aimed (6), azimuth (7-14), elevation + 64 (15-21)
+        public uint Gun;                    // a turret (bit 0), azimuth (1-9), elevation + 128 (10-17)
 
         private readonly RadarMode Radar => (RadarMode)(Flags >> 5 & 3);
 
@@ -182,6 +194,14 @@ public struct ShipSnapshot
                     float flat = MathF.Cos(elevation);
                     s.JamAim = new Vector3(MathF.Sin(azimuth) * flat, MathF.Sin(elevation), -MathF.Cos(azimuth) * flat);
                 }
+            }
+            s.Turret = (Gun & 1) != 0;
+            if (s.Turret)
+            {
+                s.TurretAzimuth = (Gun >> 1 & 511) / 512f * MathF.Tau;
+                if (s.TurretAzimuth > MathF.PI)
+                    s.TurretAzimuth -= MathF.Tau;
+                s.TurretElevation = ((int)(Gun >> 10 & 255) - 128) / 127f * (MathF.PI / 2);
             }
             return s;
         }
@@ -240,8 +260,8 @@ public struct ShipSnapshot
                 WriteOrientation(w);
             WriteChange(w, V0 - b.V0, V1 - b.V1, V2 - b.V2);
             WriteChange(w, W0 - b.W0, W1 - b.W1, W2 - b.W2);
-            w.Write(Flags != b.Flags || Jam != b.Jam ? 1u : 0, 1);
-            if (Flags != b.Flags || Jam != b.Jam)
+            w.Write(Flags != b.Flags || Jam != b.Jam || Gun != b.Gun ? 1u : 0, 1);
+            if (Flags != b.Flags || Jam != b.Jam || Gun != b.Gun)
                 WriteFlags(w);
         }
 
@@ -273,7 +293,7 @@ public struct ShipSnapshot
             if (r.Read(1) != 0)
                 s.ReadFlags(r);
             else
-                (s.Flags, s.Jam) = (b.Flags, b.Jam);
+                (s.Flags, s.Jam, s.Gun) = (b.Flags, b.Jam, b.Gun);
             return s;
         }
 
@@ -308,11 +328,15 @@ public struct ShipSnapshot
             if (Radar == RadarMode.Track)
                 w.Write(Flags >> 11 & 0x1FFFF, 17);
             w.Write(Jam & 3, 2);
-            if ((Jam & 3) == 0)
-                return;
-            w.Write(Jam >> 2 & 31, 5);
-            if ((Jam >> 6 & 1) != 0)
-                w.Write(Jam >> 7 & 0x7FFF, 15);
+            if ((Jam & 3) != 0)
+            {
+                w.Write(Jam >> 2 & 31, 5);
+                if ((Jam >> 6 & 1) != 0)
+                    w.Write(Jam >> 7 & 0x7FFF, 15);
+            }
+            w.Write(Gun & 1, 1);
+            if ((Gun & 1) != 0)
+                w.Write(Gun >> 1 & 0x1FFFF, 17);
         }
 
         private void ReadFlags(BitReader r)
@@ -322,11 +346,15 @@ public struct ShipSnapshot
             if (Radar == RadarMode.Track)
                 Flags |= r.Read(17) << 11;
             Jam = r.Read(2);
-            if (Jam == 0)
-                return;
-            Jam |= r.Read(5) << 2;
-            if ((Jam >> 6 & 1) != 0)
-                Jam |= r.Read(15) << 7;
+            if (Jam != 0)
+            {
+                Jam |= r.Read(5) << 2;
+                if ((Jam >> 6 & 1) != 0)
+                    Jam |= r.Read(15) << 7;
+            }
+            Gun = r.Read(1);
+            if (Gun != 0)
+                Gun |= r.Read(17) << 1;
         }
 
         private static void WriteSteps(BitWriter w, int a, int b, int c, int bits)

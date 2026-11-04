@@ -35,6 +35,7 @@
 [ext_resource type="Resource" path="res://assets/weapons/ammo/rounds_1.tres" id="33_rounds"]
 [ext_resource type="Resource" path="res://assets/weapons/lasers/lsr_1.tres" id="33_lsr"]
 [ext_resource type="Resource" path="res://assets/weapons/turrets/gun_1.tres" id="33_gun"]
+[ext_resource type="Resource" path="res://assets/weapons/pylons/pyl_1.tres" id="33_pyl"]
 [ext_resource type="Resource" path="res://assets/goods/medicines.tres" id="32_medicines"]
 [ext_resource type="Resource" path="res://assets/goods/metals.tres" id="32_metals"]
 [ext_resource type="Resource" path="res://assets/goods/machinery.tres" id="32_machinery"]
@@ -88,6 +89,14 @@ Stock = 2
 PerHour = 0.5
 Input = ExtResource("32_metals")
 InputPerUnit = 4.0
+
+[sub_resource type="Resource" id="Arms_pyl"]
+script = ExtResource("33_outfit")
+Item = ExtResource("33_pyl")
+Stock = 4
+PerHour = 1.0
+Input = ExtResource("32_metals")
+InputPerUnit = 1.0
 
 [sub_resource type="Resource" id="Arms_rounds"]
 script = ExtResource("33_outfit")
@@ -228,7 +237,7 @@ Voices = Array[ExtResource("20_voice_pack")]([ExtResource("16_voice_f1"), ExtRes
 [node name="Market" type="Node" parent="."]
 script = ExtResource("30_market")
 Goods = Array[ExtResource("31_market_good")]([SubResource("Market_water"), SubResource("Market_food"), SubResource("Market_iron"), SubResource("Market_medicines"), SubResource("Market_metals"), SubResource("Market_machinery"), SubResource("Market_electronics"), SubResource("Market_hydrogen")])
-Outfits = Array[ExtResource("33_outfit")]([SubResource("Arms_msl"), SubResource("Arms_ir"), SubResource("Arms_chaff"), SubResource("Arms_flare"), SubResource("Arms_rounds"), SubResource("Arms_lsr"), SubResource("Arms_gun")])
+Outfits = Array[ExtResource("33_outfit")]([SubResource("Arms_msl"), SubResource("Arms_ir"), SubResource("Arms_chaff"), SubResource("Arms_flare"), SubResource("Arms_rounds"), SubResource("Arms_lsr"), SubResource("Arms_gun"), SubResource("Arms_pyl")])
 
 [node name="Lockers" type="Node" parent="."]
 script = ExtResource("40_lockers")

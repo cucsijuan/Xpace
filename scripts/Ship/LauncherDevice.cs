@@ -39,7 +39,8 @@ namespace Xpace.Ship;
 /// +14 heat seekers left  +15 the newest's kind (1 radar, 2 heat seeker)
 ///
 /// A player's ship keeps its missiles in the pilot's record (<see cref="ShipRecord.Magazine"/>), bought at a station's
-/// arms kiosk; any other ship, here.
+/// arms kiosk; any other ship, here. They hang on the rails of the ship's pylons (<see cref="MissileRails"/>), where
+/// they show until fired, and each leaves from its own rail; a ship with no pylons fires from the launcher itself.
 /// </summary>
 public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
 {
@@ -87,6 +88,8 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
     private Missile _railHead;                      // the next heat seeker, for its head's figures
     private readonly SeekerHead _head = new();      // its head, on the rail
     private double _toneFor;
+    private List<Node3D> _rails = new();
+    private (int Radar, int Heat) _shown = (-1, -1);
 
     public override void _Ready()
     {
@@ -122,7 +125,43 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
     private PilotRecord Pilot => _ship != null ? Universe.Current?.RecordOf(_ship) : null;
 
     private int Left(MissileSpec spec, int own) =>
-        spec?.Id is string model && Pilot is PilotRecord pilot ? pilot.Ship.Rack(model, Universe.RackSize(pilot)) : own;
+        spec?.Id is string && Pilot is PilotRecord pilot ? Universe.Aboard(pilot, spec) : own;
+
+    /// <summary>The ship's pylons changed: its rails, and the missiles on them.</summary>
+    public void Refit(ShipBody ship)
+    {
+        _rails = MissileRails.Of(ship?.Hardpoints ?? (IReadOnlyList<Hardpoint>)System.Array.Empty<Hardpoint>());
+        _shown = (-1, -1);
+        ShowLoads();
+    }
+
+    /// <summary>The rails of the ship's pylons, in loading order.</summary>
+    public IReadOnlyList<Node3D> Rails => _rails;
+
+    /// <summary>
+    /// What hangs on the rails, as another machine's copy of the ship shows it: each model's resource path and how
+    /// many, radar missiles first (empty: no rails).
+    /// </summary>
+    public string Loads => _rails.Count == 0 ? "" : $"{_radarSpec?.ResourcePath}={Shown.Radar};{_heatSpec?.ResourcePath}={Shown.Heat}";
+
+    // As many as the rails take: radar missiles first
+    private (int Radar, int Heat) Shown
+    {
+        get
+        {
+            int radar = System.Math.Min(MissilesLeft, _rails.Count);
+            return (radar, System.Math.Min(HeatSeekersLeft, _rails.Count - radar));
+        }
+    }
+
+    private void ShowLoads()
+    {
+        (int, int) now = Shown;
+        if (now == _shown)
+            return;
+        _shown = now;
+        MissileRails.Show(_rails, _radarSpec?.Look, now.Item1, _heatSpec?.Look, now.Item2);
+    }
 
     public void BeforeStep(ShipBody ship, double delta)
     {
@@ -134,6 +173,7 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
             bus[Slot, 1] = 1;
         }
         _inFlight.RemoveAll(m => !IsInstanceValid(m) || m.Result != Missile.Outcome.Flying);
+        ShowLoads();
         if (Newest != null && IsInstanceValid(Newest))
             _newestResult = Newest.Result;
 
@@ -220,8 +260,9 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
                 NewestDamage = m.DamageDealt;
             }
         };
+        Node3D rail = heat ? MissileRails.Back(_rails, Shown.Heat) : MissileRails.Front(_rails, Shown.Radar);
         ship.GetParent().AddChild(m);
-        m.GlobalTransform = GlobalTransform;
+        m.GlobalTransform = (rail ?? this).GlobalTransform;
         m.Velocity = ship.LinearVelocity - ship.GlobalBasis.Z * EjectSpeed;
         _inFlight.Add(m);
         Newest = m;
@@ -244,5 +285,6 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
             _missiles--;
         Launched++;
         _reload = ReloadSeconds;
+        ShowLoads();
     }
 }

@@ -93,25 +93,70 @@ public partial class RemoteShip : Node3D, Space.ICruiseShown, INetEntity, IRadar
         _jammer.Follow(JamMode.Off, false, Vector3.Forward);
         _plumes = FindChildren("*", "", true, false).OfType<EnginePlume>().ToArray();
         // As its owner has it, or as it came from the factory until its owner says
-        Mount(Fitted == null ? Xpace.Ship.Fittings.Of(Hull) : Xpace.Ship.Fittings.Parse(Fitted));
+        if (Fitted == null)
+            Factory();
+        else
+            Show(Fitted);
         AddChild(new RemoteRadio { Name = "Radio" });
     }
 
-    /// <summary>What its owner has on its hardpoints (<see cref="Xpace.Ship.ShipBody.Fitted"/>), as last heard; null: not heard yet.</summary>
+    /// <summary>
+    /// What its owner has on its hardpoints and its pylons' rails, as last heard (<see cref="Fit"/>); null: not heard
+    /// yet.
+    /// </summary>
     public string Fitted { get; private set; }
 
-    /// <summary>Shows what its owner has on its hardpoints (<see cref="Xpace.Ship.ShipBody.Fitted"/>): looks only.</summary>
+    /// <summary>
+    /// Shows what its owner has on its hardpoints (<see cref="Xpace.Ship.ShipBody.Fitted"/>) and, after a '|', the
+    /// missiles on its rails (<see cref="Xpace.Ship.LauncherDevice.Loads"/>): looks only.
+    /// </summary>
     public void Fit(string fitted)
     {
         Fitted = fitted ?? "";
         if (IsInsideTree())
-            Mount(Xpace.Ship.Fittings.Parse(Fitted));
+            Show(Fitted);
+    }
+
+    /// <summary>The rails of its pylons, as shown.</summary>
+    public System.Collections.Generic.IReadOnlyList<Node3D> Rails => _rails;
+
+    private System.Collections.Generic.List<Node3D> _rails = new();
+
+    private void Show(string fitted)
+    {
+        int bar = fitted.IndexOf('|');
+        Mount(Xpace.Ship.Fittings.Parse(bar < 0 ? fitted : fitted[..bar]));
+        var loads = new System.Collections.Generic.List<(PackedScene Look, int Count)>();
+        foreach (string pair in (bar < 0 ? "" : fitted[(bar + 1)..]).Split(';', System.StringSplitOptions.RemoveEmptyEntries))
+        {
+            int at = pair.IndexOf('=');
+            string path = at > 0 ? pair[..at] : "";
+            int.TryParse(at > 0 ? pair[(at + 1)..] : "", out int count);
+            PackedScene look = path.StartsWith("res://assets/weapons/missiles/") && ResourceLoader.Exists(path)
+                && GD.Load<Resource>(path) is MissileSpec model ? model.Look : null;
+            loads.Add((look, System.Math.Clamp(count, 0, _rails.Count)));
+        }
+        while (loads.Count < 2)
+            loads.Add((null, 0));
+        Xpace.Ship.MissileRails.Show(_rails, loads[0].Look, loads[0].Count, loads[1].Look, System.Math.Min(loads[1].Count, _rails.Count - loads[0].Count));
+    }
+
+    // As its hull comes from the factory: its fitting, and its missiles on the rails
+    private void Factory()
+    {
+        Mount(Xpace.Ship.Fittings.Of(Hull));
+        MissileSpec[] models = Hull?.FactoryMissiles ?? System.Array.Empty<MissileSpec>();
+        int each = models.Length == 0 ? 0 : System.Math.Min(Hull.MissileRack, _rails.Count / models.Length);
+        Xpace.Ship.MissileRails.Show(_rails, models.Length > 0 ? models[0]?.Look : null, each, models.Length > 1 ? models[1]?.Look : null, models.Length > 1 ? each : 0);
     }
 
     private void Mount(System.Collections.Generic.Dictionary<string, Resource> fitted)
     {
-        foreach (Xpace.Ship.Hardpoint h in FindChildren("*", "", true, false).OfType<Xpace.Ship.Hardpoint>())
+        var hardpoints = FindChildren("*", "", true, false).OfType<Xpace.Ship.Hardpoint>().ToList();
+        foreach (Xpace.Ship.Hardpoint h in hardpoints)
             h.Mount(fitted.GetValueOrDefault(h.Name.ToString()), working: false);
+        _rails = Xpace.Ship.MissileRails.Of(hardpoints);
+        _turret = FindChildren("*", "", true, false).OfType<Xpace.Ship.TurretRig>().FirstOrDefault();
     }
 
     public void Paint() { }
@@ -179,5 +224,9 @@ public partial class RemoteShip : Node3D, Space.ICruiseShown, INetEntity, IRadar
         if (p.Jam != JamMode.Off)
             _jammer.Spec = SessionNode.Instance?.JammerModel(p.JamModel) ?? Jammer ?? _jammer.Spec;
         _jammer.Follow(p.Destroyed ? JamMode.Off : p.Jam, p.JamAimed, p.JamAim);
+        if (p.Turret)
+            _turret?.Aim(p.TurretAzimuth, p.TurretElevation);
     }
+
+    private Xpace.Ship.TurretRig _turret;       // the turret's look on its hardpoint, if it has one
 }
