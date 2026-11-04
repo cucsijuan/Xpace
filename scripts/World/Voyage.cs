@@ -17,6 +17,8 @@ public static class Voyage
     {
         public List<(Vector3 At, float Reach)> Masses = new();
         public List<(Vector3 At, float Radius, float Limit)> Limits = new();
+        /// <summary>Fixed interdictors: they aren't in a way's times, they work on the ships as they pass (<see cref="Interdiction"/>).</summary>
+        public List<(Vector3 At, InterdictorSpec Spec)> Beams = new();
     }
 
     /// <summary>Where a ship on that way is so many seconds out, and how fast it goes there.</summary>
@@ -45,14 +47,24 @@ public static class Voyage
         return seconds;
     }
 
-    private static float Top(Space space, Vector3 at, ShipSpec hull, float mass, GeneratorSpec generator, float engineThrust, float cap)
+    /// <summary>The medium's density at a point of a sector.</summary>
+    public static float Density(Space space, Vector3 at)
     {
         float density = 1;
         foreach ((Vector3 massAt, float reach) in space.Masses)
-            density += reach * reach / Mathf.Max(massAt.DistanceSquaredTo(at), 1);
-        float top = density < generator.Thinning
+            density += Xpace.Space.MediumMass.Adds(reach, massAt.DistanceSquaredTo(at));
+        return density;
+    }
+
+    /// <summary>The top speed a ship can hold in a medium of that density: its generator's while it can thin it, else its engine's.</summary>
+    public static float TopAt(float density, ShipSpec hull, float mass, GeneratorSpec generator, float engineThrust) =>
+        density < generator.Thinning
             ? Mathf.Min(hull.TopSpeed(generator.Push * hull.Mass / mass, hull.VeilDrag * density / generator.Thinning), CruiseCap)
             : hull.TopSpeed(engineThrust * hull.Mass / mass);
+
+    private static float Top(Space space, Vector3 at, ShipSpec hull, float mass, GeneratorSpec generator, float engineThrust, float cap)
+    {
+        float top = TopAt(Density(space, at), hull, mass, generator, engineThrust);
         foreach ((Vector3 limitAt, float radius, float limit) in space.Limits)
             if (limitAt.DistanceTo(at) < radius)
                 top = Mathf.Min(top, limit);

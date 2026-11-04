@@ -109,6 +109,8 @@ public partial class MarketWindow : CanvasLayer, IKioskWindow
         _hold.Text = $"Hold  {view.Carried} / {view.Capacity} t";
         _fines.Text = view.Owed == 0 ? view.Impounded ? "Ship impounded here" : "Nothing owed"
             : view.Bounty > 0 ? $"Owed  {view.Owed:N0}  (bounty {view.Bounty:N0})" : $"Fines owed  {view.Owed:N0}";
+        if (view.Hunted > 0)
+            _fines.Text += $"   Price on your head  {view.Hunted:N0}";
         _pay.Disabled = !view.Present || view.Owed == 0 && !view.Impounded;
         _surrender.Visible = view.Bounty > 0 && !view.Impounded && view.Credits < view.Owed;
         _surrender.Disabled = !view.Present;

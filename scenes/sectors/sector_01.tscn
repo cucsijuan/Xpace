@@ -15,6 +15,7 @@
 [ext_resource type="Resource" path="res://assets/goods/chips.tres" id="good_chips"]
 [ext_resource type="Resource" path="res://assets/recipes/chips.tres" id="recipe_chips"]
 [ext_resource type="Script" path="res://scripts/Space/InterdictorBuoy.cs" id="interdictor_buoy"]
+[ext_resource type="Resource" path="res://assets/ship/interdictors/interdictor_fixed.tres" id="interdictor_fixed"]
 [ext_resource type="Script" uid="uid://ckiwalmif04k4" path="res://scripts/Space/RockKind.cs" id="8_kind"]
 
 [ext_resource type="Script" uid="uid://cjgdfrbao84c3" path="res://scripts/Space/RockBox.cs" id="8_region"]
@@ -256,6 +257,7 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -600, 150, 4000)
 [node name="InterdictorBuoy" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55000, 2500, 35000)
 script = ExtResource("interdictor_buoy")
+Model = ExtResource("interdictor_fixed")
 
 [node name="Beacon" parent="." instance=ExtResource("beacon_scene")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82000, 4500, 82000)

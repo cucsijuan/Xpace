@@ -91,7 +91,7 @@ public partial class ShipSignature : Node3D, IRadarTarget, IDamageable, IHeatSou
             direction = Vector3.Zero;
             return 0;
         }
-        float thrust = _ship == null ? 0 : Mathf.Max(0, _ship.Commands[5]);
+        float thrust = _ship == null ? 0 : Mathf.Max(0, _ship.Held ? _ship.EngineThrust : _ship.Commands[5]);
         float heat = Heat.Point(GlobalPosition, 1, from, out direction);
         float behind = Mathf.Max(0, -direction.Dot(GlobalBasis.Z.Normalized()));
         float hull = _heat != null || ShownLevel.HasValue ? HullHeatAtFull * HullLevel : HullHeat;

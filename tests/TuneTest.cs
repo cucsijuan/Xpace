@@ -140,7 +140,7 @@ public partial class TuneTest : Node
     // Beyond the buoy's reach, towards it and on past it
     private Vector3 Approach()
     {
-        Vector3 at = _buoy.GlobalPosition + new Vector3(1, 0, -1).Normalized() * (_buoy.Range + 8000);
+        Vector3 at = _buoy.GlobalPosition + new Vector3(1, 0, -1).Normalized() * (_buoy.Model.Range + 8000);
         Point(at, _buoy.GlobalPosition + new Vector3(1, 0, 1).Normalized() * 15000, 0);
         _ship.Device<CruiseDevice>().Rearm();
         return at;

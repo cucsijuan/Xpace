@@ -26,6 +26,12 @@ public partial class CargoView : Node
     /// <summary>How long a destroyed ship's wreck stays, seconds.</summary>
     [Export] public double WreckSeconds = 60;
 
+    /// <summary>What a ship under fire calls on the radio ({0}: its callsign).</summary>
+    [Export] public string MaydayText = "Mayday, mayday, {0} under fire.";
+
+    /// <summary>A ship under fire calls and tells its owner no oftener than this, seconds.</summary>
+    [Export] public double MaydayEverySeconds = 30;
+
     /// <summary>The ships shown now, by the record's id.</summary>
     public IReadOnlyDictionary<string, ShipBody> Shown => _shown;
 
@@ -33,6 +39,8 @@ public partial class CargoView : Node
     private readonly Dictionary<string, double> _dealt = new();
     private readonly Dictionary<ShipBody, double> _wrecks = new();
     private readonly HashSet<ShipBody> _struck = new();
+    private readonly Dictionary<ShipBody, Node3D> _killers = new();
+    private readonly Dictionary<ShipBody, double> _called = new();
     private double _wait;
 
     public override void _PhysicsProcess(double delta)
@@ -64,6 +72,8 @@ public partial class CargoView : Node
         // Destroyed where it can be seen, it is gone from the universe: the wreck stays a while
         if (ship?.Find<ShipHull>()?.Wrecked == true)
         {
+            _killers.Remove(ship, out Node3D killer);
+            Tell(record, ship, killer, lost: true, universe);
             CargoShips.Lose(universe.State, record.Id);
             _shown.Remove(record.Id);
             _wrecks[ship] = WreckSeconds;
@@ -117,14 +127,63 @@ public partial class CargoView : Node
         return false;
     }
 
-    public override void _EnterTree() => Combat.Damaged += Struck;
+    public override void _EnterTree()
+    {
+        Combat.Damaged += Struck;
+        Combat.Destroyed += Destroyed;
+    }
 
-    public override void _ExitTree() => Combat.Damaged -= Struck;
+    public override void _ExitTree()
+    {
+        Combat.Damaged -= Struck;
+        Combat.Destroyed -= Destroyed;
+    }
 
     private void Struck(Node3D victim, Node3D by)
     {
+        if (victim is not ShipBody ship || !_shown.ContainsValue(ship))
+            return;
+        _struck.Add(ship);
+        double now = Time.GetTicksMsec() / 1000.0;
+        if (_called.TryGetValue(ship, out double at) && now - at < MaydayEverySeconds || Universe.Current is not Universe universe)
+            return;
+        _called[ship] = now;
+        string id = _shown.First(kv => kv.Value == ship).Key;
+        if (universe.State.CargoShips.TryGetValue(id, out CargoShipRecord record))
+        {
+            Tell(record, ship, by, lost: false, universe);
+            Mayday(ship, CargoShips.CallsignOf(id));
+        }
+    }
+
+    private void Destroyed(Node3D victim, Node3D by, Vector3 at)
+    {
         if (victim is ShipBody ship && _shown.ContainsValue(ship))
-            _struck.Add(ship);
+            _killers[ship] = by;
+        if (Universe.Current is not Universe { IsGuest: false } universe || victim == null || by == null || victim == by)
+            return;
+        if (universe.PilotIdOf(victim) is string killed && universe.PilotOf(by) is PilotRecord killer && Reactions.Collect(universe.State, killed, killer) > 0)
+            universe.Touch(killer);
+    }
+
+    // The owner hears what was done, and where the record says it was
+    private static void Tell(CargoShipRecord record, ShipBody ship, Node3D by, bool lost, Universe universe)
+    {
+        if (!ResourceLoader.Exists(record.Model) || GD.Load<ShipModel>(record.Model) is not ShipModel model || universe.Book.FixOf(record, model, universe.State.Clock) is not StationBook.Fix fix)
+            return;
+        string pilot = by != null && GodotObject.IsInstanceValid(by) ? universe.PilotIdOf(by) : "";
+        Reactions.Happened(universe.Account(record.Owner) as OrganisationRecord, OrganisationCatalog.Find(record.Owner)?.Personality, model, fix.Sector, fix.At, pilot, universe.State.Clock, lost);
+        universe.Touch();
+    }
+
+    // Every radio that can hear the ship hears the call
+    private void Mayday(ShipBody ship, string sign)
+    {
+        if (ship.FindChild("Radio", true, false) is not RadioDevice radio)
+            return;
+        foreach (IRadio r in Radio.All(ship))
+            if (r is IRadioReceiver listener && !ReferenceEquals(r, radio) && Radio.Hears(listener, radio))
+                listener.Hear(radio, string.Format(MaydayText, sign), "");
     }
 
     private ShipBody Bring(CargoShipRecord record, ShipModel model, StationBook.Fix fix, FloatingOrigin root)
@@ -139,6 +198,8 @@ public partial class CargoView : Node
             body.Spawned = true;
         foreach (ShipHull hull in parts.OfType<ShipHull>())
             hull.Insured = false;
+        if (ship.FindChildren("*", "", true, false).OfType<CruiseDevice>().FirstOrDefault() is CruiseDevice cruise)
+            cruise.Spec = model.Generator;
         var run = new CargoRun(record, model, fix, root);
         ship.Transform = run.Pose(fix);
         ship.Holder = run;
@@ -201,11 +262,20 @@ public sealed class CargoRun : IShipHold
         StationBook.Fix? where = Universe.Current.Book.FixOf(_record, _model, state.Clock);
         if (where is not StationBook.Fix fix)
             return ship.State;
+        CruiseDevice cruise = ship.Device<CruiseDevice>();
+        if (ship.Dormant)
+            cruise?.Fade((float)delta);
+        float speed = fix.Speed;
+        _record.ShownAt = state.Clock;
+        if (_record.Phase == CargoShipRecord.Flying)
+            speed = Interdiction.Step(_record, _model, Universe.Current.Book.Space[fix.Sector], fix.At, fix.Speed, cruise?.BeamDensity ?? 0, cruise?.BeamBand ?? 0, (float)delta);
         float angle = _facing.AngleTo(Facing(fix.Heading));
         if (angle > 0.0001f)
             _facing = _facing.Slerp(Facing(fix.Heading), Mathf.Min(1, TurnRate * (float)delta / angle)).Normalized();
-        bool cruising = fix.Speed > _model.Hull.TopSpeed(_model.Engine?.RatedThrust ?? _model.Hull.MainThrust) * 1.05f;
-        ship.Show(fix.Speed > 0 ? 0.6f : 0, cruising ? 1 : 0);
-        return new ShipState { Position = Local(fix.At), Orientation = _facing, Velocity = fix.Heading * fix.Speed };
+        bool cruising = speed > _model.Hull.TopSpeed(_model.Engine?.RatedThrust ?? _model.Hull.MainThrust) * 1.05f;
+        ship.Show(speed > 0 ? 0.6f : 0, cruising ? 1 : 0);
+        if (cruise != null)
+            cruise.Riding = cruising;
+        return new ShipState { Position = Local(fix.At), Orientation = _facing, Velocity = fix.Heading * speed };
     }
 }

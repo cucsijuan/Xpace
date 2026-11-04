@@ -199,6 +199,7 @@ public static class CargoShips
                     ship.NextLook = state.Clock + model.WaitSeconds;
                 return;
             case CargoShipRecord.Flying:
+                Interdiction.Work(ship, model, state, book);
                 if (state.Clock >= ship.Arrives)
                 {
                     ship.Phase = CargoShipRecord.Holding;
@@ -306,7 +307,7 @@ public static class CargoShips
             if (stock >= line.Stock * model.RestockBelow)
                 break;
             var makers = book.Stations.Where(s => s != home && book.Way(home.Sector, s.Sector) != null && s.Goods.Any(g => g.Good.Id == good)
-                                                  && Market.Net(good, s.Goods, s.Factories) > 0)
+                                                  && Market.Net(good, s.Goods, s.Factories) > 0 && !Feared(book, model, home, s, state.Clock, money))
                 .Select(s => (Station: s, News: Heard(ship, model, s, good, state, account))).ToList();
             foreach (var seller in makers.Where(s => s.News != null && s.News.Stock * model.TakeShare >= 1).OrderBy(s => s.News.Buy))
             {
@@ -328,6 +329,11 @@ public static class CargoShips
         }
         return false;
     }
+
+    // The owner lost a ship on the way there and won't send another yet
+    private static bool Feared(StationBook book, ShipModel model, StationBook.Station home, StationBook.Station to, double clock, IAccount owner) =>
+        owner is OrganisationRecord { Incidents.Count: > 0 } record &&
+        Reactions.Avoids(record, OrganisationCatalog.Find(record.Id)?.Personality, book.Departure(home, home.Pads.FirstOrDefault(), to, model, 0, out _), model.DangerMeters, clock);
 
     private static void Fetch(CargoShipRecord ship, ShipModel model, string good, StationBook.Station from, UniverseState state, StationBook book, Func<string, IAccount> account)
     {
@@ -373,7 +379,10 @@ public static class CargoShips
         ship.Dock = ship.Pad = 0;
         ship.Going = to.Id;
         ship.Phase = CargoShipRecord.Flying;
-        ship.Left = state.Clock;
+        ship.Left = ship.WorkedTo = state.Clock;
+        ship.Legs = null;
+        ship.Pace = -1;
+        ship.Generator = new Xpace.Ship.GeneratorState { On = true };
         ship.Arrives = state.Clock + book.Departure(from, StationBook.PadOf(from, ship.LeftDock, ship.LeftPad), to, model, ship.Tonnes, out Vector3 contact).Sum(l => l.Seconds + l.Transit);
         ship.ContactPoint = contact;
     }

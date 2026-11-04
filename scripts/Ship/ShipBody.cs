@@ -391,6 +391,8 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
     {
         _shownThrust = thrust;
         _shownWake = wake;
+        if (_signature != null)
+            _signature.ShownWake = wake;
     }
 
     private float? _shownWake;

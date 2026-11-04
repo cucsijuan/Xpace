@@ -81,6 +81,8 @@ public sealed class StationBook
         {
             if (node is MediumMass mass)
                 space.Masses.Add((At(mass), mass.Reach));
+            if (node is InterdictorBuoy interdictor)
+                space.Beams.Add((At(interdictor), interdictor.Model));
             if (node is not StationRadio radio)
                 continue;
             Node parent = radio.GetParent();
@@ -168,6 +170,10 @@ public sealed class StationBook
             way.Insert(0, came[at]);
         return way;
     }
+
+    /// <summary>Those legs pass within reach of a fixed interdictor.</summary>
+    public bool Beset(List<Leg> legs) => legs.Any(l => Space[l.Sector].Beams.Any(b =>
+        b.Spec.Density(Geometry3D.GetClosestPointToSegment(b.At, l.From, l.To).DistanceSquaredTo(b.At)) > 0));
 
     /// <summary>The stations a beacon reports.</summary>
     public IEnumerable<Station> ReportedBy(Beacon beacon) => Stations.Where(s => Way(beacon.Sector, s.Sector)?.Count <= beacon.Reach);

@@ -36,6 +36,8 @@ public sealed class MarketView
     public int Carried { get; set; }
     public long Fines { get; set; }
     public long Bounty { get; set; }
+    /// <summary>What organisations offer for the pilot's head.</summary>
+    public long Hunted { get; set; }
     [System.Text.Json.Serialization.JsonIgnore] public long Owed => Fines + Bounty;
     /// <summary>The pilot's own ship is impounded here.</summary>
     public bool Impounded { get; set; }
@@ -326,7 +328,7 @@ public partial class StationMarket : Node
         {
             Station = Radio.Id, Title = Radio.ShownName, Owner = Radio.Cash?.Name ?? "", Docked = docked, Present = present, Credits = pilot.Credits, Capacity = Capacity(ship, pilot),
             Carried = pilot.Ship.Tonnes, Fines = crimes.Fines, Bounty = crimes.Bounty, Impounded = station.Impounded.ContainsKey(pilotId),
-            Message = message,
+            Message = message, Hunted = Reactions.Hunted(state, pilotId),
         };
         if (Factor)
             foreach ((string callsign, StationRecord other) in state.Stations.OrderBy(kv => kv.Key, System.StringComparer.Ordinal))

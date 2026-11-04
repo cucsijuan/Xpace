@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="InterdictorSpec" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/InterdictorSpec.cs" id="1_spec"]
+
+[resource]
+script = ExtResource("1_spec")
+Model = "Fixed interdictor"
+Reach = 150000.0
+Range = 60000.0
+Megawatts = 0.0

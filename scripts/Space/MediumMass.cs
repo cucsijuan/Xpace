@@ -30,6 +30,9 @@ public partial class MediumMass : Node3D
 
     public override void _ExitTree() => All.Remove(this);
 
+    /// <summary>What something of that reach adds to the density at that distance squared.</summary>
+    public static float Adds(float reach, float distanceSquared) => reach * reach / Mathf.Max(distanceSquared, Closest);
+
     /// <summary>The medium's density at a point (scene coordinates) of a sector.</summary>
     public static float Density(World3D world, Vector3 point)
     {
@@ -38,8 +41,7 @@ public partial class MediumMass : Node3D
         {
             if (mass._world != world)
                 continue;
-            float d2 = (mass.GlobalPosition - point).LengthSquared();
-            density += mass.Reach * mass.Reach / Mathf.Max(d2, Closest);
+            density += Adds(mass.Reach, (mass.GlobalPosition - point).LengthSquared());
         }
         return density;
     }

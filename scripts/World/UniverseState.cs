@@ -104,6 +104,18 @@ public sealed class CargoShipRecord
     public string Going { get; set; } = "";
     public double Left { get; set; }
     public double Arrives { get; set; }
+    /// <summary>Its generator, on its way.</summary>
+    public Xpace.Ship.GeneratorState Generator { get; set; } = new() { On = true };
+    /// <summary>How fast it goes now if something is holding it back (below 0: as its way says).</summary>
+    public float Pace { get; set; } = -1;
+    /// <summary>The time its way has been worked out to, and last shown as a real ship.</summary>
+    public double WorkedTo { get; set; }
+    public double ShownAt { get; set; } = -10;
+    [JsonIgnore] public CrewTuner Crew { get; } = new();
+    /// <summary>Its way, once asked for, while it flies.</summary>
+    [JsonIgnore] public List<StationBook.Leg> Legs { get; set; }
+    /// <summary>When on that way, in seconds out, a fixed interdictor can reach it.</summary>
+    [JsonIgnore] public (double From, double To) Beset { get; set; }
     /// <summary>When it next looks for something to do.</summary>
     public double NextLook { get; set; }
     /// <summary>What it is after or carrying, and the tonnes aboard.</summary>
@@ -150,6 +162,10 @@ public sealed class OrganisationRecord : IAccount
     public long Credits { get; set; }
     public double Margin { get; set; } = 0.15;
     public Dictionary<string, StationNews> Known { get; set; } = new();
+    /// <summary>What was done to its ships lately, oldest first.</summary>
+    public List<Incident> Incidents { get; set; } = new();
+    /// <summary>What it offers for each pilot destroyed, by pilot id.</summary>
+    public Dictionary<string, long> Bounties { get; set; } = new();
     /// <summary>The organisation it belongs to now (empty: its own). It can join and leave.</summary>
     public string Parent { get; set; } = "";
 }

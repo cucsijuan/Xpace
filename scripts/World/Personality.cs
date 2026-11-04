@@ -25,4 +25,13 @@ public partial class Personality : Resource
 
     /// <summary>How much of its money it risks to grow.</summary>
     [Export(PropertyHint.Range, "0,1,0.01")] public float Ambition = 0.5f;
+
+    /// <summary>How long a lost ship would keep it off that route with no aggression at all, hours; aggression shortens it.</summary>
+    [Export] public double FearHours = 24;
+
+    /// <summary>What it puts on a pilot's head for a ship lost, of the ship's build fee, at full aggression.</summary>
+    [Export(PropertyHint.Range, "0,1,0.01")] public float BountyShare = 0.2f;
+
+    /// <summary>The same for a ship hit and not lost.</summary>
+    [Export(PropertyHint.Range, "0,1,0.001")] public float HitBountyShare = 0.01f;
 }

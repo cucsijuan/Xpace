@@ -48,33 +48,39 @@ public partial class CruiseDevice : Node, IShipDevice, IRearmable
     /// <summary>What the veil's drag is multiplied by now: 1 as normal.</summary>
     public float Thin { get; private set; } = 1;
     /// <summary>The generator is holding the veil thin (or thinning it).</summary>
-    public bool On { get; private set; }
-    public bool Charging => _charge > 0;
+    public bool On => _generator.On;
+    public bool Charging => _generator.Charging;
+    /// <summary>Its holder has the ship going in cruise on a record's way.</summary>
+    public bool Riding { get; set; }
+    /// <summary>In cruise, one way or the other: a beam works on it.</summary>
+    public bool Cruising => On || Riding;
     /// <summary>The medium here is too dense for it to thin anything.</summary>
-    public bool Locked { get; private set; }
+    public bool Locked => _generator.Locked;
     /// <summary>It dropped out by itself since the pilot last started it.</summary>
     public bool DroppedOut { get; private set; }
-    public float Density { get; private set; } = 1;
+    public float Density => _generator.Density;
     /// <summary>How much of the medium it is stirring, 0 to 1: how thin the veil is, at speed.</summary>
     public float Wake { get; private set; }
     /// <summary>What that adds to the radar echo (m²).</summary>
     public float WakeEcho => Wake * S.WakeEcho;
     /// <summary>An interdictor's beam is on it.</summary>
     public bool BeamOn => _thickened > BeamFloor;
+    /// <summary>What an interdictor's beam adds to the density round it now.</summary>
+    public float BeamDensity => _thickened;
     /// <summary>The beam's frequency, 0 to 255.</summary>
     public byte BeamBand { get; private set; }
     /// <summary>The generator's own frequency, 0 to 255.</summary>
-    public float Tune { get; private set; } = 128;
+    public float Tune => _generator.Tune;
     /// <summary>How much of the beam it is set to cancel, 0 to 1.</summary>
-    public float Coupling { get; private set; }
+    public float Coupling => _generator.Coupling;
     /// <summary>How near it is to giving up against the beam, 0 to 1.</summary>
-    public float Strain { get; private set; }
+    public float Strain => _generator.Strain;
 
     /// <summary>A frequency on the 0-255 band, in Hz.</summary>
     public static float Hertz(float band) => 0.5f + band / 255f * 3.5f;
 
     /// <summary>Seconds of charging left.</summary>
-    public double ChargeLeft => _charge;
+    public double ChargeLeft => _generator.Charge;
     /// <summary>The generator is pushing the ship, in place of the main engine.</summary>
     public bool Pushes => On;
     public float Push => S.Push;
@@ -83,7 +89,7 @@ public partial class CruiseDevice : Node, IShipDevice, IRearmable
     public IRadio Course { get; private set; }
 
     private GeneratorSpec S => Spec ??= new GeneratorSpec();
-    private double _charge;
+    private GeneratorState _generator = new();
     private const float BeamFloor = 0.05f, BeamGoneSeconds = 0.5f;
     private float _sinceBeam;
     private float _thickened;
@@ -101,14 +107,11 @@ public partial class CruiseDevice : Node, IShipDevice, IRearmable
 
     public void Rearm()
     {
-        On = false;
-        _charge = 0;
+        _generator = new GeneratorState();
         Thin = 1;
         Wake = 0;
         DroppedOut = false;
         _thickened = 0;
-        Strain = 0;
-        Coupling = 0;
         ClearCourse();
     }
 
@@ -116,30 +119,8 @@ public partial class CruiseDevice : Node, IShipDevice, IRearmable
     {
         float dt = (float)delta;
         float natural = MediumMass.Density(ship.GetWorld3D(), ship.GlobalPosition);
-        Tune = Mathf.MoveToward(Tune, _tuneTo, S.TuneRate * dt);
-        Coupling = BeamOn ? Mathf.Clamp((S.TuneBand - Mathf.Abs(Tune - BeamBand)) / Mathf.Max(S.TuneBand * (1 - S.TuneFlat), 0.01f), 0, 1) : 0;
-        Density = natural + _thickened * (1 - Coupling * S.Rejection);
-        Locked = Density >= S.Thinning;
-        bool massed = natural >= S.Thinning;
-        if (ship.Held)
-            On = false;
-        if (Charging)
-        {
-            _charge -= delta;
-            if (Locked || ship.Held)
-                _charge = 0;
-            else if (_charge <= 0)
-                On = true;
-        }
-        Strain = On && Locked && !massed
-            ? Strain + dt / Mathf.Max(S.HoldSeconds, 0.01f)
-            : Mathf.Max(0, Strain - dt / Mathf.Max(2 * S.HoldSeconds, 0.01f));
-        if (On && (massed || Strain >= 1))
-        {
-            On = false;
+        if (_generator.Step(S, natural, _thickened, BeamBand, _tuneTo, dt, ship.Held))
             DroppedOut = true;
-            Strain = 0;
-        }
         _beamPhase = Mathf.Wrap(_beamPhase + Mathf.Tau * Hertz(BeamBand) * dt, 0, Mathf.Tau);
         _ownPhase = Mathf.Wrap(_ownPhase + Mathf.Tau * Hertz(Tune) * dt, 0, Mathf.Tau);
         Step(FullDrag(ship), (float)delta);
@@ -162,6 +143,12 @@ public partial class CruiseDevice : Node, IShipDevice, IRearmable
         bus[Slot, 13] = (byte)Mathf.Clamp(Coupling * 255, 0, 255);
         bus[Slot, 14] = BeamOn ? unchecked((byte)(sbyte)(Mathf.Sin(_beamPhase) * 127)) : (byte)0;
         bus[Slot, 15] = unchecked((byte)(sbyte)(Mathf.Sin(_ownPhase) * 127));
+        Fade(dt);
+    }
+
+    /// <summary>A beam goes as soon as nobody holds it on the ship. A ship at rest has no steps of its own: its holder calls this.</summary>
+    public void Fade(float dt)
+    {
         _sinceBeam += dt;
         _thickened = _sinceBeam > BeamGoneSeconds ? 0 : Mathf.Max(0, _thickened - 2 * dt * _thickened);
     }
@@ -173,15 +160,9 @@ public partial class CruiseDevice : Node, IShipDevice, IRearmable
         {
             bool start = bus[Slot, 5] != 0;
             if (!start)
-            {
-                On = false;
-                _charge = 0;
-            }
-            else if (!On && !Charging && !Locked && !ship.Held)
-            {
-                _charge = S.SpoolSeconds;
+                _generator.Stop();
+            else if (!ship.Held && _generator.Start(S))
                 DroppedOut = false;
-            }
         }
         if (bus.TakeWritten(Slot, 10))
             _tuneTo = bus[Slot, 10];

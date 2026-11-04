@@ -1,8 +1,9 @@
-[gd_scene load_steps=38 format=3]
+[gd_scene load_steps=39 format=3]
 
 [ext_resource type="Resource" path="res://assets/weapons/lasers/lsr_1.tres" id="spec_laser"]
 [ext_resource type="Resource" path="res://assets/weapons/decoys/dispenser_1.tres" id="spec_dispenser"]
 [ext_resource type="Script" path="res://scripts/Space/CruiseWake.cs" id="cruise_wake"]
+[ext_resource type="Script" path="res://scripts/Ship/CruiseDevice.cs" id="cruise_device"]
 [ext_resource type="Script" path="res://scripts/Ship/ShipBody.cs" id="1_ship"]
 [ext_resource type="Script" path="res://scripts/Space/PaintTheme.cs" id="paint_theme"]
 [ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="atlas"]
@@ -59,6 +60,9 @@ ExtResource("atlas"): ExtResource("paint")
 })
 
 [node name="Systems" type="Node3D" parent="."]
+
+[node name="Cruise" type="Node" parent="Systems"]
+script = ExtResource("cruise_device")
 
 [node name="Sensors" type="Node3D" parent="."]
 

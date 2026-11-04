@@ -211,3 +211,11 @@ station they have heard of (`scripts/World/MarketNews.cs`); newer news replaces 
 
 Shipyards still buy a ship's fitting from whoever has it without news: that is a purchase order, not yet a decision
 made on what the buyer knows.
+
+## What owners do about damage
+
+`CargoView` tells a ship's owner when it is hit (at most every `MaydayEverySeconds`) or lost: `Reactions.Happened` keeps an
+`Incident` on the `OrganisationRecord` and adds to `Bounties` (pilot id to credits) if a pilot did it.
+`CargoShips.Plan` leaves out sellers on a way the owner fears (`Reactions.Avoids`). `Reactions.Collect` pays a bounty
+when one pilot destroys another. Pilots who own ships get none of this: they decide for themselves.
+
