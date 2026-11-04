@@ -78,12 +78,14 @@ foot there. The market and the lockers both check this. The host's universe know
 local player's walker, or a guest's as the guest's machine reports it in the walker states (`Universe.OnFootAt`).
 
 There are two stations with complementary markets, a gate apart: the first sector's (industry: metals, machinery,
-hydrogen) and Kestrel, in the second sector (water, food, iron, medicines). Stations were at work before any pilot
+hydrogen) and Kestrel, in the second sector (water, food, iron, silicon, copper, medicines). A third, Quartz, in the first
+sector, makes only chips. Stations were at work before any pilot
 came (`Market.HoursBeforeStart`) and go on working unvisited, so prices differ from a new universe's first minute.
 
-**The first chain: iron into missiles.** Kestrel makes iron; the first station's market buys it, uses a little itself,
-and its factory makes missiles of it (`StationMarket.Outfits`, an `OutfitLine` per model: the stock wanted, how many
-an hour, the input and how much of it goes into one). The factory rests with the stock full and stops with no iron.
+**The first chain: ore into iron into missiles.** Kestrel mines ore and smelts iron; the first station's market buys it,
+uses a little itself, and its factory makes missiles of it and of electronics, which it makes of Quartz's chips and of copper. Quartz
+makes its chips of Kestrel's silicon and copper (`StationMarket.Outfits`, an `OutfitLine` per model with the
+stock wanted; the factory is a `FactoryLine`, see Recipes below). The factory rests with the stock full and stops with no iron.
 The price (`Outfit.Price`, on the model's spec) moves with the stock as a good's does. Commodities are traded at the market's kiosk,
 in tonnes, into the hold; missiles at the **arms kiosk** (`scenes/stations/props/arms_kiosk.tscn`, `ArmsWindow`), by
 the piece, straight onto the ship. Docked only; Kestrel's dealer has nothing to sell.
@@ -99,6 +101,22 @@ with, `ShipSpec.Dispenser`, and the rounds of the magazine of the turret it has 
 the only free load. In a session the host owns the record: a guest asks through it (topic `arms`) and the host counts a
 guest's launch when its missile appears there, its chaff and flares when their drops arrive, and its cannon rounds
 when their fire events do (the record goes back to the guest at most twice a second).
+
+**Recipes.** What anything is made of is a `Recipe` (a .tres in assets/recipes, for goods and outfits alike): what one
+run makes, and a list of components with amounts. Adding a component to a recipe is one edit, and it holds at every
+station that makes the thing. How fast a station runs it is a `FactoryLine` in its market's `Factories`. A factory
+stops without its inputs and rests while the market has all it wants of what it makes, so a chain runs itself: no ore,
+no iron; no iron, no missiles. A recipe with no inputs is a mine's, the only way anything comes into being. What a
+station's people use up is `MarketGood.Uses`. Stations work in steps of at most an hour (`Market.Advance`), so what one
+factory makes reaches the next in time. To add a good: a .tres in assets/goods, in catalog.tres, a line in the markets
+that deal in it, and a recipe with a factory where it is made.
+
+**Miners.** A `ShipSpawner` by Kestrel's belt keeps two miners (scenes/ships/ai_miner.tscn: the AI fighter, `Peaceful`,
+lasers only) at work: a `MinerJob` flies to a rock, stops off it and fires its ordinary laser, cutting
+`TonnesPerCycle` every `CycleSeconds` while the pulses reach the rock, then takes a full hold to the nearest station
+that deals in the ore (`StationMarket.Deliver`). A stand-in until mining is a loop of its own; players can't mine yet,
+and miners work only while the sector runs. They come from a spawner so that they work in a session: the host brings
+them in and guests see them (ai_miner.tscn is one of `SessionNode.Spawnables`). `tests/miner_test`.
 
 Lasers, turrets and missile pylons (`LaserSpec`, `TurretSpec`, `PylonSpec`, outfits too) are pieces for hardpoints: the first station's factory
 makes them of metals, slowly, and the dealer sells them into the pilot's **locker at that station** (and buys a

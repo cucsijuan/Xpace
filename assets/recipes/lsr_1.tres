@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Recipe" format=3]
+
+[ext_resource type="Script" path="res://scripts/World/Recipe.cs" id="1_recipe"]
+[ext_resource type="Script" path="res://scripts/World/RecipePart.cs" id="2_part"]
+[ext_resource type="Resource" path="res://assets/weapons/lasers/lsr_1.tres" id="3_output"]
+[ext_resource type="Resource" path="res://assets/goods/metals.tres" id="in_0"]
+
+[sub_resource type="Resource" id="Part_0"]
+script = ExtResource("2_part")
+Item = ExtResource("in_0")
+Amount = 2
+
+[resource]
+script = ExtResource("1_recipe")
+Output = ExtResource("3_output")
+Inputs = Array[ExtResource("2_part")]([SubResource("Part_0")])

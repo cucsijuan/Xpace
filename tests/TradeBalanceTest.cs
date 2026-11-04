@@ -45,7 +45,7 @@ public partial class TradeBalanceTest : Node
     private const float CruiseCap = 4096;
 
     private int _failures;
-    private End _a, _b;
+    private End _a, _b, _works;
     private ShipSpec _fighter, _courtesy;
     private GeneratorSpec _generator;
     private float _engineThrust;
@@ -55,6 +55,7 @@ public partial class TradeBalanceTest : Node
     {
         public string Name;
         public MarketGood[] Goods;
+        public FactoryLine[] Factories;
         public StationRecord Record;
         public Vector3 Station, Gate;
         public List<(Vector3 At, float Reach)> Masses;
@@ -77,6 +78,7 @@ public partial class TradeBalanceTest : Node
         _engineThrust = GD.Load<EngineSpec>("res://assets/ship/engines/engine_d50.tres").RatedThrust;
         _a = Read("res://scenes/sectors/sector_01.tscn", "Station", "Gate2");
         _b = Read("res://scenes/sectors/sector_02.tscn", "Kestrel", "Gate1");
+        _works = Read("res://scenes/sectors/sector_01.tscn", "Quartz", "Gate2");
 
         Route();
         Prices();
@@ -86,6 +88,7 @@ public partial class TradeBalanceTest : Node
         Complementary();
         WorthCarrying();
         WearsOut();
+        ChipsChain();
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
@@ -247,7 +250,7 @@ public partial class TradeBalanceTest : Node
         foreach (string good in Goods())
         {
             MarketGood a = Line(_a, good), b = Line(_b, good);
-            if (a == null || b == null || Math.Sign(a.Rate) == Math.Sign(b.Rate))
+            if (a == null || b == null || Math.Sign(Market.Net(good, _a.Goods, _a.Factories)) == Math.Sign(Market.Net(good, _b.Goods, _b.Factories)))
                 alone.Add(good);
         }
         Check($"every good is made at one end and used at the other ({(alone.Count == 0 ? "all" : "not: " + string.Join(", ", alone))})", alone.Count == 0);
@@ -295,6 +298,26 @@ public partial class TradeBalanceTest : Node
         Check($"it can't be milked for ever with no time passing ({legs} legs, at most {MaxLegsToWearOut})", legs <= MaxLegsToWearOut);
     }
 
+    // The goods that go by way of the chip works, none of them dealt in at both ends of the route
+    private void ChipsChain()
+    {
+        var works = new StationRecord { Callsign = _works.Name };
+        Market.Advance(works, _works.Goods, SettledHours * 3600, null, _works.Factories);
+        Advance(SettledHours * 3600);
+        foreach (var (from, fromGoods, fromRecord, to, toGoods, toRecord, good) in new[]
+        {
+            (_b.Name, _b.Goods, _b.Record, _works.Name, _works.Goods, works, "silicon"),
+            (_b.Name, _b.Goods, _b.Record, _works.Name, _works.Goods, works, "copper"),
+            (_works.Name, _works.Goods, works, _a.Name, _a.Goods, _a.Record, "chips"),
+        })
+        {
+            MarketGood seller = fromGoods.First(g => g.Good.Id == good), buyer = toGoods.First(g => g.Good.Id == good);
+            long buy = Market.BuyPrice(seller, fromRecord.Stock[good]), sell = Market.SellPrice(buyer, toRecord.Stock[good]);
+            Check($"{good} from {from} ({fromRecord.Stock[good]:0} t, {buy}) sells at {to} ({toRecord.Stock[good]:0} t, {sell})", buy >= 0 && sell > buy);
+        }
+        Reset();
+    }
+
     // ---- A run ----
 
     private Run Best(End from, End to, ShipSpec hull, long credits, double clock)
@@ -322,7 +345,7 @@ public partial class TradeBalanceTest : Node
         Market.Buy(seller, Line(from, good), pilot, hold, hold, out int bought, out long paid);
         if (bought == 0)
             return null;
-        Market.Advance(buyer, to.Goods, clock + LegSeconds(from, to, hull, bought));
+        Market.Advance(buyer, to.Goods, clock + LegSeconds(from, to, hull, bought), null, to.Factories);
         Market.Sell(buyer, Line(to, good), pilot, bought, out _, out long earned);
         return new Run { Good = good, Tonnes = bought, Paid = paid, Earned = earned, Profit = earned - paid - from.Toll };
     }
@@ -368,6 +391,7 @@ public partial class TradeBalanceTest : Node
         {
             Name = station,
             Goods = stationNode.GetNode<StationMarket>("Market").Goods.Where(g => g?.Good != null).ToArray(),
+            Factories = stationNode.GetNode<StationMarket>("Market").Factories,
             Station = At(stationNode as Node3D),
             Gate = At(root.GetNode<Node3D>(gate)),
             Masses = masses,
@@ -414,7 +438,7 @@ public partial class TradeBalanceTest : Node
         foreach (End end in new[] { _a, _b })
         {
             end.Record = new StationRecord { Callsign = end.Name };
-            Market.Advance(end.Record, end.Goods, 0);
+            Market.Advance(end.Record, end.Goods, 0, null, end.Factories);
         }
     }
 
@@ -427,8 +451,8 @@ public partial class TradeBalanceTest : Node
 
     private void AdvanceBoth(double clock)
     {
-        Market.Advance(_a.Record, _a.Goods, clock);
-        Market.Advance(_b.Record, _b.Goods, clock);
+        Market.Advance(_a.Record, _a.Goods, clock, null, _a.Factories);
+        Market.Advance(_b.Record, _b.Goods, clock, null, _b.Factories);
     }
 
     private void Check(string what, bool ok)

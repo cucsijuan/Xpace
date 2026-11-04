@@ -222,7 +222,7 @@ public partial class MarketTest : Node
 
     private void Rules()
     {
-        var line = new MarketGood { Good = GoodsCatalog.Find("food"), Stock = 100, Rate = -10 };
+        var line = new MarketGood { Good = GoodsCatalog.Find("food"), Stock = 100, Uses = 10 };
         Check("the goods' catalog loads", line.Good is { Name: "Food" } && GoodsCatalog.All.Goods.Length >= 8);
         Check($"a tonne at the wanted stock is at the base price ({Market.Price(line, 100)})", Market.Price(line, 100) == line.Good.BasePrice);
         Check("dearer as stock runs short, cheaper as it piles up",
@@ -232,7 +232,7 @@ public partial class MarketTest : Node
               Market.Price(line, 10_000) == (long)Math.Round(line.Good.BasePrice * Market.Cheapest));
         var station = new StationRecord();
         Market.Advance(station, new[] { line }, 0);
-        double atStart = 100 + line.Rate * Market.HoursBeforeStart;
+        double atStart = 100 - line.Uses * Market.HoursBeforeStart;
         Check($"a new market has been at work for a while already ({station.Stock["food"]} of the 100 t it wants)", station.Stock["food"] == atStart);
         Market.Advance(station, new[] { line }, 3600 * 2);
         Check($"two hours on, it has used 20 t ({station.Stock["food"]})", Math.Abs(station.Stock["food"] - (atStart - 20)) < 1e-9);
@@ -242,9 +242,12 @@ public partial class MarketTest : Node
         Market.Advance(station, new[] { line }, 3600 * 100);
         Check("and never less than none", station.Stock["food"] == 0);
         Check("with none, nothing to sell", Market.BuyPrice(line, 0) < 0);
-        var made = new MarketGood { Good = line.Good, Stock = 100, Rate = 50 };
-        Market.Advance(station, new[] { made }, 3600 * 1000);
+        var made = new MarketGood { Good = line.Good, Stock = 100 };
+        var mine = new[] { new FactoryLine { Recipe = new Recipe { Output = line.Good }, PerHour = 50 } };
+        Market.Advance(station, new[] { made }, 3600 * 1000, null, mine);
         Check("made, it piles up to full and no more", station.Stock["food"] == Market.Full * 100 && Market.SellPrice(made, station.Stock["food"]) < 0);
+
+        Chain();
 
         var pilot = new PilotRecord { Credits = 10_000 };
         station.Stock["food"] = 100;
@@ -253,6 +256,42 @@ public partial class MarketTest : Node
         Check($"buying and selling back at once loses ({paid} paid, {earned} back)", bought == 5 && sold == 5 && earned < paid);
         Check("a hold that is full takes no more",
               Market.Buy(station, line, pilot, 5, 2, out bought, out _) == Market.Result.HoldFull && bought == 2);
+    }
+
+    // Recipes: a chain from the mine on, each step stopping without what it takes
+    private void Chain()
+    {
+        Good ore = GoodsCatalog.Find("iron_ore"), iron = GoodsCatalog.Find("iron"), water = GoodsCatalog.Find("water");
+        var goods = new[] { new MarketGood { Good = ore, Stock = 100 }, new MarketGood { Good = iron, Stock = 100 }, new MarketGood { Good = water, Stock = 100 } };
+        var mine = new FactoryLine { Recipe = GD.Load<Recipe>("res://assets/recipes/iron_ore.tres"), PerHour = 20 };
+        var smelter = new FactoryLine { Recipe = GD.Load<Recipe>("res://assets/recipes/iron.tres"), PerHour = 10 };
+        Check("a recipe with no inputs is a mine's", mine.Recipe.Mined && !smelter.Recipe.Mined);
+        Check($"what a station nets of a good, all running ({Market.Net("iron", goods, new[] { mine, smelter })} iron, {Market.Net("iron_ore", goods, new[] { mine, smelter })} ore)",
+              Market.Net("iron", goods, new[] { mine, smelter }) == 10 && Market.Net("iron_ore", goods, new[] { mine, smelter }) == 0);
+
+        var station = new StationRecord();
+        Market.Advance(station, goods, 0);
+        station.Stock["iron"] = 0;
+        station.Stock["iron_ore"] = 6;
+        Market.Advance(station, goods, 3600, null, new[] { smelter });
+        Check($"a factory stops when its input runs out (6 t of ore: {station.Stock["iron"]} t of iron)", Math.Abs(station.Stock["iron"] - 3) < 1e-9 && station.Stock["iron_ore"] < 1e-9);
+        Market.Advance(station, goods, 3600 * 3, null, new[] { mine, smelter });
+        Check($"the mine feeds it through the chain, hour by hour ({station.Stock["iron"]} t)", Math.Abs(station.Stock["iron"] - 23) < 1e-9);
+
+        // Two inputs: the scarcer one sets the pace
+        var both = new Recipe { Output = iron, Inputs = new[] { new RecipePart { Item = ore, Amount = 1 }, new RecipePart { Item = water, Amount = 2 } } };
+        station.Stock["iron"] = 0;
+        station.Stock["iron_ore"] = 100;
+        station.Stock["water"] = 4;
+        Market.Advance(station, goods, 3600 * 4, null, new[] { new FactoryLine { Recipe = both, PerHour = 10 } });
+        Check($"with two inputs the scarcer sets the pace ({station.Stock["iron"]} t, {station.Stock["iron_ore"]} t of ore left)", Math.Abs(station.Stock["iron"] - 2) < 1e-9 && Math.Abs(station.Stock["iron_ore"] - 98) < 1e-9);
+
+        // Nothing comes from nowhere: everything sold in the game's stations has a recipe, and only raw goods are mined
+        var haven = GD.Load<PackedScene>("res://scenes/stations/synty_station.tscn").Instantiate<Node>();
+        var market = haven.GetNode<StationMarket>("Market");
+        var missing = market.Outfits.Where(o => market.Factories.All(f => Recipe.IdOf(f.Recipe.Output) != o.Id)).Select(o => o.Id).ToList();
+        Check($"the station's factories make all its dealer sells ({(missing.Count == 0 ? "all" : string.Join(", ", missing))})", missing.Count == 0);
+        haven.Free();
     }
 
     private void Place(Transform3D at) =>

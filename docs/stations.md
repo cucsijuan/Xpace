@@ -5,6 +5,7 @@ A station is a scene of **modules** and **parts**, each a scene of its own. Put 
 | Scene | What it is |
 |---|---|
 | `scenes/stations/synty_station.tscn` | The station from Synty's `Demo_Exterior` (the one in `scenes/main.tscn`) |
+| `scenes/stations/keel_station.tscn` | A small station: the keel and the tower, with a hangar pod on the outside and colours of its own (Quartz, in the first sector) |
 | `scenes/stations/modules/station_01_ring.tscn` | The big ring with spokes and the central drum (SM_Ship_Station_01, 566 m across) |
 | `scenes/stations/modules/station_02_outer_ring.tscn` | A thin ring with arms, round the big one (SM_Ship_Station_02, 500 m) |
 | `scenes/stations/modules/station_03_inner_ring.tscn` | A ring with spokes, inside the big one (SM_Ship_Station_03, 270 m) |
@@ -16,6 +17,7 @@ A station is a scene of **modules** and **parts**, each a scene of its own. Put 
 | `scenes/stations/props/spacewalk_tube.tscn` | Spacewalk tube (SM_Prop_SpaceWalk_Tube_01; scaled 4.8) |
 | `scenes/stations/modules/station_01_ring_hangar.tscn` | The big ring with the hangar's room cut out of its outer band |
 | `scenes/stations/props/hangar_big.tscn` | The big hangar: a room for every ship short of a capital one, made out of Synty's SM_Bld_Hangar_01 |
+| `scenes/stations/props/hangar_pod.tscn` | The big hangar as a module to bolt onto anything: hull all round and a housing the door rises into, nothing to cut |
 | `scenes/stations/props/landing_pad.tscn` | Landing platform, looks and solid only (SM_Bld_Landing_Platform_01, 13.2 m, deck on `assets/surfaces`, joints and dimples in normal maps: `tools/station_bay/build_pad.py`, `pad_maps.py`) |
 | `scenes/stations/props/landing_pad_small.tscn` | A working landing pad for small ships (fighters): the platform at twice its size, clamps, glow and beacon (see Landing pads) |
 | `scenes/stations/props/hull_panel_a.tscn`, `_b`, `_c` | Hull panels, 30 x 30 m, cut from the ring's own skin and flattened |
@@ -40,6 +42,14 @@ The station modules use `assets/materials/synty_station.tres`, Synty's `PolygonS
 In the demo station four hangars go through the big ring's outer band (226.5 to 279.5 m from the axis, -50 to -140 m high), midway between the ring's arms: 45 degrees either side of the spacewalk tubes and opposite them. Each one's door is in the band's outer face, its back stands clear in the ring's hollow (clad, see below); the missile turrets on the band stand well above them. `tools/station_bay/cut_station.py` cuts their rooms out of the ring (and the ring's collision mesh) and prints their transforms: the `HangarBig1` to `HangarBig4` nodes in `synty_station.tscn` must have the same ones (`ANGLES` in the script).
 
 Where a hangar stands out of the ring, `hangar_casing.tscn` (instanced in `hangar_big.tscn`, so all four have it) clads it in the station's own hull: `Panels` and `Trims`, every one an instance to move, scale, add or delete in the editor (to make room for a corridor or a lift later). The raised door slides up into a pocket cut in the ring above the door, lined with plates, so the band's plates that stand out don't go through it.
+
+## The hangar pod
+
+`hangar_pod.tscn` is `hangar_big.tscn` standing out in the open: the casing's panels carried forward to the mouth, jambs beside the door, and above it a housing the raised door goes into (`HousingSolid` is what ships meet there). Nothing has to be cut, so any station can have one: put the pod's back into the body, its door outwards. Its origin is the hangar's. It has its own `AvoidCapsule`.
+
+## Colours
+
+A station keeps the modules as they are and adds a `PaintTheme` node named `Theme`: `Swaps` says which material takes the place of which, for every `ModelPaint` below the node's parent, in the editor too. `keel_station.tscn` swaps `synty_station.tres` for `synty_station_works.tres`, the same material on another atlas. The hangar's inside and door are on the plain atlas, so they keep their colours unless that is swapped too.
 
 ## Landing pads
 
@@ -139,6 +149,10 @@ Every module has an `AvoidCapsule`: a rough shape round it that AI pilots' lidar
 Make the capsule hold the whole module. A pilot already inside one does not see it, so a ship that starts there is not trapped.
 
 A ship that means to go inside the station (to dock) sets its sensor's `Entering` to the station's root node. The capsules below that node are then not seen, and only the solid walls are in its way.
+
+## Planets
+
+A sector is wider than a camera's far plane (120 km). A planet is a `DistantBody` node at its true place with its mesh in a `Body` child: past what the camera can hold, the body comes closer and shrinks by the same share, so it looks the same. Set `Radius` to that of the outermost mesh. Its meshes use `assets/materials/planet_surface.gdshader`, which writes the depth of the planet's real place: ships and stations stay in front of it or behind it as they really are (on the Compatibility renderer it keeps the depth it is drawn at, so distant things in front of a planet can hide behind it there). A material of another kind on a planet needs the same few lines. Transparent layers (clouds) can't write depth, and meet the depth they are drawn at. The body casts no shadows.
 
 ## Surfaces
 

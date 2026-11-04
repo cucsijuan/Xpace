@@ -40,119 +40,177 @@
 [ext_resource type="Resource" path="res://assets/goods/metals.tres" id="32_metals"]
 [ext_resource type="Resource" path="res://assets/goods/machinery.tres" id="32_machinery"]
 [ext_resource type="Resource" path="res://assets/goods/electronics.tres" id="32_electronics"]
+[ext_resource type="Resource" path="res://assets/goods/chips.tres" id="32_chips"]
+[ext_resource type="Resource" path="res://assets/goods/copper.tres" id="32_copper"]
 [ext_resource type="Resource" path="res://assets/goods/hydrogen.tres" id="32_hydrogen"]
+
+[ext_resource type="Script" path="res://scripts/World/FactoryLine.cs" id="factory_line"]
+[ext_resource type="Resource" path="res://assets/recipes/hydrogen.tres" id="recipe_hydrogen"]
+[ext_resource type="Resource" path="res://assets/recipes/metals.tres" id="recipe_metals"]
+[ext_resource type="Resource" path="res://assets/recipes/machinery.tres" id="recipe_machinery"]
+[ext_resource type="Resource" path="res://assets/recipes/electronics.tres" id="recipe_electronics"]
+[ext_resource type="Resource" path="res://assets/recipes/msl_1.tres" id="recipe_msl_1"]
+[ext_resource type="Resource" path="res://assets/recipes/ir_1.tres" id="recipe_ir_1"]
+[ext_resource type="Resource" path="res://assets/recipes/chaff_1.tres" id="recipe_chaff_1"]
+[ext_resource type="Resource" path="res://assets/recipes/flare_1.tres" id="recipe_flare_1"]
+[ext_resource type="Resource" path="res://assets/recipes/lsr_1.tres" id="recipe_lsr_1"]
+[ext_resource type="Resource" path="res://assets/recipes/gun_1.tres" id="recipe_gun_1"]
+[ext_resource type="Resource" path="res://assets/recipes/pyl_1.tres" id="recipe_pyl_1"]
+[ext_resource type="Resource" path="res://assets/recipes/rounds_1.tres" id="recipe_rounds_1"]
+
+[sub_resource type="Resource" id="Works_hydrogen"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_hydrogen")
+PerHour = 20.0
+
+[sub_resource type="Resource" id="Works_metals"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_metals")
+PerHour = 57.5
+
+[sub_resource type="Resource" id="Works_machinery"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_machinery")
+PerHour = 15.0
+
+[sub_resource type="Resource" id="Works_electronics"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_electronics")
+PerHour = 6.0
+
+[sub_resource type="Resource" id="Works_msl_1"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_msl_1")
+PerHour = 12.0
+
+[sub_resource type="Resource" id="Works_ir_1"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_ir_1")
+PerHour = 12.0
+
+[sub_resource type="Resource" id="Works_chaff_1"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_chaff_1")
+PerHour = 60.0
+
+[sub_resource type="Resource" id="Works_flare_1"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_flare_1")
+PerHour = 60.0
+
+[sub_resource type="Resource" id="Works_lsr_1"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_lsr_1")
+PerHour = 1.0
+
+[sub_resource type="Resource" id="Works_gun_1"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_gun_1")
+PerHour = 0.5
+
+[sub_resource type="Resource" id="Works_pyl_1"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_pyl_1")
+PerHour = 1.0
+
+[sub_resource type="Resource" id="Works_rounds_1"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_rounds_1")
+PerHour = 3000.0
 
 [sub_resource type="Resource" id="Arms_msl"]
 script = ExtResource("33_outfit")
 Item = ExtResource("33_msl")
 Stock = 24
-PerHour = 12.0
-Input = ExtResource("32_iron")
-InputPerUnit = 0.5
 
 [sub_resource type="Resource" id="Arms_ir"]
 script = ExtResource("33_outfit")
 Item = ExtResource("33_ir")
 Stock = 24
-PerHour = 12.0
-Input = ExtResource("32_iron")
-InputPerUnit = 0.25
 
 [sub_resource type="Resource" id="Arms_chaff"]
 script = ExtResource("33_outfit")
 Item = ExtResource("33_chaff")
 Stock = 80
-PerHour = 60.0
-Input = ExtResource("32_metals")
-InputPerUnit = 0.02
 
 [sub_resource type="Resource" id="Arms_flare"]
 script = ExtResource("33_outfit")
 Item = ExtResource("33_flare")
 Stock = 80
-PerHour = 60.0
-Input = ExtResource("32_metals")
-InputPerUnit = 0.03
 
 [sub_resource type="Resource" id="Arms_lsr"]
 script = ExtResource("33_outfit")
 Item = ExtResource("33_lsr")
 Stock = 4
-PerHour = 1.0
-Input = ExtResource("32_metals")
-InputPerUnit = 2.0
 
 [sub_resource type="Resource" id="Arms_gun"]
 script = ExtResource("33_outfit")
 Item = ExtResource("33_gun")
 Stock = 2
-PerHour = 0.5
-Input = ExtResource("32_metals")
-InputPerUnit = 4.0
 
 [sub_resource type="Resource" id="Arms_pyl"]
 script = ExtResource("33_outfit")
 Item = ExtResource("33_pyl")
 Stock = 4
-PerHour = 1.0
-Input = ExtResource("32_metals")
-InputPerUnit = 1.0
 
 [sub_resource type="Resource" id="Arms_rounds"]
 script = ExtResource("33_outfit")
 Item = ExtResource("33_rounds")
 Stock = 3000
-PerHour = 3000.0
-Input = ExtResource("32_metals")
-InputPerUnit = 0.0005
 
 [sub_resource type="Resource" id="Market_water"]
 script = ExtResource("31_market_good")
 Good = ExtResource("32_water")
 Stock = 400
-Rate = -60.0
+Uses = 60.0
 
 [sub_resource type="Resource" id="Market_food"]
 script = ExtResource("31_market_good")
 Good = ExtResource("32_food")
 Stock = 300
-Rate = -40.0
+Uses = 40.0
 
 [sub_resource type="Resource" id="Market_iron"]
 script = ExtResource("31_market_good")
 Good = ExtResource("32_iron")
 Stock = 60
-Rate = -5.0
+Uses = 5.0
 
 [sub_resource type="Resource" id="Market_medicines"]
 script = ExtResource("31_market_good")
 Good = ExtResource("32_medicines")
 Stock = 60
-Rate = -6.0
+Uses = 6.0
 
 [sub_resource type="Resource" id="Market_metals"]
 script = ExtResource("31_market_good")
 Good = ExtResource("32_metals")
 Stock = 300
-Rate = 50.0
 
 [sub_resource type="Resource" id="Market_machinery"]
 script = ExtResource("31_market_good")
 Good = ExtResource("32_machinery")
 Stock = 120
-Rate = 15.0
+
+[sub_resource type="Resource" id="Market_chips"]
+script = ExtResource("31_market_good")
+Good = ExtResource("32_chips")
+Stock = 150
+
+[sub_resource type="Resource" id="Market_copper"]
+script = ExtResource("31_market_good")
+Good = ExtResource("32_copper")
+Stock = 150
 
 [sub_resource type="Resource" id="Market_electronics"]
 script = ExtResource("31_market_good")
 Good = ExtResource("32_electronics")
 Stock = 80
-Rate = 4.0
 
 [sub_resource type="Resource" id="Market_hydrogen"]
 script = ExtResource("31_market_good")
 Good = ExtResource("32_hydrogen")
 Stock = 400
-Rate = 20.0
 
 [node name="SyntyStation" type="Node3D"]
 
@@ -236,8 +294,9 @@ Voices = Array[ExtResource("20_voice_pack")]([ExtResource("16_voice_f1"), ExtRes
 
 [node name="Market" type="Node" parent="."]
 script = ExtResource("30_market")
-Goods = Array[ExtResource("31_market_good")]([SubResource("Market_water"), SubResource("Market_food"), SubResource("Market_iron"), SubResource("Market_medicines"), SubResource("Market_metals"), SubResource("Market_machinery"), SubResource("Market_electronics"), SubResource("Market_hydrogen")])
+Goods = Array[ExtResource("31_market_good")]([SubResource("Market_water"), SubResource("Market_food"), SubResource("Market_iron"), SubResource("Market_medicines"), SubResource("Market_metals"), SubResource("Market_machinery"), SubResource("Market_chips"), SubResource("Market_copper"), SubResource("Market_electronics"), SubResource("Market_hydrogen")])
 Outfits = Array[ExtResource("33_outfit")]([SubResource("Arms_msl"), SubResource("Arms_ir"), SubResource("Arms_chaff"), SubResource("Arms_flare"), SubResource("Arms_rounds"), SubResource("Arms_lsr"), SubResource("Arms_gun"), SubResource("Arms_pyl")])
+Factories = Array[ExtResource("factory_line")]([SubResource("Works_hydrogen"), SubResource("Works_metals"), SubResource("Works_machinery"), SubResource("Works_electronics"), SubResource("Works_msl_1"), SubResource("Works_ir_1"), SubResource("Works_chaff_1"), SubResource("Works_flare_1"), SubResource("Works_lsr_1"), SubResource("Works_gun_1"), SubResource("Works_pyl_1"), SubResource("Works_rounds_1")])
 
 [node name="Lockers" type="Node" parent="."]
 script = ExtResource("40_lockers")

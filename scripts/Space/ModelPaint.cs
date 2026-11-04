@@ -77,7 +77,7 @@ public partial class ModelPaint : Node
         foreach (MeshInstance3D mesh in parent.FindChildren("*", "MeshInstance3D", true, true).OfType<MeshInstance3D>())
         {
             _before.TryAdd(mesh, mesh.MaterialOverride);
-            Material paint = ByMesh.TryGetValue(mesh.Name, out Material own) ? own : Material;
+            Material paint = PaintTheme.Over(this, ByMesh.TryGetValue(mesh.Name, out Material own) ? own : Material);
             if (BySurface.Count == 0)
             {
                 mesh.MaterialOverride = paint;
@@ -87,7 +87,7 @@ public partial class ModelPaint : Node
             for (int i = 0; i < mesh.GetSurfaceOverrideMaterialCount(); i++)
             {
                 _beforeSurfaces.TryAdd((mesh, i), mesh.GetSurfaceOverrideMaterial(i));
-                mesh.SetSurfaceOverrideMaterial(i, BySurface.TryGetValue(i, out Material surface) ? surface : paint);
+                mesh.SetSurfaceOverrideMaterial(i, BySurface.TryGetValue(i, out Material surface) ? PaintTheme.Over(this, surface) : paint);
             }
         }
     }

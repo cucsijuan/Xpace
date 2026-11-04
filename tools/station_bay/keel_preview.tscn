@@ -1,0 +1,37 @@
+[gd_scene load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://scripts/Tools/ViewShots.cs" id="1_script"]
+[ext_resource type="PackedScene" path="res://scenes/stations/keel_station.tscn" id="2_station"]
+[ext_resource type="Material" path="res://assets/materials/synty_skybox_04.tres" id="3_skybox"]
+
+[sub_resource type="Sky" id="Sky_space"]
+sky_material = ExtResource("3_skybox")
+
+[sub_resource type="Environment" id="Environment_space"]
+background_mode = 2
+sky = SubResource("Sky_space")
+ambient_light_source = 2
+ambient_light_color = Color(0.25, 0.27, 0.32, 1)
+ambient_light_energy = 0.6
+tonemap_mode = 2
+glow_enabled = true
+
+[node name="Preview" type="Node3D"]
+script = ExtResource("1_script")
+Folder = "user://keel_station"
+Names = PackedStringArray("front", "side", "top", "back", "door", "under")
+Eyes = PackedVector3Array(200, -40, 520, 560, -60, 60, 60, 480, 120, -420, 40, -360, 40, -70, 260, 200, -320, 300)
+Targets = PackedVector3Array(0, -90, 40, 0, -90, 40, 0, -90, 40, 0, -90, 40, 0, -85, 150, 0, -90, 40)
+Fovs = PackedFloat32Array(50, 50, 50, 50, 65, 50)
+
+[node name="Environment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_space")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.353553, 0.612372, 0, 0.866025, 0.5, -0.707107, -0.353553, 0.612372, 0, 0, 0)
+light_energy = 1.4
+
+[node name="Station" parent="." instance=ExtResource("2_station")]
+
+[node name="Camera" type="Camera3D" parent="."]
+far = 20000.0

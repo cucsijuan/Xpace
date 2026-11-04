@@ -43,53 +43,133 @@
 [ext_resource type="Script" path="res://scripts/Space/SunShadows.cs" id="sun_shadows"]
 [ext_resource type="Resource" path="res://assets/lighting/shadows_flying.tres" id="shadows_flying"]
 [ext_resource type="Resource" path="res://assets/lighting/shadows_on_foot.tres" id="shadows_on_foot"]
+[ext_resource type="Script" path="res://scripts/World/FactoryLine.cs" id="factory_line"]
+[ext_resource type="Resource" path="res://assets/goods/iron_ore.tres" id="good_iron_ore"]
+[ext_resource type="Resource" path="res://assets/recipes/water.tres" id="recipe_water"]
+[ext_resource type="Resource" path="res://assets/recipes/iron_ore.tres" id="recipe_iron_ore"]
+[ext_resource type="Resource" path="res://assets/recipes/silicon.tres" id="recipe_silicon"]
+[ext_resource type="Resource" path="res://assets/recipes/copper.tres" id="recipe_copper"]
+[ext_resource type="Resource" path="res://assets/goods/silicon.tres" id="good_silicon"]
+[ext_resource type="Resource" path="res://assets/goods/copper.tres" id="good_copper"]
+[ext_resource type="Resource" path="res://assets/recipes/iron.tres" id="recipe_iron"]
+[ext_resource type="Resource" path="res://assets/recipes/food.tres" id="recipe_food"]
+[ext_resource type="Resource" path="res://assets/recipes/medicines.tres" id="recipe_medicines"]
+
+[ext_resource type="Script" uid="uid://ckiwalmif04k4" path="res://scripts/Space/RockKind.cs" id="8_kind"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_01.tres" id="8_rock_01"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_02.tres" id="8_rock_02"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_03.tres" id="8_rock_03"]
+[ext_resource type="Resource" uid="uid://dcgyine8s4uye" path="res://assets/space/rocks/rock_04.tres" id="8_rock_04"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_05.tres" id="8_rock_05"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_holes_03.tres" id="8_rock_holes_03"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_large_01.tres" id="8_rock_large_01"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_large_02.tres" id="8_rock_large_02"]
+[ext_resource type="Resource" path="res://assets/space/rocks/rock_large_holes_02.tres" id="8_rock_large_holes_02"]
+[ext_resource type="Script" uid="uid://ckiwalmif04k4" path="res://scripts/Space/RockKind.cs" id="8_kind"]
+[ext_resource type="Script" uid="uid://cupiki1xrg00r" path="res://scripts/Space/RockField.cs" id="8_rocks"]
+[ext_resource type="Script" uid="uid://cjgdfrbao84c3" path="res://scripts/Space/RockBox.cs" id="8_region"]
+[ext_resource type="Script" path="res://scripts/Space/MediumMass.cs" id="medium_mass"]
+[ext_resource type="Script" path="res://scripts/Space/ShipSpawner.cs" id="ship_spawner"]
+[ext_resource type="PackedScene" path="res://scenes/ships/ai_miner.tscn" id="ai_miner"]
+
+[sub_resource type="Resource" id="Region_belt"]
+script = ExtResource("8_region")
+Size = Vector3(6000, 1500, 6000)
+Falloff = 800.0
+
+[sub_resource type="Resource" id="Kestrel_works_water"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_water")
+PerHour = 109.0
+
+[sub_resource type="Resource" id="Kestrel_works_iron_ore"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_iron_ore")
+PerHour = 80.0
+
+[sub_resource type="Resource" id="Kestrel_works_iron"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_iron")
+PerHour = 40.0
+
+[sub_resource type="Resource" id="Kestrel_works_food"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_food")
+PerHour = 50.0
+
+[sub_resource type="Resource" id="Kestrel_works_medicines"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_medicines")
+PerHour = 8.0
+
+[sub_resource type="Resource" id="Kestrel_works_silicon"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_silicon")
+PerHour = 4.0
+
+[sub_resource type="Resource" id="Kestrel_works_copper"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_copper")
+PerHour = 8.0
+
+[sub_resource type="Resource" id="Kestrel_silicon"]
+script = ExtResource("kestrel_market_good")
+Good = ExtResource("good_silicon")
+Stock = 100
+
+[sub_resource type="Resource" id="Kestrel_copper"]
+script = ExtResource("kestrel_market_good")
+Good = ExtResource("good_copper")
+Stock = 150
+
+[sub_resource type="Resource" id="Kestrel_iron_ore"]
+script = ExtResource("kestrel_market_good")
+Good = ExtResource("good_iron_ore")
+Stock = 100
+
 [sub_resource type="Resource" id="Kestrel_water"]
 script = ExtResource("kestrel_market_good")
 Good = ExtResource("good_water")
 Stock = 500
-Rate = 80.0
 
 [sub_resource type="Resource" id="Kestrel_food"]
 script = ExtResource("kestrel_market_good")
 Good = ExtResource("good_food")
 Stock = 400
-Rate = 50.0
 
 [sub_resource type="Resource" id="Kestrel_iron"]
 script = ExtResource("kestrel_market_good")
 Good = ExtResource("good_iron")
 Stock = 300
-Rate = 40.0
 
 [sub_resource type="Resource" id="Kestrel_medicines"]
 script = ExtResource("kestrel_market_good")
 Good = ExtResource("good_medicines")
 Stock = 80
-Rate = 8.0
 
 [sub_resource type="Resource" id="Kestrel_metals"]
 script = ExtResource("kestrel_market_good")
 Good = ExtResource("good_metals")
 Stock = 200
-Rate = -40.0
+Uses = 40.0
 
 [sub_resource type="Resource" id="Kestrel_machinery"]
 script = ExtResource("kestrel_market_good")
 Good = ExtResource("good_machinery")
 Stock = 100
-Rate = -12.0
+Uses = 12.0
 
 [sub_resource type="Resource" id="Kestrel_electronics"]
 script = ExtResource("kestrel_market_good")
 Good = ExtResource("good_electronics")
 Stock = 60
-Rate = -6.0
+Uses = 6.0
 
 [sub_resource type="Resource" id="Kestrel_hydrogen"]
 script = ExtResource("kestrel_market_good")
 Good = ExtResource("good_hydrogen")
 Stock = 200
-Rate = -30.0
+Uses = 30.0
 
 [sub_resource type="Sky" id="Sky_space"]
 sky_material = ExtResource("43_skybox")
@@ -138,8 +218,9 @@ OnFoot = ExtResource("shadows_on_foot")
 transform = Transform3D(-0.5, 0, -0.866025, 0, 1, 0, 0.866025, 0, -0.5, -70000, 2000, -100000)
 
 [node name="Market" parent="Kestrel"]
-Goods = Array[ExtResource("kestrel_market_good")]([SubResource("Kestrel_water"), SubResource("Kestrel_food"), SubResource("Kestrel_iron"), SubResource("Kestrel_medicines"), SubResource("Kestrel_metals"), SubResource("Kestrel_machinery"), SubResource("Kestrel_electronics"), SubResource("Kestrel_hydrogen")])
+Goods = Array[ExtResource("kestrel_market_good")]([SubResource("Kestrel_water"), SubResource("Kestrel_food"), SubResource("Kestrel_iron"), SubResource("Kestrel_iron_ore"), SubResource("Kestrel_silicon"), SubResource("Kestrel_copper"), SubResource("Kestrel_medicines"), SubResource("Kestrel_metals"), SubResource("Kestrel_machinery"), SubResource("Kestrel_electronics"), SubResource("Kestrel_hydrogen")])
 Outfits = Array[ExtResource("kestrel_outfit")]([])
+Factories = Array[ExtResource("factory_line")]([SubResource("Kestrel_works_water"), SubResource("Kestrel_works_iron_ore"), SubResource("Kestrel_works_silicon"), SubResource("Kestrel_works_copper"), SubResource("Kestrel_works_iron"), SubResource("Kestrel_works_food"), SubResource("Kestrel_works_medicines")])
 Factor = true
 
 [node name="Projectiles" type="MultiMeshInstance3D" parent="." unique_id=1887929994]
@@ -149,3 +230,24 @@ Looks = Array[ExtResource("48_look")]([ExtResource("46_cannon_look"), ExtResourc
 [node name="Gate1" parent="." instance=ExtResource("gate_scene")]
 Destination = "sector_01"
 ExitGate = "Gate2"
+
+[node name="Belt" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76270, 2000, -109020)
+script = ExtResource("8_rocks")
+Region = SubResource("Region_belt")
+Kinds = Array[ExtResource("8_kind")]([ExtResource("8_rock_01"), ExtResource("8_rock_02"), ExtResource("8_rock_03"), ExtResource("8_rock_04"), ExtResource("8_rock_05"), ExtResource("8_rock_holes_03"), ExtResource("8_rock_large_01"), ExtResource("8_rock_large_02"), ExtResource("8_rock_large_holes_02")])
+CellSize = 400.0
+RocksPerCell = 10
+
+[node name="Mass" type="Node3D" parent="Belt"]
+script = ExtResource("medium_mass")
+Reach = 23000.0
+
+[node name="Miners" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -73705, 2000, -105330)
+script = ExtResource("ship_spawner")
+Scene = ExtResource("ai_miner")
+Count = 2
+FirstSeconds = 3.0
+IntervalSeconds = 60.0
+Radius = 300.0

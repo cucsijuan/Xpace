@@ -1,0 +1,117 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://bs50eeqcqo1sy" path="res://scenes/stations/props/hangar_big.tscn" id="hangar"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/hull_panel_a.tscn" id="a"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/hull_panel_b.tscn" id="b"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/hull_panel_c.tscn" id="c"]
+[ext_resource type="Script" path="res://scripts/Space/Solid.cs" id="solid"]
+[ext_resource type="Script" path="res://scripts/Space/AvoidCapsule.cs" id="capsule"]
+
+[sub_resource type="BoxShape3D" id="housing_box"]
+size = Vector3(70, 22, 8)
+
+[node name="HangarPod" type="Node3D"]
+
+[node name="Hangar" parent="." instance=ExtResource("hangar")]
+
+[node name="Panels" type="Node3D" parent="."]
+
+[node name="Side1" parent="Panels" instance=ExtResource("b")]
+transform = Transform3D(0, 0, 1, 0, 0.9, 0, -0.816667, 0, 0, 34.35, 12.5, 0.75)
+
+[node name="Side3" parent="Panels" instance=ExtResource("c")]
+transform = Transform3D(0, 0, -1, 0, 0.9, 0, 0.816667, 0, 0, -34.35, 12.5, 0.75)
+
+[node name="Roof1" parent="Panels" instance=ExtResource("a")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, 1, 0, -0.816667, 0, -22.4667, 26.65, 0.75)
+
+[node name="Under1" parent="Panels" instance=ExtResource("b")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, -1, 0, 0.816667, 0, -22.4667, -1.65, 0.75)
+
+[node name="Roof2" parent="Panels" instance=ExtResource("c")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, 1, 0, -0.816667, 0, 0, 26.65, 0.75)
+
+[node name="Under2" parent="Panels" instance=ExtResource("a")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, -1, 0, 0.816667, 0, 0, -1.65, 0.75)
+
+[node name="Roof3" parent="Panels" instance=ExtResource("b")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, 1, 0, -0.816667, 0, 22.4667, 26.65, 0.75)
+
+[node name="Under3" parent="Panels" instance=ExtResource("c")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, -1, 0, 0.816667, 0, 22.4667, -1.65, 0.75)
+
+[node name="Side2" parent="Panels" instance=ExtResource("a")]
+transform = Transform3D(0, 0, 1, 0, 0.9, 0, -0.816667, 0, 0, 34.35, 12.5, -23.75)
+
+[node name="Side4" parent="Panels" instance=ExtResource("b")]
+transform = Transform3D(0, 0, -1, 0, 0.9, 0, 0.816667, 0, 0, -34.35, 12.5, -23.75)
+
+[node name="Roof4" parent="Panels" instance=ExtResource("c")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, 1, 0, -0.816667, 0, -22.4667, 26.65, -23.75)
+
+[node name="Under4" parent="Panels" instance=ExtResource("a")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, -1, 0, 0.816667, 0, -22.4667, -1.65, -23.75)
+
+[node name="Roof5" parent="Panels" instance=ExtResource("b")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, 1, 0, -0.816667, 0, 0, 26.65, -23.75)
+
+[node name="Under5" parent="Panels" instance=ExtResource("c")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, -1, 0, 0.816667, 0, 0, -1.65, -23.75)
+
+[node name="Roof6" parent="Panels" instance=ExtResource("a")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, 1, 0, -0.816667, 0, 22.4667, 26.65, -23.75)
+
+[node name="Under6" parent="Panels" instance=ExtResource("b")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, -1, 0, 0.816667, 0, 22.4667, -1.65, -23.75)
+
+[node name="HousingFront1" parent="Panels" instance=ExtResource("c")]
+transform = Transform3D(0.748889, 0, 0, 0, 0.716667, 0, 0, 0, 1, -22.4667, 36.75, 18)
+
+[node name="HousingBack1" parent="Panels" instance=ExtResource("a")]
+transform = Transform3D(-0.748889, 0, 0, 0, 0.716667, 0, 0, 0, -1, -22.4667, 36.75, 11)
+
+[node name="HousingTop1" parent="Panels" instance=ExtResource("b")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, 1, 0, -0.233333, 0, -22.4667, 47.5, 14.5)
+
+[node name="HousingFront2" parent="Panels" instance=ExtResource("c")]
+transform = Transform3D(0.748889, 0, 0, 0, 0.716667, 0, 0, 0, 1, 0, 36.75, 18)
+
+[node name="HousingBack2" parent="Panels" instance=ExtResource("a")]
+transform = Transform3D(-0.748889, 0, 0, 0, 0.716667, 0, 0, 0, -1, 0, 36.75, 11)
+
+[node name="HousingTop2" parent="Panels" instance=ExtResource("b")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, 1, 0, -0.233333, 0, 0, 47.5, 14.5)
+
+[node name="HousingFront3" parent="Panels" instance=ExtResource("c")]
+transform = Transform3D(0.748889, 0, 0, 0, 0.716667, 0, 0, 0, 1, 22.4667, 36.75, 18)
+
+[node name="HousingBack3" parent="Panels" instance=ExtResource("a")]
+transform = Transform3D(-0.748889, 0, 0, 0, 0.716667, 0, 0, 0, -1, 22.4667, 36.75, 11)
+
+[node name="HousingTop3" parent="Panels" instance=ExtResource("b")]
+transform = Transform3D(0.748889, 0, 0, 0, 0, 1, 0, -0.233333, 0, 22.4667, 47.5, 14.5)
+
+[node name="HousingRight" parent="Panels" instance=ExtResource("c")]
+transform = Transform3D(0, 0, 1, 0, 0.716667, 0, -0.233333, 0, 0, 34.35, 36.75, 14.5)
+
+[node name="HousingLeft" parent="Panels" instance=ExtResource("a")]
+transform = Transform3D(0, 0, -1, 0, 0.716667, 0, 0.233333, 0, 0, -34.35, 36.75, 14.5)
+
+[node name="JambRight" parent="Panels" instance=ExtResource("b")]
+transform = Transform3D(0.245, 0, 0, 0, 0.9, 0, 0, 0, 1, 30.675, 12.5, 15.4)
+
+[node name="JambLeft" parent="Panels" instance=ExtResource("c")]
+transform = Transform3D(0.245, 0, 0, 0, 0.9, 0, 0, 0, 1, -30.675, 12.5, 15.4)
+
+[node name="HousingSolid" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 37, 14.5)
+script = ExtResource("solid")
+
+[node name="Box" type="CollisionShape3D" parent="HousingSolid"]
+shape = SubResource("housing_box")
+
+[node name="AvoidCapsule" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0, -1, 0, 1, 0, 0, 15, -35)
+script = ExtResource("capsule")
+Radius = 45.0
+Height = 60.0

@@ -32,6 +32,9 @@
 [ext_resource type="PackedScene" uid="uid://b6s1uquijhxle" path="res://assets/synty/SM_Prop_Detail_Machine_01.fbx" id="p15"]
 [ext_resource type="PackedScene" uid="uid://dcssx2y1o5u1t" path="res://assets/synty/SM_Prop_Antenna_01.fbx" id="p16"]
 
+[sub_resource type="BoxShape3D" id="Shape_back"]
+size = Vector3(68, 28, 1)
+
 [sub_resource type="BoxShape3D" id="Shape_door"]
 size = Vector3(54, 22, 1)
 
@@ -80,6 +83,16 @@ script = ExtResource("9_solid")
 Shape = ExtResource("3_walls")
 
 [node name="Walk" type="Node3D" parent="Walls" unique_id=1965042226]
+script = ExtResource("24_walk")
+
+[node name="BackWall" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12.5, -83.3)
+script = ExtResource("9_solid")
+
+[node name="Box" type="CollisionShape3D" parent="BackWall"]
+shape = SubResource("Shape_back")
+
+[node name="Walk" type="Node3D" parent="BackWall"]
 script = ExtResource("24_walk")
 
 [node name="FloorAndCeiling" type="Node3D" parent="." unique_id=21184211]

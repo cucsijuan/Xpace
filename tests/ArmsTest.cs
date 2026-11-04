@@ -275,21 +275,23 @@ public partial class ArmsTest : Node
     private void Rules()
     {
         var iron = GD.Load<Good>("res://assets/goods/iron.tres");
-        var goods = new[] { new MarketGood { Good = iron, Stock = 10, Rate = 0 } };
-        var line = new OutfitLine { Item = GD.Load<MissileSpec>("res://assets/weapons/missiles/msl_1.tres"), Stock = 10, PerHour = 4, Input = iron, InputPerUnit = 0.5f };
+        var goods = new[] { new MarketGood { Good = iron, Stock = 10 } };
+        var line = new OutfitLine { Item = GD.Load<MissileSpec>("res://assets/weapons/missiles/msl_1.tres"), Stock = 10 };
+        var recipe = new Recipe { Output = line.Item, Inputs = new[] { new RecipePart { Item = iron, Amount = 0.5f } } };
+        var factories = new[] { new FactoryLine { Recipe = recipe, PerHour = 4 } };
         var outfits = new[] { line };
         var station = new StationRecord();
-        Market.Advance(station, goods, 0, outfits);
+        Market.Advance(station, goods, 0, outfits, factories);
         Check($"a dealer starts with the stock it wants ({station.Stock[line.Id]})", station.Stock[line.Id] == 10);
-        Market.Advance(station, goods, 3600, outfits);
+        Market.Advance(station, goods, 3600, outfits, factories);
         Check($"with all it wants the factory rests, using no iron ({station.Stock["iron"]} t)", station.Stock["iron"] == 10);
         station.Stock[line.Id] = 2;
-        Market.Advance(station, goods, 3600 * 2, outfits);
+        Market.Advance(station, goods, 3600 * 2, outfits, factories);
         Check($"short of stock, it makes what its rate allows, using iron ({station.Stock[line.Id]}, {station.Stock["iron"]} t)",
               Math.Abs(station.Stock[line.Id] - 6) < 1e-9 && Math.Abs(station.Stock["iron"] - 8) < 1e-9);
         station.Stock[line.Id] = 0;
         station.Stock["iron"] = 1;
-        Market.Advance(station, goods, 3600 * 3, outfits);
+        Market.Advance(station, goods, 3600 * 3, outfits, factories);
         Check($"it makes only what the iron lasts for ({station.Stock[line.Id]}, {station.Stock["iron"]} t)",
               Math.Abs(station.Stock[line.Id] - 2) < 1e-9 && station.Stock["iron"] < 1e-9);
         Check("the last ones cost more than the first", Market.OutfitPrice(line, 1) > Market.OutfitPrice(line, 10) && Market.OutfitPrice(line, 0) < 0);

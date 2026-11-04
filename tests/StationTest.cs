@@ -35,7 +35,7 @@ public partial class StationTest : Node
         int triangles = solids.Sum(s => s.A.Length);
         int pads = station.FindChildren("*", "", true, false).OfType<LandingPad>().Count();
         Check($"every module and part is solid ({solids.Length} solids, {pads} of them landing pads, {triangles} triangles)",
-              solids.Length == 29 + pads && triangles > 4000);
+              solids.Length == 33 + pads && triangles > 4000);
         int capsules = AvoidCapsule.All.Count(c => station.IsAncestorOf(c));
         Check($"every module has its capsule ({capsules})", capsules == 6);
 

@@ -63,7 +63,7 @@ namespace Xpace.Ship;
 /// Put it under the <see cref="ShipBody"/> it flies, beside the ship's
 /// radar, launcher, warning receiver, datalink and rock sensor.
 /// </summary>
-public partial class FighterAi : Node
+public partial class FighterAi : Node, IOriginShift
 {
     [Export] public float PatrolRadius = 3000f;
     [Export] public float PatrolSpeed = 150f;           // m/s, asked of the flight assist
@@ -101,6 +101,11 @@ public partial class FighterAi : Node
     [Export] public Space.StationSecurity Police;
     [Export] public float RouteSpeed = 120f;            // m/s, along a route
     [Export] public float RouteEndSpeed = 25f;          // m/s, nearing the route's last point
+    /// <summary>It goes after nobody: it only defends itself and does its job.</summary>
+    [Export] public bool Peaceful;
+
+    /// <summary>What it does with no target and no route (an <see cref="IPilotJob"/> on its ship), if anything.</summary>
+    public IPilotJob Job { get; private set; }
 
     /// <summary>Points to fly through, in turn, while it has no target.</summary>
     public readonly Queue<Vector3> Route = new();
@@ -167,6 +172,7 @@ public partial class FighterAi : Node
             _laser ??= n as LaserDevice;
             _link ??= n as Datalink;
             _eyes ??= n as RockSensor;
+            Job ??= n as IPilotJob;
         }
         _anchor = _ship.GlobalPosition;
     }
@@ -232,6 +238,8 @@ public partial class FighterAi : Node
             Attack(ref c, dt);
         else if (Route.Count > 0)
             FollowRoute(ref c);
+        else if (Job?.Fly(this, ref c, delta) == true)
+            Doing = Job.Doing;
         else if (Interest() is Vector3 echo)
         {
             Doing = "intercepting";
@@ -261,6 +269,17 @@ public partial class FighterAi : Node
         _controls = Buttons(c);
     }
 
+    /// <summary>The world moved: what it keeps in world positions moves with it.</summary>
+    public void ShiftOrigin(Vector3 offset)
+    {
+        _anchor -= offset;
+        _waypoint -= offset;
+        _lastSeen -= offset;
+        int points = Route.Count;
+        for (int i = 0; i < points; i++)
+            Route.Enqueue(Route.Dequeue() - offset);
+    }
+
     /// <summary>The throttle that asks the flight assist for a speed (m/s): a share of the ship's top.</summary>
     private float Speed(float metresPerSecond) => Math.Clamp(metresPerSecond / FullThrottleSpeed(), 0, 1);
 
@@ -279,6 +298,8 @@ public partial class FighterAi : Node
     /// </summary>
     private bool MayEngage(Vector3 point)
     {
+        if (Peaceful)
+            return false;
         if (Police != null)
             return Police.Hostiles.Any(h => h.GlobalPosition.DistanceTo(point) < FriendGate);
         return !RespectsZones || (StationRadio.ProtectingAt(_ship.GetWorld3D(), point) == null && StationRadio.ProtectingAt(_ship.GetWorld3D(), _ship.GlobalPosition) == null);
@@ -471,6 +492,9 @@ public partial class FighterAi : Node
     // ---------- flying ----------
 
     /// <summary>Roll the aim point overhead and pull; yaw for the last bit.</summary>
+    /// <summary>Turns the ship's nose on a point.</summary>
+    public void AimAt(ref PilotControls c, Vector3 point) => Steer(ref c, _ship.GlobalBasis.Inverse() * (point - _ship.GlobalPosition));
+
     private void Steer(ref PilotControls c, Vector3 local)
     {
         float yaw = Mathf.Atan2(local.X, -local.Z);
@@ -497,7 +521,7 @@ public partial class FighterAi : Node
             going = -_ship.GlobalBasis.Z;
         _eyes.Look(going, delta);
         Vector3 way = _eyes.Steer(going, MathF.Max(speed, 50) * AvoidSeconds);
-        if (_eyes.Avoiding)
+        if (_eyes.Avoiding && Job?.HoldsStill != true)
         {
             Doing = "avoiding a rock";
             Steer(ref c, _ship.GlobalBasis.Inverse() * way);

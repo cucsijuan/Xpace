@@ -1,0 +1,30 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ships/ai_fighter.tscn" id="1_fighter"]
+[ext_resource type="Material" path="res://assets/materials/paint_miner.tres" id="2_paint"]
+[ext_resource type="Resource" path="res://assets/weapons/lasers/lsr_1.tres" id="3_laser"]
+[ext_resource type="Script" path="res://scripts/Ship/MinerJob.cs" id="4_job"]
+[ext_resource type="Resource" path="res://assets/goods/iron_ore.tres" id="5_ore"]
+
+[node name="AiMiner" instance=ExtResource("1_fighter")]
+Loadout = Dictionary[String, Resource]({
+"NoseLeft": ExtResource("3_laser"),
+"NoseRight": ExtResource("3_laser")
+})
+
+[node name="Paint" parent="Exterior/Model"]
+Material = ExtResource("2_paint")
+
+[node name="Launcher" parent="Weapons"]
+Missiles = 0
+HeatSeekers = 0
+
+[node name="Datalink" parent="."]
+Channel = "miners"
+
+[node name="Pilot" parent="."]
+Peaceful = true
+
+[node name="Job" type="Node" parent="."]
+script = ExtResource("4_job")
+Ore = ExtResource("5_ore")

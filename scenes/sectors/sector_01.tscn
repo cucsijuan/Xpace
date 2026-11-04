@@ -1,6 +1,15 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/Space/MediumMass.cs" id="medium_mass"]
+[ext_resource type="Script" path="res://scripts/Space/DistantBody.cs" id="distant_body"]
+[ext_resource type="Shader" path="res://assets/materials/planet_surface.gdshader" id="planet_surface"]
+[ext_resource type="PackedScene" path="res://scenes/stations/keel_station.tscn" id="keel_station"]
+[ext_resource type="Script" path="res://scripts/World/MarketGood.cs" id="quartz_market_good"]
+[ext_resource type="Script" path="res://scripts/World/FactoryLine.cs" id="quartz_factory_line"]
+[ext_resource type="Resource" path="res://assets/goods/silicon.tres" id="good_silicon"]
+[ext_resource type="Resource" path="res://assets/goods/copper.tres" id="good_copper"]
+[ext_resource type="Resource" path="res://assets/goods/chips.tres" id="good_chips"]
+[ext_resource type="Resource" path="res://assets/recipes/chips.tres" id="recipe_chips"]
 [ext_resource type="Script" path="res://scripts/Space/InterdictorBuoy.cs" id="interdictor_buoy"]
 [ext_resource type="Script" uid="uid://ckiwalmif04k4" path="res://scripts/Space/RockKind.cs" id="8_kind"]
 
@@ -84,8 +93,9 @@ ssil_enabled = true
 ssil_radius = 8.0
 glow_enabled = true
 
-[sub_resource type="StandardMaterial3D" id="Material_planet"]
-albedo_color = Color(0.32, 0.45, 0.62, 1)
+[sub_resource type="ShaderMaterial" id="Material_planet"]
+shader = ExtResource("planet_surface")
+shader_parameter/albedo = Color(0.32, 0.45, 0.62, 1)
 
 [sub_resource type="SphereMesh" id="Mesh_planet"]
 material = SubResource("Material_planet")
@@ -98,6 +108,26 @@ rings = 64
 script = ExtResource("8_region")
 Size = Vector3(7000, 2000, 7000)
 Falloff = 1200.0
+
+[sub_resource type="Resource" id="Quartz_silicon"]
+script = ExtResource("quartz_market_good")
+Good = ExtResource("good_silicon")
+Stock = 80
+
+[sub_resource type="Resource" id="Quartz_copper"]
+script = ExtResource("quartz_market_good")
+Good = ExtResource("good_copper")
+Stock = 80
+
+[sub_resource type="Resource" id="Quartz_chips"]
+script = ExtResource("quartz_market_good")
+Good = ExtResource("good_chips")
+Stock = 100
+
+[sub_resource type="Resource" id="Quartz_works_chips"]
+script = ExtResource("quartz_factory_line")
+Recipe = ExtResource("recipe_chips")
+PerHour = 4.0
 
 [node name="Sector" type="Node3D"]
 script = ExtResource("18_origin")
@@ -120,8 +150,12 @@ script = ExtResource("sun_shadows")
 Flying = ExtResource("shadows_flying")
 OnFoot = ExtResource("shadows_on_foot")
 
-[node name="Planet" type="MeshInstance3D" parent="." unique_id=2084746623]
+[node name="Planet" type="Node3D" parent="." unique_id=2084746623]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -26000, -9000, -60000)
+script = ExtResource("distant_body")
+
+[node name="Body" type="MeshInstance3D" parent="Planet"]
+cast_shadow = 0
 mesh = SubResource("Mesh_planet")
 
 [node name="Asteroids" type="Node3D" parent="." unique_id=51359718]
@@ -134,6 +168,13 @@ RocksPerCell = 10
 
 [node name="Station" parent="." unique_id=1661568946 instance=ExtResource("10_station")]
 transform = Transform3D(0.866025, 0, 0.5, 0, 1, 0, -0.5, 0, 0.866025, 450, 60, -1200)
+
+[node name="Quartz" parent="." instance=ExtResource("keel_station")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25000, 2000, 60000)
+
+[node name="Market" parent="Quartz"]
+Goods = Array[ExtResource("quartz_market_good")]([SubResource("Quartz_silicon"), SubResource("Quartz_copper"), SubResource("Quartz_chips")])
+Factories = Array[ExtResource("quartz_factory_line")]([SubResource("Quartz_works_chips")])
 
 [node name="Projectiles" type="MultiMeshInstance3D" parent="." unique_id=1887929994]
 script = ExtResource("15_rounds")

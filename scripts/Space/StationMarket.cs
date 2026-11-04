@@ -121,6 +121,9 @@ public partial class StationMarket : Node
     /// <summary>What the station's arms dealer sells, from its own factory (none: no arms dealer here).</summary>
     [Export] public OutfitLine[] Outfits = System.Array.Empty<OutfitLine>();
 
+    /// <summary>The station's factories and mines: what it makes, from what, and how fast.</summary>
+    [Export] public FactoryLine[] Factories = System.Array.Empty<FactoryLine>();
+
     /// <summary>A disreputable factor works here: it pays other stations' fines and bounties for the pilot.</summary>
     [Export] public bool Factor;
     /// <summary>What the factor asks on top of what it pays (0.5: half as much again).</summary>
@@ -217,7 +220,7 @@ public partial class StationMarket : Node
         UniverseState state = universe.State;
         StationRecord station = state.Station(Radio.Sign);
         PilotRecord pilot = state.Pilot(pilotId);
-        Market.Advance(station, Goods, state.Clock, Outfits);
+        Market.Advance(station, Goods, state.Clock, Outfits, Factories);
         Node3D ship = universe.ShipOf(pilotId);
         bool docked = Radio.DockedHere(ship), present = docked || Radio.Inside(ship) || universe.OnFootAt(pilotId) == Radio.Sign;
         CrimeRecord crimes = station.CrimesOf(pilotId);
@@ -344,7 +347,7 @@ public partial class StationMarket : Node
         UniverseState state = universe.State;
         StationRecord station = state.Station(Radio.Sign);
         PilotRecord pilot = state.Pilot(pilotId);
-        Market.Advance(station, Goods, state.Clock, Outfits);
+        Market.Advance(station, Goods, state.Clock, Outfits, Factories);
         Node3D ship = universe.ShipOf(pilotId);
         bool docked = Radio.DockedHere(ship);
         string message = Outfits.Length == 0 ? NoArmsText : "";
@@ -388,7 +391,8 @@ public partial class StationMarket : Node
         foreach (OutfitLine line in Outfits.Where(o => o?.Item != null))
         {
             double stock = station.Stock.GetValueOrDefault(line.Id);
-            double input = line.Input != null ? station.Stock.GetValueOrDefault(line.Input.Id) : 0;
+            RecipePart scarcest = Scarcest(line, station);
+            double input = scarcest != null ? station.Stock.GetValueOrDefault(Recipe.IdOf(scarcest.Item)) : 0;
             int rack = Universe.RackSize(pilot, line.Item);
             bool piece = Fittings.IsPiece(line.Item);
             view.Offers.Add(new ArmsOffer
@@ -400,11 +404,30 @@ public partial class StationMarket : Node
                 Id = line.Id, Name = line.Item.Model, About = line.Item.About, Details = line.Item.Details,
                 Stock = (int)stock, Price = Market.OutfitPrice(line, stock), Aboard = Universe.Aboard(pilot, line.Item), Rack = rack,
                 Lot = System.Math.Max(1, line.Item.Lot),
-                MadeOf = line.Input?.Name ?? "", MadeOfStock = (int)input,
-                Starved = line.Input != null && stock < line.Stock && input < line.InputPerUnit,
+                MadeOf = Recipe.NameOf(scarcest?.Item), MadeOfStock = (int)input,
+                Starved = scarcest != null && stock < line.Stock && input < scarcest.Amount,
             });
         }
         return view;
+    }
+
+    // Of what the factory makes this outfit from, what the station has the fewest runs of (none: no factory here, or a mine)
+    private RecipePart Scarcest(OutfitLine line, StationRecord station) =>
+        Factories.FirstOrDefault(f => Recipe.IdOf(f?.Recipe?.Output) == line.Id)?.Recipe.Inputs.Where(p => p?.Amount > 0)
+                 .OrderBy(p => station.Stock.GetValueOrDefault(Recipe.IdOf(p.Item)) / p.Amount).FirstOrDefault();
+
+    /// <summary>Whether its market deals in <paramref name="good"/>.</summary>
+    public bool Deals(Good good) => good != null && Goods.Any(g => g?.Good?.Id == good.Id);
+
+    /// <summary>The universe's owner: a ship of the station's own hands over tonnes of a good; what the market has no room for is lost.</summary>
+    public void Deliver(Good good, double tonnes)
+    {
+        if (Universe.Current is not Universe universe || Goods.FirstOrDefault(g => g?.Good?.Id == good?.Id) is not MarketGood line)
+            return;
+        StationRecord station = universe.State.Station(Radio.Sign);
+        Market.Advance(station, Goods, universe.State.Clock, Outfits, Factories);
+        station.Stock[line.Good.Id] = System.Math.Min(Market.Full * line.Stock, station.Stock.GetValueOrDefault(line.Good.Id) + tonnes);
+        universe.Touch();
     }
 
     public long FactorCost(long owed) => (long)System.Math.Ceiling(owed * (1 + FactorSurcharge));
