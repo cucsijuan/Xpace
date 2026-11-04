@@ -138,6 +138,8 @@ public interface IAccount
     long Credits { get; set; }
     /// <summary>What it asks on top of what a thing costs it to make, of that cost.</summary>
     double Margin { get; }
+    /// <summary>What it knows of each station's market, by station id.</summary>
+    Dictionary<string, StationNews> Known { get; }
 }
 
 /// <summary>A company, corporation, guild or faction as it stands now, known by an id (for one set up by hand, its <see cref="Organisation"/>'s).</summary>
@@ -147,6 +149,7 @@ public sealed class OrganisationRecord : IAccount
     public string Name { get; set; }
     public long Credits { get; set; }
     public double Margin { get; set; } = 0.15;
+    public Dictionary<string, StationNews> Known { get; set; } = new();
     /// <summary>The organisation it belongs to now (empty: its own). It can join and leave.</summary>
     public string Parent { get; set; } = "";
 }
@@ -165,6 +168,7 @@ public sealed class PilotRecord : IAccount
     public string Id { get; set; }
     public string Name { get; set; }
     public long Credits { get; set; }
+    public Dictionary<string, StationNews> Known { get; set; } = new();
 
     /// <summary>Seconds played in this universe: the clock that infamy wears off by.</summary>
     public double PlayedSeconds { get; set; }

@@ -45,8 +45,18 @@ public sealed class StationBook
         public double TransitSeconds;
     }
 
+    /// <summary>A commercial beacon.</summary>
+    public sealed class Beacon
+    {
+        public string Id, Sector;
+        public Vector3 At;
+        public int Reach;
+        public float Heard;
+    }
+
     public readonly List<Station> Stations = new();
     public readonly List<Gate> Gates = new();
+    public readonly List<Beacon> Beacons = new();
     public readonly Dictionary<string, Voyage.Space> Space = new();
 
     public Station Find(string id) => Stations.FirstOrDefault(s => s.Id == id);
@@ -75,6 +85,8 @@ public sealed class StationBook
                 continue;
             Node parent = radio.GetParent();
             Vector3 at = parent is Node3D place ? At(place) : At(radio);
+            if (parent is CommercialBeacon beacon)
+                Beacons.Add(new Beacon { Id = radio.Id, Sector = sector, At = at, Reach = beacon.ReachJumps, Heard = beacon.HeardMeters });
             if (radio.Laws is StationLaws laws && parent is not JumpGate)
                 space.Limits.Add((at, laws.SpeedRadius, laws.SpeedLimit));
             if (parent is JumpGate gate)
@@ -156,6 +168,13 @@ public sealed class StationBook
             way.Insert(0, came[at]);
         return way;
     }
+
+    /// <summary>The stations a beacon reports.</summary>
+    public IEnumerable<Station> ReportedBy(Beacon beacon) => Stations.Where(s => Way(beacon.Sector, s.Sector)?.Count <= beacon.Reach);
+
+    /// <summary>The beacons a ship on those legs flies past.</summary>
+    public IEnumerable<Beacon> BeaconsOn(List<Leg> legs) =>
+        Beacons.Where(b => legs.Any(l => l.Sector == b.Sector && Geometry3D.GetClosestPointToSegment(b.At, l.From, l.To).DistanceTo(b.At) <= b.Heard));
 
     /// <summary>One straight stretch of a voyage, inside a sector.</summary>
     public sealed class Leg

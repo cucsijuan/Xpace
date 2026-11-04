@@ -310,7 +310,7 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
         if (!bus.TakeWritten(Slot, 5))
             return;
         var what = (RadioRequest)bus[Slot, 5];
-        if (what is not (RadioRequest.Laws or RadioRequest.Docking or RadioRequest.Launch or RadioRequest.Transit))
+        if (what is not (RadioRequest.Laws or RadioRequest.Docking or RadioRequest.Launch or RadioRequest.Transit or RadioRequest.News))
             return;
         int which = bus[Slot, 6];
         if (what == RadioRequest.Launch && which == NearestStation)

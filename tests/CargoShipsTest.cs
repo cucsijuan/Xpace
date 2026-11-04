@@ -112,7 +112,7 @@ public partial class CargoShipsTest : Node
         GetTree().Quit(_failures == 0 ? 0 : 1);
     }
 
-    private static IAccount Account(UniverseState state, Dictionary<string, OrganisationRecord> owners, string id) => string.IsNullOrEmpty(id) ? null : state.Organisation(id, () =>
+    public static IAccount Account(UniverseState state, Dictionary<string, OrganisationRecord> owners, string id) => string.IsNullOrEmpty(id) ? null : state.Organisation(id, () =>
     {
         Organisation spec = OrganisationCatalog.Find(id);
         return owners[id] = new OrganisationRecord { Id = id, Name = spec.Name, Credits = spec.StartingCredits, Margin = spec.Personality?.Margin ?? 0.15 };

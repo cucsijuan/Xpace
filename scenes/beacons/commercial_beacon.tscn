@@ -1,0 +1,55 @@
+[gd_scene load_steps=11 format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/CommercialBeacon.cs" id="1_beacon"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Veh_Beacon_01.fbx" id="2_model"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="3_paint"]
+[ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="4_atlas"]
+[ext_resource type="Script" path="res://scripts/Space/StationRadio.cs" id="5_radio"]
+[ext_resource type="Resource" path="res://assets/organisations/gate_authority.tres" id="6_owner"]
+[ext_resource type="Script" path="res://scripts/Space/SlowSpin.cs" id="7_spin"]
+[ext_resource type="Script" path="res://scripts/Space/BlinkLight.cs" id="8_blink"]
+[ext_resource type="Texture2D" path="res://assets/synty/SphereGlow.png" id="9_glow"]
+[ext_resource type="Script" path="res://scripts/Space/Solid.cs" id="10_solid"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Veh_Beacon_01_Collision.fbx" id="11_collision"]
+
+[node name="CommercialBeacon" type="Node3D"]
+script = ExtResource("1_beacon")
+
+[node name="Spin" type="Node3D" parent="."]
+script = ExtResource("7_spin")
+
+[node name="Model" parent="Spin" instance=ExtResource("2_model")]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
+
+[node name="Paint" type="Node" parent="Spin/Model"]
+script = ExtResource("3_paint")
+Material = ExtResource("4_atlas")
+
+[node name="Top" type="Node3D" parent="Spin"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 19.4, 0)
+script = ExtResource("8_blink")
+Glow = ExtResource("9_glow")
+Colour = Color(0, 1, 0.87, 1)
+Size = 10.0
+PeriodSeconds = 2.0
+Phase = 0.0
+LightEnergy = 4.0
+
+[node name="Bottom" type="Node3D" parent="Spin"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -13.45, 0)
+script = ExtResource("8_blink")
+Glow = ExtResource("9_glow")
+Colour = Color(0, 1, 0.87, 1)
+Size = 10.0
+PeriodSeconds = 2.0
+Phase = 0.5
+LightEnergy = 4.0
+
+[node name="Solid" type="Node3D" parent="."]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0, 0)
+script = ExtResource("10_solid")
+Shape = ExtResource("11_collision")
+
+[node name="Radio" type="Node3D" parent="."]
+script = ExtResource("5_radio")
+OwnedBy = ExtResource("6_owner")

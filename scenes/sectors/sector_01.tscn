@@ -76,6 +76,7 @@
 [ext_resource type="Script" path="res://scripts/Space/SunShadows.cs" id="sun_shadows"]
 [ext_resource type="Resource" path="res://assets/lighting/shadows_flying.tres" id="shadows_flying"]
 [ext_resource type="Resource" path="res://assets/lighting/shadows_on_foot.tres" id="shadows_on_foot"]
+[ext_resource type="PackedScene" path="res://scenes/beacons/commercial_beacon.tscn" id="beacon_scene"]
 [sub_resource type="Sky" id="Sky_space"]
 sky_material = ExtResource("43_skybox")
 
@@ -255,6 +256,13 @@ transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, -600, 150, 4000)
 [node name="InterdictorBuoy" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 55000, 2500, 35000)
 script = ExtResource("interdictor_buoy")
+
+[node name="Beacon" parent="." instance=ExtResource("beacon_scene")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 82000, 4500, 82000)
+
+[node name="Radio" parent="Beacon"]
+StationId = "BEACON1"
+Callsign = "BEACON1"
 
 [node name="Gate2" parent="." instance=ExtResource("gate_scene")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 90000, 5000, 90000)

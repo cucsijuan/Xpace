@@ -89,6 +89,10 @@ public partial class SessionGateTest : Node
         Check($"the toll comes out of the guest's pilot's credits ({before - ace?.Credits})", before - ace?.Credits == gate2.Radio.Laws.Toll);
         Check("the guest hears it", await Run(60, () => _heard.StartsWith("Cleared for transit")));
 
+        // The beacon by the gate: the guest's pilot learns the sector's markets through the host
+        _code.Request(GuestShipId, "BEACON1", (byte)RadioRequest.News);
+        Check($"the beacon gives the guest's pilot its data ({_heard})", await Run(90, () => ace?.Known.ContainsKey("ALPHA") == true && _heard.StartsWith("Market data")));
+
         await Through(node, gate2, 0, -100);
         Check($"through, cleared: no fine ({ace?.Credits})", Universe.Current.State.Station(gate2.Radio.Id).CrimesOf("ace-pilot").Fines == 0);
 

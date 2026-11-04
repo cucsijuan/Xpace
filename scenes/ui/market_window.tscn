@@ -91,6 +91,19 @@ visible = false
 layout_mode = 2
 text = "Surrender"
 
+[node name="NewsScroll" type="ScrollContainer" parent="Root/Center/Panel/Margin/Box"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(0, 360)
+layout_mode = 2
+
+[node name="News" type="GridContainer" parent="Root/Center/Panel/Margin/Box/NewsScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/h_separation = 18
+columns = 6
+
 [node name="Factor" type="GridContainer" parent="Root/Center/Panel/Margin/Box"]
 unique_name_in_owner = true
 visible = false
@@ -112,6 +125,12 @@ layout_mode = 2
 size_flags_horizontal = 3
 modulate = Color(1, 1, 1, 0.6)
 text = "Shift + Buy or Sell: 10 t"
+
+[node name="ShowNews" type="Button" parent="Root/Center/Panel/Margin/Box/Footer"]
+unique_name_in_owner = true
+layout_mode = 2
+toggle_mode = true
+text = "Trade data"
 
 [node name="Close" type="Button" parent="Root/Center/Panel/Margin/Box/Footer"]
 unique_name_in_owner = true

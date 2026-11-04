@@ -660,7 +660,7 @@ COOL resident.
 <tr><td>+2</td><td>Contacts in the table (up to 16)</td></tr>
 <tr><td>+3</td><td>Updates so far, counting up</td></tr>
 <tr><td>+4</td><td>Status: bit 0 it holds a station's laws, bit 1 the ship is inside their speed limit, bit 2 asking, bit 3 off, bit 4 inside their protected zone, bit 5 cleared to a dock</td></tr>
-<tr><td>+5</td><td>Write: a request to the contact in +6. 1: its laws; 2: a dock; 3: launch (let the docked ship go)</td></tr>
+<tr><td>+5</td><td>Write: a request to the contact in +6. 1: its laws; 2: a dock; 3: launch (let the docked ship go); 4: transit; 5: market data (from a commercial beacon)</td></tr>
 <tr><td>+6</td><td>The request's contact: its place in the table, or 0FFh for the nearest station (for a launch, the station whose dock the ship is in)</td></tr>
 <tr><td>+7</td><td>Messages heard so far, counting up</td></tr>
 <tr><td>+8 word</td><td>The segment of the table and the laws</td></tr>
@@ -815,7 +815,7 @@ COOL resident.
 <p>Buttons: systems, engines, weapons, even out, heat sink.</p>
 
 <h2 class="cmd">COMMS<span>Radio contacts</span></h2>
-<p>Works the radio from the COMMS screen and its keys. It lists the contacts: callsign, station or ship, range in kilometres, and LAWS beside the station whose laws the radio holds (DOCK if it cleared the ship to a dock). UP and DOWN move the cursor, SELECT gives the contact's options (a station: request docking, request laws, request launch) and SELECT again sends the one under the cursor; BACK returns to the list. Below, the last message heard and the hangar the ship is cleared to. The bottom line gives the speed limit where the ship is and whose it is, PROTECTED ZONE inside a zone but outside its speed limit, OPEN SPACE outside the zone of the laws held, NO LAWS RECEIVED with none.</p>
+<p>Works the radio from the COMMS screen and its keys. It lists the contacts: callsign, station or ship, range in kilometres, and LAWS beside the station whose laws the radio holds (DOCK if it cleared the ship to a dock). UP and DOWN move the cursor, SELECT gives the contact's options (a station: request docking, request laws, request launch; a gate: request transit, request laws; a beacon: request data; any of them: set course) and SELECT again sends the one under the cursor; BACK returns to the list. Below, the last message heard and the hangar the ship is cleared to. The bottom line gives the speed limit where the ship is and whose it is, PROTECTED ZONE inside a zone but outside its speed limit, OPEN SPACE outside the zone of the laws held, NO LAWS RECEIVED with none.</p>
 
 <h2 class="cmd">TUNE<span>Generator tuner</span></h2>
 <p>With an interdictor's beam on the ship it takes the RADAR screen and sweeps two waves across it, the beam's above (BEAM) and the generator's below (YOU). More waves above than below: tune up. Fewer: tune down. Alike: it is tuned. A tap moves the frequency a little; held, it goes faster. A needle under the traces shows where it is at once; the traces change as the sweep gets there. Under them, how much of the beam the generator cancels (LOCK) and the strain on it (STRAIN). The screen goes back when the beam goes.</p>
@@ -828,7 +828,7 @@ COOL resident.
 <tr><td>FIRECTL</td><td>XPFC13</td></tr>
 <tr><td>RWR</td><td>XPRW15</td></tr>
 <tr><td>POWER</td><td>XPPW11</td></tr>
-<tr><td>COMMS</td><td>XPCM15</td></tr>
+<tr><td>COMMS</td><td>XPCM16</td></tr>
 <tr><td>TUNE</td><td>XPTU10</td></tr>
 </table>
 <p>The last two characters are the version. Change them when you change a program, so that a new version is not taken for the old one; a program that finds another version of itself on the chain does not take it out.</p>

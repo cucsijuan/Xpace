@@ -28,8 +28,9 @@ public partial class MarketWindow : CanvasLayer, IKioskWindow
     public MarketView View { get; private set; }
 
     private Label _title, _credits, _hold, _fines, _message;
-    private GridContainer _rows, _factor;
-    private Button _pay, _surrender, _close;
+    private GridContainer _rows, _factor, _news;
+    private Control _newsScroll;
+    private Button _pay, _surrender, _close, _showNews;
 
     public override void _Ready()
     {
@@ -43,6 +44,14 @@ public partial class MarketWindow : CanvasLayer, IKioskWindow
         _pay = GetNode<Button>("%Pay");
         _surrender = GetNode<Button>("%Surrender");
         _close = GetNode<Button>("%Close");
+        _news = GetNode<GridContainer>("%News");
+        _newsScroll = GetNode<Control>("%NewsScroll");
+        _showNews = GetNode<Button>("%ShowNews");
+        _showNews.Toggled += on =>
+        {
+            _newsScroll.Visible = on;
+            _rows.Visible = !on;
+        };
         _pay.Pressed += () => Ask(MarketRequest.Pay, null, 0);
         _surrender.Pressed += () => Ask(MarketRequest.Surrender, null, 0);
         _close.Pressed += Close;
@@ -119,6 +128,24 @@ public partial class MarketWindow : CanvasLayer, IKioskWindow
             _rows.AddChild(Trade("Sell", MarketRequest.Sell, line.Good, view.Docked && line.Sell >= 0 && line.Held > 0));
         }
         ShowFactor(view);
+        ShowNews(view);
+    }
+
+    private void ShowNews(MarketView view)
+    {
+        foreach (Node n in _news.GetChildren())
+            n.QueueFree();
+        foreach (string head in new[] { "Station", "Good", "Stock", "Buy", "Sell", "Age" })
+            _news.AddChild(new Label { Text = head, ThemeTypeVariation = "HeaderSmall" });
+        foreach (NewsLine line in view.News)
+        {
+            _news.AddChild(new Label { Text = line.Title });
+            _news.AddChild(new Label { Text = line.Name });
+            _news.AddChild(Number(line.Stock.ToString("N0")));
+            _news.AddChild(Number(line.Buy < 0 ? "-" : line.Buy.ToString("N0")));
+            _news.AddChild(Number(line.Sell < 0 ? "-" : line.Sell.ToString("N0")));
+            _news.AddChild(Number($"{line.Hours:0.0} h"));
+        }
     }
 
     private void ShowFactor(MarketView view)

@@ -1,4 +1,4 @@
-; comms.asm - Radio Contacts 1.5 (COMMS.COM)
+; comms.asm - Radio Contacts 1.6 (COMMS.COM)
 ;
 ;   COMMS       stays resident and works the radio from the ship's COMMS
 ;               screen (32 x 12 text) and its keys
@@ -36,11 +36,11 @@
 ;                            holds a station's laws, bit 1 inside their
 ;                            speed limit, bit 3 off, bit 4 inside their
 ;                            zone, bit 5 cleared to a dock)  +5 write: a
-;                            request (1 laws, 2 docking, 3 launch, 4 transit) to the contact in
+;                            request (1 laws, 2 docking, 3 launch, 4 transit, 5 market data) to the contact in
 ;                            +6  +8 segment  +10 the contacts' table
 ;                            +12 the laws  +14 the messages (offsets).
 ;                            A contact (16 bytes): +0 callsign (8
-;                            characters)  +8 kind ('S' station, 'G' gate, 'V' vessel)
+;                            characters)  +8 kind ('S' station, 'G' gate, 'B' beacon, 'V' vessel)
 ;                            +9 flags (bit 0 the laws held are its, bit 3 it
 ;                            cleared the ship to a dock)  +10 range (10 m).
 ;                            The laws: +0 the station's callsign  +8 speed
@@ -71,6 +71,7 @@ MSG_SIZE    equ 128
 DRAW_EVERY  equ 15                  ; steps between redraws (4 a second)
 OPTIONS     equ 4                   ; a station's: docking, laws, launch, course
 GATE_OPTIONS equ 3                  ; a gate's: transit, laws, course
+BEACON_OPTIONS equ 2                  ; a beacon's: market data, course
 ASK_COURSE  equ 0FFh                ; (not the radio's: the cruise generator's)
 KEY_UP      equ 4
 KEY_DOWN    equ 5
@@ -92,7 +93,7 @@ ATTR_CURSOR equ 70h
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPCM15'             ; 103h
+signature   db 'XPCM16'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -191,6 +192,9 @@ press:
     mov byte [options], GATE_OPTIONS
     cmp byte [sel_kind], 'G'
     je .counted
+    mov byte [options], BEACON_OPTIONS
+    cmp byte [sel_kind], 'B'
+    je .counted
     mov byte [options], 0
 .counted:
     ret
@@ -221,8 +225,12 @@ press:
     xor bh, bh
     mov al, [asks + bx]
     cmp byte [sel_kind], 'G'
-    jne .send
+    jne .not_gate
     mov al, [gate_asks + bx]
+.not_gate:
+    cmp byte [sel_kind], 'B'
+    jne .send
+    mov al, [beacon_asks + bx]
 .send:
     cmp al, ASK_COURSE
     je .course
@@ -437,10 +445,22 @@ draw_options:
     je .station
     cmp byte [sel_kind], 'G'
     je .gate
+    cmp byte [sel_kind], 'B'
+    je .beacon
     mov di, ((FIRST_ROW + 2) * COLS + 1) * 2
     mov si, s_no_options
     mov ah, ATTR_LABEL
     call put_text
+    jmp .hint
+.beacon:
+    mov di, ((FIRST_ROW + 1) * COLS + 1) * 2
+    mov si, s_data
+    xor dl, dl
+    call put_option
+    mov di, ((FIRST_ROW + 2) * COLS + 1) * 2
+    mov si, s_course
+    mov dl, 1
+    call put_option
     jmp .hint
 .gate:
     mov di, ((FIRST_ROW + 1) * COLS + 1) * 2
@@ -486,6 +506,9 @@ kind_name:
     je .done
     mov si, s_gate
     cmp al, 'G'
+    je .done
+    mov si, s_beacon
+    cmp al, 'B'
     je .done
     mov si, s_ship
 .done:
@@ -731,6 +754,7 @@ put_text:
 
 s_station   db 'STATION', 0
 s_gate      db 'GATE', 0
+s_beacon      db 'BEACON', 0
 s_ship      db 'SHIP', 0
 s_laws      db 'LAWS', 0
 s_dock      db 'DOCK', 0
@@ -749,6 +773,8 @@ s_course    db ' SET COURSE                   ', 0
 asks        db 2, 1, 3, ASK_COURSE  ; what each option asks: docking, laws, launch, course
 s_transit   db ' REQUEST TRANSIT              ', 0
 gate_asks   db 4, 1, ASK_COURSE     ; a gate's: transit, laws, course
+s_data      db ' REQUEST DATA                 ', 0
+beacon_asks   db 5, ASK_COURSE        ; a beacon's: market data, course
 s_no_options db 'NO OPTIONS FOR SHIPS', 0
 s_hint      db 'SELECT: SEND   BACK: LIST', 0
 
@@ -992,7 +1018,7 @@ quit_message:
     mov ax, 4C01h
     int 21h
 
-s_title         db 'RADIO 1.3', 0
+s_title         db 'RADIO 1.6', 0
 s_header        db 'CALLSIGN  KIND       KM', 0
 s_removed       db 'COMMS REMOVED', 0
 msg_installed   db 'Radio resident: contacts on the COMMS screen.', 13, 10, '$'

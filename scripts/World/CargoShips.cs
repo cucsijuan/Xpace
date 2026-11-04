@@ -177,7 +177,7 @@ public static class CargoShips
         Build(state, book, account);
     }
 
-    private static StationRecord Bring(UniverseState state, StationBook.Station station, Func<string, IAccount> account)
+    public static StationRecord Bring(UniverseState state, StationBook.Station station, Func<string, IAccount> account)
     {
         StationRecord record = state.Station(station.Id);
         Market.Advance(record, station.Goods, state.Clock, station.Outfits, station.Factories, account(OwnerOf(state, station)), station.Upkeep);
@@ -264,6 +264,7 @@ public static class CargoShips
     // Down on its pad: what it came for is done there, then it stays for as long as its crew takes
     private static void Arrive(CargoShipRecord ship, ShipModel model, UniverseState state, StationBook book, Func<string, IAccount> account)
     {
+        Passed(ship, model, state, book, account);
         ship.At = ship.Going;
         ship.Phase = CargoShipRecord.Parked;
         ship.NextLook = state.Clock + model.HandlingSeconds;
@@ -277,6 +278,17 @@ public static class CargoShips
             Unload(ship, state, book, account);
             ship.State = CargoShipRecord.Waiting;
         }
+        if (book.Find(ship.At) is StationBook.Station here)
+            MarketNews.See(account(ship.Owner), here, state, account);
+    }
+
+    // The crew tells its owner what the beacons it flew past had to say
+    private static void Passed(CargoShipRecord ship, ShipModel model, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        if (book.Find(ship.From) is not StationBook.Station from || book.Find(ship.Going) is not StationBook.Station to)
+            return;
+        foreach (StationBook.Beacon beacon in book.BeaconsOn(book.Departure(from, StationBook.PadOf(from, ship.LeftDock, ship.LeftPad), to, model, ship.Tonnes, out _)))
+            MarketNews.Hear(account(ship.Owner), beacon, state, book, account);
     }
 
     // What the home is shortest of, and who sells it cheapest
@@ -293,26 +305,45 @@ public static class CargoShips
             double stock = record.Stock.GetValueOrDefault(good);
             if (stock >= line.Stock * model.RestockBelow)
                 break;
-            var sellers = book.Stations.Where(s => s != home && book.Way(home.Sector, s.Sector) != null && s.Goods.Any(g => g.Good.Id == good)
-                                                   && Market.Net(good, s.Goods, s.Factories) > 0)
-                .Select(s => (Station: s, Line: s.Goods.First(g => g.Good.Id == good), Record: Bring(state, s, account)))
-                .Where(s => s.Record.Stock.GetValueOrDefault(good) * model.TakeShare >= 1)
-                .OrderBy(s => Market.BuyPrice(s.Record, s.Line));
-            foreach (var seller in sellers)
+            var makers = book.Stations.Where(s => s != home && book.Way(home.Sector, s.Sector) != null && s.Goods.Any(g => g.Good.Id == good)
+                                                  && Market.Net(good, s.Goods, s.Factories) > 0)
+                .Select(s => (Station: s, News: Heard(ship, model, s, good, state, account))).ToList();
+            foreach (var seller in makers.Where(s => s.News != null && s.News.Stock * model.TakeShare >= 1).OrderBy(s => s.News.Buy))
             {
-                long price = Market.BuyPrice(seller.Record, seller.Line);
+                long price = seller.News.Buy;
                 long tolls = Tolls(book, home, seller.Station) * 2;
                 // Dearer than it is worth at home isn't worth fetching: what's made of it wouldn't sell
                 if (price < 0 || price > Market.Price(line, stock) || money == null || money.Credits < price + tolls)
                     continue;
-                ship.Good = good;
-                ship.Tonnes = 0;
-                ship.State = CargoShipRecord.Fetching;
-                Depart(ship, model, seller.Station, state, book, account);
+                Fetch(ship, model, good, seller.Station, state, book, account);
                 return true;
             }
+            // Nothing known that serves: the nearest maker nobody has news of is worth a look
+            foreach (var maker in makers.Where(s => s.News == null).OrderBy(s => book.Seconds(home, s.Station, model, 0)))
+                if (money != null && money.Credits >= Tolls(book, home, maker.Station) * 2)
+                {
+                    Fetch(ship, model, good, maker.Station, state, book, account);
+                    return true;
+                }
         }
         return false;
+    }
+
+    private static void Fetch(CargoShipRecord ship, ShipModel model, string good, StationBook.Station from, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        ship.Good = good;
+        ship.Tonnes = 0;
+        ship.State = CargoShipRecord.Fetching;
+        Depart(ship, model, from, state, book, account);
+    }
+
+    // What the ship's owner knows of that good there: its own station as it is, another's as last heard, null if that's no use
+    private static GoodNews Heard(CargoShipRecord ship, ShipModel model, StationBook.Station station, string good, UniverseState state, Func<string, IAccount> account)
+    {
+        if (OwnerOf(state, station) == ship.Owner)
+            return MarketNews.Report(station, Bring(state, station, account), state.Clock).Goods.GetValueOrDefault(good);
+        return account(ship.Owner)?.Known.GetValueOrDefault(station.Id) is StationNews news && state.Clock - news.AsOf <= model.NewsHours * 3600
+            ? news.Goods.GetValueOrDefault(good) : null;
     }
 
     private static long Tolls(StationBook book, StationBook.Station from, StationBook.Station to) =>
@@ -356,7 +387,9 @@ public static class CargoShips
         StationRecord homeRecord = Bring(state, home, account);
         MarketGood line = seller.Goods.FirstOrDefault(g => g.Good.Id == ship.Good);
         MarketGood wanted = home.Goods.FirstOrDefault(g => g.Good.Id == ship.Good);
-        if (line != null && wanted != null)
+        // The news was old, or it went to look: what it finds may not be worth buying
+        long price = line != null ? Market.BuyPrice(record, line) : -1;
+        if (wanted != null && price >= 0 && price <= Market.Price(wanted, homeRecord.Stock.GetValueOrDefault(ship.Good)))
         {
             double room = Market.Full * wanted.Stock - homeRecord.Stock.GetValueOrDefault(ship.Good);
             int tonnes = (int)Math.Min(Math.Min(model.Hull.CargoCapacity, room), record.Stock.GetValueOrDefault(ship.Good) * model.TakeShare);

@@ -44,6 +44,20 @@ public sealed class MarketView
     public List<MarketLine> Lines { get; set; } = new();
     /// <summary>A station with a factor: what the pilot owes other stations, and what the factor asks to settle it.</summary>
     public List<DebtLine> Elsewhere { get; set; } = new();
+    /// <summary>What the pilot knows of other stations' markets, newest first.</summary>
+    public List<NewsLine> News { get; set; } = new();
+}
+
+/// <summary>A good at another station, as the pilot last heard.</summary>
+public sealed class NewsLine
+{
+    public string Title { get; set; } = "";
+    public string Name { get; set; } = "";
+    /// <summary>How old the news is, in hours.</summary>
+    public double Hours { get; set; }
+    public int Stock { get; set; }
+    public long Buy { get; set; }
+    public long Sell { get; set; }
 }
 
 public sealed class DebtLine
@@ -301,6 +315,8 @@ public partial class StationMarket : Node
                 changed = sold > 0;
             }
         }
+        if (universe.Book?.Find(Radio.Id) is StationBook.Station here)
+            MarketNews.Learn(pilot, Radio.Id, MarketNews.Report(here, station, state.Clock));
         if (changed)
             universe.Touch(pilot);
         else
@@ -316,6 +332,13 @@ public partial class StationMarket : Node
             foreach ((string callsign, StationRecord other) in state.Stations.OrderBy(kv => kv.Key, System.StringComparer.Ordinal))
                 if (callsign != Radio.Id && other.Crimes.TryGetValue(pilotId, out CrimeRecord owed) && owed.Owed > 0)
                     view.Elsewhere.Add(new DebtLine { Station = callsign, Title = Universe.Current.NameOf(callsign), Owed = owed.Owed, Cost = FactorCost(owed.Owed) });
+        foreach ((string id, StationNews news) in pilot.Known.Where(kv => kv.Key != Radio.Id).OrderByDescending(kv => kv.Value.AsOf).ThenBy(kv => kv.Key, System.StringComparer.Ordinal))
+            foreach (MarketGood line in universe.Book?.Find(id)?.Goods ?? System.Array.Empty<MarketGood>())
+                if (news.Goods.TryGetValue(line.Good.Id, out GoodNews good))
+                    view.News.Add(new NewsLine
+                    {
+                        Title = universe.NameOf(id), Name = line.Good.Name, Hours = (state.Clock - news.AsOf) / 3600, Stock = (int)good.Stock, Buy = good.Buy, Sell = good.Sell,
+                    });
         foreach (MarketGood line in Goods.Where(g => g?.Good != null))
         {
             double stock = station.Stock.GetValueOrDefault(line.Good.Id);

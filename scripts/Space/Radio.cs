@@ -31,6 +31,8 @@ public enum RadioRequest
     Launch,
     /// <summary>A ship asks a gate to go through it: cleared for a while, the toll paid.</summary>
     Transit,
+    /// <summary>A ship asks a commercial beacon for its market data.</summary>
+    News,
 }
 
 /// <summary>A radio that takes what stations send (a ship's). Off, it hears nothing.</summary>

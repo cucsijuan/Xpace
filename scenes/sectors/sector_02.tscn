@@ -78,6 +78,7 @@
 [ext_resource type="Script" path="res://scripts/Space/MediumMass.cs" id="medium_mass"]
 [ext_resource type="Script" path="res://scripts/Space/ShipSpawner.cs" id="ship_spawner"]
 [ext_resource type="PackedScene" path="res://scenes/ships/ai_miner.tscn" id="ai_miner"]
+[ext_resource type="PackedScene" path="res://scenes/beacons/commercial_beacon.tscn" id="beacon_scene"]
 
 [sub_resource type="Resource" id="Region_belt"]
 script = ExtResource("8_region")
@@ -285,6 +286,13 @@ Factories = Array[ExtResource("factory_line")]([SubResource("Kestrel_works_ore")
 [node name="Projectiles" type="MultiMeshInstance3D" parent="." unique_id=1887929994]
 script = ExtResource("15_rounds")
 Looks = Array[ExtResource("48_look")]([ExtResource("46_cannon_look"), ExtResource("47_laser_look")])
+
+[node name="Beacon" parent="." instance=ExtResource("beacon_scene")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8000, 1000, -9000)
+
+[node name="Radio" parent="Beacon"]
+StationId = "BEACON2"
+Callsign = "BEACON2"
 
 [node name="Gate1" parent="." instance=ExtResource("gate_scene")]
 Destination = "sector_01"

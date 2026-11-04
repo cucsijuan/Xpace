@@ -33,6 +33,8 @@ public partial class ShipModel : Resource
     [Export] public double WaitSeconds = 600;
     /// <summary>It fetches a good its home uses when the stock is under this share of what the market wants.</summary>
     [Export(PropertyHint.Range, "0,1,0.05")] public double RestockBelow = 0.8;
+    /// <summary>News of a market older than this is no use to its crew: they go and look (hours).</summary>
+    [Export] public double NewsHours = 6;
     /// <summary>How far from a station it asks for a pad, and how soon it asks again when there is none, metres and seconds.</summary>
     [Export] public float AskAtMeters = 2000;
     [Export] public double AskEverySeconds = 30;

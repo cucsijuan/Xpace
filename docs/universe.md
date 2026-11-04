@@ -196,3 +196,18 @@ with `Justice`'s rules; `StationSecurity` writes it from what it sees ships do i
   ship is impounded on the pad, kept free until paid; the insurer gives a free **courtesy ship**
   (`assets/ship/hulls/hull_courtesy.tres`: a small hold, old green monochrome screens) to earn it back. Paying it all at
   that station releases the ship (`PilotShip` puts the scene's ship back to the hull the record says).
+
+## What actors know
+
+Nobody reads a far station's stock. Pilots and organisations (`IAccount.Known`) keep a dated `StationNews` for each
+station they have heard of (`scripts/World/MarketNews.cs`); newer news replaces older, never the other way round.
+
+- **Seeing it:** a cargo ship landing at a station tells its owner, and a pilot at a market kiosk learns that market.
+- **A commercial beacon** (`CommercialBeacon`, `scenes/beacons/commercial_beacon.tscn`, kind `B` on the radio) reports the
+  stations within `ReachJumps` gates, as they are then. A pilot asks it within radio reach (`RadioRequest.News`; a
+  guest's request goes to the host like docking). A cargo ship passing within `HeardMeters` tells its owner on arrival.
+- **Deciding:** `CargoShips.Plan` uses the owner's news for other owners' stations, and the truth only for its own.
+  News older than `ShipModel.NewsHours` counts as none. `CargoShips.Load` checks the real price on arrival.
+
+Shipyards still buy a ship's fitting from whoever has it without news: that is a purchase order, not yet a decision
+made on what the buyer knows.

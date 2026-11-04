@@ -81,6 +81,7 @@ public partial class StationRadio : Node3D, IRadio
     [Export] public string ExpiredText = "Your clearance for hangar {0} has expired.";
     /// <summary>A gate's: {0} where it leads, {1} the toll taken.</summary>
     [Export] public string TransitText = "Cleared for transit to {0}. Toll of {1} credits paid. The ring is yours.";
+    [Export] public string NewsText = "Market data for {0} stations sent.";
     /// <summary>A gate's: {0} the toll.</summary>
     [Export] public string TollText = "Transit denied: the toll is {0} credits.";
     [Export] public string TransitDeniedText = "Transit denied.";
@@ -168,7 +169,7 @@ public partial class StationRadio : Node3D, IRadio
     public Xpace.World.IAccount Cash => Xpace.World.Universe.Current?.Account(OwnerId);
 
     string IRadio.Callsign => Sign;
-    char IRadio.Kind => Gate != null ? 'G' : 'S';
+    char IRadio.Kind => GetParent() is CommercialBeacon ? 'B' : Gate != null ? 'G' : 'S';
     Vector3 IRadio.RadioPosition => GlobalPosition;
     float IRadio.RadioRange => Range;
     bool IRadio.RadioOn => On;
@@ -237,7 +238,7 @@ public partial class StationRadio : Node3D, IRadio
     {
         if (!On || what == RadioRequest.None || !from.RadioOn || from.RadioPosition.DistanceTo(GlobalPosition) > from.RadioRange)
             return;
-        if (what is (RadioRequest.Docking or RadioRequest.Launch or RadioRequest.Transit) && Net.SessionNode.Instance is { Active: true } session && !session.Session.IsHost)
+        if (what is (RadioRequest.Docking or RadioRequest.Launch or RadioRequest.Transit or RadioRequest.News) && Net.SessionNode.Instance is { Active: true } session && !session.Session.IsHost)
             session.Request(from, this, what);      // the host's station answers
         else
             _replies.Add((from, what, _now + ReplySeconds));
@@ -269,9 +270,7 @@ public partial class StationRadio : Node3D, IRadio
     public override void _PhysicsProcess(double delta)
     {
         _now += delta;
-        if (Laws == null)
-            return;
-        foreach (Node node in Sectors.InGroup(this, Radio.Group))
+        foreach (Node node in Laws == null ? new Godot.Collections.Array<Node>() : Sectors.InGroup(this, Radio.Group))
         {
             if (node is not IRadioReceiver ship || ship.Relayed || !IsInstanceValid(node))
                 continue;
@@ -298,6 +297,8 @@ public partial class StationRadio : Node3D, IRadio
                 Launch(to);
             else if (what == RadioRequest.Transit)
                 Transit(to);
+            else if (what == RadioRequest.News)
+                News(to);
         }
         Clearances();
     }
@@ -360,6 +361,17 @@ public partial class StationRadio : Node3D, IRadio
             return true;
         pad = dock.Pads.FirstOrDefault(p => p.Fits(ship) && _cleared.All(c => c.Pad != p) && !CargoOn(dock, p));
         return pad != null;
+    }
+
+    // A beacon gives its data to whoever flies the ship
+    private void News(IRadioReceiver ship)
+    {
+        if (GetParent() is not CommercialBeacon || Xpace.World.Universe.Current is not Xpace.World.Universe universe || universe.IsGuest ||
+            universe.Book?.Beacons.FirstOrDefault(b => b.Id == Id) is not Xpace.World.StationBook.Beacon beacon || universe.PilotOf(ShipOf(ship)) is not Xpace.World.PilotRecord pilot)
+            return;
+        int stations = Xpace.World.MarketNews.Hear(pilot, beacon, universe.State, universe.Book, universe.Account);
+        universe.Touch(pilot);
+        Say(ship, string.Format(NewsText, stations));
     }
 
     // A gate clears a ship to go through, the toll taken from its pilot then (a ship flown by the game pays none)

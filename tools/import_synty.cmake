@@ -38,6 +38,7 @@ set(MODELS
   FX_Meshes/SM_Flame_Mesh_New
   FX_Meshes/SM_Pebble_Debris_03
   SM_Prop_Missile_01
+  SM_Veh_Beacon_01
   SM_Prop_Missile_03
   SM_Env_Astroid_01
   SM_Env_Astroid_02
@@ -120,6 +121,7 @@ set(COLLISIONS
   SM_Bld_HangerFloor_01_Collision
   SM_Veh_WarpGate_Outer_01_Collision
   SM_Veh_WarpGate_Inner_01_Collision
+  SM_Veh_Beacon_01_Collision
 )
 # Out of the Unity package's Models, renamed: every character (bodies, heads,
 # helmets) on one skeleton, which the source files only have one by one
