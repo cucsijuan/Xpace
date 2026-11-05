@@ -108,9 +108,10 @@ public partial class UniverseTest : Node
         universe.Touch(me);
         Check("and hears when their record changes", heard == Universe.PilotTopic);
         universe.SaveAfterSeconds = 0.1;
-        await Frames(20);
-        Check("the change is saved a moment later", File.Exists(Path.Combine(path, "pilots", "me.json")) &&
-              File.ReadAllText(Path.Combine(path, "pilots", "me.json")).Contains($"\"Credits\": {PilotRecord.StartingCredits + 50}"));
+        string saved = Path.Combine(path, "pilots", "me.json");
+        for (int i = 0; i < 120 && !(File.Exists(saved) && File.ReadAllText(saved).Contains($"\"Credits\": {PilotRecord.StartingCredits + 50}")); i++)
+            await Frames(1);
+        Check("the change is saved a moment later, without stopping the game", File.Exists(saved) && File.ReadAllText(saved).Contains($"\"Credits\": {PilotRecord.StartingCredits + 50}"));
         universe.Forget();
         Check("a universe in memory only has no folder", universe.Folder == null && universe.Me.Credits == PilotRecord.StartingCredits);
         Directory.Delete(path, true);

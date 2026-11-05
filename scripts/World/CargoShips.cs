@@ -225,11 +225,27 @@ public static class CargoShips
     /// <summary>Brings everything up to the universe's clock.</summary>
     public static void Tick(UniverseState state, StationBook book, Func<string, IAccount> account)
     {
+        foreach (bool _ in Work(state, book, account))
+        {
+        }
+    }
+
+    /// <summary>The same a piece at a time, as it is asked for: the game does a little of it each step, so nobody sees it happen.</summary>
+    public static IEnumerable<bool> Work(UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
         foreach (StationBook.Station station in book.Stations)
+        {
             Bring(state, station, account);
-        foreach (CargoShipRecord ship in state.CargoShips.Values.OrderBy(s => s.Id, StringComparer.Ordinal))
-            Work(ship, state, book, account);
+            yield return true;
+        }
+        foreach (string id in state.CargoShips.Keys.OrderBy(s => s, StringComparer.Ordinal).ToList())
+            if (state.CargoShips.TryGetValue(id, out CargoShipRecord ship))
+            {
+                Work(ship, state, book, account);
+                yield return true;
+            }
         Order(state, book, account);
+        yield return true;
         Build(state, book, account);
     }
 

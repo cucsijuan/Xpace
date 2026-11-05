@@ -134,7 +134,15 @@ public partial class PeopleTest : Node
         long fenced = fence.Credits - purse;
         Check($"a fence pays less than the market would ({fenced} of about {honest})", loaded.Loot.Count == 0 && fenced > 0 && fenced < honest * 0.75);
 
+        // The universe's work and its documents come a piece at a time
+        Check($"the universe's work comes in pieces ({CargoShips.Work(state, book, Account).Count()})", CargoShips.Work(state, book, Account).Count() > book.Stations.Count);
         string folder = Path.Combine(OS.GetUserDataDir(), "test", "people");
+        if (Directory.Exists(folder))
+            Directory.Delete(folder, true);
+        UniverseStore.Prepare(folder);
+        foreach ((string file, string text) in UniverseStore.Documents(state, folder).ToList())
+            UniverseStore.Write(file, text);
+        Check("documents made one by one load as a whole", UniverseStore.Load(folder).People.Count == wanted);
         if (Directory.Exists(folder))
             Directory.Delete(folder, true);
         UniverseStore.Save(state, folder);

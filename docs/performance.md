@@ -70,6 +70,10 @@ Pictures and grids are made at the first question of a step, from where things s
 
 **Designers keep their data.** Optimising does not move numbers out of specs and scenes into code.
 
+**Nothing long in one step.** A step has no room for a job that takes tens of milliseconds, however rarely it runs. Work that can wait goes a piece at a time: an iterator that yields, run by `Universe.Slice` in `SliceMilliseconds` of each step (`CargoShips.Work`, `UniverseStore.Documents`), with nothing but its own list to go through, as records can go while it runs. What touches no node can go to another thread: writing files, reading a scene (`SectorHost.Prepare`).
+
+**Allocate little.** The collector stops everything. Left to itself it waits for tens of megabytes and takes tens of milliseconds, so `Universe.PaceCollector` collects the young generation every `CollectEveryMegabytes`, a few milliseconds each. (The runtime's own setting for it, `DOTNET_GCgen0size`, works only as an environment variable: Godot ignores it in the runtime config.) What is allocated every step decides how often that happens.
+
 **Sessions.** Everything here has to hold on a host running several sectors: grids and pictures are per sector, and a puppet has no computer to run. Test the feature in a session as usual.
 
 ## Measuring
@@ -91,6 +95,8 @@ Things that have misled us:
 - **One run** of the same battle varies by half a millisecond or more. A gain smaller than that is not a gain yet.
 - **Headless** leaves rendering out. Check big changes in a window too.
 
+The mean hides hitches: a game can average 4 ms and stutter. Look at the worst steps too, and for pauses compare with `GC.GetTotalPauseDuration()`.
+
 Look at how a cost grows, not only at its size: time it with 25 and 50 per side. Twice the ships for twice the time is fine; four times means something is n x n.
 
 ## Before calling a feature done
@@ -100,5 +106,6 @@ Look at how a cost grows, not only at its size: time it with 25 and 50 per side.
 - [ ] Does anything inside a per-ship or per-pair loop call into Godot?
 - [ ] Is anything worked out once per ship that could be worked out once for all?
 - [ ] Does it run when nobody reads, sees or hears the result?
+- [ ] Can any single call take more than a couple of milliseconds? Then in pieces, or on another thread.
 - [ ] Does it hold in the three stages: nothing in the compute stage, no dependence on the order of the ships?
 - [ ] If it can matter in a battle: `swarm_test` before and after, whole step.

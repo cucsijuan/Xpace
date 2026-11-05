@@ -616,11 +616,13 @@ public partial class FighterAi : Node, IOriginShift
     // The button in pulses until the generator is as it wants it
     private bool CruiseButton()
     {
-        _cruisePulse = !_cruisePulse && _ship.Device<CruiseDevice>() is CruiseDevice cruise && WantsCruise != cruise.On;
+        _cruise ??= _ship.Device<CruiseDevice>();
+        _cruisePulse = !_cruisePulse && _cruise != null && WantsCruise != _cruise.On;
         return _cruisePulse;
     }
 
     private bool _cruisePulse;
+    private CruiseDevice _cruise;
 
     // What it locked moves faster than anything flies on its engine: in cruise. The button in pulses until the
     // interdictor is as it wants it. (The speed is from the radar's track, as a pilot would read it.)

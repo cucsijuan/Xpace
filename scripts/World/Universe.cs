@@ -32,6 +32,10 @@ public partial class Universe : Node
 
     /// <summary>A change is saved this long after it; the clocks alone, this often.</summary>
     [Export] public double SaveAfterSeconds = 5, SaveEverySeconds = 60;
+    /// <summary>How much of a physics step the universe's own work and saving may take, milliseconds: the rest waits for the next.</summary>
+    [Export] public double SliceMilliseconds = 1;
+    /// <summary>How much the game allocates between collections of the young generation, megabytes.</summary>
+    [Export] public int CollectEveryMegabytes = 4;
 
     /// <summary>A guest repeats who flies its ship this often until the host answers.</summary>
     [Export] public double IntroduceEverySeconds = 2;
@@ -229,6 +233,12 @@ public partial class Universe : Node
     /// <summary>Writes the universe to its folder now, if it changed.</summary>
     public void Save()
     {
+        if (_saving != null)
+        {
+            _saving = null;
+            _dirty = true;
+        }
+        _writing?.Wait();
         if (!_dirty || Folder == null || IsGuest)
             return;
         try
@@ -571,6 +581,7 @@ public partial class Universe : Node
 
     public override void _PhysicsProcess(double delta)
     {
+        PaceCollector();
         if (IsGuest)
         {
             _sinceIntroduced += delta;
@@ -596,13 +607,15 @@ public partial class Universe : Node
                 State.Pilot(id).PlayedSeconds += delta;
             _dirty = true;
             _sinceWork += delta;
-            if (Book != null && _sinceWork >= WorkEverySeconds)
+            if (Book != null && _working == null && _sinceWork >= WorkEverySeconds)
             {
                 _sinceWork = 0;
                 CargoShips.Muster(State, Book, Account);
                 People.Muster(State, Population, Book, Account);
-                CargoShips.Tick(State, Book, Account);
+                _working = CargoShips.Work(State, Book, Account).GetEnumerator();
             }
+            if (_working != null && !Slice(_working))
+                _working = null;
         }
         _sinceFiredSent += delta;
         if (_firedBy.Count > 0 && _sinceFiredSent >= FiredSendSeconds)
@@ -614,7 +627,84 @@ public partial class Universe : Node
         }
         _sinceChange += delta;
         _sinceSave += delta;
-        if (_touched && _sinceChange >= SaveAfterSeconds || _dirty && _sinceSave >= SaveEverySeconds)
-            Save();
+        if (_saving != null)
+            SaveSlice();
+        else if ((_touched && _sinceChange >= SaveAfterSeconds || _dirty && _sinceSave >= SaveEverySeconds) && Folder != null && _writing?.IsCompleted != false)
+            StartSaving();
+    }
+
+    // Left to itself the collector waits for tens of megabytes and then stops the game for tens of milliseconds. Collected
+    // little and often it takes a few, and nobody sees it
+    private void PaceCollector()
+    {
+        long allocated = GC.GetTotalAllocatedBytes();
+        if (allocated - _collectedAt < CollectEveryMegabytes * 1048576L)
+            return;
+        _collectedAt = allocated;
+        GC.Collect(0, GCCollectionMode.Forced, blocking: true);
+    }
+
+    private long _collectedAt;
+
+    // Does what it can of a piece of work in this step's share of time; false: it is finished
+    private bool Slice<T>(IEnumerator<T> work, Action<T> each = null)
+    {
+        long start = System.Diagnostics.Stopwatch.GetTimestamp();
+        do
+        {
+            if (!work.MoveNext())
+                return false;
+            each?.Invoke(work.Current);
+        }
+        while (System.Diagnostics.Stopwatch.GetElapsedTime(start).TotalMilliseconds < SliceMilliseconds);
+        return true;
+    }
+
+    private IEnumerator<bool> _working;
+    private IEnumerator<(string File, string Text)> _saving;
+    private List<(string File, string Text)> _saved;
+    private System.Threading.Tasks.Task _writing;
+
+    // The documents are made here a few at a time and written on another thread, so a save stops nothing. Saved over a
+    // few steps, two records may be a moment apart; a save that must be exact is Save, on leaving
+    private void StartSaving()
+    {
+        _dirty = _touched = false;
+        _sinceSave = 0;
+        _saved = new List<(string, string)>();
+        _saving = UniverseStore.Documents(State, Folder).GetEnumerator();
+    }
+
+    private void SaveSlice()
+    {
+        if (Slice(_saving, _saved.Add))
+            return;
+        _saving = null;
+        string folder = Folder;
+        List<(string File, string Text)> documents = _saved;
+        List<string> gone = null;
+        try
+        {
+            UniverseStore.Prepare(folder);
+            gone = UniverseStore.Gone(State, folder);
+        }
+        catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException)
+        {
+            GD.PushError($"universe: couldn't save to {folder}: {e.Message}");
+            return;
+        }
+        _writing = System.Threading.Tasks.Task.Run(() =>
+        {
+            try
+            {
+                UniverseStore.Forget(folder, gone);
+                foreach ((string file, string text) in documents)
+                    UniverseStore.Write(file, text);
+            }
+            catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException)
+            {
+                GD.PushError($"universe: couldn't save to {folder}: {e.Message}");
+            }
+        });
     }
 }

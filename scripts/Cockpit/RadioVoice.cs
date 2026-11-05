@@ -68,7 +68,7 @@ public partial class RadioVoice : AudioStreamPlayer
     private readonly Queue<float[]> _queue = new();
     private float[] _current;
     private int _at;
-    private readonly RandomNumberGenerator _rng = new() { Seed = 77 };
+    private readonly Random _rng = new(77);        // drawn for every sample: the engine's would cost a call each
     private float _noiseLow, _noiseBand;
 
     public override void _Ready()
@@ -112,7 +112,7 @@ public partial class RadioVoice : AudioStreamPlayer
         // normalised by its stronger side; the bend leaves a little DC, blocked after it
         float bias = Asymmetry, norm = Math.Max(MathF.Tanh(Drive + bias) - MathF.Tanh(bias), MathF.Tanh(bias) - MathF.Tanh(bias - Drive));
         float dcIn = 0, dcOut = 0, dc = Mathf.Exp(-Mathf.Tau * 30 / _rate), steps = Mathf.Pow(2, Math.Max(1, Bits) - 1), held = 0;
-        float phase = _rng.Randf() * Mathf.Tau, wander = 0, crackle = 0;
+        float phase = (float)_rng.NextDouble() * Mathf.Tau, wander = 0, crackle = 0;
         for (int i = 0; i < output.Length; i++)
         {
             float noise = Static();
@@ -143,11 +143,11 @@ public partial class RadioVoice : AudioStreamPlayer
                 held = Mathf.Round(y * steps) / steps;
             y = held;
             // the level wavers: a slow beat and a slower wander
-            wander += ((_rng.Randf() * 2 - 1) - wander) * (2f / _rate);
+            wander += (((float)_rng.NextDouble() * 2 - 1) - wander) * (2f / _rate);
             phase += Mathf.Tau * FlutterHz / _rate;
             y *= Math.Max(0.2f, 1 - Flutter * (0.5f + 0.35f * Mathf.Sin(phase) + 1.2f * wander));
-            if (_rng.Randf() < Crackles / _rate)
-                crackle = CrackleLevel * (_rng.Randf() * 2 - 1);
+            if ((float)_rng.NextDouble() < Crackles / _rate)
+                crackle = CrackleLevel * ((float)_rng.NextDouble() * 2 - 1);
             y += crackle + noise * Hiss * 6;
             crackle *= 0.6f;
             output[i] = Mathf.Clamp(y * VoiceLevel, -1, 1);
@@ -184,7 +184,7 @@ public partial class RadioVoice : AudioStreamPlayer
     // White noise through a crude band-pass: a radio's static, not a hiss
     private float Static()
     {
-        float white = _rng.Randf() * 2 - 1;
+        float white = (float)_rng.NextDouble() * 2 - 1;
         _noiseLow += (white - _noiseLow) * 0.35f;
         _noiseBand += (_noiseLow - _noiseBand) * 0.05f;
         return _noiseLow - _noiseBand;

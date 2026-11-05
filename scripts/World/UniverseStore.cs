@@ -29,32 +29,59 @@ public static class UniverseStore
 
     public static void Save(UniverseState state, string folder)
     {
-        Directory.CreateDirectory(Path.Combine(folder, "pilots"));
-        Directory.CreateDirectory(Path.Combine(folder, "stations"));
-        Directory.CreateDirectory(Path.Combine(folder, "organisations"));
-        Directory.CreateDirectory(Path.Combine(folder, "cargo_ships"));
-        Directory.CreateDirectory(Path.Combine(folder, "ship_orders"));
-        Directory.CreateDirectory(Path.Combine(folder, "people"));
-        foreach (string gone in Gone(folder, "cargo_ships", state.CargoShips.Keys).Concat(Gone(folder, "ship_orders", state.ShipOrders.Keys)).Concat(Gone(folder, "stations", state.Stations.Keys)).Concat(Gone(folder, "people", state.People.Keys)))
-            File.Delete(gone);
-        Write(Path.Combine(folder, "universe.json"), new JsonObject
+        Prepare(folder);
+        Forget(folder, Gone(state, folder));
+        foreach ((string file, string text) in Documents(state, folder))
+            Write(file, text);
+    }
+
+    /// <summary>Makes the universe's folders.</summary>
+    public static void Prepare(string folder)
+    {
+        foreach (string kind in new[] { "pilots", "stations", "organisations", "cargo_ships", "ship_orders", "people" })
+            Directory.CreateDirectory(Path.Combine(folder, kind));
+    }
+
+    /// <summary>The files of records no longer in the universe.</summary>
+    public static List<string> Gone(UniverseState state, string folder) =>
+        Gone(folder, "cargo_ships", state.CargoShips.Keys).Concat(Gone(folder, "ship_orders", state.ShipOrders.Keys)).Concat(Gone(folder, "stations", state.Stations.Keys)).Concat(Gone(folder, "people", state.People.Keys)).ToList();
+
+    public static void Forget(string folder, IEnumerable<string> gone)
+    {
+        foreach (string file in gone)
+            File.Delete(file);
+    }
+
+    /// <summary>
+    /// Every document of the universe with its text, one at a time as they are asked for, so that the game can do a few
+    /// of them each step: they are made from the records at that moment, and only then.
+    /// </summary>
+    public static IEnumerable<(string File, string Text)> Documents(UniverseState state, string folder)
+    {
+        List<PersonRecord> people = state.People.Values.ToList();
+        List<PilotRecord> pilots = state.Pilots.Values.ToList();
+        List<StationRecord> stations = state.Stations.Values.ToList();
+        List<OrganisationRecord> organisations = state.Organisations.Values.ToList();
+        List<CargoShipRecord> ships = state.CargoShips.Values.ToList();
+        List<ShipOrderRecord> orders = state.ShipOrders.Values.ToList();
+        yield return (Path.Combine(folder, "universe.json"), new JsonObject
         {
             ["Version"] = state.Version, ["Clock"] = state.Clock, ["PeopleEver"] = state.PeopleEver, ["PeopleMustered"] = state.PeopleMustered,
             ["Sightings"] = JsonSerializer.SerializeToNode(state.Sightings),
             ["NextArrival"] = JsonSerializer.SerializeToNode(state.NextArrival),
-        });
-        foreach (PersonRecord person in state.People.Values)
-            Write(Path.Combine(folder, "people", FileName(person.Id)), Stamped(person, state.Version));
-        foreach (PilotRecord pilot in state.Pilots.Values)
-            Write(Path.Combine(folder, "pilots", FileName(pilot.Id)), Stamped(pilot, state.Version));
-        foreach (StationRecord station in state.Stations.Values)
-            Write(Path.Combine(folder, "stations", FileName(station.Id)), Stamped(station, state.Version));
-        foreach (OrganisationRecord organisation in state.Organisations.Values)
-            Write(Path.Combine(folder, "organisations", FileName(organisation.Id)), Stamped(organisation, state.Version));
-        foreach (CargoShipRecord ship in state.CargoShips.Values)
-            Write(Path.Combine(folder, "cargo_ships", FileName(ship.Id)), Stamped(ship, state.Version));
-        foreach (ShipOrderRecord order in state.ShipOrders.Values)
-            Write(Path.Combine(folder, "ship_orders", FileName(order.Id)), Stamped(order, state.Version));
+        }.ToJsonString(Json));
+        foreach (PersonRecord person in people)
+            yield return (Path.Combine(folder, "people", FileName(person.Id)), Stamped(person, state.Version).ToJsonString(Json));
+        foreach (PilotRecord pilot in pilots)
+            yield return (Path.Combine(folder, "pilots", FileName(pilot.Id)), Stamped(pilot, state.Version).ToJsonString(Json));
+        foreach (StationRecord station in stations)
+            yield return (Path.Combine(folder, "stations", FileName(station.Id)), Stamped(station, state.Version).ToJsonString(Json));
+        foreach (OrganisationRecord organisation in organisations)
+            yield return (Path.Combine(folder, "organisations", FileName(organisation.Id)), Stamped(organisation, state.Version).ToJsonString(Json));
+        foreach (CargoShipRecord ship in ships)
+            yield return (Path.Combine(folder, "cargo_ships", FileName(ship.Id)), Stamped(ship, state.Version).ToJsonString(Json));
+        foreach (ShipOrderRecord order in orders)
+            yield return (Path.Combine(folder, "ship_orders", FileName(order.Id)), Stamped(order, state.Version).ToJsonString(Json));
     }
 
     /// <summary>The universe kept in <paramref name="folder"/>, or a new one if there is none.</summary>
@@ -95,7 +122,7 @@ public static class UniverseStore
     }
 
     // Documents of records that are no more: a ship lost must not come back with the next load
-    private static System.Collections.Generic.IEnumerable<string> Gone(string folder, string kind, System.Collections.Generic.IEnumerable<string> ids)
+    private static IEnumerable<string> Gone(string folder, string kind, IEnumerable<string> ids)
     {
         var kept = ids.Select(FileName).ToHashSet();
         return Directory.GetFiles(Path.Combine(folder, kind), "*.json").Where(f => !kept.Contains(Path.GetFileName(f))).ToList();
@@ -158,10 +185,11 @@ public static class UniverseStore
 
     private static JsonObject Read(string file) => JsonNode.Parse(File.ReadAllText(file))?.AsObject() ?? new JsonObject();
 
-    private static void Write(string file, JsonNode document)
+    /// <summary>Writes a document, whole or not at all.</summary>
+    public static void Write(string file, string text)
     {
         string fresh = file + ".new";
-        File.WriteAllText(fresh, document.ToJsonString(Json), Encoding.UTF8);
+        File.WriteAllText(fresh, text, Encoding.UTF8);
         File.Move(fresh, file, overwrite: true);
     }
 
