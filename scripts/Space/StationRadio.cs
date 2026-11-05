@@ -215,6 +215,13 @@ public partial class StationRadio : Node3D, IRadio
         return null;
     }
 
+    /// <summary>
+    /// The one rule for a ship that respects zones: it may not go after a
+    /// point inside a protected zone, nor from inside one.
+    /// </summary>
+    public static bool Shields(World3D world, Vector3 point, Vector3 from) =>
+        ProtectingAt(world, point) != null || ProtectingAt(world, from) != null;
+
     /// <summary>The point, or the nearest one outside every protected zone (with a margin) if it is in one.</summary>
     public static Vector3 Outside(World3D world, Vector3 point, float margin = 500f)
     {

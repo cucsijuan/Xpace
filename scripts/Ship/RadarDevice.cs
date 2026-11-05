@@ -175,23 +175,26 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     // ---------- the signal ----------
 
     /// <summary>Signal-to-noise ratio of a target's echo (linear), jamming and rock clutter included.</summary>
-    public float Snr(IRadarTarget t)
+    public float Snr(IRadarTarget t) => t is FalseEcho copy ? copy.Snr : Snr(t, t.GlobalPosition, t.Velocity, t.RadarCrossSection);
+
+    /// <summary>The same, for a target as the sector's radar picture has it this step.</summary>
+    private float Snr(Blip b) => Snr(b.Target, b.Position, b.Velocity, b.CrossSection);
+
+    private float Snr(IRadarTarget t, Vector3 position, Vector3 velocity, float crossSection)
     {
-        if (t is FalseEcho copy)
-            return copy.Snr;
-        Vector3 toTarget = t.GlobalPosition - GlobalPosition;
+        Vector3 toTarget = position - GlobalPosition;
         float range = MathF.Max(toTarget.Length(), 1f);
         float perSquareMetre = DetectSnr * MathF.Pow(DetectionRange / range, 4) / ReferenceRcs;
         float jamming = Jamming(toTarget);
-        float clean = perSquareMetre * t.RadarCrossSection / (1 + jamming);
+        float clean = perSquareMetre * crossSection / (1 + jamming);
         // Too faint to be seen or held even without rocks: what they would take off does not matter (and far out the
         // beam's cell round the target is kilometres across, thousands of the rock field's cells)
         if (clean < MathF.Min(DetectSnr, LockSnr) * 0.5f)
             return clean;
-        Rocks rocks = RocksAround(t);
+        Rocks rocks = RocksAround(t, position, velocity);
         if (rocks.Hidden)
             return 0;
-        return perSquareMetre * t.RadarCrossSection / (1 + jamming + perSquareMetre * rocks.Clutter);
+        return perSquareMetre * crossSection / (1 + jamming + perSquareMetre * rocks.Clutter);
     }
 
     private struct Rocks
@@ -205,7 +208,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     private ShipBody _ship;
 
     /// <summary>What the rocks do to a target's echo: hide it, or echo with it (worked out once a step for each).</summary>
-    private Rocks RocksAround(IRadarTarget t)
+    private Rocks RocksAround(IRadarTarget t, Vector3 position, Vector3 velocity)
     {
         ulong step = Engine.GetPhysicsFrames();
         if (step != _rocksStep)
@@ -215,16 +218,32 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
         }
         if (_rocks.TryGetValue(t, out Rocks rocks))
             return rocks;
-        rocks.Hidden = Obstacles.Blocked(GetWorld3D(), GlobalPosition, t.GlobalPosition);
+        rocks.Hidden = Obstacles.Blocked(GetWorld3D(), GlobalPosition, position);
         if (!rocks.Hidden)
-            rocks.Clutter = RockField.ClutterAll(GetWorld3D(), GlobalPosition, _ship?.LinearVelocity ?? Vector3.Zero, t.GlobalPosition, t.Velocity,
+            rocks.Clutter = RockField.ClutterAll(GetWorld3D(), GlobalPosition, _ship?.LinearVelocity ?? Vector3.Zero, position, velocity,
                                                  Mathf.DegToRad(BeamwidthDegrees), RangeResolution, VelocityResolution);
         return _rocks[t] = rocks;
     }
 
     /// <summary>Jamming-to-noise ratio while looking along a direction.</summary>
-    public float Jamming(Vector3 lookingAt) =>
-        Space.Jamming.Noise(this, GlobalPosition, lookingAt, Mathf.DegToRad(BeamwidthDegrees), SidelobeLevel, _own);
+    public float Jamming(Vector3 lookingAt)
+    {
+        // What each jammer adds here is the same for every echo of a step: worked out once, for the radar where it stands
+        ulong step = Engine.GetPhysicsFrames();
+        Vector3 at = GlobalPosition;
+        if (step != _jamStep || at != _jamAt)
+        {
+            _jamLines.Clear();
+            Space.Jamming.Lines(this, at, _own, _jamLines);
+            _jamStep = step;
+            _jamAt = at;
+        }
+        return Space.Jamming.Noise(_jamLines, lookingAt, Mathf.DegToRad(BeamwidthDegrees), SidelobeLevel);
+    }
+
+    private readonly List<JamLine> _jamLines = new();
+    private ulong _jamStep = ulong.MaxValue;
+    private Vector3 _jamAt;
 
     private float AngleError(float snr) => Mathf.DegToRad(BeamwidthDegrees) / (1.6f * MathF.Sqrt(2 * snr));
     private float RangeError(float snr) => RangeResolution / MathF.Sqrt(2 * snr);
@@ -339,26 +358,27 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
         float beam = Mathf.DegToRad(BeamwidthDegrees);
         float total = 0, strongest = 0;
         Vector3 sum = Vector3.Zero, sumVelocity = Vector3.Zero;
-        foreach (Node node in Sectors.InGroup(this, "radar_targets"))
+        Basis toRadar = GlobalBasis.Inverse();
+        foreach (Blip b in RadarPicture.Of(this).All)
         {
-            if (node is not IRadarTarget t || !InCone(t))
+            if (!InCone(b, toRadar))
                 continue;
-            Vector3 to = t.GlobalPosition - GlobalPosition;
+            Vector3 to = b.Position - GlobalPosition;
             float range = to.Length();
             float across = toGate.AngleTo(to) / beam;
             float deep = (range - gateRange) / RangeResolution;
-            float doppler = (t.Velocity - _gateVelocity).Dot(to / range) / VelocityResolution;
+            float doppler = (b.Velocity - _gateVelocity).Dot(to / range) / VelocityResolution;
             // half power half a cell out, in each of the three
-            float w = Snr(t) * MathF.Exp(-2.77f * (across * across + deep * deep + doppler * doppler));
+            float w = Snr(b) * MathF.Exp(-2.77f * (across * across + deep * deep + doppler * doppler));
             if (w < 1e-3f)
                 continue;
             total += w;
-            sum += t.GlobalPosition * w;
-            sumVelocity += t.Velocity * w;
+            sum += b.Position * w;
+            sumVelocity += b.Velocity * w;
             if (w > strongest)
             {
                 strongest = w;
-                Locked = t;
+                Locked = b.Target;
             }
         }
         foreach (Node node in Sectors.InGroup(this, "jammers"))
@@ -406,6 +426,12 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
 
     private static bool Gone(IRadarTarget t) => t is GodotObject o && !IsInstanceValid(o);
 
+    private bool InCone(Blip b, Basis toRadar)
+    {
+        Vector3 local = toRadar * (b.Position - GlobalPosition);
+        return b.Shown && local.Length() >= 1 && Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees);
+    }
+
     private bool InCone(IRadarTarget t)
     {
         Vector3 local = GlobalBasis.Inverse() * (t.GlobalPosition - GlobalPosition);
@@ -417,21 +443,24 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     {
         _contacts.Clear();
         _echoes.Clear();
-        foreach (Node node in Sectors.InGroup(this, "radar_targets"))
+        Basis toRadar = GlobalBasis.Inverse();
+        // Only what could reach the radar at all: jamming and clutter take from an echo, never add to it
+        foreach (Blip b in RadarPicture.Of(this).Detectable(GlobalPosition, DetectionRange, ReferenceRcs))
         {
-            if (node is not IRadarTarget t || !InCone(t) || _contacts.Count >= MaxContacts)
+            IRadarTarget t = b.Target;
+            if (!InCone(b, toRadar) || _contacts.Count >= MaxContacts)
                 continue;
-            float snr = Snr(t);
+            float snr = Snr(b);
             if (snr < DetectSnr)
                 continue;
-            Vector3 local = Measure(t.GlobalPosition, snr, GlobalPosition, GlobalBasis);
+            Vector3 local = Measure(b.Position, snr, GlobalPosition, GlobalBasis);
             byte* e = table + _contacts.Count * 16;
             _contacts.Add(t);
             _echoes.Add(new Echo { Id = t.RadarId, Seen = GlobalPosition + GlobalBasis * local, Snr = snr });
             float az = Mathf.Atan2(local.X, -local.Z);
             float el = Mathf.Atan2(local.Y, new Vector2(local.X, local.Z).Length());
-            Vector3 relative = t.Velocity - ship.LinearVelocity;
-            float closing = -relative.Dot((t.GlobalPosition - GlobalPosition).Normalized());
+            Vector3 relative = b.Velocity - ship.LinearVelocity;
+            float closing = -relative.Dot((b.Position - GlobalPosition).Normalized());
             Put(e, 0, t.RadarId);
             Put(e, 2, (int)Math.Min(local.Length(), 65535));
             Put(e, 4, Angle(az));

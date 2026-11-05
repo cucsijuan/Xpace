@@ -37,7 +37,10 @@ public partial class WeaponPageTest : Node3D
     {
         AddChild(new Projectiles());
         _ship = new ShipBody();
-        _ship.AddChild(new ShipComputer { Name = "ShipComputer" });
+        var computer = new ShipComputer { Name = "ShipComputer" };
+        if (!string.IsNullOrEmpty(System.Environment.GetEnvironmentVariable("XPACE_PAGE_SHOTS")))
+            computer.Watch();                                   // pictures are only drawn for someone watching
+        _ship.AddChild(computer);
         _display = new DisplayDevice
         {
             Screens = new()

@@ -129,14 +129,30 @@ public partial class ShipComputer : Node, IRearmable
         Pc86.pc_run(_pc, Math.Min(dt, 0.1));
     }
 
+    private int _watchers;
+
+    /// <summary>
+    /// Something shows this machine's screens (a cockpit's, later a monitor
+    /// that watches a ship an AI flies). With nobody watching they are not
+    /// drawn: the machine runs the same, only its pictures are not made.
+    /// </summary>
+    public bool Watched => _watchers > 0;
+
+    public void Watch() => _watchers++;
+
+    public void Unwatch() => _watchers = Math.Max(0, _watchers - 1);
+
     public override unsafe void _Process(double delta)
     {
         if (RunsItself)
             Advance(delta);
-        fixed (byte* p = _pixels)
-            Pc86.pc_vga_card_display(_vga, (float)delta, p);
-        _image.SetData(Pc86.ScreenWidth, Pc86.ScreenHeight, false, _format, _pixels);
-        Screen.Update(_image);
+        if (Watched)
+        {
+            fixed (byte* p = _pixels)
+                Pc86.pc_vga_card_display(_vga, (float)delta, p);
+            _image.SetData(Pc86.ScreenWidth, Pc86.ScreenHeight, false, _format, _pixels);
+            Screen.Update(_image);
+        }
 
         // The drive stopped: whatever it wrote is kept
         bool light = DriveLight;

@@ -304,7 +304,7 @@ public partial class FighterAi : Node, IOriginShift
             return false;
         if (((Space.IEngagement)Police ?? Engagement) is Space.IEngagement orders)
             return orders.Hostiles.Any(h => h.GlobalPosition.DistanceTo(point) < FriendGate);
-        return !RespectsZones || (StationRadio.ProtectingAt(_ship.GetWorld3D(), point) == null && StationRadio.ProtectingAt(_ship.GetWorld3D(), _ship.GlobalPosition) == null);
+        return !RespectsZones || !StationRadio.Shields(_ship.GetWorld3D(), point, _ship.GlobalPosition);
     }
 
     /// <summary>Through the route's points in turn, slowing for the last.</summary>

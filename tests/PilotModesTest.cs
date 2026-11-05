@@ -34,6 +34,7 @@ public partial class PilotModesTest : Node
         _camera = _pilot.GetNode<Camera3D>("Camera3D");
         await Frames(10);
         Check("the pilot starts flying", _pilot.Mode == Pilot.MouseUse.Flying);
+        Check("the cockpit's screens are drawn: they are watched", main.Ship.Computer.Watched);
 
         // Look: tap in, turn, tap out: the head stays
         await Tap(MouseButton.Middle);

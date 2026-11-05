@@ -110,7 +110,7 @@ public partial class CargoView : Node
         {
             Doors(record, ship, model, universe);
             if (model.Escort && PilotNear(ship, universe))
-                _dealt[record.Id] = Time.GetTicksMsec() / 1000.0;
+                _dealt[record.Id] = Now;
             Detail(record.Id, ship);
         }
     }
@@ -162,14 +162,17 @@ public partial class CargoView : Node
             }
     }
 
+    // The game's own time, not the clock on the wall: a battle that runs faster or slower than real time rests its ships the same
+    private static double Now => Engine.GetPhysicsFrames() / (double)Engine.PhysicsTicksPerSecond;
+
     // Level 0 while someone deals with it: it is hit, or a radar is locked on it; level 1 again a while after
     private void Detail(string id, ShipBody ship)
     {
         if (Dealt(ship))
-            _dealt[id] = Time.GetTicksMsec() / 1000.0;
+            _dealt[id] = Now;
         if (!_dealt.TryGetValue(id, out double at))
             return;
-        if (Time.GetTicksMsec() / 1000.0 - at <= RestAfterSeconds)
+        if (Now - at <= RestAfterSeconds)
             ship.Wake();
         else
         {
@@ -205,7 +208,7 @@ public partial class CargoView : Node
         if (victim is not ShipBody ship || !_shown.ContainsValue(ship))
             return;
         _struck.Add(ship);
-        double now = Time.GetTicksMsec() / 1000.0;
+        double now = Now;
         if (_called.TryGetValue(ship, out double at) && now - at < MaydayEverySeconds || Universe.Current is not Universe universe)
             return;
         _called[ship] = now;

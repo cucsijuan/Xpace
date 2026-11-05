@@ -66,6 +66,20 @@ public static class Radio
                 yield return radio;
     }
 
+    /// <summary>
+    /// The radios a listener hears, nearest first, up to <paramref name="count"/>: asked of the sector's spatial grid, so
+    /// the cost follows the few near it and not every radio there is.
+    /// </summary>
+    public static void Hearing(IRadioReceiver listener, Node where, int count, System.Collections.Generic.List<IRadio> into)
+    {
+        var nodes = new System.Collections.Generic.List<Node>();
+        Spatial.Grid(where, Spatial.Radios).Nearest(listener.RadioPosition, count, float.MaxValue,
+            n => GodotObject.IsInstanceValid(n) && n is IRadio radio && n is Node3D v && v.IsVisibleInTree() &&
+                 !ReferenceEquals(radio, listener) && Hears(listener, radio), nodes);
+        foreach (Node node in nodes)
+            into.Add((IRadio)node);
+    }
+
     /// <summary>The listener hears the radio: both on, and near enough.</summary>
     public static bool Hears(IRadioReceiver listener, IRadio radio) =>
         listener.RadioOn && radio.RadioOn &&

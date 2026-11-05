@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Godot;
 
 namespace Xpace.Space;
@@ -57,22 +58,44 @@ public static class Jamming
     /// </summary>
     public static float Noise(Node where, Vector3 radar, Vector3 lookingAt, float beam, float sidelobe, IRadarTarget own)
     {
-        float jn = 0;
-        foreach (Node node in Sectors.InGroup(where, "jammers"))
+        var lines = new List<JamLine>();
+        Lines(where, radar, own, lines);
+        return Noise(lines, lookingAt, beam, sidelobe);
+    }
+
+    /// <summary>
+    /// What each jammer that is sending adds at a radar: the direction to it and its noise at that distance (before the
+    /// gain of the beam). It depends on the radar's place only, so a radar works it out once and asks <see cref="Noise(List{JamLine}, Vector3, float, float)"/>
+    /// for each echo it looks at.
+    /// </summary>
+    public static void Lines(Node where, Vector3 radar, IRadarTarget own, List<JamLine> into)
+    {
+        foreach (JamSource source in JammerPicture.Of(where))
         {
-            if (node is not IJammer j || (own != null && j.Carrier == own) || node is Node3D { Visible: false })
+            IJammer j = source.Jammer;
+            if (!source.Sending || (own != null && j.Carrier == own) || !GodotObject.IsInstanceValid(source.Node))
                 continue;
             float power = j.NoiseToward(radar);
             if (power <= 0)
                 continue;
-            Vector3 toJammer = j.GlobalPosition - radar;
+            Vector3 toJammer = source.Position - radar;
             float km = MathF.Max(toJammer.Length(), 1f) / 1000f;
-            float gain = lookingAt.AngleTo(toJammer) <= beam ? 1f : sidelobe;
-            jn += power / (km * km) * gain;
+            into.Add(new JamLine(toJammer, power / (km * km)));
         }
+    }
+
+    /// <summary>The jamming-to-noise ratio looking along a direction: in full from jammers inside the beam, by the sidelobe level from the rest.</summary>
+    public static float Noise(List<JamLine> lines, Vector3 lookingAt, float beam, float sidelobe)
+    {
+        float jn = 0;
+        foreach (JamLine line in lines)
+            jn += line.Power * (lookingAt.AngleTo(line.To) <= beam ? 1f : sidelobe);
         return jn;
     }
 }
+
+/// <summary>A jammer's noise at one radar: the direction to the jammer and the noise it brings at that distance.</summary>
+public readonly record struct JamLine(Vector3 To, float Power);
 
 /// <summary>A copy of an echo that a repeater jammer makes in one radar's tracker.</summary>
 public sealed class FalseEcho : IRadarTarget
@@ -92,4 +115,29 @@ public sealed class FalseEcho : IRadarTarget
     public bool Alive => Live && (Source?.Alive ?? false);
     public float RadarCrossSection => 0;
     public void Paint() => Source?.Paint();
+}
+
+/// <summary>A jammer as radars meet it for a step: where it stood and whether it can send at all (not hidden).</summary>
+public sealed class JamSource
+{
+    public IJammer Jammer;
+    public Node Node;
+    public Vector3 Position;
+    public bool Sending;
+}
+
+/// <summary>
+/// The jammers of a sector, taken once a step: every radar's every echo asks what they add to the noise, so asking each
+/// jammer for its place each time cost the number of radars times echoes times jammers calls into the engine.
+/// </summary>
+public static class JammerPicture
+{
+    public static List<JamSource> Of(Node from) => Sectors.Built(from, "jammers", typeof(JammerPicture), nodes =>
+    {
+        var list = new List<JamSource>();
+        foreach (Node node in nodes)
+            if (node is IJammer j)
+                list.Add(new JamSource { Jammer = j, Node = node, Position = j.GlobalPosition, Sending = node is not Node3D { Visible: false } });
+        return list;
+    });
 }

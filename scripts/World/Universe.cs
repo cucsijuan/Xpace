@@ -256,9 +256,25 @@ public partial class Universe : Node
             return id;
         if (ship is RemoteShip { NetId: var remote } && NetIds.IsPlayerShip(remote))
             return _peers.GetValueOrDefault(NetIds.Owner(remote));
-        if (ship.GetChildren().OfType<NetBody>().FirstOrDefault() is { OwnedBy: NetOwner.Pilot, IsLocal: true, Puppet: false })
-            return LocalPilotId;
-        return null;
+        return FliesHere(ship) ? LocalPilotId : null;
+    }
+
+    // Whether the ship is one this machine's pilot owns, by its NetBody: found by walking the ship's children, so asked
+    // once a physics step for each ship however often its devices look up their record
+    private readonly Dictionary<Node3D, bool> _flies = new();
+    private ulong _fliesStep = ulong.MaxValue;
+
+    private bool FliesHere(Node3D ship)
+    {
+        ulong step = Engine.GetPhysicsFrames();
+        if (step != _fliesStep)
+        {
+            _flies.Clear();
+            _fliesStep = step;
+        }
+        if (!_flies.TryGetValue(ship, out bool flies))
+            _flies[ship] = flies = ship.GetChildren().OfType<NetBody>().FirstOrDefault() is { OwnedBy: NetOwner.Pilot, IsLocal: true, Puppet: false };
+        return flies;
     }
 
     /// <summary>The record of the pilot flying <paramref name="ship"/> (the owner of the universe only).</summary>

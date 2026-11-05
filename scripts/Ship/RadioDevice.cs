@@ -90,7 +90,31 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
     public int Pad { get; private set; }
     /// <summary>The ship asked the station that cleared it to let it go (docked: its pad lets go once the door opens).</summary>
     public bool Launching { get; private set; }
-    public IReadOnlyList<IRadio> Contacts => _contacts;
+    public IReadOnlyList<IRadio> Contacts
+    {
+        get
+        {
+            Scan();
+            return _contacts;
+        }
+    }
+
+    /// <summary>How long after a program last read the radio's contact registers the list keeps being made, seconds.</summary>
+    private const double ReadSeconds = 1;
+    private double _readFor = ReadSeconds;
+    private ulong _scanned = ulong.MaxValue;
+
+    // Who is heard, nearest first, once for each physics step however often it is asked
+    private void Scan()
+    {
+        ulong now = Engine.GetPhysicsFrames();
+        if (_scanned == now)
+            return;
+        _scanned = now;
+        _contacts.Clear();
+        if (On && IsInsideTree())
+            Radio.Hearing(this, this, MaxContacts, _contacts);
+    }
     /// <summary>What it heard, the newest last (the speech: how it was spoken, see <see cref="RadioVoicePack"/>).</summary>
     public IReadOnlyList<(string From, string Text, string Speech)> Heard => _heard;
 
@@ -204,6 +228,7 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
     // The nearest station heard (contacts are nearest first), or the nearest gate
     private StationRadio Nearest(bool gate = false)
     {
+        Scan();
         foreach (IRadio r in _contacts)
             if (r is StationRadio s && IsInstanceValid(s) && (s.Gate != null) == gate)
                 return s;
@@ -240,20 +265,19 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
             DockFrom = null;
         }
 
-        _contacts.Clear();
-        if (On)
-            foreach (IRadio r in Radio.All(this))
-                if (!ReferenceEquals(r, this) && Radio.Hears(this, r))
-                    _contacts.Add(r);
-        _contacts.Sort((a, b) => Distance(a).CompareTo(Distance(b)));
-        if (_contacts.Count > MaxContacts)
-            _contacts.RemoveRange(MaxContacts, _contacts.Count - MaxContacts);
+        // The list of who is heard is made only for a program that reads the radio (COMMS polls it): a ship whose
+        // programs never look does not listen to the others. Whoever else needs it (a request) makes it when it asks.
+        bool read = bus.TakeRead(Slot, 2) | bus.TakeRead(Slot, 3) | bus.TakeRead(Slot, 7);
+        _readFor = read ? ReadSeconds : Math.Max(0, _readFor - delta);
+        bool listening = _readFor > 0;
+        if (listening)
+            Scan();
 
         float lawsRange = LawsFrom?.GlobalPosition.DistanceTo(GlobalPosition) ?? float.MaxValue;
         InsideSpeedZone = Laws != null && lawsRange <= Laws.SpeedRadius;
         InsideZone = Laws != null && lawsRange <= Laws.ZoneRadius;
         byte* table = ship.Computer.Memory + ShipMemory.Base + ShipMemory.Radios;
-        for (int i = 0; i < _contacts.Count; i++)
+        for (int i = 0; listening && i < _contacts.Count; i++)
         {
             IRadio r = _contacts[i];
             byte* entry = table + i * EntrySize;
@@ -297,8 +321,11 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
 
         WritePad(ship);
 
-        bus[Slot, 2] = (byte)_contacts.Count;
-        bus[Slot, 3] = ++_updates;
+        if (listening)
+        {
+            bus[Slot, 2] = (byte)_contacts.Count;
+            bus[Slot, 3] = ++_updates;
+        }
         bus[Slot, 4] = status;
         bus[Slot, 7] = _messages;
     }
@@ -319,7 +346,7 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
             AskTransit();
         else if (which == NearestStation)
             Ask(what);
-        else if (which < _contacts.Count && _contacts[which] is StationRadio station)
+        else if (which < Contacts.Count && _contacts[which] is StationRadio station)
             Ask(what, station);
     }
 

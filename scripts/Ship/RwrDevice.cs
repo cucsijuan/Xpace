@@ -146,9 +146,10 @@ public partial class RwrDevice : Node3D, IShipDevice
             _contacts.Clear();
         else
         {
-            foreach (Node node in Sectors.InGroup(this, "radar_emitters"))
-                if (node is IRadarEmitter e && !ship.IsAncestorOf(node))
-                    Listen(ship, e, (float)delta);
+            Vector3 here = GlobalPosition;
+            foreach (Ping ping in EmitterPicture.Of(this).Reaching(here, Sensitivity, DetectSnr))
+                if (ping.Ship != ship)
+                    Listen(ship, ping.Emitter, ping.Position, here, (float)delta);
             foreach (Node node in Sectors.InGroup(this, "missiles"))
                 if (node is Missile m && m.Shooter != ship)
                     Watch(ship, m, (float)delta);
@@ -195,20 +196,23 @@ public partial class RwrDevice : Node3D, IShipDevice
     public void AfterStep(ShipBody ship, double delta) { }
 
     /// <summary>The SNR an emitter's main lobe gives this receiver.</summary>
-    public float Snr(IRadarEmitter e)
+    public float Snr(IRadarEmitter e) => Snr(e, e.GlobalPosition, GlobalPosition);
+
+    private float Snr(IRadarEmitter e, Vector3 at, Vector3 here)
     {
-        float km = MathF.Max(e.GlobalPosition.DistanceTo(GlobalPosition), 1f) / 1000f;
+        float km = MathF.Max(at.DistanceTo(here), 1f) / 1000f;
         return e.PowerAt1Km * Sensitivity / (km * km);
     }
 
-    private void Listen(ShipBody ship, IRadarEmitter e, float dt)
+    // 'at' is where the emitter stood when the step's picture of the sector was taken
+    private void Listen(ShipBody ship, IRadarEmitter e, Vector3 at, Vector3 here, float dt)
     {
-        if (!e.Illuminates(GlobalPosition))
+        if (!e.Illuminates(here))
             return;
-        float snr = Snr(e);
+        float snr = Snr(e, at, here);
         if (snr < DetectSnr)
             return;
-        float bearing = TrueBearing(ship, e.GlobalPosition);
+        float bearing = TrueBearing(ship, at);
         bearing += Mathf.DegToRad(BearingErrorDegrees) * MathF.Sin(4 * bearing + 0.7f)
                  + Mathf.DegToRad(BearingNoiseDegrees) / MathF.Sqrt(snr) * _rng.Randfn();
         float heard = snr * MathF.Pow(10, _rng.Randfn(0, PowerErrorDb) / 10);

@@ -158,6 +158,14 @@ public partial class CockpitScreen : MeshInstance3D, IInteractive
             return;
         _material.SetShaderParameter("picture", picture);
         _bound = true;
+        Computer.Watch();
+    }
+
+    // Freed with the ship's tree, not on leaving it: a ship moved to another sector leaves and enters again
+    public override void _Notification(int what)
+    {
+        if (what == NotificationPredelete && _bound && Computer != null && IsInstanceValid(Computer))
+            Computer.Unwatch();
     }
 
     private ShipBody FindShip()

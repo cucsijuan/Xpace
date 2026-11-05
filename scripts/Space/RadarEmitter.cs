@@ -194,19 +194,37 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
         return signal >= margin * (1 + jamming + DetectSnr * clutterSignal);
     }
 
+    // Every receiver in range asks this each step; where the emitter stands is the same for all of them
+    private ulong _stood = ulong.MaxValue;
+    private Vector3 _at;
+    private Basis _toLocal;
+    private World3D _world;
+
+    private void Stand()
+    {
+        ulong step = Engine.GetPhysicsFrames();
+        if (step == _stood)
+            return;
+        _stood = step;
+        _at = GlobalPosition;
+        _toLocal = GlobalBasis.Inverse();
+        _world = GetWorld3D();
+    }
+
     public bool Illuminates(Vector3 point)
     {
         if (!Transmitting)
             return false;
-        Vector3 local = GlobalBasis.Inverse() * (point - GlobalPosition);
-        if (local.LengthSquared() < 1 || Obstacles.Blocked(GetWorld3D(), GlobalPosition, point))
+        Stand();
+        Vector3 local = _toLocal * (point - _at);
+        if (local.LengthSquared() < 1 || Obstacles.Blocked(_world, _at, point))
             return false;                       // too close to tell, or rock in the way
         float half = Mathf.DegToRad(BeamwidthDegrees) / 2;
         if (Locked)
         {
             if (Target == null || !IsInstanceValid(Target))
                 return false;                   // what it tracked is gone (chaff that blew away)
-            Vector3 toTarget = GlobalBasis.Inverse() * (Target.GlobalPosition - GlobalPosition);
+            Vector3 toTarget = _toLocal * (Target.GlobalPosition - _at);
             return local.AngleTo(toTarget) <= half;
         }
         return Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees) && Crossed(local);

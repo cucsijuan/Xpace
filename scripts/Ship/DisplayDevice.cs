@@ -227,7 +227,7 @@ public partial class DisplayDevice : Node, IShipDevice
 
     public override unsafe void _Process(double delta)
     {
-        if (_ship == null)
+        if (_ship == null || !_ship.Computer.Watched)
             return;
         byte* memory = _ship.Computer.Memory + ShipMemory.Base;
         for (int i = 0; i < _outputs.Length; i++)

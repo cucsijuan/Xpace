@@ -304,7 +304,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     }
 
     private bool Protected(Vector3 point) =>
-        RespectsZones && (StationRadio.ProtectingAt(GetWorld3D(), point) != null || StationRadio.ProtectingAt(GetWorld3D(), GlobalPosition) != null);
+        RespectsZones && StationRadio.Shields(GetWorld3D(), point, GlobalPosition);
 
     private void See(Node3D echo)
     {
