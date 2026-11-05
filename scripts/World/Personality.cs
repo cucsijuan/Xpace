@@ -1,10 +1,11 @@
+using System;
 using Godot;
 
 namespace Xpace.World;
 
 /// <summary>
-/// How an organisation behaves, a .tres in assets/personalities: the same rules for all, with these numbers telling
-/// them apart when they meet damage or competition. Each 0 to 1.
+/// How someone behaves, an organisation, a person or a crew, a .tres in assets/personalities: the same rules for all,
+/// with these numbers telling them apart when they meet damage or competition. Each 0 to 1 unless it says otherwise.
 /// </summary>
 [GlobalClass]
 public partial class Personality : Resource
@@ -40,4 +41,33 @@ public partial class Personality : Resource
 
     /// <summary>The same for a ship hit and not lost.</summary>
     [Export(PropertyHint.Range, "0,1,0.001")] public float HitBountyShare = 0.01f;
+
+    /// <summary>How long what happened takes to matter half as much, hours.</summary>
+    [Export] public double MemoryHours = 48;
+
+    [ExportGroup("Under fire")]
+    /// <summary>With a ship that can't fight, they start thinking of throwing its cargo out with this much of the hull left, in the hope that is what they came for.</summary>
+    [Export(PropertyHint.Range, "0,1,0.05")] public float JettisonBelowHull = 0.7f;
+    /// <summary>With this much left they throw it out whatever it is and whatever is coming.</summary>
+    [Export(PropertyHint.Range, "0,1,0.05")] public float JettisonLastHull = 0.2f;
+    /// <summary>Between the two, the chance of giving in each time they think about it, and how often that is, seconds.</summary>
+    [Export(PropertyHint.Range, "0,1,0.05")] public double JettisonChance = 0.4;
+    [Export] public double JettisonThinkSeconds = 3;
+    /// <summary>What cargo has to be worth for them to hold on to it as hard as it can, credits.</summary>
+    [Export] public double ValuableCargo = 50000;
+    /// <summary>How far each reason moves it from the first limit towards the last: 1 is all the way. They add up.</summary>
+    [Export(PropertyHint.Range, "0,1,0.05")] public double HoldForValue = 0.6;
+    [Export(PropertyHint.Range, "0,1,0.05")] public double HoldForShelter = 0.5;
+    [Export(PropertyHint.Range, "0,1,0.05")] public double HoldForHelp = 0.5;
+    /// <summary>How far outside a protected zone they start counting on reaching it (m).</summary>
+    [Export] public float ShelterHoldMeters = 8000f;
+    /// <summary>In a ship that fights, with this much of the hull left they run instead.</summary>
+    [Export(PropertyHint.Range, "0,1,0.05")] public float RunBelowHull = 0.35f;
+
+    /// <summary>The hull under which they may give up their cargo: lower the more it is worth, the nearer a protected zone (m away) and with help coming.</summary>
+    public float JettisonAt(double worth, float zoneMeters, bool help)
+    {
+        double hold = HoldForValue * Math.Min(1, worth / Math.Max(ValuableCargo, 1)) + HoldForShelter * Math.Clamp(1 - zoneMeters / Math.Max(ShelterHoldMeters, 1), 0, 1) + (help ? HoldForHelp : 0);
+        return Mathf.Lerp(JettisonBelowHull, JettisonLastHull, (float)Math.Min(1, hold));
+    }
 }

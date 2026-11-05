@@ -297,6 +297,9 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
     private static ulong _steppedAll;
     private static double _stepDelta;
     private ulong _stepped;
+
+    /// <summary>Who flies it, if a free person does (<see cref="Xpace.World.Universe.ActorOf"/>).</summary>
+    public string Actor = "";
     private bool _computing;
 
     public override void _EnterTree() => InSpace.Add(this);

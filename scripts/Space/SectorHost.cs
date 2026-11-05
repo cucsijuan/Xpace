@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 using Godot;
 using Xpace.Menu;
 using Xpace.Ship;
@@ -58,12 +60,59 @@ public partial class SectorHost : Node
     private readonly Dictionary<string, Running> _loaded = new();
     private Running _here;
 
-    public override void _EnterTree() => Current = this;
+    public override void _EnterTree()
+    {
+        Current = this;
+        Combat.Damaged += Fought;
+    }
+
+    /// <summary>How long after the last hit a sector the player left goes on running, seconds.</summary>
+    [Export] public double FightQuietSeconds = 30;
+
+    // When each loaded sector last saw a hit, in game time. A fight goes on after the player leaves, with real
+    // ships and nothing drawn, and what comes of it reaches the records as it does anywhere else
+    private readonly Dictionary<string, double> _fought = new();
+    private readonly HashSet<string> _lingering = new();
+    private double _clock;
+
+    private void Fought(Node3D who, Node3D by) => Fought(who);
+
+    private void Fought(Node who)
+    {
+        foreach (Running l in _loaded.Values)
+            if (who != null && GodotObject.IsInstanceValid(who) && l.Origin.IsAncestorOf(who))
+                _fought[l.Info.Id] = _clock;
+    }
+
+    /// <summary>Someone was hit in that sector lately.</summary>
+    public bool Fighting(string sectorId) => _fought.TryGetValue(sectorId, out double at) && _clock - at < FightQuietSeconds;
+
+    public override void _PhysicsProcess(double delta)
+    {
+        _clock += delta;
+        foreach (string id in _lingering.ToList())
+            if (!Fighting(id))
+            {
+                _lingering.Remove(id);
+                if (_loaded.TryGetValue(id, out Running l) && l != _here && Keep?.Invoke(id) != true)
+                    Unload(l);
+            }
+    }
+
+    // A sector nobody needs now goes, unless a fight there has not ended
+    private void LetGo(Running l)
+    {
+        if (Fighting(l.Info.Id))
+            _lingering.Add(l.Info.Id);
+        else
+            Unload(l);
+    }
 
     public override void _ExitTree()
     {
         if (Current == this)
             Current = null;
+        Combat.Damaged -= Fought;
         if (GameSettings.Current is GameSettings s)
             s.Changed -= ApplySettings;
     }
@@ -109,7 +158,7 @@ public partial class SectorHost : Node
         Show(to);
         Jumped?.Invoke(from.Info, to.Info);
         if (Keep?.Invoke(from.Info.Id) != true)
-            Unload(from);
+            LetGo(from);
     }
 
     /// <summary>A sector's number in the map (its place in a session).</summary>
@@ -159,7 +208,7 @@ public partial class SectorHost : Node
     public void Release(byte place)
     {
         if (place < (Map?.Sectors.Count ?? 0) && _loaded.TryGetValue(Map.Sectors[place].Id, out Running l) && l != _here)
-            Unload(l);
+            LetGo(l);
     }
 
     /// <summary>What the sector of that Id shows is left out (it is loaded and the player is elsewhere).</summary>
@@ -177,9 +226,45 @@ public partial class SectorHost : Node
     public FloatingOrigin Root(string sectorId) => _loaded.TryGetValue(sectorId, out Running l) ? l.Origin : null;
 
     // A sector in a world of its own; the ship, if one comes with it, is in it before it starts
-    private Running Load(Sector info, ShipBody ship)
+    // The sectors being read on another thread, and made there, for Prepare
+    private readonly Dictionary<string, Task<FloatingOrigin>> _making = new();
+    private readonly HashSet<string> _reading = new();
+
+    /// <summary>
+    /// Whether the sector of that number is running; if not, it is got ready with the game going on: its scene read and
+    /// made on other threads, so the game doesn't stop for it. Ask again until it is.
+    /// </summary>
+    public bool Prepare(byte place)
     {
-        var origin = GD.Load<PackedScene>(info.Scene).Instantiate<FloatingOrigin>();
+        if (RootAt(place) != null)
+            return true;
+        if (Map == null || place >= Map.Sectors.Count || Map.Sectors[place] is not Sector info)
+            return false;
+        if (_making.Remove(info.Id, out Task<FloatingOrigin> making))
+        {
+            if (!making.IsCompleted)
+                _making[info.Id] = making;
+            else
+            {
+                Load(info, null, making.Result);
+                Show(_here);
+                return true;
+            }
+        }
+        else if (_reading.Add(info.Id))
+            ResourceLoader.LoadThreadedRequest(info.Scene);
+        else if (ResourceLoader.LoadThreadedGetStatus(info.Scene) == ResourceLoader.ThreadLoadStatus.Loaded)
+        {
+            _reading.Remove(info.Id);
+            var scene = (PackedScene)ResourceLoader.LoadThreadedGet(info.Scene);
+            _making[info.Id] = Task.Run(() => scene.Instantiate<FloatingOrigin>());
+        }
+        return false;
+    }
+
+    private Running Load(Sector info, ShipBody ship, FloatingOrigin made = null)
+    {
+        var origin = made ?? GD.Load<PackedScene>(info.Scene).Instantiate<FloatingOrigin>();
         origin.Name = info.Id;
         if (ship != null)
         {
@@ -206,6 +291,7 @@ public partial class SectorHost : Node
     private void Unload(Running l)
     {
         _loaded.Remove(l.Info.Id);
+        _fought.Remove(l.Info.Id);
         l.Visuals.Forget();
         l.Frame.QueueFree();
     }
@@ -220,7 +306,12 @@ public partial class SectorHost : Node
             l.Port.RenderTargetUpdateMode = shown ? SubViewport.UpdateMode.Always : SubViewport.UpdateMode.Disabled;
             l.Port.AudioListenerEnable3D = shown;
             if (shown)
+            {
                 l.Visuals.Show();
+                foreach (Node surface in GetTree().GetNodesInGroup(Xpace.OnFoot.WalkSurface.Group))
+                    if (l.Origin.IsAncestorOf(surface))
+                        ((Xpace.OnFoot.WalkSurface)surface).Build();
+            }
             else
                 l.Visuals.Hide();
         }

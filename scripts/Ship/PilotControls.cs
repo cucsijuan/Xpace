@@ -26,6 +26,7 @@ public struct PilotControls
     public bool Jammer;             // the jammer: off, noise, deception, off
     public bool Parking;            // FLIGHT's parking mode, on and off
     public bool Cruise;             // the cruise generator, on and off
+    public bool Jettison;           // the hold's release: everything goes out
     public bool Interdict;          // the interdictor, on and off
     public bool TuneUp, TuneDown;   // the generator's frequency, against an interdictor's beam
 }

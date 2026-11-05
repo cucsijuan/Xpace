@@ -9,3 +9,5 @@ Aggression = 0.85
 Diplomacy = 0.2
 Shadiness = 0.3
 Ambition = 0.7
+JettisonBelowHull = 0.45
+JettisonChance = 0.2

@@ -11,13 +11,21 @@ public interface IEngagement
     IEnumerable<Node3D> Hostiles { get; }
 }
 
-/// <summary>An escort's orders: it fights who attacked what it guards, until they are gone.</summary>
+/// <summary>
+/// A ship's orders under attack: an escort fights who attacked what it guards, until they are gone; a cargo ship
+/// (<see cref="Fights"/> off) fights nobody and keeps away from them.
+/// </summary>
 public sealed class EscortDuty : IEngagement
 {
     private readonly List<Node3D> _attackers = new();
     private double _quiet;
 
-    public IEnumerable<Node3D> Hostiles => _attackers.Where(a => GodotObject.IsInstanceValid(a) && Combat.IsAlive(a));
+    public bool Fights = true;
+
+    /// <summary>Who attacked, alive and there.</summary>
+    public IEnumerable<Node3D> Attackers => _attackers.Where(a => GodotObject.IsInstanceValid(a) && Combat.IsAlive(a));
+
+    public IEnumerable<Node3D> Hostiles => Fights ? Attackers : Enumerable.Empty<Node3D>();
 
     public void Add(Node3D attacker)
     {
@@ -32,7 +40,7 @@ public sealed class EscortDuty : IEngagement
     /// <summary>Nobody left to fight, for that long now.</summary>
     public bool Over(double step, double seconds)
     {
-        _quiet = Hostiles.Any() ? 0 : _quiet + step;
+        _quiet = Attackers.Any() ? 0 : _quiet + step;
         return _quiet >= seconds;
     }
 }

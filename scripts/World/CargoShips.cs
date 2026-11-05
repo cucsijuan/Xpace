@@ -43,10 +43,53 @@ public static class CargoShips
         }
     }
 
-    /// <summary>A ship is gone, and what it carried with it: its owner has one less, and its pad is free.</summary>
+    /// <summary>The free people as they are set up, for what they do.</summary>
+    public static PopulationSpec Population;
+
+    /// <summary>A ship of someone's own, on a pad at a station, from the start.</summary>
+    public static void Enlist(string owner, string id, ShipModel model, StationBook.Station at, UniverseState state, StationBook book)
+    {
+        var ship = new CargoShipRecord { Id = id, Model = model.ResourcePath, Owner = owner, Home = at.Id, At = at.Id, NextLook = state.Clock };
+        state.CargoShips[id] = ship;
+        if (at.Pads.LastOrDefault(p => book.Fits(p, model) && Free(at, p, state)) is StationBook.Pad pad)
+            Take(ship, at, pad, state);
+    }
+
+    /// <summary>Someone orders a ship of their own, to stand at a station, from the nearest yard that builds it.</summary>
+    public static void OrderFor(string owner, ShipModel model, StationBook.Station home, UniverseState state, StationBook book)
+    {
+        StationBook.Station yard = book.Stations.Where(s => s.Shipyard?.Contains(model) == true && book.Way(home.Sector, s.Sector) != null).OrderBy(s => book.Way(home.Sector, s.Sector).Count).FirstOrDefault();
+        if (yard == null)
+            return;
+        string id = $"{owner}-ship";
+        state.ShipOrders[id] = new ShipOrderRecord { Id = id, Model = model.ResourcePath, Owner = owner, Home = home.Id, Yard = yard.Id };
+    }
+
+    /// <summary>It flies to a station with nothing to do there but be there.</summary>
+    public static bool Hop(CargoShipRecord ship, ShipModel model, StationBook.Station to, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        ship.Home = to.Id;
+        ship.State = CargoShipRecord.Returning;
+        Depart(ship, model, to, state, book, account);
+        return true;
+    }
+
+    /// <summary>It goes to fetch a good, for its <see cref="CargoShipRecord.Home"/>, as a working ship does.</summary>
+    public static bool FetchFor(CargoShipRecord ship, ShipModel model, string good, StationBook.Station from, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        Fetch(ship, model, good, from, state, book, account);
+        return true;
+    }
+
+    /// <summary>What the gates between two stations ask.</summary>
+    public static long TollsBetween(StationBook book, StationBook.Station from, StationBook.Station to) => Tolls(book, from, to);
+
+    /// <summary>A ship is gone, and what it carried with it: its owner has one less, and its pad is free. A person's only ship takes them with it.</summary>
     public static void Lose(UniverseState state, string id)
     {
         Release(state, id);
+        if (state.CargoShips.GetValueOrDefault(id)?.Owner is string owner && state.People.ContainsKey(owner))
+            People.Died(state, owner);
         if (!state.CargoShips.Remove(id, out CargoShipRecord ship) || ship.Dock == 0)
             return;
         state.Station(ship.Phase == CargoShipRecord.Landing ? ship.Going : ship.At).CargoPads.Remove(Key(ship.Dock, ship.Pad));
@@ -215,6 +258,11 @@ public static class CargoShips
                 }
                 if (ship.State == CargoShipRecord.Returning)
                     Depart(ship, model, book.Find(ship.Home), state, book, account);
+                else if (state.People.TryGetValue(ship.Owner, out PersonRecord person))
+                {
+                    if (!People.Plan(ship, model, person, Population, state, book, account))
+                        ship.NextLook = state.Clock + model.WaitSeconds;
+                }
                 else if (!Plan(ship, model, state, book, account))
                     ship.NextLook = state.Clock + model.WaitSeconds;
                 return;
@@ -302,7 +350,11 @@ public static class CargoShips
             Release(state, ship.Id);
         }
         if (book.Find(ship.At) is StationBook.Station here)
+        {
             MarketNews.See(account(ship.Owner), here, state, account);
+            if (state.People.ContainsKey(ship.Owner))
+                People.Seen(state, ship.Owner, here.Sector, here.At);
+        }
     }
 
     // The crew tells its owner what the beacons it flew past had to say
@@ -442,11 +494,14 @@ public static class CargoShips
             }
     }
 
-    /// <summary>A ship flown by hand goes back on its record from where it is: to its ward's destination, or home.</summary>
+    /// <summary>
+    /// A ship flown by hand goes back on its record from where it is: an escort to its ward's destination, or home; a
+    /// cargo ship on to where it was going, its tolls paid already.
+    /// </summary>
     public static void Resume(CargoShipRecord ship, ShipModel model, string sector, Vector3 at, UniverseState state, StationBook book, Func<string, IAccount> account)
     {
         CargoShipRecord ward = state.CargoShips.GetValueOrDefault(ship.Ward);
-        StationBook.Station to = book.Find(ward == null ? ship.Home : ward.Phase == CargoShipRecord.Parked ? ward.At : ward.Going);
+        StationBook.Station to = book.Find(!model.Escort ? ship.Going : ward == null ? ship.Home : ward.Phase == CargoShipRecord.Parked ? ward.At : ward.Going);
         if (to == null)
             return;
         ship.From = "";
@@ -460,7 +515,8 @@ public static class CargoShips
         ship.Legs = null;
         ship.Pace = -1;
         ship.Generator = new Xpace.Ship.GeneratorState { On = true };
-        PayTolls(book.Origin(ship), to, account(ship.Owner), book, account);
+        if (model.Escort)
+            PayTolls(book.Origin(ship), to, account(ship.Owner), book, account);
         ship.Arrives = state.Clock + book.Way(ship, model, out Vector3 contact).Sum(l => l.Seconds + l.Transit);
         ship.ContactPoint = contact;
     }

@@ -37,6 +37,7 @@ public static class Reactions
             owner.Incidents.RemoveAt(0);
         if (string.IsNullOrEmpty(by))
             return;
+        Memories.Note(owner, by, lost ? Memories.KilledMine : Memories.HitMine, lost ? -3 : -0.5, clock, sector, personality.MemoryHours);
         double share = lost ? personality.BountyShare : personality.HitBountyShare;
         long amount = (long)(share * personality.Aggression * model.BuildFee);
         long free = owner.Credits - owner.Bounties.Values.Sum();
@@ -69,11 +70,11 @@ public static class Reactions
         owner != null && personality != null && personality.Aggression >= personality.EscortAbove &&
         owner.Incidents.Any(i => i.Lost && i.Clock >= clock - personality.FearHours * 3600);
 
-    /// <summary>What organisations offer for the pilot.</summary>
+    /// <summary>What organisations offer for an actor.</summary>
     public static long Hunted(UniverseState state, string pilot) => state.Organisations.Values.Sum(o => o.Bounties.GetValueOrDefault(pilot));
 
-    /// <summary>A pilot destroyed another: what was on the head of the second is theirs, as far as those who offered it can pay. Returns what was paid.</summary>
-    public static long Collect(UniverseState state, string killed, PilotRecord killer)
+    /// <summary>Someone destroyed another: what was on the head of the second is theirs, as far as those who offered it can pay. Returns what was paid.</summary>
+    public static long Collect(UniverseState state, string killed, IAccount killer)
     {
         long paid = 0;
         foreach (OrganisationRecord owner in state.Organisations.Values)

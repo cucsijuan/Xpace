@@ -26,8 +26,20 @@ public partial class WalkSurface : Node3D
 
     public StaticBody3D Body { get; private set; }
 
+    public const string Group = "walk_surfaces";
+
     public override void _Ready()
     {
+        AddToGroup(Group);
+        if (SectorHost.Seen(this))
+            Build();
+    }
+
+    /// <summary>Makes the surface, if it isn't made: in a sector nobody is in it waits, as nobody walks there.</summary>
+    public void Build()
+    {
+        if (Body != null)
+            return;
         var faces = new List<Vector3>();
         Transform3D toLocal = GlobalTransform.AffineInverse();
         Node parent = GetParent();

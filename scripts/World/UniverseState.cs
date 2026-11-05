@@ -29,6 +29,14 @@ public sealed class UniverseState
     public Dictionary<string, OrganisationRecord> Organisations { get; set; } = new();
     public Dictionary<string, CargoShipRecord> CargoShips { get; set; } = new();
     public Dictionary<string, ShipOrderRecord> ShipOrders { get; set; } = new();
+    public Dictionary<string, PersonRecord> People { get; set; } = new();
+    /// <summary>Where each actor was last seen, for those who look for them.</summary>
+    public Dictionary<string, Sighting> Sightings { get; set; } = new();
+    /// <summary>How many people have come so far (it numbers them), and whether the first ones were given their ships.</summary>
+    public int PeopleEver { get; set; }
+    public bool PeopleMustered { get; set; }
+    /// <summary>When someone new may come for each line of the population.</summary>
+    public Dictionary<int, double> NextArrival { get; set; } = new();
 
     /// <summary>A pilot's record, made the first time the pilot comes (with what a new pilot has).</summary>
     public PilotRecord Pilot(string id, string name = null)
@@ -135,6 +143,8 @@ public sealed class CargoShipRecord
     public int Tonnes { get; set; }
     /// <summary>What is fitted on it, if other than what its hull comes with: hardpoint name to the piece's resource path.</summary>
     public Dictionary<string, string> Fittings { get; set; } = new();
+    /// <summary>What it took out of space, by good: stolen, to sell off.</summary>
+    public Dictionary<string, int> Loot { get; set; } = new();
     /// <summary>Tonnes it has brought home in all.</summary>
     public long Delivered { get; set; }
 }
@@ -166,8 +176,44 @@ public interface IAccount
     Dictionary<string, StationNews> Known { get; }
 }
 
+/// <summary>Where someone was seen, and when.</summary>
+public sealed class Sighting
+{
+    public string Sector { get; set; } = "";
+    public double X { get; set; }
+    public double Y { get; set; }
+    public double Z { get; set; }
+    public double Clock { get; set; }
+    [JsonIgnore] public Godot.Vector3 At => new((float)X, (float)Y, (float)Z);
+}
+
+/// <summary>A free pilot of the universe (<see cref="People"/>): someone with a name, on their own account.</summary>
+public sealed class PersonRecord : IAccount, IRemembers
+{
+    /// <summary>A person's id, and so their name as an owner, starts with this.</summary>
+    public const string OwnerPrefix = "person-";
+
+    public string Id { get; set; }
+    public string First { get; set; } = "";
+    public string Last { get; set; } = "";
+    [JsonIgnore] public string Name => $"{First} {Last}";
+    /// <summary>How they live, and the line of the population they belong to.</summary>
+    public string Livelihood { get; set; } = "";
+    public int Line { get; set; }
+    /// <summary>Their <see cref="World.Personality"/>, by resource path.</summary>
+    public string Character { get; set; } = "";
+    [JsonIgnore] public Personality Personality => Godot.ResourceLoader.Exists(Character) ? Godot.GD.Load<Personality>(Character) : null;
+    public long Credits { get; set; }
+    [JsonIgnore] public double Margin => 0;
+    public Dictionary<string, StationNews> Known { get; set; } = new();
+    public List<MemoryEntry> Memories { get; set; } = new();
+    public int MemoryRoom { get; set; } = 16;
+    /// <summary>The actor they are after (empty: nobody).</summary>
+    public string Quarry { get; set; } = "";
+}
+
 /// <summary>A company, corporation, guild or faction as it stands now, known by an id (for one set up by hand, its <see cref="Organisation"/>'s).</summary>
-public sealed class OrganisationRecord : IAccount
+public sealed class OrganisationRecord : IAccount, IRemembers
 {
     public string Id { get; set; }
     public string Name { get; set; }
@@ -176,8 +222,10 @@ public sealed class OrganisationRecord : IAccount
     public Dictionary<string, StationNews> Known { get; set; } = new();
     /// <summary>What was done to its ships lately, oldest first.</summary>
     public List<Incident> Incidents { get; set; } = new();
-    /// <summary>What it offers for each pilot destroyed, by pilot id.</summary>
+    /// <summary>What it offers for each actor destroyed, by actor id (<see cref="Universe.ActorOf"/>).</summary>
     public Dictionary<string, long> Bounties { get; set; } = new();
+    public List<MemoryEntry> Memories { get; set; } = new();
+    public int MemoryRoom { get; set; } = 64;
     /// <summary>The organisation it belongs to now (empty: its own). It can join and leave.</summary>
     public string Parent { get; set; } = "";
 }

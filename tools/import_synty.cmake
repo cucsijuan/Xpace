@@ -83,6 +83,7 @@ set(MODELS
   SM_Prop_Wires_05
   SM_Chr_Attach_Crew_Male_Hair_01
   SM_Prop_Stairs_01
+  SM_Prop_Crate_Wide_01
   SM_Veh_WarpGate_Outer_01
   SM_Veh_WarpGate_Inner_01
   SM_Veh_WarpGate_Glow_01

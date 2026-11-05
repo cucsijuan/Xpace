@@ -11,7 +11,8 @@ namespace Xpace.Ship;
 /// push and to turn, and crashes harder). A player's cargo is in the universe, with the pilot
 /// (<see cref="ShipRecord.Cargo"/>): the hold shows the owner's record (on a guest, the copy the host sent), and
 /// cargo is bought and sold through the universe's owner, never here. Any other ship carries its own
-/// (<see cref="Carried"/>). Cargo goes with the ship when it blows up.
+/// (<see cref="Carried"/>). When the ship blows up its cargo is left drifting (<see cref="Xpace.Space.CargoPod"/>), and
+/// the hold's release, a lever with no computer in the way (<see cref="PilotControls.Jettison"/>), throws it all out.
 ///
 /// Registers: +0 type 19  +1 version 1  +2 capacity (t, word)  +4 carried (t, word)  +6 kinds of good aboard
 /// +8 segment of the list (D000h)  +10 its offset (<see cref="ShipMemory.Cargo"/>)
@@ -29,6 +30,7 @@ public partial class CargoHold : Node, IShipDevice
     public ShipRecord Carried { get; } = new();
 
     private ShipBody _ship;
+    private bool _released;
 
     public override void _Ready()
     {
@@ -46,6 +48,9 @@ public partial class CargoHold : Node, IShipDevice
 
     public unsafe void BeforeStep(ShipBody ship, double delta)
     {
+        if (ship.Controls.Jettison && !_released)
+            Universe.Current?.Jettison(ship);
+        _released = ship.Controls.Jettison;
         ShipRecord contents = Contents;
         ship.CargoMass = contents.Tonnes * KilogramsPerTonne;
         ShipBus bus = ship.Computer.Bus;

@@ -35,8 +35,23 @@ public partial class CargoView : Node
     /// <summary>How near a pilot an escort has its computer up, ready to fight (m).</summary>
     [Export] public float AlertMeters = 30000f;
 
-    /// <summary>How long after its last enemy is gone an escort goes back on its way, seconds.</summary>
+    /// <summary>How long after its last enemy is gone a ship goes back on its way, seconds.</summary>
     [Export] public double StandDownSeconds = 20;
+
+    /// <summary>How far from who attacked it a cargo ship counts itself clear of them (m).</summary>
+    [Export] public float ClearMeters = 15000f;
+
+    /// <summary>How far a cargo ship under attack will run for the shelter of a station's zone (m).</summary>
+    [Export] public float ShelterMeters = 60000f;
+
+    /// <summary>How far a pirate sees cargo drifting (m).</summary>
+    [Export] public float PodMeters = 5000f;
+
+    /// <summary>How often it looks for who comes across whom on the ways, seconds.</summary>
+    [Export] public double MeetEverySeconds = 5;
+
+    /// <summary>How many fights it runs at once where nobody is: each one is a sector running.</summary>
+    [Export] public int MostFights = 2;
 
     /// <summary>The ships shown now, by the record's id.</summary>
     public IReadOnlyDictionary<string, ShipBody> Shown => _shown;
@@ -48,7 +63,11 @@ public partial class CargoView : Node
     private readonly Dictionary<ShipBody, Node3D> _killers = new();
     private readonly Dictionary<ShipBody, double> _called = new();
     private readonly Dictionary<string, EscortDuty> _duties = new();
-    private double _wait;
+    private double _wait, _sinceMeet;
+    private readonly Dictionary<ShipBody, double> _thought = new();
+    private readonly System.Random _nerve = new(1);
+    private readonly HashSet<string> _fights = new();
+    private readonly HashSet<byte> _heldForFights = new();
 
     public override void _PhysicsProcess(double delta)
     {
@@ -58,6 +77,7 @@ public partial class CargoView : Node
         _wait = LookEverySeconds;
         foreach (CargoShipRecord record in universe.State.CargoShips.Values.ToList())
             Look(record, universe, host);
+        Meet(universe, host);
         foreach (ShipBody wreck in _wrecks.Keys.ToList())
             if (!IsInstanceValid(wreck))
                 _wrecks.Remove(wreck);
@@ -66,6 +86,76 @@ public partial class CargoView : Node
                 wreck.QueueFree();
                 _wrecks.Remove(wreck);
             }
+    }
+
+    // People who come across what they are after go for it: where nobody is, the sector is run for the fight, with
+    // real ships and nothing drawn. Players are found where they are, and seen by the stations they talk to
+    private void Meet(Universe universe, SectorHost host)
+    {
+        UniverseState state = universe.State;
+        if (universe.Population == null)
+            return;
+        if ((_sinceMeet += LookEverySeconds) >= MeetEverySeconds)
+        {
+            _sinceMeet = 0;
+            foreach ((CargoShipRecord attacker, CargoShipRecord victim) in People.Meetings(state, universe.Book, universe.Population.MeetMeters))
+                if (_fights.Count < MostFights || _fights.Contains(attacker.Id))
+                    Attack(attacker, victim, universe, host);
+        }
+        foreach (string pilot in state.Pilots.Keys)
+            if (universe.ShipOf(pilot) is Node3D ship && (ship is not ShipBody flown || (flown.Device<RadioDevice>() as IRadio)?.RadioOn == true) && StationRadio.ProtectingAt(Sectors.WorldOf(ship), ship.GlobalPosition) != null)
+                People.Seen(state, pilot, universe.Book.Space.Keys.FirstOrDefault(id => host.Root(id) == FloatingOrigin.Of(ship)) ?? "", ToSector(ship));
+        foreach ((string id, ShipBody ship) in _shown.ToList())
+            if (IsInstanceValid(ship) && state.CargoShips.TryGetValue(id, out CargoShipRecord record) && state.People.GetValueOrDefault(record.Owner) is PersonRecord { Quarry.Length: > 0 } person
+                && record.Phase is CargoShipRecord.Flying or CargoShipRecord.Holding && universe.ShipOf(person.Quarry) is Node3D quarry && Sectors.WorldOf(quarry) == Sectors.WorldOf(ship)
+                && quarry.GlobalPosition.DistanceTo(ship.GlobalPosition) <= AlertMeters)
+                Turn(record, ship, quarry);
+        foreach (string id in _fights.ToList())
+            if (!state.CargoShips.TryGetValue(id, out CargoShipRecord fighter) || fighter.Phase != CargoShipRecord.Loose)
+                _fights.Remove(id);
+        foreach (byte place in _heldForFights.ToList())
+            if (_fights.Count == 0)
+            {
+                _heldForFights.Remove(place);
+                host.Release(place);
+            }
+    }
+
+    private static Vector3 ToSector(Node3D ship)
+    {
+        SectorPoint at = FloatingOrigin.Of(ship).Origin + ship.Position;
+        return new Vector3((float)at.X, (float)at.Y, (float)at.Z);
+    }
+
+    private void Attack(CargoShipRecord attacker, CargoShipRecord victim, Universe universe, SectorHost host)
+    {
+        if (!ResourceLoader.Exists(attacker.Model) || GD.Load<ShipModel>(attacker.Model) is not ShipModel model || universe.Book.FixOf(attacker, model, universe.State.Clock) is not StationBook.Fix fix)
+            return;
+        if (host.Root(fix.Sector) == null)
+        {
+            byte place = host.PlaceOf(fix.Sector);
+            _heldForFights.Add(place);
+            if (!host.Prepare(place))
+                return;                                 // being made on another thread; the two are still there next look
+        }
+        Look(attacker, universe, host);
+        Look(victim, universe, host);
+        if (_shown.TryGetValue(attacker.Id, out ShipBody ship) && _shown.TryGetValue(victim.Id, out ShipBody prey))
+            Turn(attacker, ship, prey);
+    }
+
+    // Off its way, its pilot flying it, after that ship
+    private void Turn(CargoShipRecord record, ShipBody ship, Node3D at)
+    {
+        if (!_duties.TryGetValue(record.Id, out EscortDuty duty))
+            return;
+        duty.Add(at);
+        _fights.Add(record.Id);
+        record.Phase = CargoShipRecord.Loose;
+        _dealt[record.Id] = double.MaxValue;
+        ship.Wake();
+        ship.Unshow();
+        ship.Holder = null;
     }
 
     private void Look(CargoShipRecord record, Universe universe, SectorHost host)
@@ -81,6 +171,7 @@ public partial class CargoView : Node
         {
             _killers.Remove(ship, out Node3D killer);
             Tell(record, ship, killer, lost: true, universe);
+            Spill(record, ship);
             CargoShips.Lose(universe.State, record.Id);
             _shown.Remove(record.Id);
             _wrecks[ship] = WreckSeconds;
@@ -133,22 +224,104 @@ public partial class CargoView : Node
             SectorPoint at = root.Origin + ship.Position;
             record.FromSector = universe.Book.Space.Keys.FirstOrDefault(id => host.Root(id) == root) ?? record.FromSector;
             (record.FromX, record.FromY, record.FromZ) = (at.X, at.Y, at.Z);
-            if (_duties.TryGetValue(record.Id, out EscortDuty duty) && !duty.Over(LookEverySeconds, StandDownSeconds))
-                return;
+            if (_duties.TryGetValue(record.Id, out EscortDuty duty))
+            {
+                if (!model.Escort)
+                {
+                    if (model.Fights && ship.Find<ShipHull>()?.Fraction < CrewOf(record, universe.State).RunBelowHull)
+                        duty.Fights = false;
+                    if (duty.Fights)
+                        Forget(ship, duty);
+                    else
+                        Run(ship, duty);
+                    if (universe.State.People.GetValueOrDefault(record.Owner)?.Livelihood == nameof(Livelihood.Pirate))
+                        Plunder(record, model, ship, duty, universe);
+                }
+                if (!duty.Over(LookEverySeconds, StandDownSeconds))
+                    return;
+            }
         }
         var from = new Vector3((float)record.FromX, (float)record.FromY, (float)record.FromZ);
         CargoShips.Resume(record, model, record.FromSector, from, universe.State, universe.Book, universe.Account);
         if (ship == null || universe.Book.FixOf(record, model, universe.State.Clock) is not StationBook.Fix fix)
             return;
+        if (ship.Find<FighterAi>() is FighterAi pilot)
+        {
+            pilot.Route.Clear();
+            pilot.WantsCruise = false;
+        }
         ship.Holder = new CargoRun(record, model, fix, FloatingOrigin.Of(ship));
     }
 
-    // Who guards the ship, or the ship itself if it is an escort, turns on its attacker: off its way, a pilot flying it
+    // A cargo ship under attack and alone runs: for a station's zone if one is near and not past who attacked it, else
+    // straight away from them, on its generator if it can. Far enough off it is clear of them
+    private void Run(ShipBody ship, EscortDuty duty)
+    {
+        if (ship.Find<FighterAi>() is not FighterAi pilot)
+            return;
+        Vector3 here = ship.GlobalPosition;
+        Forget(ship, duty);
+        Node3D nearest = duty.Attackers.OrderBy(a => a.GlobalPosition.DistanceSquaredTo(here)).FirstOrDefault();
+        pilot.Route.Clear();
+        pilot.WantsCruise = nearest != null;
+        if (nearest == null)
+            return;
+        Vector3 away = (here - nearest.GlobalPosition).Normalized();
+        World3D world = Sectors.WorldOf(ship);
+        StationRadio shelter = StationRadio.All.Where(s => s.World == world && s.GlobalPosition.DistanceTo(here) <= ShelterMeters && (s.GlobalPosition - here).Dot(away) > 0)
+            .OrderBy(s => s.GlobalPosition.DistanceSquaredTo(here)).FirstOrDefault();
+        pilot.RouteSpeed = ship.Spec.TopSpeed(ship.Spec.MainThrust);
+        pilot.Route.Enqueue(shelter?.GlobalPosition ?? here + away * ClearMeters * 2);
+    }
+
+    // What a pirate came for is the cargo: with some drifting near it stops fighting and goes for that, and with
+    // nothing in what it attacked there is nothing to stay for
+    private void Plunder(CargoShipRecord record, ShipModel model, ShipBody ship, EscortDuty duty, Universe universe)
+    {
+        if (ship.Find<FighterAi>() is not FighterAi pilot)
+            return;
+        Vector3 here = ship.GlobalPosition;
+        int room = (int)model.Hull.CargoCapacity - record.Loot.Values.Sum();
+        var near = new List<Node>();
+        Spatial.Grid(ship, Spatial.Pods).Within(here, PodMeters, near);
+        CargoPod pod = near.OfType<CargoPod>().Where(p => IsInstanceValid(p) && p.Tonnes > 0).OrderBy(p => p.GlobalPosition.DistanceSquaredTo(here)).FirstOrDefault();
+        if (pod != null && room > 0)
+        {
+            foreach (Node3D other in duty.Attackers.ToList())
+                if (_shown.ContainsValue(other as ShipBody))
+                    duty.Forget(other);
+            pilot.Route.Clear();
+            pilot.WantsCruise = false;
+            pilot.RouteSpeed = 120f;
+            pilot.Route.Enqueue(pod.GlobalPosition);
+            if (pod.Clear && pod.GlobalPosition.DistanceTo(here) <= pod.ScoopMeters)
+            {
+                string good = pod.Good;
+                record.Loot[good] = record.Loot.GetValueOrDefault(good) + pod.Take(room);
+            }
+            return;
+        }
+        foreach (Node3D other in duty.Attackers.ToList())
+            if (_shown.FirstOrDefault(kv => kv.Value == other).Key is string id && universe.State.CargoShips.GetValueOrDefault(id)?.Tonnes == 0)
+                duty.Forget(other);
+    }
+
+    // Who got too far off is none of its business any more
+    private void Forget(ShipBody ship, EscortDuty duty)
+    {
+        Vector3 here = ship.GlobalPosition;
+        foreach (Node3D other in duty.Attackers.ToList())
+            if (other.GlobalPosition.DistanceTo(here) > ClearMeters)
+                duty.Forget(other);
+    }
+
+    // Who guards the ship turns on its attacker, or the ship itself runs if it has no one: off its way, a pilot flying it
     private void Scramble(CargoShipRecord record, Node3D by, UniverseState state)
     {
         if (by == null)
             return;
-        foreach (CargoShipRecord guard in state.CargoShips.Values.Where(s => s.Ward == record.Id || s == record).ToList())
+        bool guarded = state.CargoShips.Values.Any(s => s.Ward == record.Id);
+        foreach (CargoShipRecord guard in state.CargoShips.Values.Where(s => s.Ward == record.Id || s == record && !guarded).ToList())
             if (_duties.TryGetValue(guard.Id, out EscortDuty duty) && _shown.TryGetValue(guard.Id, out ShipBody ship) && GodotObject.IsInstanceValid(ship))
             {
                 duty.Add(by);
@@ -209,15 +382,78 @@ public partial class CargoView : Node
             return;
         _struck.Add(ship);
         double now = Now;
-        if (_called.TryGetValue(ship, out double at) && now - at < MaydayEverySeconds || Universe.Current is not Universe universe)
+        if (Universe.Current is not Universe universe)
             return;
-        _called[ship] = now;
         string id = _shown.First(kv => kv.Value == ship).Key;
-        if (universe.State.CargoShips.TryGetValue(id, out CargoShipRecord record))
+        if (!(_called.TryGetValue(ship, out double at) && now - at < MaydayEverySeconds) && universe.State.CargoShips.TryGetValue(id, out CargoShipRecord record))
         {
+            _called[ship] = now;
             Tell(record, ship, by, lost: false, universe);
             Mayday(ship, CargoShips.CallsignOf(id));
             Scramble(record, by, universe.State);
+        }
+        if (universe.State.CargoShips.TryGetValue(id, out CargoShipRecord hit) && ResourceLoader.Exists(hit.Model) && GD.Load<ShipModel>(hit.Model) is ShipModel { Fights: false, Escort: false })
+            Think(hit, CrewOf(hit, universe.State), ship, by, universe.State);
+    }
+
+    // A crew that can't fight may give up what it carries, in the hope that is all they came for. It holds on longer for
+    // what is worth more, near a protected zone or with help coming, and in the end it has to let go
+    private void Think(CargoShipRecord record, Personality crew, ShipBody ship, Node3D by, UniverseState state)
+    {
+        double worth = record.Tonnes * (GoodsCatalog.Find(record.Good)?.BasePrice ?? 0) + record.Loot.Sum(l => l.Value * (GoodsCatalog.Find(l.Key)?.BasePrice ?? 0));
+        if (worth <= 0 || ship.Find<ShipHull>() is not ShipHull hull)
+            return;
+        if (hull.Fraction > crew.JettisonLastHull)
+        {
+            if (hull.Fraction >= crew.JettisonAt(worth, ToZone(ship), HelpComing(record, by, ship, state)))
+                return;
+            if (_thought.TryGetValue(ship, out double at) && Now - at < crew.JettisonThinkSeconds)
+                return;
+            _thought[ship] = Now;
+            if (_nerve.NextDouble() >= crew.JettisonChance)
+                return;
+        }
+        Spill(record, ship);
+    }
+
+    // Who is aboard: a person is their own crew; a company's ships have people of its own kind, until crews have names
+    private static Personality CrewOf(CargoShipRecord record, UniverseState state) =>
+        state.People.GetValueOrDefault(record.Owner)?.Personality ?? OrganisationCatalog.Find(record.Owner)?.Personality ?? Ordinary;
+
+    private static readonly Personality Ordinary = new();
+
+    // How far the nearest protected zone is
+    private static float ToZone(ShipBody ship)
+    {
+        World3D world = Sectors.WorldOf(ship);
+        Vector3 here = ship.GlobalPosition;
+        float nearest = float.MaxValue;
+        foreach (StationRadio station in StationRadio.All)
+            if (station.World == world && station.Laws != null)
+                nearest = Mathf.Min(nearest, Mathf.Max(0, station.GlobalPosition.DistanceTo(here) - station.Laws.ZoneRadius));
+        return nearest;
+    }
+
+    // Its escort, or anyone with orders against who attacked it: another ship's, or a station's police
+    private bool HelpComing(CargoShipRecord record, Node3D by, ShipBody ship, UniverseState state)
+    {
+        if (state.CargoShips.Values.Any(s => s.Ward == record.Id) || _duties.Any(d => d.Key != record.Id && d.Value.Fights && d.Value.Attackers.Contains(by)))
+            return true;
+        World3D world = Sectors.WorldOf(ship);
+        return StationRadio.All.Any(s => s.World == world && s.GetParent()?.GetNodeOrNull<StationSecurity>("Security")?.Hostiles.Contains(by) == true);
+    }
+
+    // What a ship carries goes out into space
+    private static void Spill(CargoShipRecord record, ShipBody ship)
+    {
+        var goods = new Dictionary<string, int>(record.Loot);
+        if (record.Tonnes > 0 && record.Good != "")
+            goods[record.Good] = goods.GetValueOrDefault(record.Good) + record.Tonnes;
+        if (goods.Count > 0)
+        {
+            CargoPod.Spill(ship, ship.LinearVelocity, goods);
+            record.Tonnes = 0;
+            record.Loot.Clear();
         }
     }
 
@@ -227,8 +463,8 @@ public partial class CargoView : Node
             _killers[ship] = by;
         if (Universe.Current is not Universe { IsGuest: false } universe || victim == null || by == null || victim == by)
             return;
-        if (universe.PilotIdOf(victim) is string killed && universe.PilotOf(by) is PilotRecord killer && Reactions.Collect(universe.State, killed, killer) > 0)
-            universe.Touch(killer);
+        if (universe.ActorOf(victim) is string killed && universe.AccountOfActor(universe.ActorOf(by)) is IAccount killer && Reactions.Collect(universe.State, killed, killer) > 0)
+            universe.Touch(killer as PilotRecord);
     }
 
     // The owner hears what was done, and where the record says it was
@@ -236,8 +472,10 @@ public partial class CargoView : Node
     {
         if (!ResourceLoader.Exists(record.Model) || GD.Load<ShipModel>(record.Model) is not ShipModel model || universe.Book.FixOf(record, model, universe.State.Clock) is not StationBook.Fix fix)
             return;
-        string pilot = by != null && GodotObject.IsInstanceValid(by) ? universe.PilotIdOf(by) : "";
-        Reactions.Happened(universe.Account(record.Owner) as OrganisationRecord, OrganisationCatalog.Find(record.Owner)?.Personality, model, fix.Sector, fix.At, pilot, universe.State.Clock, lost);
+        string actor = by != null && GodotObject.IsInstanceValid(by) ? universe.ActorOf(by) : "";
+        Reactions.Happened(universe.Account(record.Owner) as OrganisationRecord, OrganisationCatalog.Find(record.Owner)?.Personality, model, fix.Sector, fix.At, actor, universe.State.Clock, lost);
+        if (universe.State.People.GetValueOrDefault(record.Owner) is PersonRecord person)
+            Memories.Note(person, actor, Memories.HitMe, -1, universe.State.Clock, fix.Sector, person.Personality?.MemoryHours ?? 48);
         universe.Touch();
     }
 
@@ -265,12 +503,15 @@ public partial class CargoView : Node
             hull.Insured = false;
         if (ship.FindChildren("*", "", true, false).OfType<CruiseDevice>().FirstOrDefault() is CruiseDevice cruise)
             cruise.Spec = model.Generator;
-        if (model.Escort)
+        _duties[record.Id] = new EscortDuty { Fights = model.Escort || model.Fights };
+        if (Universe.Current.State.People.TryGetValue(record.Owner, out PersonRecord person))
         {
-            _duties[record.Id] = new EscortDuty();
-            foreach (FighterAi pilot in parts.OfType<FighterAi>())
-                pilot.Engagement = _duties[record.Id];
+            ship.Actor = person.Id;
+            foreach (Datalink link in parts.OfType<Datalink>())
+                link.Channel = person.Id;
         }
+        foreach (FighterAi pilot in parts.OfType<FighterAi>())
+            pilot.Engagement = _duties[record.Id];
         var run = new CargoRun(record, model, fix, root);
         ship.Transform = run.Pose(fix);
         ship.Holder = run;

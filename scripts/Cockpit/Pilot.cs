@@ -508,6 +508,7 @@ public partial class Pilot : Node3D
             Jammer = keys && Input.IsActionPressed(FlightInput.Jammer),
             Parking = keys && Input.IsActionPressed(FlightInput.Parking),
             Cruise = keys && Input.IsActionPressed(FlightInput.Cruise),
+            Jettison = keys && Input.IsActionPressed(FlightInput.Jettison),
             Interdict = keys && Input.IsActionPressed(FlightInput.Interdict),
             TuneUp = keys && Input.IsActionPressed(FlightInput.TuneUp),
             TuneDown = keys && Input.IsActionPressed(FlightInput.TuneDown),

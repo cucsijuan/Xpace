@@ -133,7 +133,29 @@ public partial class Universe : Node
     {
         Book ??= StationBook.Read(map);
         CargoShips.Muster(State, Book, Account);
+        Populate(map);
+        Answer(JettisonTopic, (pilot, _) =>
+        {
+            if (ShipOf(pilot) is Node3D ship && State.Pilot(pilot) is { } record && record.Ship.Cargo.Count > 0)
+            {
+                Spill(ship, record);
+                Touch(record);
+            }
+            return null;
+        });
     }
+
+    // A universe kept on disk has its people; a test's doesn't, unless it sets Population itself
+    private void Populate(Xpace.Space.SectorMap map)
+    {
+        if (Folder != null && map?.Population != null)
+            Population = map.Population;
+        CargoShips.Population = Population;
+        People.Muster(State, Population, Book, Account);
+    }
+
+    /// <summary>The free people of this universe as they are set up, if it has any.</summary>
+    public PopulationSpec Population { get; set; }
 
     /// <summary>A station or gate's new name and callsign (empty: leave it). Other machines are told.</summary>
     public void Rename(string station, string title, string callsign)
@@ -186,6 +208,8 @@ public partial class Universe : Node
             return null;
         if (owner.StartsWith(PilotRecord.OwnerPrefix))
             return State.Pilot(owner[PilotRecord.OwnerPrefix.Length..]);
+        if (owner.StartsWith(PersonRecord.OwnerPrefix))
+            return State.People.GetValueOrDefault(owner);
         return State.Organisation(owner, () =>
         {
             Organisation spec = OrganisationCatalog.Find(owner);
@@ -246,6 +270,14 @@ public partial class Universe : Node
         else
             _flown[ship] = pilot;
     }
+
+    /// <summary>Who someone is to everyone else, for bounties and memories: a player's id, or a free person's; null: nobody known.</summary>
+    public string ActorOf(Node3D ship) =>
+        PilotIdOf(ship) ?? (ship is Xpace.Ship.ShipBody { Actor: { Length: > 0 } actor } ? actor : null);
+
+    /// <summary>An actor's account: a player's or a free person's.</summary>
+    public IAccount AccountOfActor(string actor) =>
+        string.IsNullOrEmpty(actor) ? null : actor.StartsWith(PersonRecord.OwnerPrefix) ? State.People.GetValueOrDefault(actor) : State.Pilot(actor);
 
     /// <summary>The id of the pilot flying <paramref name="ship"/>, if a player flies it.</summary>
     public string PilotIdOf(Node3D ship)
@@ -314,11 +346,34 @@ public partial class Universe : Node
     {
         if (PilotOf(ship) is PilotRecord pilot && (pilot.Ship.Cargo.Count > 0 || pilot.Ship.Magazine.Count > 0))
         {
-            pilot.Ship.Cargo.Clear();
+            Spill(ship, pilot);
             pilot.Ship.Magazine.Clear();
             Touch(pilot);
         }
     }
+
+    /// <summary>The pilot flying the ship throws everything out of the hold. On a guest, the host does it.</summary>
+    public void Jettison(Node3D ship)
+    {
+        if (IsGuest)
+            Ask(JettisonTopic, "");
+        else if (PilotOf(ship) is PilotRecord pilot && pilot.Ship.Cargo.Count > 0)
+        {
+            Spill(ship, pilot);
+            Touch(pilot);
+        }
+    }
+
+    public const string JettisonTopic = "jettison";
+
+    private void Spill(Node3D ship, PilotRecord pilot)
+    {
+        Xpace.Space.CargoPod.Spill(ship, (ship as Xpace.Ship.ShipBody)?.LinearVelocity ?? (ship as Xpace.Space.IRadarTarget)?.Velocity ?? Vector3.Zero, pilot.Ship.Cargo.ToList());
+        pilot.Ship.Cargo.Clear();
+    }
+
+    /// <summary>The tonnes a pilot's hold has free.</summary>
+    public int Room(PilotRecord pilot) => (ResourceLoader.Exists(pilot.Ship.Hull) ? GD.Load<Xpace.Ship.ShipSpec>(pilot.Ship.Hull)?.CargoCapacity ?? 0 : 0) - pilot.Ship.Tonnes;
 
     /// <summary>How many missiles of each of its factory models the pilot's new ship comes with.</summary>
     public static int RackSize(PilotRecord pilot) => Hull(pilot)?.MissileRack ?? 0;
@@ -545,6 +600,7 @@ public partial class Universe : Node
             {
                 _sinceWork = 0;
                 CargoShips.Muster(State, Book, Account);
+                People.Muster(State, Population, Book, Account);
                 CargoShips.Tick(State, Book, Account);
             }
         }

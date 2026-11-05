@@ -112,6 +112,9 @@ public partial class FighterAi : Node, IOriginShift
     /// <summary>Points to fly through, in turn, while it has no target.</summary>
     public readonly Queue<Vector3> Route = new();
 
+    /// <summary>It wants the cruise generator on (its ship's, if it has one).</summary>
+    public bool WantsCruise;
+
     /// <summary>What it is doing, for the tests and the curious.</summary>
     public string Doing { get; private set; } = "";
 
@@ -605,9 +608,19 @@ public partial class FighterAi : Node, IOriginShift
         c.SafeButton = _held.ContainsKey("safe");
         c.Jammer = _held.ContainsKey("jam");
         c.Interdict = Interdicting();
+        c.Cruise = CruiseButton();
         c.Trigger |= _held.ContainsKey("fire");
         return c;
     }
+
+    // The button in pulses until the generator is as it wants it
+    private bool CruiseButton()
+    {
+        _cruisePulse = !_cruisePulse && _ship.Device<CruiseDevice>() is CruiseDevice cruise && WantsCruise != cruise.On;
+        return _cruisePulse;
+    }
+
+    private bool _cruisePulse;
 
     // What it locked moves faster than anything flies on its engine: in cruise. The button in pulses until the
     // interdictor is as it wants it. (The speed is from the radar's track, as a pilot would read it.)

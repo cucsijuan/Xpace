@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -33,9 +34,17 @@ public static class UniverseStore
         Directory.CreateDirectory(Path.Combine(folder, "organisations"));
         Directory.CreateDirectory(Path.Combine(folder, "cargo_ships"));
         Directory.CreateDirectory(Path.Combine(folder, "ship_orders"));
-        foreach (string gone in Gone(folder, "cargo_ships", state.CargoShips.Keys).Concat(Gone(folder, "ship_orders", state.ShipOrders.Keys)).Concat(Gone(folder, "stations", state.Stations.Keys)))
+        Directory.CreateDirectory(Path.Combine(folder, "people"));
+        foreach (string gone in Gone(folder, "cargo_ships", state.CargoShips.Keys).Concat(Gone(folder, "ship_orders", state.ShipOrders.Keys)).Concat(Gone(folder, "stations", state.Stations.Keys)).Concat(Gone(folder, "people", state.People.Keys)))
             File.Delete(gone);
-        Write(Path.Combine(folder, "universe.json"), new JsonObject { ["Version"] = state.Version, ["Clock"] = state.Clock });
+        Write(Path.Combine(folder, "universe.json"), new JsonObject
+        {
+            ["Version"] = state.Version, ["Clock"] = state.Clock, ["PeopleEver"] = state.PeopleEver, ["PeopleMustered"] = state.PeopleMustered,
+            ["Sightings"] = JsonSerializer.SerializeToNode(state.Sightings),
+            ["NextArrival"] = JsonSerializer.SerializeToNode(state.NextArrival),
+        });
+        foreach (PersonRecord person in state.People.Values)
+            Write(Path.Combine(folder, "people", FileName(person.Id)), Stamped(person, state.Version));
         foreach (PilotRecord pilot in state.Pilots.Values)
             Write(Path.Combine(folder, "pilots", FileName(pilot.Id)), Stamped(pilot, state.Version));
         foreach (StationRecord station in state.Stations.Values)
@@ -60,6 +69,13 @@ public static class UniverseStore
         if (version > UniverseState.CurrentVersion)
             throw new InvalidDataException($"the universe in {folder} was saved by a newer version of the game ({version})");
         state.Clock = universe["Clock"]?.GetValue<double>() ?? 0;
+        state.PeopleEver = universe["PeopleEver"]?.GetValue<int>() ?? 0;
+        state.PeopleMustered = universe["PeopleMustered"]?.GetValue<bool>() ?? false;
+        state.Sightings = universe["Sightings"]?.Deserialize<Dictionary<string, Sighting>>() ?? new();
+        state.NextArrival = universe["NextArrival"]?.Deserialize<Dictionary<int, double>>() ?? new();
+        foreach (PersonRecord person in Documents<PersonRecord>(Path.Combine(folder, "people"), "person"))
+            if (!string.IsNullOrEmpty(person.Id))
+                state.People[person.Id] = person;
         foreach (PilotRecord pilot in Documents<PilotRecord>(Path.Combine(folder, "pilots"), "pilot"))
             if (!string.IsNullOrEmpty(pilot.Id))
                 state.Pilots[pilot.Id] = pilot;

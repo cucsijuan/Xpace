@@ -4,8 +4,10 @@
 [ext_resource type="Script" path="res://scripts/Space/Sector.cs" id="2_sector"]
 [ext_resource type="Resource" path="res://assets/sectors/sector_01.tres" id="3_s01"]
 [ext_resource type="Resource" path="res://assets/sectors/sector_02.tres" id="4_s02"]
+[ext_resource type="Resource" path="res://assets/people/population.tres" id="5_people"]
 
 [resource]
 script = ExtResource("1_map")
 Sectors = Array[ExtResource("2_sector")]([ExtResource("3_s01"), ExtResource("4_s02")])
+Population = ExtResource("5_people")
 Start = "sector_01"

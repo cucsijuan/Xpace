@@ -8,6 +8,9 @@ public partial class SectorMap : Resource
 {
     [Export] public Godot.Collections.Array<Sector> Sectors = new();
     /// <summary>The Id of the sector a new pilot starts in (empty: the first).</summary>
+    /// <summary>The free people of a universe of these sectors.</summary>
+    [Export] public Xpace.World.PopulationSpec Population;
+
     [Export] public string Start = "";
 
     public Sector Find(string id)

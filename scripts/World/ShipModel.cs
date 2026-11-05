@@ -41,6 +41,8 @@ public partial class ShipModel : Resource
     [Export] public double CrewTuneSeconds = 2;
     /// <summary>It trades nothing: it goes with its owner's ships and fights who attacks them.</summary>
     [Export] public bool Escort;
+    /// <summary>Its pilot fights back under attack; else it runs (see <see cref="Xpace.Space.CargoView"/>).</summary>
+    [Export] public bool Fights;
     /// <summary>How far from a station it asks for a pad, and how soon it asks again when there is none, metres and seconds.</summary>
     [Export] public float AskAtMeters = 2000;
     [Export] public double AskEverySeconds = 30;
