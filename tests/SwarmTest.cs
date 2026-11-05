@@ -17,7 +17,7 @@ namespace Xpace.Tests;
 /// Not a pass/fail test beyond "the ships fought": it prints the numbers.
 ///
 /// Run: XPACE_SWARM=15 Godot --headless --fixed-fps 60 --path . res://tests/swarm_test.tscn
-/// XPACE_SWARM is the number of ships on each side (default 15).
+/// XPACE_SWARM is the number of ships on each side (default 15), XPACE_SWARM_SECONDS how long they fight (default 40).
 /// </summary>
 public partial class SwarmTest : Node
 {
@@ -48,9 +48,10 @@ public partial class SwarmTest : Node
 
         await Until(() => ships.All(s => s.Computer.ScreenText().Contains("Threat warning resident")), 120);
 
+        GD.Print("     all computers up, the battle starts");
         var steps = new List<double>();
         long last = Stopwatch.GetTimestamp();
-        const int seconds = 40;
+        int seconds = int.TryParse(System.Environment.GetEnvironmentVariable("XPACE_SWARM_SECONDS"), out int asked) ? asked : 40;
         for (int i = 0; i < seconds * 60; i++)
         {
             await Frames(1);
@@ -73,6 +74,13 @@ public partial class SwarmTest : Node
                 s.Computer.Advance(1.0 / 60);
         double perShipTick = watch.Elapsed.TotalMilliseconds / (ships.Count * 60);
         GD.Print($"     one computer, one tick: {perShipTick * 1000:0} us; all {ships.Count} computers, one tick: {perShipTick * ships.Count:0.00} ms ({perShipTick * ships.Count / mean * 100:0}% of the step)");
+
+        // The same ticks with the computers shared among the processor's cores, a tick at a time as a step would
+        watch.Restart();
+        for (int t = 0; t < 60; t++)
+            Parallel.ForEach(ships, s => s.Computer.Advance(1.0 / 60));
+        double parallelTick = watch.Elapsed.TotalMilliseconds / 60;
+        GD.Print($"     all {ships.Count} computers side by side on {System.Environment.ProcessorCount} cores, one tick: {parallelTick:0.00} ms");
 
         // The picture each computer redraws every frame, watched or not
         watch.Restart();

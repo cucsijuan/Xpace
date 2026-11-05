@@ -59,7 +59,7 @@ public partial class JammerDevice : Node3D, IShipDevice, IDeceiver, IRadarEmitte
     public ushort EmitterId { get; private set; }
 
     /// <summary>A tracking radar took a copy within the last moment.</summary>
-    public bool Deceiving => Engine.GetPhysicsFrames() - _repeated <= 15;
+    public bool Deceiving => Sectors.Step - _repeated <= 15;
 
     private JammerSpec S => Spec ??= new JammerSpec();
     private ShipBody _ship;
@@ -105,12 +105,13 @@ public partial class JammerDevice : Node3D, IShipDevice, IDeceiver, IRadarEmitte
     private bool Sending => Mode != JamMode.Off && Powered > 0 && (Carrier?.Alive ?? true) && !(_ship?.Wrecked ?? false);
 
     /// <summary>The antenna's gain toward a point: 1 all round; aimed, the beam's gain inside it and nothing outside.</summary>
-    private float Gain(Vector3 point)
+    private float Gain(Vector3 point) => Gain(point, GlobalPosition, (_ship?.GlobalBasis ?? GlobalBasis) * Aim);
+
+    private float Gain(Vector3 point, Vector3 from, Vector3 aim)
     {
         if (!Aimed || S.BeamGain <= 1)
             return 1;
-        Vector3 to = point - GlobalPosition;
-        Vector3 aim = (_ship?.GlobalBasis ?? GlobalBasis) * Aim;
+        Vector3 to = point - from;
         return to.LengthSquared() > 1 && aim.AngleTo(to) <= Mathf.DegToRad(S.BeamDegrees) / 2 ? S.BeamGain : 0;
     }
 
@@ -126,7 +127,7 @@ public partial class JammerDevice : Node3D, IShipDevice, IDeceiver, IRadarEmitte
         float gain = Gain(radarPosition);
         if (gain <= 0)
             return false;
-        ulong frame = Engine.GetPhysicsFrames();
+        ulong frame = Sectors.Step;
         if (!_pulls.TryGetValue(radar, out Pull pull) || frame - pull.Frame > 1)
             _pulls[radar] = pull = new Pull();          // a new lock (or one taken again): capture first
         if (pull.Frame != frame)
@@ -162,12 +163,23 @@ public partial class JammerDevice : Node3D, IShipDevice, IDeceiver, IRadarEmitte
     public bool Guiding => false;
     public float PrfHz => S.ToneHz;
 
-    public bool Illuminates(Vector3 point)
+    private bool _heard;
+    private Vector3 _at, _aimed;
+    private World3D _world;
+
+    public bool Stand()
     {
-        if (!Sending || (Mode == JamMode.Deception && !Deceiving))
-            return false;                               // a repeater sends only what it hears
-        return Gain(point) > 0 && !Obstacles.Blocked(GetWorld3D(), GlobalPosition, point);
+        _heard = Sending && !(Mode == JamMode.Deception && !Deceiving);     // a repeater sends only what it hears
+        if (!_heard)
+            return false;
+        _at = GlobalPosition;
+        _aimed = (_ship?.GlobalBasis ?? GlobalBasis) * Aim;
+        _world = GetWorld3D();
+        return true;
     }
+
+    public bool Illuminates(Vector3 point) =>
+        _heard && Gain(point, _at, _aimed) > 0 && !Obstacles.Blocked(_world, _at, point);
 
     // ---------- the bus ----------
 

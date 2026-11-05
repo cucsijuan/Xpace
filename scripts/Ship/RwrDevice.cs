@@ -117,9 +117,13 @@ public partial class RwrDevice : Node3D, IShipDevice
     public bool AudioOn { get; private set; } = true;
 
     private readonly List<Contact> _contacts = new();
+    private readonly List<Node> _plumes = new();
+    private Basis _toShip;
     private bool _registersSet;
     private byte _updates;
-    private readonly RandomNumberGenerator _rng = new() { Seed = 4021 };
+    private readonly GaussianNoise _noise = new(4021);
+    private readonly Dictionary<object, Contact> _heardFrom = new();    // the same contacts, by the emitter or missile
+    private Dictionary<string, float> _library;                         // the library, read once: it is looked up for every pulse
 
     public unsafe void BeforeStep(ShipBody ship, double delta)
     {
@@ -143,20 +147,25 @@ public partial class RwrDevice : Node3D, IShipDevice
             c.HeardNow = false;
         }
         if (!Powered)
+        {
             _contacts.Clear();
+            _heardFrom.Clear();
+        }
         else
         {
             Vector3 here = GlobalPosition;
+            _toShip = ship.GlobalBasis.Inverse();
             foreach (Ping ping in EmitterPicture.Of(this).Reaching(here, Sensitivity, DetectSnr))
                 if (ping.Ship != ship)
                     Listen(ship, ping.Emitter, ping.Position, here, (float)delta);
-            foreach (Node node in Sectors.InGroup(this, "missiles"))
-                if (node is Missile m && m.Shooter != ship)
-                    Watch(ship, m, (float)delta);
+            _plumes.Clear();
+            Spatial.Grid(this, Spatial.Missiles).Within(here, PlumeRange, _plumes);
+            foreach (Node node in _plumes)
+                if (IsInstanceValid(node) && node is Missile m && m.Shooter != ship)
+                    Watch(ship, m, here, (float)delta);
         }
         AudioOn = (bus[Slot, 5] & 1) == 0;
-        _contacts.RemoveAll(c => c.Heard > (c.IsMissile ? PlumeHoldSeconds : HoldSeconds) ||
-                                 (c.IsMissile ? !IsInstanceValid(c.Missile) : c.Emitter is GodotObject o && !IsInstanceValid(o)));
+        _contacts.RemoveAll(Forgotten);
 
         byte* table = ship.Computer.Memory + ShipMemory.Base + ShipMemory.Rwr;
         bool locked = false, fresh = false, missile = false, launch = false;
@@ -195,6 +204,15 @@ public partial class RwrDevice : Node3D, IShipDevice
 
     public void AfterStep(ShipBody ship, double delta) { }
 
+    private bool Forgotten(Contact c)
+    {
+        if (c.Heard <= (c.IsMissile ? PlumeHoldSeconds : HoldSeconds) &&
+            (c.IsMissile ? IsInstanceValid(c.Missile) : c.Emitter is not GodotObject o || IsInstanceValid(o)))
+            return false;
+        _heardFrom.Remove(c.IsMissile ? c.Missile : c.Emitter);
+        return true;
+    }
+
     /// <summary>The SNR an emitter's main lobe gives this receiver.</summary>
     public float Snr(IRadarEmitter e) => Snr(e, e.GlobalPosition, GlobalPosition);
 
@@ -212,16 +230,16 @@ public partial class RwrDevice : Node3D, IShipDevice
         float snr = Snr(e, at, here);
         if (snr < DetectSnr)
             return;
-        float bearing = TrueBearing(ship, at);
+        float bearing = TrueBearing(at - here);
         bearing += Mathf.DegToRad(BearingErrorDegrees) * MathF.Sin(4 * bearing + 0.7f)
-                 + Mathf.DegToRad(BearingNoiseDegrees) / MathF.Sqrt(snr) * _rng.Randfn();
-        float heard = snr * MathF.Pow(10, _rng.Randfn(0, PowerErrorDb) / 10);
+                 + Mathf.DegToRad(BearingNoiseDegrees) / MathF.Sqrt(snr) * _noise.Next();
+        float heard = snr * MathF.Pow(10, _noise.Next(0, PowerErrorDb) / 10);
         string signature = e.Signature ?? "";
-        bool known = Library.TryGetValue(signature, out float power);
+        _library ??= new Dictionary<string, float>(Library);
+        bool known = _library.TryGetValue(signature, out float power);
         float range = 1000f * MathF.Sqrt((known ? power : UnknownPower) * Sensitivity / heard);
 
-        Contact c = _contacts.Find(x => x.Emitter == e);
-        if (c == null)
+        if (!_heardFrom.TryGetValue(e, out Contact c))
         {
             c = new Contact
             {
@@ -230,6 +248,7 @@ public partial class RwrDevice : Node3D, IShipDevice
                 Letter = known && signature.Length > 0 ? char.ToUpperInvariant(signature[0]) : 'U',
             };
             _contacts.Add(c);
+            _heardFrom[e] = c;
         }
         Heard(c, bearing, range, dt);
         if (e.Tracking)
@@ -239,21 +258,21 @@ public partial class RwrDevice : Node3D, IShipDevice
     }
 
     /// <summary>The missile warner: a burning motor coming this way, in range.</summary>
-    private void Watch(ShipBody ship, Missile m, float dt)
+    private void Watch(ShipBody ship, Missile m, Vector3 here, float dt)
     {
         if (!m.Burning)
             return;
-        Vector3 toUs = GlobalPosition - m.GlobalPosition;
+        Vector3 toUs = here - m.GlobalPosition;
         float range = toUs.Length();
         if (range > PlumeRange || range < 1 || (m.Velocity - ship.LinearVelocity).Dot(toUs) <= 0)
             return;
-        float bearing = TrueBearing(ship, m.GlobalPosition) + Mathf.DegToRad(PlumeBearingDegrees) * _rng.Randfn();
-        float guessed = range * MathF.Max(0.2f, 1 + PlumeRangeError * _rng.Randfn());
-        Contact c = _contacts.Find(x => x.Missile == m);
-        if (c == null)
+        float bearing = TrueBearing(-toUs) + Mathf.DegToRad(PlumeBearingDegrees) * _noise.Next();
+        float guessed = range * MathF.Max(0.2f, 1 + PlumeRangeError * _noise.Next());
+        if (!_heardFrom.TryGetValue(m, out Contact c))
         {
             c = new Contact { Missile = m, Id = (ushort)(0x8000 | (m.GetInstanceId() & 0x7FFF)), Letter = 'M' };
             _contacts.Add(c);
+            _heardFrom[m] = c;
         }
         Heard(c, bearing, guessed, dt);
     }
@@ -283,9 +302,9 @@ public partial class RwrDevice : Node3D, IShipDevice
         c.HeardNow = true;
     }
 
-    private float TrueBearing(ShipBody ship, Vector3 point)
+    private float TrueBearing(Vector3 toPoint)
     {
-        Vector3 local = ship.GlobalBasis.Inverse() * (point - GlobalPosition);
+        Vector3 local = _toShip * toPoint;
         return Mathf.Atan2(local.X, -local.Z);
     }
 

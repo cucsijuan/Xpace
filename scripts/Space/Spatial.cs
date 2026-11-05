@@ -21,6 +21,9 @@ public static class Spatial
     public static readonly Layer Radios = new(Radio.Group, 2000f,
         n => n is IRadio radio ? radio.RadioPosition : n is Node3D n3 ? n3.GlobalPosition : Vector3.Zero);
 
+    /// <summary>Every missile in flight.</summary>
+    public static readonly Layer Missiles = new("missiles", 5000f, n => n is Node3D n3 ? n3.GlobalPosition : Vector3.Zero);
+
     /// <summary>The layer's grid for the sector of <paramref name="from"/>.</summary>
     public static SpatialGrid<Node> Grid(Node from, Layer layer) => Sectors.GridOf(from, layer.Group, layer.Cell, layer.Where);
 }

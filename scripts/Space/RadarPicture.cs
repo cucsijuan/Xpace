@@ -48,6 +48,15 @@ public sealed class RadarPicture
         return picture;
     });
 
+    /// <summary>The targets within a distance of a point, in the order of the sector's list.</summary>
+    public List<Blip> Near(Vector3 point, float radius)
+    {
+        _near.Clear();
+        _grid.Within(point, radius, _near);
+        _near.Sort((a, b) => a.Order.CompareTo(b.Order));
+        return _near;
+    }
+
     /// <summary>
     /// The targets a radar at a point could detect at best (before jamming and clutter, which only take from it): within
     /// <paramref name="range"/> for a target of <paramref name="referenceCrossSection"/>, more for a bigger one. In the

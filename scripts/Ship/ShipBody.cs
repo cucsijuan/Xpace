@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using Godot;
 using Xpace.Computer;
 using Xpace.Controls;
@@ -287,8 +288,71 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
             emitter.SetPhysicsProcess(true);
     }
 
+    // A ship's step has three stages, and all the ships go through each together: everyone gets ready, every computer runs
+    // at the same time on the processor's cores (nothing in a machine touches anything outside it), and everyone acts on
+    // what its computer said. The first ship the tree reaches in a physics step runs them for all.
+    private static readonly List<ShipBody> InSpace = new();
+    private static readonly List<ShipBody> Stepping = new();
+    private static readonly List<ShipBody> Computing = new();
+    private static ulong _steppedAll;
+    private static double _stepDelta;
+    private ulong _stepped;
+    private bool _computing;
+
+    public override void _EnterTree() => InSpace.Add(this);
+
+    public override void _ExitTree() => InSpace.Remove(this);
+
     public override void _PhysicsProcess(double delta)
     {
+        ulong step = Space.Sectors.Step;
+        if (_steppedAll != step)
+        {
+            _steppedAll = step;
+            StepAll(step, delta);
+        }
+        if (_stepped == step)
+            return;
+        _stepped = step;                                // it came too late for the others' turn
+        GetReady(delta);
+        if (_computing)
+            Computer.Advance(delta);
+        Act(delta);
+    }
+
+    private static void StepAll(ulong step, double delta)
+    {
+        Stepping.Clear();
+        Computing.Clear();
+        foreach (ShipBody ship in InSpace)
+            if (ship.IsPhysicsProcessing() && ship.CanProcess())
+            {
+                ship._stepped = step;
+                Stepping.Add(ship);
+            }
+        foreach (ShipBody ship in Stepping)
+            if (IsInstanceValid(ship))
+            {
+                ship.GetReady(delta);
+                if (ship._computing)
+                    Computing.Add(ship);
+            }
+        _stepDelta = delta;
+        if (Computing.Count > 1)
+            Parallel.For(0, Computing.Count, RunComputer);
+        else if (Computing.Count == 1)
+            RunComputer(0);
+        foreach (ShipBody ship in Stepping)
+            if (IsInstanceValid(ship))
+                ship.Act(delta);
+    }
+
+    private static readonly Action<int> RunComputer = i => Computing[i].Computer.Advance(_stepDelta);
+
+    /// <summary>Before its computer runs: sensors and controls on the bus, the interrupt raised.</summary>
+    private void GetReady(double delta)
+    {
+        _computing = false;
         if (Dormant)
         {
             if (Holder != null)
@@ -309,9 +373,16 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
         foreach (IShipDevice d in _devices)
             d.BeforeStep(this, delta);
         bus.RaiseIrq();
+        _computing = true;
+    }
 
-        Computer.Advance(delta);
-
+    /// <summary>After its computer ran: the devices and the thrusters do what it said.</summary>
+    private void Act(double delta)
+    {
+        if (!_computing)
+            return;
+        _computing = false;
+        ShipBus bus = Computer.Bus;
         foreach (IShipDevice d in _devices)
             d.AfterStep(this, delta);
 

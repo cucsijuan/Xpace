@@ -28,7 +28,12 @@ public interface IRadarEmitter
     bool Guiding { get; }
     /// <summary>Pulses a second: what a warning receiver plays in the pilot's headset.</summary>
     float PrfHz { get; }
-    /// <summary>Its main lobe crossed or sat on this point during the last step.</summary>
+    /// <summary>
+    /// Takes down how it stands for this step, once, for all who will listen (see <see cref="EmitterPicture"/>).
+    /// False if it is sending nothing.
+    /// </summary>
+    bool Stand();
+    /// <summary>Its main lobe crossed or sat on this point during the last step, as it stood.</summary>
     bool Illuminates(Vector3 point);
 }
 
@@ -195,39 +200,37 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
     }
 
     // Every receiver in range asks this each step; where the emitter stands is the same for all of them
-    private ulong _stood = ulong.MaxValue;
-    private Vector3 _at;
+    private bool _sending, _sitting, _sitsOnNothing;
+    private Vector3 _at, _toTarget;
     private Basis _toLocal;
     private World3D _world;
 
-    private void Stand()
+    public bool Stand()
     {
-        ulong step = Engine.GetPhysicsFrames();
-        if (step == _stood)
-            return;
-        _stood = step;
+        _sending = Transmitting;
+        if (!_sending)
+            return false;
         _at = GlobalPosition;
         _toLocal = GlobalBasis.Inverse();
         _world = GetWorld3D();
+        _sitting = Locked;
+        _sitsOnNothing = Locked && (Target == null || !IsInstanceValid(Target));    // what it tracked is gone (chaff that blew away)
+        if (_sitting && !_sitsOnNothing)
+            _toTarget = _toLocal * (Target.GlobalPosition - _at);
+        return true;
     }
 
     public bool Illuminates(Vector3 point)
     {
-        if (!Transmitting)
+        if (!_sending || _sitsOnNothing)
             return false;
-        Stand();
         Vector3 local = _toLocal * (point - _at);
-        if (local.LengthSquared() < 1 || Obstacles.Blocked(_world, _at, point))
-            return false;                       // too close to tell, or rock in the way
-        float half = Mathf.DegToRad(BeamwidthDegrees) / 2;
-        if (Locked)
-        {
-            if (Target == null || !IsInstanceValid(Target))
-                return false;                   // what it tracked is gone (chaff that blew away)
-            Vector3 toTarget = _toLocal * (Target.GlobalPosition - _at);
-            return local.AngleTo(toTarget) <= half;
-        }
-        return Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees) && Crossed(local);
+        if (local.LengthSquared() < 1)
+            return false;                       // too close to tell
+        bool lit = _sitting
+            ? local.AngleTo(_toTarget) <= Mathf.DegToRad(BeamwidthDegrees) / 2
+            : Vector3.Forward.AngleTo(local) <= Mathf.DegToRad(ConeDegrees) && Crossed(local);
+        return lit && !Obstacles.Blocked(_world, _at, point);       // most are not lit: the rocks are looked at last
     }
 
     /// <summary>The fan beam passed over this direction (emitter axes) in the last step.</summary>

@@ -266,7 +266,7 @@ public partial class Universe : Node
 
     private bool FliesHere(Node3D ship)
     {
-        ulong step = Engine.GetPhysicsFrames();
+        ulong step = Sectors.Step;
         if (step != _fliesStep)
         {
             _flies.Clear();

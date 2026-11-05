@@ -13,6 +13,31 @@ public static class Sectors
     public static World3D WorldOf(Node node) =>
         node is Node3D n3 ? (n3.IsInsideTree() ? n3.GetWorld3D() : null) : node.GetViewport()?.FindWorld3D();
 
+    /// <summary>
+    /// A number that changes with every physics step. Asking the engine costs a call into it, and in a battle the question
+    /// comes thousands of times a step, so the count is kept here.
+    /// </summary>
+    public static ulong Step
+    {
+        get
+        {
+            Count();
+            return _physics;
+        }
+    }
+
+    private static ulong _physics = 1, _process = 1;
+    private static bool _counting;
+
+    private static void Count()
+    {
+        if (_counting || Engine.GetMainLoop() is not SceneTree tree)
+            return;
+        _counting = true;
+        tree.PhysicsFrame += () => _physics++;
+        tree.ProcessFrame += () => _process++;
+    }
+
     private sealed class Members
     {
         public ulong Physics, Process, Epoch;
@@ -40,7 +65,7 @@ public static class Sectors
 
     private static Members Known(Node from, World3D world, StringName group)
     {
-        ulong physics = Engine.GetPhysicsFrames(), process = Engine.GetProcessFrames();
+        ulong physics = Step, process = _process;
         if (!Cache.TryGetValue((group, world.GetInstanceId()), out Members known))
             Cache[(group, world.GetInstanceId())] = known = new Members();
         if (known.Nodes == null || known.Physics != physics || known.Process != process || known.Epoch != _epoch)

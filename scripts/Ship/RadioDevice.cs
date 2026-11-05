@@ -107,7 +107,7 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
     // Who is heard, nearest first, once for each physics step however often it is asked
     private void Scan()
     {
-        ulong now = Engine.GetPhysicsFrames();
+        ulong now = Sectors.Step;
         if (_scanned == now)
             return;
         _scanned = now;

@@ -31,7 +31,7 @@ public sealed class EmitterPicture
         var picture = new EmitterPicture();
         foreach (Node node in nodes)
         {
-            if (node is not IRadarEmitter e)
+            if (node is not IRadarEmitter e || !e.Stand())
                 continue;
             Xpace.Ship.ShipBody carrier = null;
             for (Node up = node; up != null && carrier == null; up = up.GetParent())
