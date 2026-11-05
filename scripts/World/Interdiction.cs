@@ -72,11 +72,13 @@ public static class Interdiction
     {
         double from = ship.WorkedTo;
         ship.WorkedTo = state.Clock;
-        if (state.Clock - ship.ShownAt < 2 || from <= 0 || book.Find(ship.From) is not StationBook.Station start || book.Find(ship.Going) is not StationBook.Station end)
+        if (state.Clock - ship.ShownAt < 2 || from <= 0)
             return;
         if (ship.Legs == null)
         {
-            ship.Legs = book.Departure(start, StationBook.PadOf(start, ship.LeftDock, ship.LeftPad), end, model, ship.Tonnes, out _);
+            ship.Legs = book.Way(ship, model, out _);
+            if (ship.Legs == null)
+                return;
             ship.Beset = Window(ship, model, book);
         }
         // Mostly it is nowhere near one
@@ -86,7 +88,8 @@ public static class Interdiction
         for (double t = from; t < state.Clock; t += Substep)
         {
             float dt = (float)System.Math.Min(Substep, state.Clock - t);
-            if (book.Where(ship.Legs, model, ship.Tonnes, t - ship.Left) is not StationBook.Fix fix)
+            (ShipModel pace, int load) = StationBook.Pace(ship, model);
+            if (book.Where(ship.Legs, pace, load, t - ship.Left) is not StationBook.Fix fix)
                 continue;
             (float beam, byte band) = Beam(book.Space[fix.Sector], fix.At, t);
             Step(ship, model, book.Space[fix.Sector], fix.At, fix.Speed, beam, band, dt);
@@ -98,9 +101,10 @@ public static class Interdiction
     {
         if (!book.Beset(ship.Legs))
             return (double.MaxValue, double.MinValue);
+        (ShipModel pace, int load) = StationBook.Pace(ship, model);
         double from = double.MaxValue, to = double.MinValue, total = ship.Legs.Sum(l => l.Seconds + l.Transit);
         for (double t = 0; t < total; t += Margin)
-            if (book.Where(ship.Legs, model, ship.Tonnes, t) is StationBook.Fix fix && Beam(book.Space[fix.Sector], fix.At, 0).Density > 0)
+            if (book.Where(ship.Legs, pace, load, t) is StationBook.Fix fix && Beam(book.Space[fix.Sector], fix.At, 0).Density > 0)
             {
                 from = System.Math.Min(from, t);
                 to = t;

@@ -122,6 +122,13 @@ public static class UniverseStore
                 document.Remove("Mustered");
             }
         }
+        if (from < 3)
+        {
+            // The yard kept the owner of the station it had been: it goes to the yard's, with what it has
+            bool yard = document[kind == "station" ? "Id" : "Home"]?.GetValue<string>() == "DRYDOCK";
+            if (yard && kind is ("station" or "cargo ship" or "ship order") && document["Owner"]?.GetValue<string>() == "kestrel_mining")
+                document["Owner"] = kind == "station" ? "" : "drydock_yards";
+        }
         return true;
     }
 

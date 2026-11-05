@@ -65,7 +65,7 @@ public enum Standing
 /// In a session only the host's security acts, on every machine's ships
 /// alike (<see cref="SessionNode"/> tells it what they do).
 /// </summary>
-public partial class StationSecurity : Node
+public partial class StationSecurity : Node, IEngagement
 {
     [Export] public double WarnGraceSeconds = 4;
     [Export] public double DefenceSeconds = 20;

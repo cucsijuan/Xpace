@@ -32,6 +32,12 @@ public partial class CargoView : Node
     /// <summary>A ship under fire calls and tells its owner no oftener than this, seconds.</summary>
     [Export] public double MaydayEverySeconds = 30;
 
+    /// <summary>How near a pilot an escort has its computer up, ready to fight (m).</summary>
+    [Export] public float AlertMeters = 30000f;
+
+    /// <summary>How long after its last enemy is gone an escort goes back on its way, seconds.</summary>
+    [Export] public double StandDownSeconds = 20;
+
     /// <summary>The ships shown now, by the record's id.</summary>
     public IReadOnlyDictionary<string, ShipBody> Shown => _shown;
 
@@ -41,6 +47,7 @@ public partial class CargoView : Node
     private readonly HashSet<ShipBody> _struck = new();
     private readonly Dictionary<ShipBody, Node3D> _killers = new();
     private readonly Dictionary<ShipBody, double> _called = new();
+    private readonly Dictionary<string, EscortDuty> _duties = new();
     private double _wait;
 
     public override void _PhysicsProcess(double delta)
@@ -83,6 +90,11 @@ public partial class CargoView : Node
         ShipModel model = ResourceLoader.Exists(record.Model) ? GD.Load<ShipModel>(record.Model) : null;
         if (model == null)
             return;
+        if (record.Phase == CargoShipRecord.Loose)
+        {
+            Fighting(record, model, ship, universe, host);
+            return;
+        }
         StationBook.Fix? fix = universe.Book.FixOf(record, model, universe.State.Clock);
         FloatingOrigin root = fix is StationBook.Fix f ? host.Root(f.Sector) : null;
         if (ship != null && (root == null || ship.GetParent() != root))
@@ -97,8 +109,57 @@ public partial class CargoView : Node
         if (ship != null)
         {
             Doors(record, ship, model, universe);
+            if (model.Escort && PilotNear(ship, universe))
+                _dealt[record.Id] = Time.GetTicksMsec() / 1000.0;
             Detail(record.Id, ship);
         }
+    }
+
+    private bool PilotNear(ShipBody ship, Universe universe)
+    {
+        foreach (IRadio radio in Radio.All(ship))
+            if (Combat.ShipOf(radio as Node) is Node3D other && other != ship && universe.PilotIdOf(other) != null && other.GlobalPosition.DistanceTo(ship.GlobalPosition) <= AlertMeters)
+                return true;
+        return false;
+    }
+
+    // An escort off its way, flown by its pilot: it goes back on it from where it is once its enemies are gone. If its sector
+    // went, it goes on from where it was last seen
+    private void Fighting(CargoShipRecord record, ShipModel model, ShipBody ship, Universe universe, SectorHost host)
+    {
+        if (ship != null)
+        {
+            FloatingOrigin root = FloatingOrigin.Of(ship);
+            SectorPoint at = root.Origin + ship.Position;
+            record.FromSector = universe.Book.Space.Keys.FirstOrDefault(id => host.Root(id) == root) ?? record.FromSector;
+            (record.FromX, record.FromY, record.FromZ) = (at.X, at.Y, at.Z);
+            if (_duties.TryGetValue(record.Id, out EscortDuty duty) && !duty.Over(LookEverySeconds, StandDownSeconds))
+                return;
+        }
+        var from = new Vector3((float)record.FromX, (float)record.FromY, (float)record.FromZ);
+        CargoShips.Resume(record, model, record.FromSector, from, universe.State, universe.Book, universe.Account);
+        if (ship == null || universe.Book.FixOf(record, model, universe.State.Clock) is not StationBook.Fix fix)
+            return;
+        ship.Holder = new CargoRun(record, model, fix, FloatingOrigin.Of(ship));
+    }
+
+    // Who guards the ship, or the ship itself if it is an escort, turns on its attacker: off its way, a pilot flying it
+    private void Scramble(CargoShipRecord record, Node3D by, UniverseState state)
+    {
+        if (by == null)
+            return;
+        foreach (CargoShipRecord guard in state.CargoShips.Values.Where(s => s.Ward == record.Id || s == record).ToList())
+            if (_duties.TryGetValue(guard.Id, out EscortDuty duty) && _shown.TryGetValue(guard.Id, out ShipBody ship) && GodotObject.IsInstanceValid(ship))
+            {
+                duty.Add(by);
+                if (guard.Phase is not (CargoShipRecord.Flying or CargoShipRecord.Holding))
+                    continue;
+                guard.Phase = CargoShipRecord.Loose;
+                _dealt[guard.Id] = double.MaxValue;
+                ship.Wake();
+                ship.Unshow();
+                ship.Holder = null;
+            }
     }
 
     // Level 0 while someone deals with it: it is hit, or a radar is locked on it; level 1 again a while after
@@ -153,6 +214,7 @@ public partial class CargoView : Node
         {
             Tell(record, ship, by, lost: false, universe);
             Mayday(ship, CargoShips.CallsignOf(id));
+            Scramble(record, by, universe.State);
         }
     }
 
@@ -200,6 +262,12 @@ public partial class CargoView : Node
             hull.Insured = false;
         if (ship.FindChildren("*", "", true, false).OfType<CruiseDevice>().FirstOrDefault() is CruiseDevice cruise)
             cruise.Spec = model.Generator;
+        if (model.Escort)
+        {
+            _duties[record.Id] = new EscortDuty();
+            foreach (FighterAi pilot in parts.OfType<FighterAi>())
+                pilot.Engagement = _duties[record.Id];
+        }
         var run = new CargoRun(record, model, fix, root);
         ship.Transform = run.Pose(fix);
         ship.Holder = run;

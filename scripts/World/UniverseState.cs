@@ -17,7 +17,7 @@ namespace Xpace.World;
 public sealed class UniverseState
 {
     /// <summary>The documents' format; older ones are brought up to it as they load (<see cref="UniverseStore"/>).</summary>
-    public const int CurrentVersion = 2;
+    public const int CurrentVersion = 3;
 
     public int Version { get; set; } = CurrentVersion;
 
@@ -69,8 +69,10 @@ public sealed class UniverseState
 /// <summary>A working cargo ship: it exists here, wherever it is and whether anyone sees it or not (<see cref="CargoShips"/>).</summary>
 public sealed class CargoShipRecord
 {
-    public const string Waiting = "waiting", Fetching = "fetching", Returning = "returning";
+    public const string Waiting = "waiting", Fetching = "fetching", Returning = "returning", Escorting = "escorting";
     public const string Parked = "parked", Flying = "flying", Holding = "holding", Landing = "landing";
+    /// <summary>Off its way, a real ship flown by its pilot: an escort fighting.</summary>
+    public const string Loose = "loose";
 
     public string Id { get; set; }
     /// <summary>Its <see cref="ShipModel"/>, by resource path.</summary>
@@ -104,6 +106,16 @@ public sealed class CargoShipRecord
     public string Going { get; set; } = "";
     public double Left { get; set; }
     public double Arrives { get; set; }
+    /// <summary>The ship it goes with (an escort).</summary>
+    public string Ward { get; set; } = "";
+    /// <summary>Whose way it flies at: the model and the load of the ship it goes with (empty: its own).</summary>
+    public string PaceModel { get; set; } = "";
+    public int PaceTonnes { get; set; }
+    /// <summary>It set out from a point in space, not from a station (From empty): the sector, and where.</summary>
+    public string FromSector { get; set; } = "";
+    public double FromX { get; set; }
+    public double FromY { get; set; }
+    public double FromZ { get; set; }
     /// <summary>Its generator, on its way.</summary>
     public Xpace.Ship.GeneratorState Generator { get; set; } = new() { On = true };
     /// <summary>How fast it goes now if something is holding it back (below 0: as its way says).</summary>

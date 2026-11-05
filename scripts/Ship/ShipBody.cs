@@ -395,6 +395,15 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
             _signature.ShownWake = wake;
     }
 
+    /// <summary>Its holder lets it go: what it shows is its own again.</summary>
+    public void Unshow()
+    {
+        _shownThrust = null;
+        _shownWake = null;
+        if (_signature != null)
+            _signature.ShownWake = 0;
+    }
+
     private float? _shownWake;
     private float? _shownThrust;
     private bool _shownDestroyed;

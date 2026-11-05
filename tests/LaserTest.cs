@@ -110,6 +110,8 @@ public partial class LaserTest : Node3D
         Check("next weapon goes back to the gun", await Until(() => FireControl.Weapon(_ship) == "GUN", 1));
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
         GetTree().Quit(_failures == 0 ? 0 : 1);
     }
 

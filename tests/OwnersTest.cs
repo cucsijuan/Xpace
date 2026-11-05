@@ -125,6 +125,18 @@ public partial class OwnersTest : Node
         Check("and its old document goes", !File.Exists(Path.Combine(folder, "stations", "STATION.json")) && UniverseStore.Load(folder).Stations.ContainsKey("ALPHA"));
         Directory.Delete(folder, true);
 
+        // The yard, still with the owner of the station it had been
+        Directory.CreateDirectory(Path.Combine(folder, "stations"));
+        Directory.CreateDirectory(Path.Combine(folder, "cargo_ships"));
+        File.WriteAllText(Path.Combine(folder, "universe.json"), "{\"Version\":2,\"Clock\":5}");
+        File.WriteAllText(Path.Combine(folder, "stations", "DRYDOCK.json"), "{\"Version\":2,\"Id\":\"DRYDOCK\",\"Owner\":\"kestrel_mining\"}");
+        File.WriteAllText(Path.Combine(folder, "stations", "KESTREL.json"), "{\"Version\":2,\"Id\":\"KESTREL\",\"Owner\":\"kestrel_mining\"}");
+        File.WriteAllText(Path.Combine(folder, "cargo_ships", "y.json"), "{\"Version\":2,\"Id\":\"y\",\"Home\":\"DRYDOCK\",\"Owner\":\"kestrel_mining\"}");
+        UniverseState yard = UniverseStore.Load(folder);
+        Check("the yard and its ships go to the yard's owner, and Kestrel stays with its own",
+              yard.Stations["DRYDOCK"].Owner == "" && yard.CargoShips["y"].Owner == "drydock_yards" && yard.Stations["KESTREL"].Owner == "kestrel_mining");
+        Directory.Delete(folder, true);
+
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
     }

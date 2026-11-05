@@ -29,6 +29,12 @@ public partial class Personality : Resource
     /// <summary>How long a lost ship would keep it off that route with no aggression at all, hours; aggression shortens it.</summary>
     [Export] public double FearHours = 24;
 
+    /// <summary>How much being out of something shortens that: with none left and this at 1, it sends a ship at once.</summary>
+    [Export(PropertyHint.Range, "0,1,0.01")] public float NeedOverFear = 0.9f;
+
+    /// <summary>The aggression from which it answers a loss by buying escorts.</summary>
+    [Export(PropertyHint.Range, "0,1,0.01")] public float EscortAbove = 0.3f;
+
     /// <summary>What it puts on a pilot's head for a ship lost, of the ship's build fee, at full aggression.</summary>
     [Export(PropertyHint.Range, "0,1,0.01")] public float BountyShare = 0.2f;
 

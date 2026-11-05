@@ -15,6 +15,7 @@ namespace Xpace.Tests;
 ///   - a loss elsewhere changes nothing, and neither does a hit;
 ///   - money goes on the attacker's head, more from the aggressive, never more than the owner has;
 ///   - the pilot who destroys the attacker is paid by the owner;
+///   - need shortens fear, and a yard sends for what an order is waiting for;
 ///   - in the real game a cargo ship under fire calls on the radio and its owner hears of it.
 ///
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/reactions_test.tscn
@@ -27,6 +28,7 @@ public partial class ReactionsTest : Node
     public override async void _Ready()
     {
         Records();
+        YardFetches();
         await InGame();
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GC.Collect();
@@ -59,6 +61,8 @@ public partial class ReactionsTest : Node
         Check("the aggressive owner goes back first", !Reactions.Avoids(owner, bold, legs, model.DangerMeters, after) && Reactions.Avoids(owner, meek, legs, model.DangerMeters, after));
         Check("and in time so does the other", !Reactions.Avoids(owner, meek, legs, model.DangerMeters, clock + (Reactions.FearHours(meek) + 1) * hour));
 
+        Check("the more it needs what's that way, the sooner it goes", Reactions.Avoids(owner, meek, legs, model.DangerMeters, clock + 4 * hour, 0.1) && !Reactions.Avoids(owner, meek, legs, model.DangerMeters, clock + 4 * hour, 1));
+
         var hard = new OrganisationRecord { Id = "hard", Credits = 1_000_000 };
         var soft = new OrganisationRecord { Id = "soft", Credits = 1_000_000 };
         Reactions.Happened(hard, bold, model, open.Sector, onTheWay, "villain", clock, lost: true);
@@ -78,6 +82,34 @@ public partial class ReactionsTest : Node
         long paid = Reactions.Collect(state, "villain", hunter);
         Check($"the hunter is paid by the owners, as far as they can ({paid})", paid == offered - 60 && hunter.Credits == paid && poor.Credits == 0);
         Check("and the head is clean", Reactions.Hunted(state, "villain") == 0);
+    }
+
+    // A yard short of what an order needs sends for it, though it has more than it would keep for its own use
+    private void YardFetches()
+    {
+        StationBook book = StationBook.Read(GD.Load<SectorMap>("res://assets/sectors/map.tres"));
+        ShipModel model = GD.Load<ShipModel>("res://assets/ship/models/freighter.tres");
+        var state = new UniverseState { Clock = 1 };
+        var owners = new Dictionary<string, OrganisationRecord>();
+        IAccount Account(string id) => CargoShipsTest.Account(state, owners, id);
+        CargoShips.Muster(state, book, Account);
+        CargoShips.Muster(state, book, Account);
+        StationBook.Station yard = book.Find("DRYDOCK");
+        foreach (MarketGood line in yard.Goods)
+            state.Station(yard.Id).Stock[line.Good.Id] = line.Stock;
+        state.Station(yard.Id).Stock["electronics"] = 30;
+        foreach (CargoShipRecord other in state.CargoShips.Values)
+            other.NextLook = 1e12;
+        CargoShipRecord ship = state.CargoShips.Values.First(s => s.Home == yard.Id);
+        ship.NextLook = 0;
+        state.Clock += 5;
+        CargoShips.Tick(state, book, Account);
+        Check("with no order it has enough electronics", ship.Phase == CargoShipRecord.Parked);
+        state.ShipOrders["TEST"] = new ShipOrderRecord { Id = "TEST", Model = model.ResourcePath, Owner = ship.Owner, Home = yard.Id, Yard = yard.Id };
+        ship.NextLook = 0;
+        state.Clock += 5;
+        CargoShips.Tick(state, book, Account);
+        Check($"an order waiting for 40 sends a ship for them ({ship.Good} from {ship.Going})", ship.Phase == CargoShipRecord.Flying && ship.Good == "electronics");
     }
 
     private async Task InGame()

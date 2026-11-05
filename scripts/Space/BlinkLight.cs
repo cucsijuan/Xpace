@@ -57,7 +57,7 @@ public partial class BlinkLight : Node3D
         double at = Time.GetTicksMsec() / 1000.0 / PeriodSeconds + Phase;
         float t = (float)(at - Mathf.Floor(at)) / Mathf.Max(OnShare, 0.01f);
         Lit = t < 1 ? Mathf.Sin(t * Mathf.Pi) : 0;
-        _glow.Modulate = Colour with { A = Lit };
+        _glow.Transparency = 1 - Lit;               // not Modulate: that redraws the sprite, even in a sector left out
         _lamp.LightEnergy = LightEnergy * Lit;
     }
 }

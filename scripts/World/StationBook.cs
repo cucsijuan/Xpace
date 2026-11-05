@@ -335,14 +335,32 @@ public sealed class StationBook
         return at;
     }
 
+    /// <summary>Where a ship's voyage started: a station, or a point in space (a station of no id).</summary>
+    public Station Origin(CargoShipRecord ship) => Find(ship.From) ??
+        (string.IsNullOrEmpty(ship.FromSector) ? null : new Station { Id = "", Sector = ship.FromSector, At = new Vector3((float)ship.FromX, (float)ship.FromY, (float)ship.FromZ) });
+
+    /// <summary>The way of a ship's voyage, at its pace: that of the ship it goes with, if any.</summary>
+    public List<Leg> Way(CargoShipRecord ship, ShipModel model, out Vector3 contact)
+    {
+        contact = default;
+        if (Origin(ship) is not Station from || Find(ship.Going) is not Station to)
+            return null;
+        (ShipModel pace, int tonnes) = Pace(ship, model);
+        return Departure(from, PadOf(from, ship.LeftDock, ship.LeftPad), to, pace, tonnes, out contact);
+    }
+
+    /// <summary>The model and load a ship flies its way at.</summary>
+    public static (ShipModel Model, int Tonnes) Pace(CargoShipRecord ship, ShipModel model) =>
+        !string.IsNullOrEmpty(ship.PaceModel) && ResourceLoader.Exists(ship.PaceModel) && GD.Load<ShipModel>(ship.PaceModel) is ShipModel pace ? (pace, ship.PaceTonnes) : (model, ship.Tonnes);
+
     /// <summary>Where a cargo ship is now, whatever it is doing (null: in a tunnel, or nowhere known).</summary>
     public Fix? FixOf(CargoShipRecord ship, ShipModel model, double clock)
     {
         switch (ship.Phase)
         {
             case CargoShipRecord.Flying:
-                return Find(ship.From) is Station from && Find(ship.Going) is Station to
-                    ? Where(Departure(from, PadOf(from, ship.LeftDock, ship.LeftPad), to, model, ship.Tonnes, out _), model, ship.Tonnes, clock - ship.Left) : null;
+                (ShipModel pace, int load) = Pace(ship, model);
+                return Way(ship, model, out _) is List<Leg> legs ? Where(legs, pace, load, clock - ship.Left) : null;
             case CargoShipRecord.Landing:
                 return Find(ship.Going) is Station there && PadOf(there, ship.Dock, ship.Pad) is Pad pad
                     ? Where(Landing(there, pad, ship.ContactPoint, model, ship.Tonnes), model, ship.Tonnes, clock - ship.Left) : null;

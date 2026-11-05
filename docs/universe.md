@@ -219,3 +219,7 @@ made on what the buyer knows.
 `CargoShips.Plan` leaves out sellers on a way the owner fears (`Reactions.Avoids`). `Reactions.Collect` pays a bounty
 when one pilot destroys another. Pilots who own ships get none of this: they decide for themselves.
 
+A ship on a record can leave it and come back: `CargoShipRecord.Loose` is a real ship flown by its pilot, and
+`CargoShips.Resume` puts it back on a way from a point in space (`StationBook.Origin`). `IEngagement` says whom a
+fighter may fight: a station's security or an `EscortDuty`.
+

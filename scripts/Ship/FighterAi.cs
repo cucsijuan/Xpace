@@ -99,6 +99,8 @@ public partial class FighterAi : Node, IOriginShift
     [Export] public bool RespectsZones = true;
     /// <summary>A station's security whose police this pilot is (null: none).</summary>
     [Export] public Space.StationSecurity Police;
+    /// <summary>Whoever else says whom it may fight (an escort's duty): only those.</summary>
+    public Space.IEngagement Engagement;
     [Export] public float RouteSpeed = 120f;            // m/s, along a route
     [Export] public float RouteEndSpeed = 25f;          // m/s, nearing the route's last point
     /// <summary>It goes after nobody: it only defends itself and does its job.</summary>
@@ -300,8 +302,8 @@ public partial class FighterAi : Node, IOriginShift
     {
         if (Peaceful)
             return false;
-        if (Police != null)
-            return Police.Hostiles.Any(h => h.GlobalPosition.DistanceTo(point) < FriendGate);
+        if (((Space.IEngagement)Police ?? Engagement) is Space.IEngagement orders)
+            return orders.Hostiles.Any(h => h.GlobalPosition.DistanceTo(point) < FriendGate);
         return !RespectsZones || (StationRadio.ProtectingAt(_ship.GetWorld3D(), point) == null && StationRadio.ProtectingAt(_ship.GetWorld3D(), _ship.GlobalPosition) == null);
     }
 
