@@ -147,6 +147,10 @@ public sealed class CargoShipRecord
     public Dictionary<string, string> Fittings { get; set; } = new();
     /// <summary>Hydrogen in its tank, tonnes (below 0: full, as a new ship comes).</summary>
     public double Fuel { get; set; } = -1;
+    /// <summary>It set out without the fuel for its way: it goes on its engine, slowly.</summary>
+    public bool Dry { get; set; }
+    /// <summary>How much its crew reckoned worth buying on this trip (0: as much as there is room for).</summary>
+    public int Planned { get; set; }
     /// <summary>What it took out of space, by good: stolen, to sell off.</summary>
     public Dictionary<string, int> Loot { get; set; } = new();
     /// <summary>Tonnes it has brought home in all.</summary>

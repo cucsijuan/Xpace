@@ -167,27 +167,60 @@ public static class People
         if (hold <= 0)
             return false;
         double since = state.Clock - model.NewsHours * 3600;
-        (StationBook.Station From, StationBook.Station To, string Good, long Gain) best = default;
+        (StationBook.Station From, StationBook.Station To, string Good, long Gain, int Tonnes) best = default;
         foreach ((string fromId, StationNews fromNews) in person.Known.Where(k => k.Value.AsOf >= since).OrderBy(k => k.Key, StringComparer.Ordinal))
             foreach ((string toId, StationNews toNews) in person.Known.Where(k => k.Key != fromId && k.Value.AsOf >= since).OrderBy(k => k.Key, StringComparer.Ordinal))
             {
                 if (book.Find(fromId) is not StationBook.Station from || book.Find(toId) is not StationBook.Station to || !from.Pads.Any(p => book.Fits(p, model)) || !to.Pads.Any(p => book.Fits(p, model)))
                     continue;
                 long tolls = CargoShips.TollsBetween(book, here, from) + CargoShips.TollsBetween(book, from, to);
+                tolls += FuelCost(model, book, here, from, to, person);
                 foreach ((string good, GoodNews buy) in fromNews.Goods)
                 {
                     if (buy.Buy <= 0 || buy.Stock < 1 || !toNews.Goods.TryGetValue(good, out GoodNews sell) || sell.Sell <= buy.Buy)
                         continue;
-                    int tonnes = (int)Math.Min(hold, (person.Credits - tolls) / Math.Max(buy.Buy, 1));
-                    long gain = tonnes * (sell.Sell - buy.Buy) - tolls;
-                    if (gain > best.Gain)
-                        best = (from, to, good, gain);
+                    int tonnes = Worth(from, to, good, buy, sell, hold, person.Credits - tolls, out long gain);
+                    if (gain - tolls > best.Gain)
+                        best = (from, to, good, gain - tolls, tonnes);
                 }
             }
         if (best.From == null)
             return false;
         ship.Home = best.To.Id;
+        ship.Planned = best.Tonnes;
         return CargoShips.FetchFor(ship, model, best.Good, best.From, state, book, account);
+    }
+
+    // How much of a good is worth carrying and what that would leave: every tonne bought makes the next dearer and every
+    // tonne sold makes the next cheaper, so it stops where a tonne would no longer pay for itself
+    private static int Worth(StationBook.Station from, StationBook.Station to, string good, GoodNews buy, GoodNews sell, int hold, long money, out long gain)
+    {
+        gain = 0;
+        MarketGood bought = from.Goods.FirstOrDefault(g => g.Good.Id == good), sold = to.Goods.FirstOrDefault(g => g.Good.Id == good);
+        if (bought == null || sold == null)
+            return 0;
+        double there = buy.Stock, here = sell.Stock;
+        long spent = 0;
+        int tonnes = 0;
+        for (; tonnes < hold; tonnes++, there--, here++)
+        {
+            long price = Math.Max(Market.BuyPrice(bought, there), buy.Buy), paid = Market.SellPrice(sold, here);
+            if (Market.BuyPrice(bought, there) < 0 || paid <= price || spent + price > money)
+                break;
+            spent += price;
+            gain += paid - price;
+        }
+        return tonnes;
+    }
+
+    // What the trip would burn, at what it last paid or heard, so a trade that wouldn't pay for its fuel isn't made
+    private static long FuelCost(ShipModel model, StationBook book, StationBook.Station here, StationBook.Station from, StationBook.Station to, IAccount person)
+    {
+        if (model.Generator == null)
+            return 0;
+        double tonnes = (book.Seconds(here, from, model, 0) + book.Seconds(from, to, model, 0)) * model.Generator.FuelPerHour / 3600;
+        long price = person.Known.Values.Select(n => n.Goods.GetValueOrDefault(Market.Fuel)?.Buy ?? 0).DefaultIfEmpty(0).Max();
+        return (long)(tonnes * price);
     }
 
     /// <summary>

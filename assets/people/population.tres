@@ -1,8 +1,9 @@
-[gd_resource type="Resource" script_class="PopulationSpec" load_steps=12 format=3]
+[gd_resource type="Resource" script_class="PopulationSpec" load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/World/PopulationSpec.cs" id="1_pop"]
 [ext_resource type="Script" path="res://scripts/World/PeopleLine.cs" id="1_line"]
 [ext_resource type="Resource" path="res://assets/ship/models/free_fighter.tres" id="2_fighter"]
+[ext_resource type="Resource" path="res://assets/ship/models/freighter.tres" id="8_freighter"]
 [ext_resource type="Resource" path="res://assets/personalities/steady.tres" id="3_steady"]
 [ext_resource type="Resource" path="res://assets/personalities/aggressive.tres" id="4_aggressive"]
 [ext_resource type="Resource" path="res://assets/personalities/shady.tres" id="5_shady"]
@@ -13,7 +14,7 @@
 script = ExtResource("1_line")
 Livelihood = 0
 Count = 3
-Model = ExtResource("2_fighter")
+Model = ExtResource("8_freighter")
 Personalities = Array[Object]([ExtResource("3_steady"), ExtResource("6_mediator")])
 Savings = 8000
 

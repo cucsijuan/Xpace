@@ -195,7 +195,7 @@ public static class Market
         goods.FirstOrDefault(g => g?.Good?.Id == Fuel) is MarketGood line ? BuyPrice(station, line) : -1;
 
     /// <summary>Fills a tank from the market, a tonne at a time, as far as the money and the stock go; how much went in (the last tonne's rest stays in the pump). </summary>
-    public static int Refill(StationRecord station, MarketGood[] goods, IAccount buyer, ref double fuel, double tank, IAccount cash, out long paid)
+    public static int Refill(StationRecord station, MarketGood[] goods, IAccount buyer, ref double fuel, double tank, IAccount cash, long most, out long paid)
     {
         paid = 0;
         int tonnes = 0;
@@ -204,7 +204,7 @@ public static class Market
         while (fuel < tank)
         {
             long price = BuyPrice(station, line);
-            if (price < 0 || buyer.Credits < price)
+            if (price < 0 || buyer.Credits < price || paid + price > most)
                 break;
             buyer.Credits -= price;
             Receive(cash, price);
@@ -220,7 +220,7 @@ public static class Market
     public static int Refuel(StationRecord station, MarketGood[] goods, PilotRecord pilot, double tank, IAccount cash, out long paid)
     {
         double fuel = pilot.Ship.Fuel < 0 ? tank : pilot.Ship.Fuel;
-        int tonnes = Refill(station, goods, pilot, ref fuel, tank, cash, out paid);
+        int tonnes = Refill(station, goods, pilot, ref fuel, tank, cash, long.MaxValue, out paid);
         pilot.Ship.Fuel = fuel;
         return tonnes;
     }

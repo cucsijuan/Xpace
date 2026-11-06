@@ -42,7 +42,7 @@ public partial class FuelTest : Node
         foreach (CargoShipRecord other in state.CargoShips.Values)
             other.NextLook = 1e15;
         StationBook.Station alpha = book.Find("ALPHA"), far = book.Find("DRYDOCK");
-        double need = book.Seconds(alpha, far, model, 0) * model.Generator.FuelPerHour / 3600;
+        double need = (book.Seconds(alpha, far, model, 0) - model.HandlingSeconds) * model.Generator.FuelPerHour / 3600;
         Check($"a voyage takes fuel ({need:0.00} t of a tank of {model.Hull.FuelTank})", need > 0 && need < model.Hull.FuelTank);
 
         ship.State = CargoShipRecord.Returning;
@@ -61,12 +61,23 @@ public partial class FuelTest : Node
         dry.State = CargoShipRecord.Returning;
         dry.NextLook = 0;
         CargoShips.Tick(state, book, Account);
-        Check("with too little fuel and none to buy, it stays where it is", dry.Phase == CargoShipRecord.Parked);
-        long money = Account(dry.Owner).Credits;
+        Check("with too little fuel and none to buy, it goes on its engine all the same", dry.Phase == CargoShipRecord.Flying && dry.Dry);
+        double slow = dry.Arrives - state.Clock;
+        Check($"slowly: {slow / 60:0} minutes, against {book.Seconds(far, alpha, model, 0) / 60:0} in cruise", slow > book.Seconds(far, alpha, model, 0) * 1.5);
+
+        // With some to buy it takes what its way needs, not a full tank, and pays
+        CargoShipRecord paid = state.CargoShips.Values.First(s => s != ship && s != dry && s.Home == "DRYDOCK");
         yard.Stock["hydrogen"] = 100;
-        dry.NextLook = 0;
+        paid.Fuel = 0;
+        paid.At = far.Id;
+        paid.Dock = paid.Pad = 0;
+        paid.Home = alpha.Id;
+        paid.State = CargoShipRecord.Returning;
+        paid.Phase = CargoShipRecord.Parked;
+        paid.NextLook = 0;
+        long money = Account(paid.Owner).Credits;
         CargoShips.Tick(state, book, Account);
-        Check($"with some to buy it fills up, pays and goes ({dry.Fuel:0.00} t)", dry.Phase == CargoShipRecord.Flying && dry.Fuel > 0);
+        Check($"with some to buy it fills up as far as it needs, and goes in cruise ({paid.Fuel:0.00} t left)", paid.Phase == CargoShipRecord.Flying && !paid.Dry && paid.Fuel < model.Hull.FuelTank / 2);
     }
 
     private async Task Flying()

@@ -29,6 +29,10 @@ public partial class ShipModel : Resource
     [Export(PropertyHint.Range, "0,1,0.05")] public double Resale = 0.7;
 
     [ExportGroup("Crew")]
+    /// <summary>The most of its owner's money a crew spends on fuel at a time: it needs the rest for what it came to do.</summary>
+    [Export(PropertyHint.Range, "0,1,0.05")] public double FuelMoneyShare = 0.25;
+    /// <summary>What it takes on top of what its way needs, of that.</summary>
+    [Export(PropertyHint.Range, "0,1,0.05")] public double FuelMargin = 0.25;
     /// <summary>A voyage's time at the crew's hands: launch and door, spooling, approach, docking.</summary>
     [Export] public double HandlingSeconds = 240;
     /// <summary>How long it waits before looking again when nothing needs carrying.</summary>

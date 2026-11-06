@@ -121,7 +121,7 @@ Heads have a price whoever wears them: `OrganisationRecord.Bounties` is by actor
 
 ## Fuel
 
-Flying on the engine costs nothing. The cruise generator burns hydrogen (`GeneratorSpec.FuelPerHour`) from the ship's tank (`ShipSpec.FuelTank`, none: a ship that needs no fuel), the same for everyone. With the tank dry it drops out and won't start: a ship flies on on its engine, slowly. A pilot fills up at a market's kiosk, docked; a ship on a record fills up where it stands and burns what its way takes (`CargoShips.Fuelled`), and without enough it waits. A player's fuel is in their ship's record; a guest's machine tells the host what it burnt. The hold's registers show the tank.
+Flying on the engine costs nothing. The cruise generator burns hydrogen (`GeneratorSpec.FuelPerHour`) from the ship's tank (`ShipSpec.FuelTank`, none: a ship that needs no fuel), the same for everyone. With the tank dry it drops out and won't start: a ship flies on on its engine, slowly. A pilot fills up at a market's kiosk, docked; a ship on a record takes on what its way needs and a little more (`ShipModel.FuelMargin`), spending no more than `FuelMoneyShare` of its owner's money, and burns it. Without enough it sets out all the same on its engine (`CargoShipRecord.Dry`): slowly, as any ship with a dry tank, but what it carries gets there, so a shortage can't stop the chain that makes the fuel. `economy_test` watches that with the free people in it. A player's fuel is in their ship's record; a guest's machine tells the host what it burnt. The hold's registers show the tank.
 
 ## Markets
 

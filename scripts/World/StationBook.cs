@@ -351,8 +351,24 @@ public sealed class StationBook
     }
 
     /// <summary>The model and load a ship flies its way at.</summary>
-    public static (ShipModel Model, int Tonnes) Pace(CargoShipRecord ship, ShipModel model) =>
-        !string.IsNullOrEmpty(ship.PaceModel) && ResourceLoader.Exists(ship.PaceModel) && GD.Load<ShipModel>(ship.PaceModel) is ShipModel pace ? (pace, ship.PaceTonnes) : (model, ship.Tonnes);
+    public static (ShipModel Model, int Tonnes) Pace(CargoShipRecord ship, ShipModel model)
+    {
+        (ShipModel by, int tonnes) = !string.IsNullOrEmpty(ship.PaceModel) && ResourceLoader.Exists(ship.PaceModel) && GD.Load<ShipModel>(ship.PaceModel) is ShipModel pace ? (pace, ship.PaceTonnes) : (model, ship.Tonnes);
+        return (ship.Dry ? OnEngine(by) : by, tonnes);
+    }
+
+    // The same ship with its generator doing nothing: a dry tank leaves it the engine's speed, all the way
+    private static ShipModel OnEngine(ShipModel model)
+    {
+        if (OnEngines.TryGetValue(model, out ShipModel dry))
+            return dry;
+        dry = (ShipModel)model.Duplicate();
+        dry.Generator = (Xpace.Ship.GeneratorSpec)model.Generator.Duplicate();
+        dry.Generator.Thinning = 0;
+        return OnEngines[model] = dry;
+    }
+
+    private static readonly Dictionary<ShipModel, ShipModel> OnEngines = new();
 
     /// <summary>Where a cargo ship is now, whatever it is doing (null: in a tunnel, or nowhere known).</summary>
     public Fix? FixOf(CargoShipRecord ship, ShipModel model, double clock)

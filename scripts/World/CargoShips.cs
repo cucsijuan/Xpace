@@ -473,11 +473,7 @@ public static class CargoShips
         if (to == null || book.Find(ship.At) is not StationBook.Station from)
             return;
         IAccount money = account(ship.Owner);
-        if (!Fuelled(ship, model, from, to, state, book, account))
-        {
-            ship.NextLook = state.Clock + model.WaitSeconds;
-            return;
-        }
+        Fuel(ship, model, from, to, state, book, account);
         PayTolls(from, to, money, book, account);
         if (Xpace.Space.StationRadio.Called(from.Id) is Xpace.Space.StationRadio radio)
             radio.Traffic(Sign(ship), radio.TrafficLaunchAskText, radio.TrafficLaunchAskSpeech, radio.TrafficLaunchText, radio.TrafficLaunchSpeech);
@@ -494,7 +490,7 @@ public static class CargoShips
         ship.Left = ship.WorkedTo = state.Clock;
         ship.Legs = null;
         ship.Pace = -1;
-        ship.Generator = new Xpace.Ship.GeneratorState { On = true };
+        ship.Generator = new Xpace.Ship.GeneratorState { On = !ship.Dry };
         ship.Arrives = state.Clock + book.Way(ship, model, out Vector3 contact).Sum(l => l.Seconds + l.Transit);
         ship.ContactPoint = contact;
         if (!model.Escort && EscortFor(ship, state, from.Id) is CargoShipRecord escort && ModelOf(escort) is ShipModel guard)
@@ -507,21 +503,21 @@ public static class CargoShips
         }
     }
 
-    // It fills up where it stands, by the same rules as a pilot, and burns what the way takes in cruise: without enough it stays
-    private static bool Fuelled(CargoShipRecord ship, ShipModel model, StationBook.Station from, StationBook.Station to, UniverseState state, StationBook book, Func<string, IAccount> account)
+    // It takes on what its way needs and a little over, by the same rules as a pilot, with what its owner can spare. Without
+    // enough it goes all the same, on its engine: slowly, but what it carries gets there
+    private static void Fuel(CargoShipRecord ship, ShipModel model, StationBook.Station from, StationBook.Station to, UniverseState state, StationBook book, Func<string, IAccount> account)
     {
+        ship.Dry = false;
         double tank = model.Hull.FuelTank;
-        if (tank <= 0 || model.Generator == null)
-            return true;
+        if (tank <= 0 || model.Generator == null || model.Generator.FuelPerHour <= 0)
+            return;
         double fuel = ship.Fuel < 0 ? tank : ship.Fuel;
-        double need = book.Seconds(from, to, model, ship.Tonnes) * model.Generator.FuelPerHour / 3600;
-        if (fuel < tank && account(ship.Owner) is IAccount money)
-            Market.Refill(Bring(state, from, account), from.Goods, money, ref fuel, tank, account(OwnerOf(state, from)), out _);
-        ship.Fuel = fuel;
-        if (fuel < need)
-            return false;
-        ship.Fuel = fuel - need;
-        return true;
+        double need = (book.Seconds(from, to, model, ship.Tonnes) - model.HandlingSeconds) * model.Generator.FuelPerHour / 3600;
+        double wanted = Math.Min(tank, need * (1 + model.FuelMargin));
+        if (fuel < wanted && account(ship.Owner) is IAccount money)
+            Market.Refill(Bring(state, from, account), from.Goods, money, ref fuel, wanted, account(OwnerOf(state, from)), (long)(money.Credits * model.FuelMoneyShare), out _);
+        ship.Dry = fuel < need;
+        ship.Fuel = ship.Dry ? fuel : fuel - need;
     }
 
     // An escort of the ship's owner standing by where it is, its own first
@@ -561,7 +557,7 @@ public static class CargoShips
         ship.Left = ship.WorkedTo = state.Clock;
         ship.Legs = null;
         ship.Pace = -1;
-        ship.Generator = new Xpace.Ship.GeneratorState { On = true };
+        ship.Generator = new Xpace.Ship.GeneratorState { On = !ship.Dry };
         if (model.Escort)
             PayTolls(book.Origin(ship), to, account(ship.Owner), book, account);
         ship.Arrives = state.Clock + book.Way(ship, model, out Vector3 contact).Sum(l => l.Seconds + l.Transit);
@@ -583,6 +579,9 @@ public static class CargoShips
         {
             double room = Market.Full * wanted.Stock - homeRecord.Stock.GetValueOrDefault(ship.Good);
             int tonnes = (int)Math.Min(Math.Min(model.Hull.CargoCapacity, room), record.Stock.GetValueOrDefault(ship.Good) * model.TakeShare);
+            if (ship.Planned > 0)
+                tonnes = Math.Min(tonnes, ship.Planned);
+            ship.Planned = 0;
             ship.Tonnes = Market.Take(record, line, account(ship.Owner), tonnes, account(OwnerOf(state, seller)));
         }
     }

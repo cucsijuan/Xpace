@@ -64,7 +64,7 @@
 [sub_resource type="Resource" id="Works_hydrogen"]
 script = ExtResource("factory_line")
 Recipe = ExtResource("recipe_hydrogen")
-PerHour = 80.0
+PerHour = 110.0
 
 [sub_resource type="Resource" id="Works_machinery"]
 script = ExtResource("factory_line")
