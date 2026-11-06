@@ -25,6 +25,8 @@ public partial class ShipModel : Resource
     [Export] public long BuildFee = 250_000;
     /// <summary>How long it takes on the slip, hours of universe time.</summary>
     [Export] public double BuildHours = 6;
+    /// <summary>What one fetches used, of its fee.</summary>
+    [Export(PropertyHint.Range, "0,1,0.05")] public double Resale = 0.7;
 
     [ExportGroup("Crew")]
     /// <summary>A voyage's time at the crew's hands: launch and door, spooling, approach, docking.</summary>

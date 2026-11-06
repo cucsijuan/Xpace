@@ -113,6 +113,17 @@ public static class People
         return Trade(ship, model, here, person, state, book, account) || Roam(ship, model, here, person, state, book, account);
     }
 
+    /// <summary>A ship of an owner with no station left to work for lives as a free trader does, for its owner.</summary>
+    public static bool Wander(CargoShipRecord ship, ShipModel model, IAccount owner, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        if (book.Find(ship.At) is not StationBook.Station here || owner == null)
+            return false;
+        MarketNews.See(owner, here, state, account);
+        foreach (StationBook.Beacon beacon in book.Beacons.Where(b => b.Sector == here.Sector))
+            MarketNews.Hear(owner, beacon, state, book, account);
+        return Trade(ship, model, here, owner, state, book, account) || Roam(ship, model, here, owner, state, book, account);
+    }
+
     // What it stole goes for less than a market pays: the rest stays with the station's owner
     private static void Fence(CargoShipRecord ship, StationBook.Station here, PersonRecord person, PopulationSpec spec, UniverseState state, Func<string, IAccount> account)
     {
@@ -142,7 +153,7 @@ public static class People
     }
 
     // Where it has been least lately, of those it can reach and pay the way to
-    private static bool Roam(CargoShipRecord ship, ShipModel model, StationBook.Station here, PersonRecord person, UniverseState state, StationBook book, Func<string, IAccount> account)
+    private static bool Roam(CargoShipRecord ship, ShipModel model, StationBook.Station here, IAccount person, UniverseState state, StationBook book, Func<string, IAccount> account)
     {
         StationBook.Station next = book.Stations.Where(s => s != here && s.Pads.Any(p => book.Fits(p, model)) && book.Way(here.Sector, s.Sector) != null && person.Credits >= CargoShips.TollsBetween(book, here, s))
             .OrderBy(s => person.Known.GetValueOrDefault(s.Id)?.AsOf ?? 0).ThenBy(s => s.Id, StringComparer.Ordinal).FirstOrDefault();
@@ -150,7 +161,7 @@ public static class People
     }
 
     // The best difference it knows of between two markets, for what its hold and its money can carry
-    private static bool Trade(CargoShipRecord ship, ShipModel model, StationBook.Station here, PersonRecord person, UniverseState state, StationBook book, Func<string, IAccount> account)
+    private static bool Trade(CargoShipRecord ship, ShipModel model, StationBook.Station here, IAccount person, UniverseState state, StationBook book, Func<string, IAccount> account)
     {
         int hold = (int)model.Hull.CargoCapacity;
         if (hold <= 0)

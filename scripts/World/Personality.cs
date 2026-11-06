@@ -45,6 +45,15 @@ public partial class Personality : Resource
     /// <summary>How long what happened takes to matter half as much, hours.</summary>
     [Export] public double MemoryHours = 48;
 
+    [ExportGroup("Short of money")]
+    /// <summary>With less than this many hours of its upkeep in hand it counts itself broke.</summary>
+    [Export] public double ReserveHours = 24;
+    /// <summary>How long it holds out broke before it starts selling, hours.</summary>
+    [Export] public double GraceHours = 48;
+    /// <summary>What it will take in the end, of what a thing is worth, and how long its price takes to fall there, hours.</summary>
+    [Export(PropertyHint.Range, "0,1,0.05")] public double SaleFloor = 0.3;
+    [Export] public double SaleFallHours = 72;
+
     [ExportGroup("Under fire")]
     /// <summary>With a ship that can't fight, they start thinking of throwing its cargo out with this much of the hull left, in the hope that is what they came for.</summary>
     [Export(PropertyHint.Range, "0,1,0.05")] public float JettisonBelowHull = 0.7f;

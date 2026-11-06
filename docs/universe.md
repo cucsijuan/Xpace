@@ -71,6 +71,14 @@ What it is now is its `OrganisationRecord`, made from the resource the first tim
 
 What pilots pay a station goes to its owner, tolls, fines and bounties too; what it pays comes from its owner, and with no money left it buys nothing. Its people pay for what they use up (`MarketGood.Uses`, at the market's price): that is where money comes from. `StationMarket.UpkeepPerHour` is where it goes. A station with no owner trades as if its money had no end (tests' stations). Today a station's money moves only when someone deals with it (`Market.Advance`).
 
+## Going under
+
+An owner with less than `Personality.ReserveHours` of its upkeep in hand is broke. After `GraceHours` of that it sells, one thing at a time (`Solvency`): escorts first, then the ships that have brought home least, never the last one that can earn; stations last, cheapest first (`StationMarket.Worth`). A ship is worth `ShipModel.BuildFee` x `Resale`. The price of a `SaleRecord` falls to `SaleFloor` of the value in `SaleFallHours`. An organisation buys when the price is within its `Ambition` share of its money; a pilot buys a station at any market kiosk, being at a station. A station nobody takes by then is abandoned: it stops working, at that price, until someone buys it. With money back it stops selling.
+
+A station whose people have run out of something they use (`MarketGood.Uses`), or whose owner can't pay for it, makes nothing (`StationRecord.Idle`), for anyone who owns it, a pilot too. What it has in stock can still be sold, and it goes back to work by itself when both are put right, or under an owner who can.
+
+The ships stay with the seller when a station goes. With no station left to work for they trade on their own (`People.Wander`), for their owner, who has no upkeep and can buy a station again like anyone.
+
 ## Cargo ships
 
 The universe works by itself while anyone plays, on the host (`CargoShips`, every `Universe.WorkEverySeconds`): every station is brought up to date, and every cargo ship does its job, seen or not. A cargo ship is a record (`CargoShipRecord`), not a scene.

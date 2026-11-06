@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Godot;
 
 namespace Xpace.World;
@@ -35,6 +36,11 @@ public static class Market
     /// <param name="upkeep">What running the station costs its owner an hour.</param>
     public static void Advance(StationRecord station, MarketGood[] goods, double clock, OutfitLine[] outfits = null, FactoryLine[] factories = null, IAccount cash = null, double upkeep = 0)
     {
+        if (station.Abandoned)
+        {
+            station.UpdatedAt = Math.Max(station.UpdatedAt, clock);
+            return;                                     // nobody there: nothing made, used up or paid
+        }
         bool first = station.Stock.Count == 0;
         double hours = first ? HoursBeforeStart + clock / 3600 : Math.Max(0, clock - station.UpdatedAt) / 3600;
         var most = new Dictionary<string, double>();
@@ -54,8 +60,12 @@ public static class Market
         for (int i = 0; i < steps; i++)
         {
             double step = hours / steps;
-            foreach (FactoryLine line in factories ?? Array.Empty<FactoryLine>())
-                Run(station, line, most, step);
+            // With what its people need run out, or an owner who can't pay for the place, nobody works: what is in stock
+            // can still be sold, and it starts again by itself when both are put right
+            station.Idle = goods.Any(g => g?.Good != null && g.Uses > 0 && station.Stock[g.Good.Id] <= 0) || cash != null && cash.Credits < upkeep * step;
+            if (!station.Idle)
+                foreach (FactoryLine line in factories ?? Array.Empty<FactoryLine>())
+                    Run(station, line, most, step);
             double income = -upkeep * step;
             foreach (MarketGood line in goods)
                 if (line?.Good != null)

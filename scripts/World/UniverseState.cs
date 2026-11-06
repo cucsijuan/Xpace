@@ -37,6 +37,8 @@ public sealed class UniverseState
     public bool PeopleMustered { get; set; }
     /// <summary>When someone new may come for each line of the population.</summary>
     public Dictionary<int, double> NextArrival { get; set; } = new();
+    /// <summary>What is on sale now (<see cref="Solvency"/>).</summary>
+    public Dictionary<string, SaleRecord> Sales { get; set; } = new();
 
     /// <summary>A pilot's record, made the first time the pilot comes (with what a new pilot has).</summary>
     public PilotRecord Pilot(string id, string name = null)
@@ -226,6 +228,8 @@ public sealed class OrganisationRecord : IAccount, IRemembers
     public Dictionary<string, long> Bounties { get; set; } = new();
     public List<MemoryEntry> Memories { get; set; } = new();
     public int MemoryRoom { get; set; } = 64;
+    /// <summary>When it ran out of money (below 0: it has some).</summary>
+    public double BrokeSince { get; set; } = -1;
     /// <summary>The organisation it belongs to now (empty: its own). It can join and leave.</summary>
     public string Parent { get; set; } = "";
 }
@@ -365,6 +369,10 @@ public sealed class StationRecord
 
     /// <summary>Its fleet has come into being, once: from then on ships are built, not given.</summary>
     public bool Mustered { get; set; }
+    /// <summary>Its people have run out of something they need, or its owner can't pay for it: it makes nothing, and can still sell what it has.</summary>
+    public bool Idle { get; set; }
+    /// <summary>Nobody wanted it: it stands idle until someone buys it.</summary>
+    public bool Abandoned { get; set; }
 
     /// <summary>How many ships it has ordered in all.</summary>
     public int Ordered { get; set; }

@@ -105,6 +105,8 @@ public partial class MarketWindow : CanvasLayer, IKioskWindow
     {
         View = view;
         _title.Text = string.IsNullOrEmpty(view.Owner) ? $"{view.Title} MARKET" : $"{view.Title} MARKET  -  {view.Owner}";
+        if (view.Idle)
+            _title.Text += "  -  NOT PRODUCING";
         _credits.Text = $"Credits  {view.Credits:N0}";
         _hold.Text = $"Hold  {view.Carried} / {view.Capacity} t";
         _fines.Text = view.Owed == 0 ? view.Impounded ? "Ship impounded here" : "Nothing owed"
@@ -154,8 +156,23 @@ public partial class MarketWindow : CanvasLayer, IKioskWindow
     {
         foreach (Node n in _factor.GetChildren())
             n.QueueFree();
-        _factor.Visible = view.Elsewhere.Count > 0;
+        _factor.Visible = view.Elsewhere.Count > 0 || view.Sales.Count > 0;
         if (!_factor.Visible)
+            return;
+        if (view.Sales.Count > 0)
+            foreach (string head in new[] { "Stations for sale", "Seller", "Price", "" })
+                _factor.AddChild(new Label { Text = head, ThemeTypeVariation = "HeaderSmall" });
+        foreach (SaleLine sale in view.Sales)
+        {
+            _factor.AddChild(new Label { Text = sale.Title });
+            _factor.AddChild(new Label { Text = sale.Seller });
+            _factor.AddChild(Number(sale.Price.ToString("N0")));
+            var buy = new Button { Text = "Buy", Disabled = !view.Present || view.Credits < sale.Price, FocusMode = Control.FocusModeEnum.None };
+            string id = sale.Id;
+            buy.Pressed += () => Ask(MarketRequest.Acquire, id, 0);
+            _factor.AddChild(buy);
+        }
+        if (view.Elsewhere.Count == 0)
             return;
         foreach (string head in new[] { "Owed elsewhere", "", "Factor asks", "" })
             _factor.AddChild(new Label { Text = head, ThemeTypeVariation = "HeaderSmall" });

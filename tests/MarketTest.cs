@@ -102,6 +102,21 @@ public partial class MarketTest : Node
 
         MarketLine food = window.View.Lines.First(l => l.Good == "food");
         float empty = _ship.Mass;
+        // A station on sale is the talk of every market, and a pilot here can buy it
+        UniverseState world = Universe.Current.State;
+        PilotRecord buyer = Universe.Current.Me;
+        var sale = new SaleRecord { Id = "station:QUARTZ", Kind = SaleRecord.Station, Item = "QUARTZ", Seller = "quartz_works", Asking = 500, Floor = 500, Since = world.Clock, Falls = 3600 };
+        world.Sales[sale.Id] = sale;
+        string quartzOwner = world.Station("QUARTZ").Owner;
+        window.Ask(MarketRequest.Look, null, 0);
+        Check($"the kiosk shows what is on sale ({window.View?.Sales.Count})", window.View?.Sales.Count == 1 && window.View.Sales[0].Price == 500);
+        await Seconds(0.2);
+        Shot("1_for_sale");
+        long purse = buyer.Credits;
+        window.Ask(MarketRequest.Acquire, sale.Id, 0);
+        Check($"a pilot buys a station there ({window.View?.Message})", world.Station("QUARTZ").Owner == PilotRecord.OwnerPrefix + buyer.Id && buyer.Credits == purse - 500 && world.Sales.Count == 0);
+        world.Station("QUARTZ").Owner = quartzOwner;
+        buyer.Credits = purse;
         window.Ask(MarketRequest.Buy, "food", 3);
         await Seconds(0.2);
         long spent = PilotRecord.StartingCredits - me.Credits;

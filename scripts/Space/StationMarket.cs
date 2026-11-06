@@ -10,7 +10,7 @@ namespace Xpace.Space;
 /// <summary>What a pilot asks a station's market (<see cref="StationMarket"/>), as JSON on the "market" topic.</summary>
 public sealed class MarketRequest
 {
-    public const string Look = "look", Buy = "buy", Sell = "sell", Pay = "pay", Surrender = "surrender", Factor = "factor";
+    public const string Look = "look", Buy = "buy", Sell = "sell", Pay = "pay", Surrender = "surrender", Factor = "factor", Acquire = "acquire";
 
     /// <summary>The station, by its callsign.</summary>
     public string Station { get; set; }
@@ -29,6 +29,8 @@ public sealed class MarketView
     /// <summary>Who owns the station, by name.</summary>
     public string Owner { get; set; } = "";
     public bool Docked { get; set; }
+    /// <summary>The station makes nothing for now.</summary>
+    public bool Idle { get; set; }
     /// <summary>The pilot's ship is in one of the station's hangars: what is owed can be paid.</summary>
     public bool Present { get; set; }
     public long Credits { get; set; }
@@ -46,8 +48,19 @@ public sealed class MarketView
     public List<MarketLine> Lines { get; set; } = new();
     /// <summary>A station with a factor: what the pilot owes other stations, and what the factor asks to settle it.</summary>
     public List<DebtLine> Elsewhere { get; set; } = new();
+    /// <summary>Stations on sale anywhere: they are the talk of every market.</summary>
+    public List<SaleLine> Sales { get; set; } = new();
     /// <summary>What the pilot knows of other stations' markets, newest first.</summary>
     public List<NewsLine> News { get; set; } = new();
+}
+
+/// <summary>A station on sale, and what it costs now.</summary>
+public sealed class SaleLine
+{
+    public string Id { get; set; } = "";
+    public string Title { get; set; } = "";
+    public string Seller { get; set; } = "";
+    public long Price { get; set; }
 }
 
 /// <summary>A good at another station, as the pilot last heard.</summary>
@@ -90,6 +103,8 @@ public sealed class ArmsView
     /// <summary>The station's name as people read it.</summary>
     public string Title { get; set; } = "";
     public bool Docked { get; set; }
+    /// <summary>The station makes nothing for now.</summary>
+    public bool Idle { get; set; }
     public long Credits { get; set; }
     /// <summary>What came of the request (empty for a look; with nothing on sale, says so).</summary>
     public string Message { get; set; } = "";
@@ -157,6 +172,9 @@ public partial class StationMarket : Node
     /// <summary>What running the station costs its owner an hour.</summary>
     [Export] public double UpkeepPerHour;
 
+    /// <summary>What the station is worth, if it is ever sold.</summary>
+    [Export] public long Worth = 2_000_000;
+
     /// <summary>A disreputable factor works here: it pays other stations' fines and bounties for the pilot.</summary>
     [Export] public bool Factor;
     /// <summary>What the factor asks on top of what it pays (0.5: half as much again).</summary>
@@ -187,6 +205,9 @@ public partial class StationMarket : Node
     [Export] public string NoFactorText = "No factor works here.";
     /// <summary>{0} the station, {1} credits.</summary>
     [Export] public string FactorText = "Your debts to {0} are settled, for {1} credits. Nobody asks where it came from.";
+    /// <summary>{0} the station.</summary>
+    [Export] public string AcquiredText = "{0} is yours. Its upkeep is too.";
+    [Export] public string GoneText = "It isn't for sale any more.";
     [Export] public string NoArmsText = "No arms are sold at this station.";
     /// <summary>{0} how many, {1} the model, {2} credits.</summary>
     [Export] public string LoadedText = "Loaded {0} {1} for {2} credits.";
@@ -298,6 +319,20 @@ public partial class StationMarket : Node
             }
             else if (request.Do == MarketRequest.Factor)
                 message = Settle(pilot, request.Good, present, ref changed);
+            else if (request.Do == MarketRequest.Acquire)
+            {
+                if (!present)
+                    message = NotPresentText;
+                else if (!state.Sales.TryGetValue(request.Good ?? "", out SaleRecord sale) || sale.Kind != SaleRecord.Station)
+                    message = GoneText;
+                else if (!Solvency.Buy(sale, PilotRecord.OwnerPrefix + pilotId, state, universe.Book, universe.Account))
+                    message = NoMoneyText;
+                else
+                {
+                    message = string.Format(AcquiredText, universe.NameOf(sale.Item));
+                    changed = true;
+                }
+            }
             else if (!docked)
                 message = NotDockedText;
             else if (Radio.Security?.Refuses(ship) == true)
@@ -326,10 +361,12 @@ public partial class StationMarket : Node
 
         var view = new MarketView
         {
-            Station = Radio.Id, Title = Radio.ShownName, Owner = Radio.Cash?.Name ?? "", Docked = docked, Present = present, Credits = pilot.Credits, Capacity = Capacity(ship, pilot),
+            Station = Radio.Id, Title = Radio.ShownName, Owner = Radio.Cash?.Name ?? "", Docked = docked, Idle = station.Idle, Present = present, Credits = pilot.Credits, Capacity = Capacity(ship, pilot),
             Carried = pilot.Ship.Tonnes, Fines = crimes.Fines, Bounty = crimes.Bounty, Impounded = station.Impounded.ContainsKey(pilotId),
             Message = message, Hunted = Reactions.Hunted(state, pilotId),
         };
+        foreach (SaleRecord sale in state.Sales.Values.Where(s => s.Kind == SaleRecord.Station).OrderBy(s => s.Id, System.StringComparer.Ordinal))
+            view.Sales.Add(new SaleLine { Id = sale.Id, Title = universe.NameOf(sale.Item), Seller = universe.Account(sale.Seller)?.Name ?? "", Price = sale.PriceAt(state.Clock) });
         if (Factor)
             foreach ((string callsign, StationRecord other) in state.Stations.OrderBy(kv => kv.Key, System.StringComparer.Ordinal))
                 if (callsign != Radio.Id && other.Crimes.TryGetValue(pilotId, out CrimeRecord owed) && owed.Owed > 0)

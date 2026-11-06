@@ -25,6 +25,7 @@ public sealed class StationBook
         public FleetLine[] Fleet;
         public ShipModel[] Shipyard;
         public double Upkeep;
+        public long Worth;
     }
 
     /// <summary>A landing pad of a station, with the way to it from outside its hangar's door.</summary>
@@ -101,7 +102,7 @@ public sealed class StationBook
                 Stations.Add(new Station
                 {
                     Pads = PadsOf(parent), Radius = RadiusOf(parent, at),
-                    Id = radio.Id, Title = radio.ShownName, Sector = sector, At = at, Owner = radio.OwnedBy?.Id ?? "", Upkeep = market.UpkeepPerHour,
+                    Id = radio.Id, Title = radio.ShownName, Sector = sector, At = at, Owner = radio.OwnedBy?.Id ?? "", Upkeep = market.UpkeepPerHour, Worth = market.Worth,
                     Goods = market.Goods.Where(g => g?.Good != null).ToArray(), Outfits = market.Outfits, Factories = market.Factories, Fleet = market.Fleet, Shipyard = market.Shipyard,
                 });
         }

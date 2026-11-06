@@ -113,10 +113,12 @@ public static class CargoShips
                 if (line?.Model == null)
                     continue;
                 string owner = OwnerOf(state, station);
+                if (state.Station(station.Id).Abandoned)
+                    continue;
                 if (line.WhenThreatened && !Reactions.Threatened(account(owner) as OrganisationRecord, OrganisationCatalog.Find(owner)?.Personality, state.Clock))
                     continue;
                 string model = line.Model.ResourcePath;
-                int have = state.CargoShips.Values.Count(s => s.Home == station.Id && s.Model == model) + state.ShipOrders.Values.Count(o => o.Home == station.Id && o.Model == model);
+                int have = state.CargoShips.Values.Count(s => s.Home == station.Id && s.Owner == owner && s.Model == model) + state.ShipOrders.Values.Count(o => o.Home == station.Id && o.Owner == owner && o.Model == model);
                 StationBook.Station yard = book.Stations.Where(s => s.Shipyard?.Contains(line.Model) == true && book.Way(station.Sector, s.Sector) != null)
                     .OrderBy(s => book.Way(station.Sector, s.Sector).Count).ThenBy(s => s.At.DistanceTo(station.At)).FirstOrDefault();
                 for (; yard != null && have < line.Count; have++)
@@ -247,6 +249,8 @@ public static class CargoShips
         Order(state, book, account);
         yield return true;
         Build(state, book, account);
+        yield return true;
+        Solvency.Work(state, book, account);
     }
 
     public static StationRecord Bring(UniverseState state, StationBook.Station station, Func<string, IAccount> account)
@@ -277,6 +281,11 @@ public static class CargoShips
                 else if (state.People.TryGetValue(ship.Owner, out PersonRecord person))
                 {
                     if (!People.Plan(ship, model, person, Population, state, book, account))
+                        ship.NextLook = state.Clock + model.WaitSeconds;
+                }
+                else if (book.Find(ship.Home) is StationBook.Station home && OwnerOf(state, home) != ship.Owner)
+                {
+                    if (!People.Wander(ship, model, account(ship.Owner), state, book, account))
                         ship.NextLook = state.Clock + model.WaitSeconds;
                 }
                 else if (!Plan(ship, model, state, book, account))
