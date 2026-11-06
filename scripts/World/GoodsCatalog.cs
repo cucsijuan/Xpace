@@ -13,7 +13,7 @@ public partial class GoodsCatalog : Resource
 
     private static GoodsCatalog _all;
 
-    public static GoodsCatalog All => _all ??= GD.Load<GoodsCatalog>(Path) ?? new GoodsCatalog();
+    public static GoodsCatalog All => _all ??= Xpace.World.ResourceCache.Load<GoodsCatalog>(Path) ?? new GoodsCatalog();
 
     public static Good Find(string id) => All.Goods.FirstOrDefault(g => g?.Id == id);
 }

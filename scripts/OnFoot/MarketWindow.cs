@@ -1,6 +1,7 @@
 using System;
 using System.Text.Json;
 using Godot;
+using Xpace.Ship;
 using Xpace.Space;
 using Xpace.World;
 
@@ -107,6 +108,8 @@ public partial class MarketWindow : CanvasLayer, IKioskWindow
         _title.Text = string.IsNullOrEmpty(view.Owner) ? $"{view.Title} MARKET" : $"{view.Title} MARKET  -  {view.Owner}";
         if (view.Idle)
             _title.Text += "  -  NOT PRODUCING";
+        if (view.Repaired)
+            OwnHull()?.Mend();
         _credits.Text = $"Credits  {view.Credits:N0}";
         _hold.Text = $"Hold  {view.Carried} / {view.Capacity} t";
         _fines.Text = view.Owed == 0 ? view.Impounded ? "Ship impounded here" : "Nothing owed"
@@ -152,13 +155,36 @@ public partial class MarketWindow : CanvasLayer, IKioskWindow
         }
     }
 
+    // The hull of the ship this machine's pilot flies
+    private static ShipHull OwnHull() =>
+        Universe.Current?.ShipOf(Universe.Current.LocalPilotId) is ShipBody ship ? ship.Find<ShipHull>() : null;
+
     private void ShowFactor(MarketView view)
     {
         foreach (Node n in _factor.GetChildren())
             n.QueueFree();
-        _factor.Visible = view.Tank > 0 || view.Elsewhere.Count > 0 || view.Sales.Count > 0;
+        ShipHull hull = OwnHull();
+        _factor.Visible = view.CanOffer || hull != null || view.Tank > 0 || view.Elsewhere.Count > 0 || view.Sales.Count > 0;
         if (!_factor.Visible)
             return;
+        if (view.CanOffer)
+        {
+            _factor.AddChild(new Label { Text = "This station is yours" });
+            _factor.AddChild(new Label());
+            _factor.AddChild(new Label());
+            var offer = new Button { Text = "Sell", FocusMode = Control.FocusModeEnum.None };
+            offer.Pressed += () => Ask(MarketRequest.Offer, null, 0);
+            _factor.AddChild(offer);
+        }
+        if (hull != null)
+        {
+            _factor.AddChild(new Label { Text = "Hull" });
+            _factor.AddChild(new Label { Text = $"{hull.Fraction * 100:0}%" });
+            _factor.AddChild(new Label());
+            var mend = new Button { Text = "Repair", Disabled = !view.Docked || hull.Fraction >= 1, FocusMode = Control.FocusModeEnum.None };
+            mend.Pressed += () => Ask(MarketRequest.Repair, null, Mathf.CeilToInt((1 - hull.Fraction) * 100));
+            _factor.AddChild(mend);
+        }
         if (view.Tank > 0)
         {
             _factor.AddChild(new Label { Text = "Fuel" });

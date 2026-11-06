@@ -75,7 +75,7 @@ public static class Solvency
 
     private static readonly Personality Ordinary = new();
 
-    private static ShipModel ModelOf(CargoShipRecord ship) => ResourceLoader.Exists(ship.Model) ? GD.Load<ShipModel>(ship.Model) : null;
+    private static ShipModel ModelOf(CargoShipRecord ship) => ResourceLoader.Exists(ship.Model) ? Xpace.World.ResourceCache.Load<ShipModel>(ship.Model) : null;
 
     // What it can best do without: what earns nothing, then what earns least, and last its stations
     private static void List(OrganisationRecord owner, Personality nature, UniverseState state, StationBook book)
@@ -92,6 +92,15 @@ public static class Solvency
             Put(SaleRecord.Station, station.Id, owner.Id, station.Worth, nature, state);
     }
 
+    /// <summary>A pilot puts a station of theirs up for sale, for what it is worth; it falls as anyone's does. Whether it could.</summary>
+    public static bool Offer(string station, string pilotOwner, StationBook book, UniverseState state)
+    {
+        if (book.Find(station) is not StationBook.Station s || CargoShips.OwnerOf(state, s) != pilotOwner || state.Sales.ContainsKey($"{SaleRecord.Station}:{station}"))
+            return false;
+        Put(SaleRecord.Station, station, pilotOwner, s.Worth, Ordinary, state);
+        return true;
+    }
+
     private static void Put(string kind, string item, string seller, long value, Personality nature, UniverseState state) =>
         state.Sales[$"{kind}:{item}"] = new SaleRecord
         {
@@ -106,7 +115,7 @@ public static class Solvency
             .OrderByDescending(o => OrganisationCatalog.Find(o.Id)?.Personality?.Ambition ?? 0).ThenBy(o => o.Id, StringComparer.Ordinal).Select(o => o.Id).FirstOrDefault();
         if (buyer != null)
             Buy(sale, buyer, state, book, account);
-        else if (sale.Kind == SaleRecord.Station && sale.Seller != "" && state.Clock >= sale.Since + sale.Falls)
+        else if (sale.Kind == SaleRecord.Station && sale.Seller != "" && !sale.Seller.StartsWith(PilotRecord.OwnerPrefix) && state.Clock >= sale.Since + sale.Falls)
             Abandon(sale, state, book, account);
     }
 

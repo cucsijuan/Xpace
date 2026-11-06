@@ -66,7 +66,7 @@ public sealed class StationBook
     {
         var book = new StationBook();
         foreach (Sector sector in map?.Sectors ?? new Godot.Collections.Array<Sector>())
-            if (!string.IsNullOrEmpty(sector?.Scene) && GD.Load<PackedScene>(sector.Scene)?.Instantiate() is Node root)
+            if (!string.IsNullOrEmpty(sector?.Scene) && Xpace.World.ResourceCache.Load<PackedScene>(sector.Scene)?.Instantiate() is Node root)
             {
                 book.Add(sector.Id, root);
                 root.Free();
@@ -353,7 +353,7 @@ public sealed class StationBook
     /// <summary>The model and load a ship flies its way at.</summary>
     public static (ShipModel Model, int Tonnes) Pace(CargoShipRecord ship, ShipModel model)
     {
-        (ShipModel by, int tonnes) = !string.IsNullOrEmpty(ship.PaceModel) && ResourceLoader.Exists(ship.PaceModel) && GD.Load<ShipModel>(ship.PaceModel) is ShipModel pace ? (pace, ship.PaceTonnes) : (model, ship.Tonnes);
+        (ShipModel by, int tonnes) = !string.IsNullOrEmpty(ship.PaceModel) && ResourceLoader.Exists(ship.PaceModel) && Xpace.World.ResourceCache.Load<ShipModel>(ship.PaceModel) is ShipModel pace ? (pace, ship.PaceTonnes) : (model, ship.Tonnes);
         return (ship.Dry ? OnEngine(by) : by, tonnes);
     }
 

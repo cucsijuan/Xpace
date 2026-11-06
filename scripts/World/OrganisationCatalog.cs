@@ -13,7 +13,7 @@ public partial class OrganisationCatalog : Resource
 
     private static OrganisationCatalog _all;
 
-    public static OrganisationCatalog All => _all ??= GD.Load<OrganisationCatalog>(Path) ?? new OrganisationCatalog();
+    public static OrganisationCatalog All => _all ??= Xpace.World.ResourceCache.Load<OrganisationCatalog>(Path) ?? new OrganisationCatalog();
 
     public static Organisation Find(string id) => All.Organisations.FirstOrDefault(o => o?.Id == id);
 }

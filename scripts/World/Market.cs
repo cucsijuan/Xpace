@@ -225,6 +225,26 @@ public static class Market
         return tonnes;
     }
 
+    /// <summary>
+    /// Mends so much of a hull (0 to 1) with metals and electronics from this market, at its prices: all of it or none.
+    /// What it costs, or below 0 if the market hasn't the materials or the buyer the money (at most <paramref name="most"/>).
+    /// </summary>
+    public static long Repair(StationRecord station, MarketGood[] goods, Xpace.Ship.ShipSpec hull, float damage, IAccount buyer, IAccount cash, long most)
+    {
+        MarketGood metals = goods.FirstOrDefault(g => g?.Good?.Id == "metals"), electronics = goods.FirstOrDefault(g => g?.Good?.Id == "electronics");
+        int needMetals = (int)Math.Ceiling(hull.RepairMetals * damage), needElectronics = (int)Math.Ceiling(hull.RepairElectronics * damage);
+        if (metals == null || electronics == null || station.Stock.GetValueOrDefault(metals.Good.Id) < needMetals || station.Stock.GetValueOrDefault(electronics.Good.Id) < needElectronics)
+            return -1;
+        long cost = needMetals * BuyPrice(station, metals) + needElectronics * BuyPrice(station, electronics);
+        if (cost > most || buyer.Credits < cost)
+            return -1;
+        buyer.Credits -= cost;
+        Receive(cash, cost);
+        station.Stock[metals.Good.Id] -= needMetals;
+        station.Stock[electronics.Good.Id] -= needElectronics;
+        return cost;
+    }
+
     /// <summary>What the next one of an outfit costs at this station now.</summary>
     public static long OutfitPrice(StationRecord station, OutfitLine line) => Floored(station, line.Id, OutfitPrice(line, station.Stock.GetValueOrDefault(line.Id)));
 

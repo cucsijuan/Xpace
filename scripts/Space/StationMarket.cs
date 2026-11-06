@@ -10,7 +10,7 @@ namespace Xpace.Space;
 /// <summary>What a pilot asks a station's market (<see cref="StationMarket"/>), as JSON on the "market" topic.</summary>
 public sealed class MarketRequest
 {
-    public const string Look = "look", Buy = "buy", Sell = "sell", Pay = "pay", Surrender = "surrender", Factor = "factor", Acquire = "acquire", Refuel = "refuel";
+    public const string Look = "look", Buy = "buy", Sell = "sell", Pay = "pay", Surrender = "surrender", Factor = "factor", Acquire = "acquire", Refuel = "refuel", Repair = "repair", Offer = "offer";
 
     /// <summary>The station, by its callsign.</summary>
     public string Station { get; set; }
@@ -40,6 +40,10 @@ public sealed class MarketView
     public double Fuel { get; set; }
     public double Tank { get; set; }
     public long FuelPrice { get; set; } = -1;
+    /// <summary>The pilot's hull was mended just now: the machine that flies the ship does it.</summary>
+    public bool Repaired { get; set; }
+    /// <summary>The station is the pilot's, and not up for sale yet.</summary>
+    public bool CanOffer { get; set; }
     public long Fines { get; set; }
     public long Bounty { get; set; }
     /// <summary>What organisations offer for the pilot's head.</summary>
@@ -209,6 +213,10 @@ public partial class StationMarket : Node
     [Export] public string NoFactorText = "No factor works here.";
     /// <summary>{0} the station, {1} credits.</summary>
     [Export] public string FactorText = "Your debts to {0} are settled, for {1} credits. Nobody asks where it came from.";
+    [Export] public string OfferedText = "The station is up for sale.";
+    /// <summary>{0} credits.</summary>
+    [Export] public string RepairedText = "Hull mended, for {0} credits.";
+    [Export] public string NoRepairText = "It can't be mended here: no metals or electronics to be had, or you can't pay for them.";
     /// <summary>{0} tonnes, {1} credits.</summary>
     [Export] public string RefuelledText = "{0} t of hydrogen in the tank, for {1} credits.";
     [Export] public string FuelNoneText = "No fuel to be had: the tank is full, there is none here, or you can't pay for it.";
@@ -260,7 +268,7 @@ public partial class StationMarket : Node
 
     /// <summary>The universe's owner: a pilot's request, answered by the market it names.</summary>
     private static float Tank(PilotRecord pilot) =>
-        ResourceLoader.Exists(pilot.Ship.Hull) ? GD.Load<ShipSpec>(pilot.Ship.Hull)?.FuelTank ?? 0 : 0;
+        ResourceLoader.Exists(pilot.Ship.Hull) ? Xpace.World.ResourceCache.Load<ShipSpec>(pilot.Ship.Hull)?.FuelTank ?? 0 : 0;
 
     private static string Desk(string pilot, string text)
     {
@@ -292,6 +300,7 @@ public partial class StationMarket : Node
         string message = "";
         bool changed = false;
 
+        bool repaired = false;
         if (request.Do != MarketRequest.Look)
         {
             MarketGood line = Goods.FirstOrDefault(g => g?.Good != null && g.Good.Id == request.Good);
@@ -342,6 +351,25 @@ public partial class StationMarket : Node
                     changed |= tonnes > 0;
                 }
             }
+            else if (request.Do == MarketRequest.Offer)
+            {
+                changed |= Solvency.Offer(Radio.Id, PilotRecord.OwnerPrefix + pilotId, universe.Book, state);
+                message = changed ? OfferedText : "";
+            }
+            else if (request.Do == MarketRequest.Repair)
+            {
+                if (!docked)
+                    message = NotDockedText;
+                else if (Radio.Security?.Refuses(ship) == true)
+                    message = RefusedText;
+                else if (ResourceLoader.Exists(pilot.Ship.Hull) && Xpace.World.ResourceCache.Load<ShipSpec>(pilot.Ship.Hull) is ShipSpec hull)
+                {
+                    long cost = Market.Repair(station, Goods, hull, Mathf.Clamp(request.Tonnes, 0, 100) / 100f, pilot, Radio.Cash, long.MaxValue);
+                    repaired = cost >= 0;
+                    message = repaired ? string.Format(RepairedText, cost) : NoRepairText;
+                    changed |= repaired;
+                }
+            }
             else if (request.Do == MarketRequest.Acquire)
             {
                 if (!present)
@@ -384,7 +412,7 @@ public partial class StationMarket : Node
 
         var view = new MarketView
         {
-            Station = Radio.Id, Title = Radio.ShownName, Owner = Radio.Cash?.Name ?? "", Docked = docked, Idle = station.Idle, Tank = Tank(pilot), Fuel = pilot.Ship.Fuel < 0 ? Tank(pilot) : pilot.Ship.Fuel, FuelPrice = Market.FuelPrice(station, Goods), Present = present, Credits = pilot.Credits, Capacity = Capacity(ship, pilot),
+            Station = Radio.Id, Title = Radio.ShownName, Owner = Radio.Cash?.Name ?? "", Docked = docked, Idle = station.Idle, Repaired = repaired, CanOffer = station.Owner == PilotRecord.OwnerPrefix + pilotId && !state.Sales.ContainsKey($"{SaleRecord.Station}:{Radio.Id}"), Tank = Tank(pilot), Fuel = pilot.Ship.Fuel < 0 ? Tank(pilot) : pilot.Ship.Fuel, FuelPrice = Market.FuelPrice(station, Goods), Present = present, Credits = pilot.Credits, Capacity = Capacity(ship, pilot),
             Carried = pilot.Ship.Tonnes, Fines = crimes.Fines, Bounty = crimes.Bounty, Impounded = station.Impounded.ContainsKey(pilotId),
             Message = message, Hunted = Reactions.Hunted(state, pilotId),
         };
@@ -492,7 +520,7 @@ public partial class StationMarket : Node
         else
             universe.Touch();
 
-        var fitted = Fittings.Of(ResourceLoader.Exists(pilot.Ship.Hull) ? GD.Load<ShipSpec>(pilot.Ship.Hull) : null, pilot.Ship);
+        var fitted = Fittings.Of(ResourceLoader.Exists(pilot.Ship.Hull) ? Xpace.World.ResourceCache.Load<ShipSpec>(pilot.Ship.Hull) : null, pilot.Ship);
         var view = new ArmsView { Station = Radio.Id, Title = Radio.ShownName, Docked = docked, Credits = pilot.Credits, Message = message };
         foreach (OutfitLine line in Outfits.Where(o => o?.Item != null))
         {
@@ -595,6 +623,6 @@ public partial class StationMarket : Node
 
     /// <summary>What the pilot's hold takes: the hull their record says (the ship here follows it).</summary>
     private static int Capacity(Node3D ship, PilotRecord pilot) =>
-        ResourceLoader.Exists(pilot.Ship.Hull) ? GD.Load<ShipSpec>(pilot.Ship.Hull)?.CargoCapacity ?? 0
+        ResourceLoader.Exists(pilot.Ship.Hull) ? Xpace.World.ResourceCache.Load<ShipSpec>(pilot.Ship.Hull)?.CargoCapacity ?? 0
         : ship is ShipBody { Spec: ShipSpec spec } ? spec.CargoCapacity : 0;
 }

@@ -429,6 +429,8 @@ public partial class StationSecurity : Node, IEngagement
             return;
         _sinceLaunch = 0;
         ship.Name = $"Police{++_launched}";
+        if (ship is ShipBody cruiser)
+            cruiser.Base = Radio.Id;                    // what it fires comes out of the station's own stores
         var parts = ship.FindChildren("*", "", true, false).Prepend(ship).ToList();
         foreach (NetBody body in parts.OfType<NetBody>())
             body.Spawned = true;

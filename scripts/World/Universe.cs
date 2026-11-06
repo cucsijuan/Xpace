@@ -142,7 +142,7 @@ public partial class Universe : Node
         {
             if (double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double burnt) && burnt > 0 && State.Pilot(pilot) is { } record)
             {
-                double tank = (ResourceLoader.Exists(record.Ship.Hull) ? GD.Load<Xpace.Ship.ShipSpec>(record.Ship.Hull)?.FuelTank : 0) ?? 0;
+                double tank = (ResourceLoader.Exists(record.Ship.Hull) ? Xpace.World.ResourceCache.Load<Xpace.Ship.ShipSpec>(record.Ship.Hull)?.FuelTank : 0) ?? 0;
                 record.Ship.Fuel = Math.Max(0, (record.Ship.Fuel < 0 ? tank : record.Ship.Fuel) - burnt);
             }
             return null;
@@ -410,7 +410,7 @@ public partial class Universe : Node
     }
 
     /// <summary>The tonnes a pilot's hold has free.</summary>
-    public int Room(PilotRecord pilot) => (ResourceLoader.Exists(pilot.Ship.Hull) ? GD.Load<Xpace.Ship.ShipSpec>(pilot.Ship.Hull)?.CargoCapacity ?? 0 : 0) - pilot.Ship.Tonnes;
+    public int Room(PilotRecord pilot) => (ResourceLoader.Exists(pilot.Ship.Hull) ? Xpace.World.ResourceCache.Load<Xpace.Ship.ShipSpec>(pilot.Ship.Hull)?.CargoCapacity ?? 0 : 0) - pilot.Ship.Tonnes;
 
     /// <summary>How many missiles of each of its factory models the pilot's new ship comes with.</summary>
     public static int RackSize(PilotRecord pilot) => Hull(pilot)?.MissileRack ?? 0;
@@ -444,7 +444,7 @@ public partial class Universe : Node
             if (m?.Id is string id)
                 models[id] = m;
         foreach (string id in pilot.Ship.Magazine.Keys)
-            if (!models.ContainsKey(id) && MissilesDir + id + ".tres" is string path && ResourceLoader.Exists(path) && GD.Load<Resource>(path) is MissileSpec m)
+            if (!models.ContainsKey(id) && MissilesDir + id + ".tres" is string path && ResourceLoader.Exists(path) && Xpace.World.ResourceCache.Load<Resource>(path) is MissileSpec m)
                 models[id] = m;
         return models.Values;
     }
@@ -479,7 +479,7 @@ public partial class Universe : Node
         Hull(pilot) is ShipSpec hull ? Fittings.Of(hull, pilot.Ship).Values.OfType<TurretSpec>().FirstOrDefault() : null;
 
     private static ShipSpec Hull(PilotRecord pilot) =>
-        ResourceLoader.Exists(pilot.Ship.Hull) ? GD.Load<ShipSpec>(pilot.Ship.Hull) : null;
+        ResourceLoader.Exists(pilot.Ship.Hull) ? Xpace.World.ResourceCache.Load<ShipSpec>(pilot.Ship.Hull) : null;
 
     /// <summary>
     /// A player's ship let one of <paramref name="item"/> go: a missile launched, chaff or a flare thrown. The guest who
@@ -489,7 +489,13 @@ public partial class Universe : Node
     /// </summary>
     public void Fired(Node3D ship, Outfit item)
     {
-        if (item?.Id is not string model || RecordOf(ship) is not PilotRecord pilot)
+        if (item?.Id is not string model)
+            return;
+        if (ship is Xpace.Ship.ShipBody { RecordId.Length: > 0 } shown && State.CargoShips.TryGetValue(shown.RecordId, out CargoShipRecord record))
+            record.Spent[model] = record.Spent.GetValueOrDefault(model) + 1;
+        else if (ship is Xpace.Ship.ShipBody { Base.Length: > 0 } guard && State.Stations.TryGetValue(guard.Base, out StationRecord stores) && stores.Stock.ContainsKey(model))
+            stores.Stock[model] = Math.Max(0, stores.Stock[model] - 1);
+        if (RecordOf(ship) is not PilotRecord pilot)
             return;
         pilot.Ship.Magazine[model] = Math.Max(0, Aboard(pilot, item) - 1);
         if (!IsGuest)

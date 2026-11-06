@@ -45,6 +45,20 @@ public partial class Personality : Resource
     /// <summary>How long what happened takes to matter half as much, hours.</summary>
     [Export] public double MemoryHours = 48;
 
+    [ExportGroup("Growing")]
+    /// <summary>A good it uses counts as short under this share of what its market wants.</summary>
+    [Export(PropertyHint.Range, "0,1,0.01")] public double GrowShortBelow = 0.1;
+    /// <summary>How long a shortage has to last, with all its ships at work and free traders not making up for it, hours.</summary>
+    [Export] public double GrowAfterHours = 72;
+    /// <summary>The most ships a station gets on top of its fleet this way.</summary>
+    [Export] public int MostExtraShips = 2;
+
+    [ExportGroup("Shipyard")]
+    /// <summary>What a yard asks on top of its fee, of the upkeep it has paid since it last sold a ship: little sold, more on each.</summary>
+    [Export(PropertyHint.Range, "0,1,0.05")] public double YardRecovers = 0.25;
+    /// <summary>Its fee is never more than this many times the model's: above that nobody would ever buy.</summary>
+    [Export] public double YardMostFee = 3;
+
     [ExportGroup("Short of money")]
     /// <summary>With less than this many hours of its upkeep in hand it counts itself broke.</summary>
     [Export] public double ReserveHours = 24;

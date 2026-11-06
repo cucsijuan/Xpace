@@ -129,7 +129,7 @@ public partial class CargoView : Node
 
     private void Attack(CargoShipRecord attacker, CargoShipRecord victim, Universe universe, SectorHost host)
     {
-        if (!ResourceLoader.Exists(attacker.Model) || GD.Load<ShipModel>(attacker.Model) is not ShipModel model || universe.Book.FixOf(attacker, model, universe.State.Clock) is not StationBook.Fix fix)
+        if (!ResourceLoader.Exists(attacker.Model) || Xpace.World.ResourceCache.Load<ShipModel>(attacker.Model) is not ShipModel model || universe.Book.FixOf(attacker, model, universe.State.Clock) is not StationBook.Fix fix)
             return;
         if (host.Root(fix.Sector) == null)
         {
@@ -178,9 +178,16 @@ public partial class CargoView : Node
             universe.Touch();
             return;
         }
-        ShipModel model = ResourceLoader.Exists(record.Model) ? GD.Load<ShipModel>(record.Model) : null;
+        ShipModel model = ResourceLoader.Exists(record.Model) ? Xpace.World.ResourceCache.Load<ShipModel>(record.Model) : null;
         if (model == null)
             return;
+        if (ship?.Find<ShipHull>() is ShipHull left)
+        {
+            if (record.Hull >= 1 && left.Fraction < 1 || record.Hull < 1 && left.Fraction <= record.Hull)
+                record.Hull = left.Fraction;            // hit where it can be seen
+            else if (left.Fraction < record.Hull)
+                left.Mend(record.Hull);                 // mended at a station while shown
+        }
         if (record.Phase == CargoShipRecord.Loose)
         {
             Fighting(record, model, ship, universe, host);
@@ -389,10 +396,10 @@ public partial class CargoView : Node
         {
             _called[ship] = now;
             Tell(record, ship, by, lost: false, universe);
-            Mayday(ship, CargoShips.CallsignOf(id));
+            Mayday(ship, record.Pilot != "" ? record.Pilot : CargoShips.CallsignOf(id));
             Scramble(record, by, universe.State);
         }
-        if (universe.State.CargoShips.TryGetValue(id, out CargoShipRecord hit) && ResourceLoader.Exists(hit.Model) && GD.Load<ShipModel>(hit.Model) is ShipModel { Fights: false, Escort: false })
+        if (universe.State.CargoShips.TryGetValue(id, out CargoShipRecord hit) && ResourceLoader.Exists(hit.Model) && Xpace.World.ResourceCache.Load<ShipModel>(hit.Model) is ShipModel { Fights: false, Escort: false })
             Think(hit, CrewOf(hit, universe.State), ship, by, universe.State);
     }
 
@@ -470,7 +477,7 @@ public partial class CargoView : Node
     // The owner hears what was done, and where the record says it was
     private static void Tell(CargoShipRecord record, ShipBody ship, Node3D by, bool lost, Universe universe)
     {
-        if (!ResourceLoader.Exists(record.Model) || GD.Load<ShipModel>(record.Model) is not ShipModel model || universe.Book.FixOf(record, model, universe.State.Clock) is not StationBook.Fix fix)
+        if (!ResourceLoader.Exists(record.Model) || Xpace.World.ResourceCache.Load<ShipModel>(record.Model) is not ShipModel model || universe.Book.FixOf(record, model, universe.State.Clock) is not StationBook.Fix fix)
             return;
         string actor = by != null && GodotObject.IsInstanceValid(by) ? universe.ActorOf(by) : "";
         Reactions.Happened(universe.Account(record.Owner) as OrganisationRecord, OrganisationCatalog.Find(record.Owner)?.Personality, model, fix.Sector, fix.At, actor, universe.State.Clock, lost);
@@ -507,6 +514,8 @@ public partial class CargoView : Node
         if (Universe.Current.State.People.TryGetValue(record.Owner, out PersonRecord person))
         {
             ship.Actor = person.Id;
+            if (ship.FindChild("Radio", true, false) is RadioDevice own)
+                own.Callsign = person.Last.ToUpperInvariant();
             foreach (Datalink link in parts.OfType<Datalink>())
                 link.Channel = person.Id;
         }
@@ -517,10 +526,17 @@ public partial class CargoView : Node
         ship.Holder = run;
         foreach ((string place, string piece) in record.Fittings)
             if (ResourceLoader.Exists(piece))
-                ship.Loadout[place] = GD.Load<Resource>(piece);
+                ship.Loadout[place] = Xpace.World.ResourceCache.Load<Resource>(piece);
         if (ship.FindChild("ShipComputer", true, false) is Xpace.Computer.ShipComputer computer)
             computer.PowerOnAtStart = false;
+        ship.RecordId = record.Id;
         root.AddChild(ship);
+        foreach (LauncherDevice launcher in parts.OfType<LauncherDevice>())
+            launcher.Used(record.Spent);
+        foreach (DispenserDevice dispenser in parts.OfType<DispenserDevice>())
+            dispenser.Used(record.Spent);
+        foreach (ShipHull hull in parts.OfType<ShipHull>())
+            hull.Mend(record.Hull);
         ship.Rest();
         _shown[record.Id] = ship;
         return ship;

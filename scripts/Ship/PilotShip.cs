@@ -37,7 +37,7 @@ public partial class PilotShip : Node
     {
         if (_ship == null || Universe.Current?.RecordOf(_ship)?.Ship is not ShipRecord record || record.Hull is not string hull)
             return;
-        if (_ship.Spec?.ResourcePath != hull && ResourceLoader.Exists(hull) && GD.Load<ShipSpec>(hull) is ShipSpec spec)
+        if (_ship.Spec?.ResourcePath != hull && ResourceLoader.Exists(hull) && Xpace.World.ResourceCache.Load<ShipSpec>(hull) is ShipSpec spec)
             _ship.Spec = spec;
         string wanted = $"{_ship.Spec?.ResourcePath}|{string.Join(";", record.Fittings.OrderBy(f => f.Key, System.StringComparer.Ordinal))}";
         if (wanted == _fitted)

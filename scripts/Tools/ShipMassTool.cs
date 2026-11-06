@@ -20,7 +20,7 @@ public partial class ShipMassTool : Node
         foreach (string file in DirAccess.GetFilesAt(Hulls).Where(f => f.EndsWith(".tres")))
         {
             string path = $"{Hulls}/{file}";
-            if (GD.Load<Resource>(path) is not ShipSpec hull || hull.Exterior?.Instantiate() is not Node3D exterior)
+            if (Xpace.World.ResourceCache.Load<Resource>(path) is not ShipSpec hull || hull.Exterior?.Instantiate() is not Node3D exterior)
                 continue;
             ShipPart.Sum sum = ShipPart.Totals(exterior);
             exterior.Free();

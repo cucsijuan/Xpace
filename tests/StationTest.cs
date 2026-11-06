@@ -141,6 +141,7 @@ public partial class StationTest : Node
 
         System.GC.Collect();
         System.GC.WaitForPendingFinalizers();
+        GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
     }
 

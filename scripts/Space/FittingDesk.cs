@@ -74,7 +74,7 @@ public static class FittingDesk
         List<ItemRecord> locker = universe.State.Station(market.Radio.Id).LockerOf(pilotId);
         Node3D ship = universe.ShipOf(pilotId);
         bool docked = market.Radio.DockedHere(ship);
-        ShipSpec hull = ResourceLoader.Exists(pilot.Ship.Hull) ? GD.Load<ShipSpec>(pilot.Ship.Hull) : null;
+        ShipSpec hull = ResourceLoader.Exists(pilot.Ship.Hull) ? Xpace.World.ResourceCache.Load<ShipSpec>(pilot.Ship.Hull) : null;
         HardpointPlace[] places = Fittings.Places(hull);
         Dictionary<string, Resource> fitted = Fittings.Of(hull, pilot.Ship);
         HardpointPlace place = places.FirstOrDefault(p => p.Name == request.Place);
@@ -146,6 +146,6 @@ public static class FittingDesk
 
     // The model a locker item is, if it is a piece of equipment
     private static Outfit PieceIn(ItemRecord item) =>
-        item.Kind == ItemRecord.Piece && ResourceLoader.Exists(item.Data) && GD.Load<Resource>(item.Data) is Outfit model && Fittings.IsPiece(model)
+        item.Kind == ItemRecord.Piece && ResourceLoader.Exists(item.Data) && Xpace.World.ResourceCache.Load<Resource>(item.Data) is Outfit model && Fittings.IsPiece(model)
             ? model : null;
 }

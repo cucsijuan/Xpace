@@ -264,7 +264,7 @@ public partial class SectorHost : Node
 
     private Running Load(Sector info, ShipBody ship, FloatingOrigin made = null)
     {
-        var origin = made ?? GD.Load<PackedScene>(info.Scene).Instantiate<FloatingOrigin>();
+        var origin = made ?? Xpace.World.ResourceCache.Load<PackedScene>(info.Scene).Instantiate<FloatingOrigin>();
         origin.Name = info.Id;
         if (ship != null)
         {

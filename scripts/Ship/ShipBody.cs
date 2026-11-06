@@ -300,6 +300,12 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
 
     /// <summary>Who flies it, if a free person does (<see cref="Xpace.World.Universe.ActorOf"/>).</summary>
     public string Actor = "";
+
+    /// <summary>The ship on the universe's records it shows, if any: what it uses up is counted there.</summary>
+    public string RecordId = "";
+
+    /// <summary>The station whose stores it draws on (a police ship's), if any.</summary>
+    public string Base = "";
     private bool _computing;
 
     public override void _EnterTree() => InSpace.Add(this);

@@ -82,6 +82,13 @@ public partial class ShipHull : Node, IDamageable
         Hit(joules / CrashJoulesPerPoint);
     }
 
+    /// <summary>The hull as it should be now: mended at a station, or as a record says it was left.</summary>
+    public void Mend(float fraction = 1)
+    {
+        if (!Wrecked)
+            Left = Integrity * Mathf.Clamp(fraction, 0, 1);
+    }
+
     public void Hit(float damage)
     {
         if (Wrecked || damage <= 0)

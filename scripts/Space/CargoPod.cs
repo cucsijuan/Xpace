@@ -48,7 +48,7 @@ public partial class CargoPod : Node3D
         int n = 0;
         foreach ((string good, int tonnes) in goods.Where(g => g.Value > 0))
         {
-            var pod = GD.Load<PackedScene>(Scene).Instantiate<CargoPod>();
+            var pod = Xpace.World.ResourceCache.Load<PackedScene>(Scene).Instantiate<CargoPod>();
             float angle = n++ * 2.4f;
             var out_ = new Vector3(MathF.Cos(angle), 0.3f, MathF.Sin(angle)).Normalized();
             pod.Good = good;

@@ -104,6 +104,7 @@ public partial class Pilot : Node3D
     public bool Typing => _focused != null;
 
     private Camera3D _camera;
+    private const double LowFuel = 0.15;
     private Label _hud;
     private ShipHull _hull;
     private MouseWidget _widget;
@@ -606,6 +607,8 @@ public partial class Pilot : Node3D
                 state = _hull.Insured ? $"SHIP DESTROYED. The insurer's new ship in {Math.Ceiling(_hull.RespawnIn):0} s." : "SHIP DESTROYED.";
             else if (_hull != null)
                 state += $"   Hull {_hull.Fraction * 100:0}%";
+            if (cruise != null && _ship.Spec.FuelTank > 0 && cruise.Fuel(_ship) / _ship.Spec.FuelTank is double tank && tank < LowFuel)
+                state += tank <= 0 ? "   TANK DRY" : "   LOW FUEL";
         }
         ShowModeBar(delta);
         string help = Hint != "" ? "\n" + Hint : "";

@@ -69,6 +69,9 @@ public partial class ShipSpec : Resource
     /// rails (<see cref="PylonSpec"/>): how many it can carry in all is how many rails its pylons have.
     /// </summary>
     [Export] public int MissileRack = 4;
+    /// <summary>What mending a hull from nothing takes, tonnes: a yard's price is what these cost at its market.</summary>
+    [Export] public int RepairMetals = 10;
+    [Export] public int RepairElectronics = 3;
     /// <summary>Hydrogen its tank holds for the cruise generator, tonnes (none: a ship that needs no fuel).</summary>
     [Export] public float FuelTank;
     /// <summary>The missile models a new ship comes loaded with (<see cref="MissileRack"/> of each).</summary>

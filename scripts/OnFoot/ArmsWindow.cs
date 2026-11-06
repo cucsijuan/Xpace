@@ -255,7 +255,7 @@ public partial class ArmsWindow : CanvasLayer, IKioskWindow
             Ship = null;
             _shown.Clear();
             _shownHull = view.Hull;
-            if (ResourceLoader.Exists(view.Hull) && GD.Load<ShipSpec>(view.Hull)?.Exterior?.Instantiate() is Node3D outside)
+            if (ResourceLoader.Exists(view.Hull) && Xpace.World.ResourceCache.Load<ShipSpec>(view.Hull)?.Exterior?.Instantiate() is Node3D outside)
             {
                 Ship = outside;
                 _turntable.AddChild(outside);
@@ -269,7 +269,7 @@ public partial class ArmsWindow : CanvasLayer, IKioskWindow
             if (!hardpoints.TryGetValue(place.Name, out Hardpoint hardpoint) || _shown.GetValueOrDefault(place.Name) == place.Mounted)
                 continue;
             _shown[place.Name] = place.Mounted;
-            Resource model = place.Mounted != "" && ResourceLoader.Exists(place.Mounted) ? GD.Load<Resource>(place.Mounted) : null;
+            Resource model = place.Mounted != "" && ResourceLoader.Exists(place.Mounted) ? Xpace.World.ResourceCache.Load<Resource>(place.Mounted) : null;
             hardpoint.Mount(model, working: false);
             if (model != null && !first)
                 Puff(hardpoint.GlobalPosition);

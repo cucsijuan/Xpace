@@ -111,6 +111,16 @@ public partial class MarketTest : Node
         Check($"filling up costs what hydrogen costs here ({beforeFuel - Universe.Current.Me.Credits}; {window.View?.Message})", Universe.Current.Me.Ship.Fuel == window.View?.Tank && Universe.Current.Me.Credits < beforeFuel);
         Universe.Current.Me.Credits = beforeFuel;
 
+        // A hull mended at the kiosk, with the market's own materials
+        ShipHull damaged = _ship.Find<ShipHull>();
+        damaged.Burn(damaged.Integrity * 0.25f);
+        double metalsBefore = universe.State.Station(market.Radio.Id).Stock["metals"];
+        Universe.Current.Me.Credits = 100_000;
+        window.Ask(MarketRequest.Repair, null, 25);
+        await Seconds(0.1);
+        Check($"a hull is mended at the kiosk, with the market's metals ({window.View?.Message})", damaged.Fraction >= 1 && universe.State.Station(market.Radio.Id).Stock["metals"] < metalsBefore && Universe.Current.Me.Credits < 100_000);
+        Universe.Current.Me.Credits = beforeFuel;
+
         // A station on sale is the talk of every market, and a pilot here can buy it
         UniverseState world = Universe.Current.State;
         PilotRecord buyer = Universe.Current.Me;

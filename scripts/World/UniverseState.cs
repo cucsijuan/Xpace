@@ -151,6 +151,12 @@ public sealed class CargoShipRecord
     public bool Dry { get; set; }
     /// <summary>How much its crew reckoned worth buying on this trip (0: as much as there is room for).</summary>
     public int Planned { get; set; }
+    /// <summary>Who flies it, for those who hear them, if someone in particular does.</summary>
+    public string Pilot { get; set; } = "";
+    /// <summary>How much of its hull is left, 0 to 1.</summary>
+    public float Hull { get; set; } = 1;
+    /// <summary>What it has used of what it carries, by the model's id: missiles, chaff, flares, to be bought again.</summary>
+    public Dictionary<string, int> Spent { get; set; } = new();
     /// <summary>What it took out of space, by good: stolen, to sell off.</summary>
     public Dictionary<string, int> Loot { get; set; } = new();
     /// <summary>Tonnes it has brought home in all.</summary>
@@ -210,12 +216,14 @@ public sealed class PersonRecord : IAccount, IRemembers
     public int Line { get; set; }
     /// <summary>Their <see cref="World.Personality"/>, by resource path.</summary>
     public string Character { get; set; } = "";
-    [JsonIgnore] public Personality Personality => Godot.ResourceLoader.Exists(Character) ? Godot.GD.Load<Personality>(Character) : null;
+    [JsonIgnore] public Personality Personality => Godot.ResourceLoader.Exists(Character) ? Xpace.World.ResourceCache.Load<Personality>(Character) : null;
     public long Credits { get; set; }
     [JsonIgnore] public double Margin => 0;
     public Dictionary<string, StationNews> Known { get; set; } = new();
     public List<MemoryEntry> Memories { get; set; } = new();
     public int MemoryRoom { get; set; } = 16;
+    /// <summary>When their money ran out (below 0: they have some).</summary>
+    public double BrokeSince { get; set; } = -1;
     /// <summary>The actor they are after (empty: nobody).</summary>
     public string Quarry { get; set; } = "";
 }
@@ -380,6 +388,11 @@ public sealed class StationRecord
     public bool Mustered { get; set; }
     /// <summary>Its people have run out of something they need, or its owner can't pay for it: it makes nothing, and can still sell what it has.</summary>
     public bool Idle { get; set; }
+    /// <summary>When it last began to run short of something (below 0: it isn't), and the ships it has added to its fleet.</summary>
+    public double ShortSince { get; set; } = -1;
+    /// <summary>When its yard last sold a ship.</summary>
+    public double LastSold { get; set; }
+    public int ExtraShips { get; set; }
     /// <summary>Nobody wanted it: it stands idle until someone buys it.</summary>
     public bool Abandoned { get; set; }
 

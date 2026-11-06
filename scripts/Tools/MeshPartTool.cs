@@ -39,7 +39,7 @@ public partial class MeshPartTool : Node
         string[] args = OS.GetCmdlineUserArgs();
         if (args.Length > 0)
         {
-            List = GD.Load<MeshPartList>(args[0]);
+            List = Xpace.World.ResourceCache.Load<MeshPartList>(args[0]);
             Job = args.Length > 1 && args[1] == "survey" ? ToolJob.Survey : ToolJob.Extract;
             if (List != null && Job == ToolJob.Survey && args.Length >= 8)
                 List.SurveyBox = new Aabb(

@@ -86,6 +86,8 @@ public static class People
             return false;
         MarketNews.See(person, here, state, account);
         Fence(ship, here, person, spec, state, account);
+        if (GivesUp(ship, person, spec, state))
+            return false;
         foreach (StationBook.Beacon beacon in book.Beacons.Where(b => b.Sector == here.Sector))
             MarketNews.Hear(person, beacon, state, book, account);
         Personality character = person.Personality;
@@ -122,6 +124,22 @@ public static class People
         foreach (StationBook.Beacon beacon in book.Beacons.Where(b => b.Sector == here.Sector))
             MarketNews.Hear(owner, beacon, state, book, account);
         return Trade(ship, model, here, owner, state, book, account) || Roam(ship, model, here, owner, state, book, account);
+    }
+
+    // Nobody goes on for ever with nothing: broke for long enough they sell their ship and leave, and someone new comes in time
+    private static bool GivesUp(CargoShipRecord ship, PersonRecord person, PopulationSpec spec, UniverseState state)
+    {
+        if (spec == null || person.Credits >= spec.BrokeBelow)
+        {
+            person.BrokeSince = -1;
+            return false;
+        }
+        if (person.BrokeSince < 0)
+            person.BrokeSince = state.Clock;
+        if (state.Clock - person.BrokeSince < spec.GiveUpHours * 3600)
+            return false;
+        CargoShips.Lose(state, ship.Id);
+        return true;
     }
 
     // What it stole goes for less than a market pays: the rest stays with the station's owner
@@ -233,7 +251,7 @@ public static class People
         var grids = new Dictionary<string, SpatialGrid<CargoShipRecord>>();
         var fixes = new Dictionary<CargoShipRecord, StationBook.Fix>();
         foreach (CargoShipRecord ship in state.CargoShips.Values)
-            if (ship.Phase == CargoShipRecord.Flying && ResourceLoader.Exists(ship.Model) && GD.Load<ShipModel>(ship.Model) is ShipModel model && book.FixOf(ship, model, state.Clock) is StationBook.Fix fix)
+            if (ship.Phase == CargoShipRecord.Flying && ResourceLoader.Exists(ship.Model) && Xpace.World.ResourceCache.Load<ShipModel>(ship.Model) is ShipModel model && book.FixOf(ship, model, state.Clock) is StationBook.Fix fix)
             {
                 fixes[ship] = fix;
                 if (!grids.TryGetValue(fix.Sector, out SpatialGrid<CargoShipRecord> grid))

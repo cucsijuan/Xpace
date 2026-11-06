@@ -49,7 +49,7 @@ public static class CargoShips
     /// <summary>A ship of someone's own, on a pad at a station, from the start.</summary>
     public static void Enlist(string owner, string id, ShipModel model, StationBook.Station at, UniverseState state, StationBook book)
     {
-        var ship = new CargoShipRecord { Id = id, Model = model.ResourcePath, Owner = owner, Home = at.Id, At = at.Id, NextLook = state.Clock };
+        var ship = new CargoShipRecord { Id = id, Model = model.ResourcePath, Owner = owner, Home = at.Id, At = at.Id, NextLook = state.Clock, Pilot = state.People.GetValueOrDefault(owner)?.Name ?? "" };
         state.CargoShips[id] = ship;
         if (at.Pads.LastOrDefault(p => book.Fits(p, model) && Free(at, p, state)) is StationBook.Pad pad)
             Take(ship, at, pad, state);
@@ -102,7 +102,7 @@ public static class CargoShips
             escort.Ward = "";
     }
 
-    private static ShipModel ModelOf(CargoShipRecord ship) => ResourceLoader.Exists(ship.Model) ? GD.Load<ShipModel>(ship.Model) : null;
+    private static ShipModel ModelOf(CargoShipRecord ship) => ResourceLoader.Exists(ship.Model) ? Xpace.World.ResourceCache.Load<ShipModel>(ship.Model) : null;
 
     // An owner short of the fleet a station needs orders what is missing from the nearest yard that builds it
     private static void Order(UniverseState state, StationBook book, Func<string, IAccount> account)
@@ -118,10 +118,11 @@ public static class CargoShips
                 if (line.WhenThreatened && !Reactions.Threatened(account(owner) as OrganisationRecord, OrganisationCatalog.Find(owner)?.Personality, state.Clock))
                     continue;
                 string model = line.Model.ResourcePath;
+                int fleet = line.Count + (line.WhenThreatened ? 0 : Grown(station, owner, line, state, account));
                 int have = state.CargoShips.Values.Count(s => s.Home == station.Id && s.Owner == owner && s.Model == model) + state.ShipOrders.Values.Count(o => o.Home == station.Id && o.Owner == owner && o.Model == model);
                 StationBook.Station yard = book.Stations.Where(s => s.Shipyard?.Contains(line.Model) == true && book.Way(station.Sector, s.Sector) != null)
                     .OrderBy(s => book.Way(station.Sector, s.Sector).Count).ThenBy(s => s.At.DistanceTo(station.At)).FirstOrDefault();
-                for (; yard != null && have < line.Count; have++)
+                for (; yard != null && have < fleet; have++)
                 {
                     StationRecord record = state.Station(station.Id);
                     string id = $"{station.Id}-R{++record.Ordered}";
@@ -135,12 +136,36 @@ public static class CargoShips
             }
     }
 
+    // Deep and lasting demand that its own ships and the free traders together can't meet, with money to spare: that is when
+    // an owner adds a ship. Short for a while only leaves room for free traders, and a good nobody wants leaves it as it is
+    private static int Grown(StationBook.Station station, string owner, FleetLine line, UniverseState state, Func<string, IAccount> account)
+    {
+        StationRecord record = state.Station(station.Id);
+        if (account(owner) is not OrganisationRecord company || OrganisationCatalog.Find(owner)?.Personality is not Personality nature)
+            return record.ExtraShips;
+        bool shortOf = station.Goods.Any(g => g.Good.Traded && Market.Net(g.Good.Id, station.Goods, station.Factories) < 0 && record.Stock.GetValueOrDefault(g.Good.Id) < g.Stock * nature.GrowShortBelow);
+        bool busy = !state.CargoShips.Values.Any(s => s.Home == station.Id && s.Owner == owner && s.Phase == CargoShipRecord.Parked && s.State == CargoShipRecord.Waiting);
+        if (!shortOf || !busy)
+        {
+            record.ShortSince = -1;
+            return record.ExtraShips;
+        }
+        if (record.ShortSince < 0)
+            record.ShortSince = state.Clock;
+        if (state.Clock - record.ShortSince >= nature.GrowAfterHours * 3600 && record.ExtraShips < nature.MostExtraShips && company.Credits * nature.Ambition >= line.Model.BuildFee * 2)
+        {
+            record.ExtraShips++;
+            record.ShortSince = -1;
+        }
+        return record.ExtraShips;
+    }
+
     // A yard starts on an order when it has the materials and the buyer the money, and hands the ship over on a free pad
     private static void Build(UniverseState state, StationBook book, Func<string, IAccount> account)
     {
         foreach (ShipOrderRecord order in state.ShipOrders.Values.OrderBy(o => o.Id, StringComparer.Ordinal).ToList())
         {
-            if (book.Find(order.Yard) is not StationBook.Station yard || !ResourceLoader.Exists(order.Model) || GD.Load<ShipModel>(order.Model) is not ShipModel model || model.Recipe == null)
+            if (book.Find(order.Yard) is not StationBook.Station yard || !ResourceLoader.Exists(order.Model) || Xpace.World.ResourceCache.Load<ShipModel>(order.Model) is not ShipModel model || model.Recipe == null)
                 continue;
             if (order.Ready == 0)
                 Start(order, yard, model, state, book, account);
@@ -150,12 +175,21 @@ public static class CargoShips
                 {
                     Id = order.Id, Model = order.Model, Owner = order.Owner, Home = order.Home, At = yard.Id, NextLook = state.Clock,
                     State = order.Home == yard.Id ? CargoShipRecord.Waiting : CargoShipRecord.Returning, Fittings = order.Fittings,
+                    Pilot = state.People.GetValueOrDefault(order.Owner)?.Name ?? "",
                 };
                 state.CargoShips[ship.Id] = ship;
                 Take(ship, yard, pad, state);
                 state.ShipOrders.Remove(order.Id);
             }
         }
+    }
+
+    /// <summary>What a yard asks for its work: the model's fee, and part of what keeping the yard going has cost since it last sold one. Ships sell slowly, so each has to pay for the wait, up to what anyone would pay.</summary>
+    public static long YardFee(ShipModel model, StationBook.Station yard, UniverseState state)
+    {
+        Personality nature = OrganisationCatalog.Find(OwnerOf(state, yard))?.Personality ?? new Personality();
+        double waited = Math.Max(0, state.Clock - state.Station(yard.Id).LastSold) / 3600;
+        return (long)Math.Min(model.BuildFee * nature.YardMostFee, model.BuildFee + yard.Upkeep * waited * nature.YardRecovers);
     }
 
     // The yard buys what the buyer wants fitted from whoever makes it: no pieces, no start. So what the buyers choose is what the arms makers sell
@@ -181,7 +215,7 @@ public static class CargoShips
             pieces.Add(sold[0]);
         }
         IAccount buyer = account(order.Owner), builder = account(OwnerOf(state, yard));
-        long price = (long)Math.Ceiling(cost * (1 + (builder?.Margin ?? 0))) + model.BuildFee;
+        long price = (long)Math.Ceiling(cost * (1 + (builder?.Margin ?? 0))) + YardFee(model, yard, state);
         long total = (ReferenceEquals(buyer, builder) ? 0 : price) + pieces.Sum(p => p.Price);
         if (buyer == null || buyer.Credits < total)
             return;
@@ -191,6 +225,7 @@ public static class CargoShips
             if (builder != null)
                 builder.Credits += price;
         }
+        state.Station(yard.Id).LastSold = state.Clock;
         foreach ((StationBook.Station maker, OutfitLine line, long paid) in pieces)
         {
             buyer.Credits -= paid;
@@ -204,7 +239,7 @@ public static class CargoShips
     }
 
     // How it calls itself on the radio
-    private static string Sign(CargoShipRecord ship) => $"{ModelOf(ship)?.Name} {CallsignOf(ship.Id)}";
+    private static string Sign(CargoShipRecord ship) => ship.Pilot != "" ? ship.Pilot : $"{ModelOf(ship)?.Name} {CallsignOf(ship.Id)}";
 
     /// <summary>A ship's callsign: short, its own, and the same on every machine.</summary>
     public static string CallsignOf(string id)
@@ -262,7 +297,7 @@ public static class CargoShips
 
     private static void Work(CargoShipRecord ship, UniverseState state, StationBook book, Func<string, IAccount> account)
     {
-        if (!ResourceLoader.Exists(ship.Model) || GD.Load<ShipModel>(ship.Model) is not ShipModel model || model.Hull == null || model.Generator == null)
+        if (!ResourceLoader.Exists(ship.Model) || Xpace.World.ResourceCache.Load<ShipModel>(ship.Model) is not ShipModel model || model.Hull == null || model.Generator == null)
             return;
         switch (ship.Phase)
         {
@@ -362,6 +397,13 @@ public static class CargoShips
         ship.At = ship.Going;
         ship.PaceModel = "";
         ship.Phase = CargoShipRecord.Parked;
+        if (book.Find(ship.At) is StationBook.Station stores)
+        {
+            Restock(ship, model, stores, state, account);
+            if (ship.Hull < 1 && account(ship.Owner) is IAccount money &&
+                Market.Repair(Bring(state, stores, account), stores.Goods, model.Hull, 1 - ship.Hull, money, account(OwnerOf(state, stores)), (long)(money.Credits * model.FuelMoneyShare)) >= 0)
+                ship.Hull = 1;
+        }
         ship.NextLook = state.Clock + model.HandlingSeconds;
         if (ship.State == CargoShipRecord.Fetching)
         {
@@ -382,6 +424,27 @@ public static class CargoShips
         }
     }
 
+    // What it used up it buys again where it can, by the same rules as a pilot, with what its owner can spare
+    private static void Restock(CargoShipRecord ship, ShipModel model, StationBook.Station station, UniverseState state, Func<string, IAccount> account)
+    {
+        if (ship.Spent.Count == 0 || account(ship.Owner) is not IAccount money)
+            return;
+        StationRecord record = Bring(state, station, account);
+        long budget = (long)(money.Credits * model.FuelMoneyShare);
+        foreach (string id in ship.Spent.Keys.ToList())
+            if (station.Outfits?.FirstOrDefault(o => o?.Id == id) is OutfitLine line)
+                while (ship.Spent.GetValueOrDefault(id) > 0 && Market.OutfitPrice(record, line) is long price && price >= 0 && price <= budget)
+                {
+                    budget -= price;
+                    money.Credits -= price;
+                    if (account(OwnerOf(state, station)) is IAccount seller)
+                        seller.Credits += price;
+                    record.Stock[id] -= 1;
+                    if (--ship.Spent[id] == 0)
+                        ship.Spent.Remove(id);
+                }
+    }
+
     // The crew tells its owner what the beacons it flew past had to say
     private static void Passed(CargoShipRecord ship, ShipModel model, UniverseState state, StationBook book, Func<string, IAccount> account)
     {
@@ -397,7 +460,7 @@ public static class CargoShips
         string good = line.Good.Id;
         double wanted = Market.Net(good, home.Goods, home.Factories) < 0 ? line.Stock * model.RestockBelow : 0;
         foreach (ShipOrderRecord order in state.ShipOrders.Values.Where(o => o.Yard == home.Id && o.Ready == 0))
-            if (ResourceLoader.Exists(order.Model) && GD.Load<ShipModel>(order.Model)?.Recipe is Recipe recipe)
+            if (ResourceLoader.Exists(order.Model) && Xpace.World.ResourceCache.Load<ShipModel>(order.Model)?.Recipe is Recipe recipe)
                 wanted += recipe.Inputs.Where(p => Recipe.IdOf(p.Item) == good).Sum(p => p.Amount);
         return wanted;
     }

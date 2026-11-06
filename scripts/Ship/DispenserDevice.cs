@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 using Xpace.Computer;
 using Xpace.Space;
@@ -91,7 +92,17 @@ public partial class DispenserDevice : Node3D, IShipDevice, IRearmable
         if (spec?.Id != null && Pilot != null)
             Universe.Current.Fired(ship, spec);
         else
+        {
             own--;
+            Universe.Current?.Fired(ship, spec);
+        }
+    }
+
+    /// <summary>A ship on a record comes with what it hadn't used, not a full load.</summary>
+    public void Used(IReadOnlyDictionary<string, int> spent)
+    {
+        _chaffLeft = System.Math.Max(0, Chaff - spent.GetValueOrDefault(_chaffSpec?.Id ?? ""));
+        _flaresLeft = System.Math.Max(0, Flares - spent.GetValueOrDefault(_flareSpec?.Id ?? ""));
     }
 
     public void BeforeStep(ShipBody ship, double delta)

@@ -133,7 +133,7 @@ public partial class RemoteShip : Node3D, Space.ICruiseShown, INetEntity, IRadar
             string path = at > 0 ? pair[..at] : "";
             int.TryParse(at > 0 ? pair[(at + 1)..] : "", out int count);
             PackedScene look = path.StartsWith("res://assets/weapons/missiles/") && ResourceLoader.Exists(path)
-                && GD.Load<Resource>(path) is MissileSpec model ? model.Look : null;
+                && Xpace.World.ResourceCache.Load<Resource>(path) is MissileSpec model ? model.Look : null;
             loads.Add((look, System.Math.Clamp(count, 0, _rails.Count)));
         }
         while (loads.Count < 2)

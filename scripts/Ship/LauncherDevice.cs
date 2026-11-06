@@ -114,6 +114,13 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
             _railHead?.Free();
     }
 
+    /// <summary>A ship on a record comes with what it hadn't used, not a full load.</summary>
+    public void Used(IReadOnlyDictionary<string, int> spent)
+    {
+        _missiles = System.Math.Max(0, Missiles - spent.GetValueOrDefault(_radarSpec?.Id ?? ""));
+        _heatSeekers = System.Math.Max(0, HeatSeekers - spent.GetValueOrDefault(_heatSpec?.Id ?? ""));
+    }
+
     /// <summary>A full load again: the insurer's new ship.</summary>
     public void Rearm()
     {
@@ -274,7 +281,10 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
             if (_heatSpec?.Id != null && Pilot != null)
                 Universe.Current.Fired(ship, _heatSpec);
             else
+            {
                 _heatSeekers--;
+                Universe.Current?.Fired(ship, _heatSpec);
+            }
             ship.Computer.Bus[Slot, 7] = 0;             // the next one's head, off
             _head.Look = -GlobalBasis.Z;
             _toneFor = 0;
@@ -282,7 +292,10 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
         else if (_radarSpec?.Id != null && Pilot != null)
             Universe.Current.Fired(ship, _radarSpec);
         else
+        {
             _missiles--;
+            Universe.Current?.Fired(ship, _radarSpec);
+        }
         Launched++;
         _reload = ReloadSeconds;
         ShowLoads();

@@ -25,7 +25,7 @@ public static class Fittings
             if (at <= 0)
                 continue;
             string path = pair[(at + 1)..];
-            if (path.StartsWith("res://assets/weapons/") && ResourceLoader.Exists(path) && GD.Load<Resource>(path) is Resource model && IsPiece(model))
+            if (path.StartsWith("res://assets/weapons/") && ResourceLoader.Exists(path) && Xpace.World.ResourceCache.Load<Resource>(path) is Resource model && IsPiece(model))
                 fitted[pair[..at]] = model;
         }
         return fitted;
@@ -66,7 +66,7 @@ public static class Fittings
             foreach ((string place, string path) in record.Fittings)
             {
                 fitted.Remove(place);
-                if (!string.IsNullOrEmpty(path) && ResourceLoader.Exists(path) && GD.Load<Resource>(path) is Resource model)
+                if (!string.IsNullOrEmpty(path) && ResourceLoader.Exists(path) && Xpace.World.ResourceCache.Load<Resource>(path) is Resource model)
                     fitted[place] = model;
             }
         return fitted;
