@@ -27,6 +27,7 @@ public partial class PowerGauge : Control
     private ShieldDevice _shield;
     private HeatDevice _heat;
     private EngineDevice _engine;
+    private ShipBody _ship;
     private double _time;
 
     private static readonly string[] Names = { "SYS", "ENG", "WEP" };
@@ -34,6 +35,7 @@ public partial class PowerGauge : Control
     public override void _Ready()
     {
         MouseFilter = MouseFilterEnum.Ignore;
+        _ship = GetNodeOrNull(ShipPath) as ShipBody;
         foreach (Node n in GetNodeOrNull(ShipPath)?.FindChildren("*", "", true, false) ?? new Godot.Collections.Array<Node>())
         {
             _power ??= n as PowerDevice;
@@ -99,6 +101,14 @@ public partial class PowerGauge : Control
             Upright(new Rect2(x + 6, top, 10, height - top), _engine.ReportedCore / scale, c, _engine.CutOut / scale);
             string note = _engine.Failed ? "X" : cut ? ((int)(_time * 3) % 2 == 0 ? "CUT" : "") : _engine.Boosting ? "B" : "";
             DrawString(font, new Vector2(x + 20, height), note, HorizontalAlignment.Left, -1, FontSize, c);
+            x += column;
+        }
+        if (_ship?.Device<CruiseDevice>() is CruiseDevice cruise && _ship.Spec.FuelTank > 0)
+        {
+            float left = (float)(cruise.Fuel(_ship) / _ship.Spec.FuelTank);
+            Color c = left < 0.15f ? HotColour : Colour;
+            DrawString(font, new Vector2(x, FontSize), "FUEL", HorizontalAlignment.Left, -1, FontSize, c);
+            Upright(new Rect2(x + 6, top, 10, height - top), left, c, null);
         }
     }
 

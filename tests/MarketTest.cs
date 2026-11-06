@@ -102,6 +102,15 @@ public partial class MarketTest : Node
 
         MarketLine food = window.View.Lines.First(l => l.Good == "food");
         float empty = _ship.Mass;
+        // Fuel at the kiosk
+        buyerTank(Universe.Current.Me);
+        window.Ask(MarketRequest.Look, null, 0);
+        Check($"the kiosk shows the tank ({window.View?.Fuel:0.0} of {window.View?.Tank:0.0} t, {window.View?.FuelPrice} a tonne)", window.View is { Tank: > 0, FuelPrice: > 0 } && window.View.Fuel == 0.5);
+        long beforeFuel = Universe.Current.Me.Credits;
+        window.Ask(MarketRequest.Refuel, null, 0);
+        Check($"filling up costs what hydrogen costs here ({beforeFuel - Universe.Current.Me.Credits}; {window.View?.Message})", Universe.Current.Me.Ship.Fuel == window.View?.Tank && Universe.Current.Me.Credits < beforeFuel);
+        Universe.Current.Me.Credits = beforeFuel;
+
         // A station on sale is the talk of every market, and a pilot here can buy it
         UniverseState world = Universe.Current.State;
         PilotRecord buyer = Universe.Current.Me;
@@ -308,6 +317,8 @@ public partial class MarketTest : Node
         Check($"the station's factories make all its dealer sells ({(missing.Count == 0 ? "all" : string.Join(", ", missing))})", missing.Count == 0);
         haven.Free();
     }
+
+    private static void buyerTank(PilotRecord pilot) => pilot.Ship.Fuel = 0.5;
 
     private void Place(Transform3D at) =>
         _ship.State = new ShipState { Position = at.Origin, Orientation = at.Basis.GetRotationQuaternion() };

@@ -34,6 +34,11 @@ namespace Xpace.Ship;
 /// +11 the pilot's tuning buttons: bit 0 up, bit 1 down  +12 strain, 255 drops out
 /// +13 how much of the beam it cancels, 255 all it can  +14 the beam's wave as received, a signed byte
 /// +15 its own wave, a signed byte
+///
+/// In cruise it burns hydrogen (<see cref="GeneratorSpec.FuelPerHour"/>) from the ship's tank
+/// (<see cref="ShipSpec.FuelTank"/>); with the tank dry it drops out and won't start: the ship flies on on its engine,
+/// slowly. Status bit 5: the tank is dry. A player's fuel is in the universe with their ship, anyone else's here.
+/// The hold's registers show the tank (<see cref="CargoHold"/>).
 /// </summary>
 public partial class CruiseDevice : Node, IShipDevice, IRearmable
 {
@@ -41,7 +46,7 @@ public partial class CruiseDevice : Node, IShipDevice, IRearmable
     public const byte Type = 20, Version = 1;
     public const byte NoCourse = 0xFF;
     private const float WakeFullAt = 500f;      // m/s
-    public const byte StatusOn = 1, StatusCharging = 2, StatusLocked = 4, StatusDropped = 8, StatusBeam = 16;
+    public const byte StatusOn = 1, StatusCharging = 2, StatusLocked = 4, StatusDropped = 8, StatusBeam = 16, StatusDry = 32;
 
     [Export] public GeneratorSpec Spec { get; set; }
 
@@ -105,8 +110,37 @@ public partial class CruiseDevice : Node, IShipDevice, IRearmable
         _sinceBeam = 0;
     }
 
+    /// <summary>Hydrogen in the ship's tank, tonnes.</summary>
+    public double Fuel(ShipBody ship)
+    {
+        if (Xpace.World.Universe.Current?.RecordOf(ship) is Xpace.World.PilotRecord pilot)
+            return pilot.Ship.Fuel < 0 ? ship.Spec.FuelTank : pilot.Ship.Fuel;
+        return _tank < 0 ? ship.Spec.FuelTank : _tank;
+    }
+
+    private double _tank = -1;
+
+    private void Burn(ShipBody ship, float dt)
+    {
+        if (!On || ship.Spec.FuelTank <= 0)
+            return;
+        double burnt = S.FuelPerHour * dt / 3600.0, left = Math.Max(0, Fuel(ship) - burnt);
+        if (Xpace.World.Universe.Current?.RecordOf(ship) is Xpace.World.PilotRecord pilot)
+        {
+            pilot.Ship.Fuel = left;
+            Xpace.World.Universe.Current.Burnt(burnt);
+        }
+        else
+            _tank = left;
+        if (left > 0)
+            return;
+        _generator.Stop();
+        DroppedOut = true;
+    }
+
     public void Rearm()
     {
+        _tank = -1;
         _generator = new GeneratorState();
         Thin = 1;
         Wake = 0;
@@ -118,6 +152,7 @@ public partial class CruiseDevice : Node, IShipDevice, IRearmable
     public void BeforeStep(ShipBody ship, double delta)
     {
         float dt = (float)delta;
+        Burn(ship, dt);
         float natural = MediumMass.Density(ship.GetWorld3D(), ship.GlobalPosition);
         if (_generator.Step(S, natural, _thickened, BeamBand, _tuneTo, dt, ship.Held))
             DroppedOut = true;
@@ -131,7 +166,7 @@ public partial class CruiseDevice : Node, IShipDevice, IRearmable
         bus[Slot, 0] = Type;
         bus[Slot, 1] = Version;
         bus[Slot, 2] = (byte)((On ? StatusOn : 0) | (Charging ? StatusCharging : 0) |
-                              (Locked ? StatusLocked : 0) | (DroppedOut ? StatusDropped : 0) | (BeamOn ? StatusBeam : 0));
+                              (Locked ? StatusLocked : 0) | (DroppedOut ? StatusDropped : 0) | (BeamOn ? StatusBeam : 0) | (Fuel(ship) <= 0 && ship.Spec.FuelTank > 0 ? StatusDry : 0));
         bus[Slot, 3] = (byte)Math.Clamp((Thin - 1 / S.Thinning) / (1 - 1 / S.Thinning) * 255, 0, 255);
         bus.SetWord(Slot, 4, (int)Math.Clamp(Density * 16, 0, 32767));
         bus.SetWord(Slot, 6, (int)Math.Clamp(ship.LinearVelocity.Length(), 0, 32767));
@@ -161,7 +196,7 @@ public partial class CruiseDevice : Node, IShipDevice, IRearmable
             bool start = bus[Slot, 5] != 0;
             if (!start)
                 _generator.Stop();
-            else if (!ship.Held && _generator.Start(S))
+            else if (!ship.Held && (ship.Spec.FuelTank <= 0 || Fuel(ship) > 0) && _generator.Start(S))
                 DroppedOut = false;
         }
         if (bus.TakeWritten(Slot, 10))

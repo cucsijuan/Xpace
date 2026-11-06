@@ -188,6 +188,43 @@ public static class Market
     /// <summary>What the next tonne costs at this station now: never under what its owner makes it for.</summary>
     public static long BuyPrice(StationRecord station, MarketGood line) => Floored(station, line.Good.Id, BuyPrice(line, station.Stock.GetValueOrDefault(line.Good.Id)));
 
+    public const string Fuel = "hydrogen";
+
+    /// <summary>What a tonne of fuel costs here (below 0: none sold here).</summary>
+    public static long FuelPrice(StationRecord station, MarketGood[] goods) =>
+        goods.FirstOrDefault(g => g?.Good?.Id == Fuel) is MarketGood line ? BuyPrice(station, line) : -1;
+
+    /// <summary>Fills a tank from the market, a tonne at a time, as far as the money and the stock go; how much went in (the last tonne's rest stays in the pump). </summary>
+    public static int Refill(StationRecord station, MarketGood[] goods, IAccount buyer, ref double fuel, double tank, IAccount cash, out long paid)
+    {
+        paid = 0;
+        int tonnes = 0;
+        if (goods.FirstOrDefault(g => g?.Good?.Id == Fuel) is not MarketGood line)
+            return 0;
+        while (fuel < tank)
+        {
+            long price = BuyPrice(station, line);
+            if (price < 0 || buyer.Credits < price)
+                break;
+            buyer.Credits -= price;
+            Receive(cash, price);
+            station.Stock[Fuel] = station.Stock[Fuel] - 1;
+            fuel = Math.Min(tank, fuel + 1);
+            paid += price;
+            tonnes++;
+        }
+        return tonnes;
+    }
+
+    /// <summary>A pilot's ship fills up.</summary>
+    public static int Refuel(StationRecord station, MarketGood[] goods, PilotRecord pilot, double tank, IAccount cash, out long paid)
+    {
+        double fuel = pilot.Ship.Fuel < 0 ? tank : pilot.Ship.Fuel;
+        int tonnes = Refill(station, goods, pilot, ref fuel, tank, cash, out paid);
+        pilot.Ship.Fuel = fuel;
+        return tonnes;
+    }
+
     /// <summary>What the next one of an outfit costs at this station now.</summary>
     public static long OutfitPrice(StationRecord station, OutfitLine line) => Floored(station, line.Id, OutfitPrice(line, station.Stock.GetValueOrDefault(line.Id)));
 

@@ -119,6 +119,10 @@ Heads have a price whoever wears them: `OrganisationRecord.Bounties` is by actor
 
 **Fights nobody sees.** `People.Meetings` finds who comes across whom on the ways by what the records say (a grid for each sector). Where no player is, `CargoView` runs the sector for the fight (`SectorHost.Prepare`: read and made on other threads, nothing drawn; at most `MostFights` at once), with real ships that act as they would anywhere, and lets it go when it is over.
 
+## Fuel
+
+Flying on the engine costs nothing. The cruise generator burns hydrogen (`GeneratorSpec.FuelPerHour`) from the ship's tank (`ShipSpec.FuelTank`, none: a ship that needs no fuel), the same for everyone. With the tank dry it drops out and won't start: a ship flies on on its engine, slowly. A pilot fills up at a market's kiosk, docked; a ship on a record fills up where it stands and burns what its way takes (`CargoShips.Fuelled`), and without enough it waits. A player's fuel is in their ship's record; a guest's machine tells the host what it burnt. The hold's registers show the tank.
+
 ## Markets
 
 A station's market (`StationMarket`, beside its radio in the station's scene) deals in the goods listed on it

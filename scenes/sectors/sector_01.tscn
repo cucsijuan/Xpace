@@ -16,6 +16,7 @@
 [ext_resource type="Resource" path="res://assets/goods/water.tres" id="good_water"]
 [ext_resource type="Resource" path="res://assets/goods/food.tres" id="good_food"]
 [ext_resource type="Resource" path="res://assets/goods/medicines.tres" id="good_medicines"]
+[ext_resource type="Resource" path="res://assets/goods/hydrogen.tres" id="good_hydrogen"]
 [ext_resource type="Resource" path="res://assets/goods/energy.tres" id="good_energy"]
 [ext_resource type="Resource" path="res://assets/recipes/solar.tres" id="recipe_solar"]
 [ext_resource type="Resource" path="res://assets/recipes/chips.tres" id="recipe_chips"]
@@ -154,6 +155,12 @@ Good = ExtResource("good_medicines")
 Stock = 10
 Uses = 0.5
 
+[sub_resource type="Resource" id="Quartz_hydrogen"]
+script = ExtResource("quartz_market_good")
+Good = ExtResource("good_hydrogen")
+Stock = 60
+Uses = 1.0
+
 [sub_resource type="Resource" id="Quartz_energy"]
 script = ExtResource("quartz_market_good")
 Good = ExtResource("good_energy")
@@ -250,7 +257,7 @@ OwnedBy = ExtResource("owner_quartz_works")
 [node name="Market" parent="Quartz"]
 Fleet = Array[ExtResource("fleet_line")]([SubResource("fleet_Quartz"), SubResource("fleet_Quartz_escort")])
 UpkeepPerHour = 400.0
-Goods = Array[ExtResource("quartz_market_good")]([SubResource("Quartz_silicon"), SubResource("Quartz_copper"), SubResource("Quartz_chips"), SubResource("Quartz_water"), SubResource("Quartz_food"), SubResource("Quartz_medicines"), SubResource("Quartz_energy")])
+Goods = Array[ExtResource("quartz_market_good")]([SubResource("Quartz_silicon"), SubResource("Quartz_copper"), SubResource("Quartz_chips"), SubResource("Quartz_water"), SubResource("Quartz_food"), SubResource("Quartz_medicines"), SubResource("Quartz_energy"), SubResource("Quartz_hydrogen")])
 Factories = Array[ExtResource("quartz_factory_line")]([SubResource("Quartz_works_solar"), SubResource("Quartz_works_chips")])
 
 [node name="Projectiles" type="MultiMeshInstance3D" parent="." unique_id=1887929994]

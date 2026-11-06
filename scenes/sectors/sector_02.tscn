@@ -231,6 +231,12 @@ script = ExtResource("factory_line")
 Recipe = ExtResource("recipe_water")
 PerHour = 150.0
 
+[sub_resource type="Resource" id="Kestrel_hydrogen"]
+script = ExtResource("drydock_market_good")
+Good = ExtResource("good_hydrogen")
+Stock = 60
+Uses = 1.0
+
 [sub_resource type="Resource" id="Kestrel_energy"]
 script = ExtResource("drydock_market_good")
 Good = ExtResource("good_energy")
@@ -325,7 +331,7 @@ OwnedBy = ExtResource("owner_kestrel")
 [node name="Market" parent="Kestrel"]
 Fleet = Array[ExtResource("fleet_line")]([SubResource("fleet_Kestrel"), SubResource("fleet_Kestrel_escort")])
 UpkeepPerHour = 6000.0
-Goods = Array[ExtResource("drydock_market_good")]([SubResource("Kestrel_ore"), SubResource("Kestrel_iron"), SubResource("Kestrel_metals"), SubResource("Kestrel_silicon"), SubResource("Kestrel_copper"), SubResource("Kestrel_water"), SubResource("Kestrel_food"), SubResource("Kestrel_medicines"), SubResource("Kestrel_energy")])
+Goods = Array[ExtResource("drydock_market_good")]([SubResource("Kestrel_ore"), SubResource("Kestrel_iron"), SubResource("Kestrel_metals"), SubResource("Kestrel_silicon"), SubResource("Kestrel_copper"), SubResource("Kestrel_water"), SubResource("Kestrel_food"), SubResource("Kestrel_medicines"), SubResource("Kestrel_energy"), SubResource("Kestrel_hydrogen")])
 Factories = Array[ExtResource("factory_line")]([SubResource("Kestrel_works_solar"), SubResource("Kestrel_works_water"), SubResource("Kestrel_works_ore"), SubResource("Kestrel_works_iron"), SubResource("Kestrel_works_metals"), SubResource("Kestrel_works_silicon"), SubResource("Kestrel_works_copper")])
 
 [node name="Projectiles" type="MultiMeshInstance3D" parent="." unique_id=1887929994]

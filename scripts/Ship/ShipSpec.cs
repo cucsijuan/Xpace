@@ -69,6 +69,8 @@ public partial class ShipSpec : Resource
     /// rails (<see cref="PylonSpec"/>): how many it can carry in all is how many rails its pylons have.
     /// </summary>
     [Export] public int MissileRack = 4;
+    /// <summary>Hydrogen its tank holds for the cruise generator, tonnes (none: a ship that needs no fuel).</summary>
+    [Export] public float FuelTank;
     /// <summary>The missile models a new ship comes loaded with (<see cref="MissileRack"/> of each).</summary>
     [Export] public Xpace.Space.MissileSpec[] FactoryMissiles = System.Array.Empty<Xpace.Space.MissileSpec>();
     /// <summary>The countermeasures dispenser it comes with: how much chaff and how many flares it holds.</summary>

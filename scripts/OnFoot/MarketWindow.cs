@@ -156,9 +156,18 @@ public partial class MarketWindow : CanvasLayer, IKioskWindow
     {
         foreach (Node n in _factor.GetChildren())
             n.QueueFree();
-        _factor.Visible = view.Elsewhere.Count > 0 || view.Sales.Count > 0;
+        _factor.Visible = view.Tank > 0 || view.Elsewhere.Count > 0 || view.Sales.Count > 0;
         if (!_factor.Visible)
             return;
+        if (view.Tank > 0)
+        {
+            _factor.AddChild(new Label { Text = "Fuel" });
+            _factor.AddChild(new Label { Text = $"{view.Fuel:0.0} / {view.Tank:0.0} t" });
+            _factor.AddChild(Number(view.FuelPrice < 0 ? "-" : view.FuelPrice.ToString("N0")));
+            var refuel = new Button { Text = "Refuel", Disabled = !view.Docked || view.FuelPrice < 0 || view.Fuel >= view.Tank, FocusMode = Control.FocusModeEnum.None };
+            refuel.Pressed += () => Ask(MarketRequest.Refuel, null, 0);
+            _factor.AddChild(refuel);
+        }
         if (view.Sales.Count > 0)
             foreach (string head in new[] { "Stations for sale", "Seller", "Price", "" })
                 _factor.AddChild(new Label { Text = head, ThemeTypeVariation = "HeaderSmall" });

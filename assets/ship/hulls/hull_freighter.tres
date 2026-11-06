@@ -24,3 +24,4 @@ Fitting = Dictionary[String, Resource]({
 })
 Exterior = ExtResource("5_exterior")
 Inertia = Vector3(2418233.5, 4388891, 2511889.3)
+FuelTank = 8

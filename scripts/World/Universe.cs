@@ -138,6 +138,15 @@ public partial class Universe : Node
         Book ??= StationBook.Read(map);
         CargoShips.Muster(State, Book, Account);
         Populate(map);
+        Answer(FuelTopic, (pilot, text) =>
+        {
+            if (double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out double burnt) && burnt > 0 && State.Pilot(pilot) is { } record)
+            {
+                double tank = (ResourceLoader.Exists(record.Ship.Hull) ? GD.Load<Xpace.Ship.ShipSpec>(record.Ship.Hull)?.FuelTank : 0) ?? 0;
+                record.Ship.Fuel = Math.Max(0, (record.Ship.Fuel < 0 ? tank : record.Ship.Fuel) - burnt);
+            }
+            return null;
+        });
         Answer(JettisonTopic, (pilot, _) =>
         {
             if (ShipOf(pilot) is Node3D ship && State.Pilot(pilot) is { } record && record.Ship.Cargo.Count > 0)
@@ -354,10 +363,11 @@ public partial class Universe : Node
     /// <summary>A player's ship blew up (here or on its owner's machine): its cargo went with it, and the insurer's new ship comes loaded.</summary>
     public void Lose(Node3D ship)
     {
-        if (PilotOf(ship) is PilotRecord pilot && (pilot.Ship.Cargo.Count > 0 || pilot.Ship.Magazine.Count > 0))
+        if (PilotOf(ship) is PilotRecord pilot)
         {
             Spill(ship, pilot);
             pilot.Ship.Magazine.Clear();
+            pilot.Ship.Fuel = -1;
             Touch(pilot);
         }
     }
@@ -374,7 +384,24 @@ public partial class Universe : Node
         }
     }
 
-    public const string JettisonTopic = "jettison";
+    public const string JettisonTopic = "jettison", FuelTopic = "fuel";
+
+    /// <summary>A guest's pilot burnt fuel: the host hears of it now and then, and keeps the record.</summary>
+    public void Burnt(double tonnes)
+    {
+        if (!IsGuest)
+            return;
+        _burnt += tonnes;
+        if (Time.GetTicksMsec() - _burntSent < FuelReportMilliseconds)
+            return;
+        _burntSent = Time.GetTicksMsec();
+        Ask(FuelTopic, _burnt.ToString("R", System.Globalization.CultureInfo.InvariantCulture));
+        _burnt = 0;
+    }
+
+    private const ulong FuelReportMilliseconds = 2000;
+    private double _burnt;
+    private ulong _burntSent;
 
     private void Spill(Node3D ship, PilotRecord pilot)
     {

@@ -22,6 +22,8 @@ public partial class GeneratorSpec : Resource
 
     /// <summary>What it draws from the engines capacitor at full throttle, if the ship has a power plant (MW).</summary>
     [Export] public float Megawatts = 6f;
+    /// <summary>Hydrogen it burns in cruise, tonnes an hour. Flying on the engine costs none.</summary>
+    [Export] public float FuelPerHour = 8f;
 
     [ExportGroup("Against an interdictor")]
     /// <summary>Seconds it can bear a medium thicker than <see cref="Thinning"/> from a beam before it drops out.</summary>

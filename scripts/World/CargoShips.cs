@@ -473,6 +473,11 @@ public static class CargoShips
         if (to == null || book.Find(ship.At) is not StationBook.Station from)
             return;
         IAccount money = account(ship.Owner);
+        if (!Fuelled(ship, model, from, to, state, book, account))
+        {
+            ship.NextLook = state.Clock + model.WaitSeconds;
+            return;
+        }
         PayTolls(from, to, money, book, account);
         if (Xpace.Space.StationRadio.Called(from.Id) is Xpace.Space.StationRadio radio)
             radio.Traffic(Sign(ship), radio.TrafficLaunchAskText, radio.TrafficLaunchAskSpeech, radio.TrafficLaunchText, radio.TrafficLaunchSpeech);
@@ -500,6 +505,23 @@ public static class CargoShips
             escort.State = CargoShipRecord.Escorting;
             Depart(escort, guard, to, state, book, account);
         }
+    }
+
+    // It fills up where it stands, by the same rules as a pilot, and burns what the way takes in cruise: without enough it stays
+    private static bool Fuelled(CargoShipRecord ship, ShipModel model, StationBook.Station from, StationBook.Station to, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        double tank = model.Hull.FuelTank;
+        if (tank <= 0 || model.Generator == null)
+            return true;
+        double fuel = ship.Fuel < 0 ? tank : ship.Fuel;
+        double need = book.Seconds(from, to, model, ship.Tonnes) * model.Generator.FuelPerHour / 3600;
+        if (fuel < tank && account(ship.Owner) is IAccount money)
+            Market.Refill(Bring(state, from, account), from.Goods, money, ref fuel, tank, account(OwnerOf(state, from)), out _);
+        ship.Fuel = fuel;
+        if (fuel < need)
+            return false;
+        ship.Fuel = fuel - need;
+        return true;
     }
 
     // An escort of the ship's owner standing by where it is, its own first

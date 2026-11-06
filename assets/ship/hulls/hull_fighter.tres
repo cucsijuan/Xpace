@@ -29,3 +29,4 @@ Fitting = Dictionary[String, Resource]({
 "WingRight": ExtResource("8_pylon")
 })
 FactoryMissiles = Array[ExtResource("11_mspec")]([ExtResource("9_msl"), ExtResource("10_ir")])
+FuelTank = 3

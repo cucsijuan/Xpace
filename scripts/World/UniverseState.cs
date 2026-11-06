@@ -145,6 +145,8 @@ public sealed class CargoShipRecord
     public int Tonnes { get; set; }
     /// <summary>What is fitted on it, if other than what its hull comes with: hardpoint name to the piece's resource path.</summary>
     public Dictionary<string, string> Fittings { get; set; } = new();
+    /// <summary>Hydrogen in its tank, tonnes (below 0: full, as a new ship comes).</summary>
+    public double Fuel { get; set; } = -1;
     /// <summary>What it took out of space, by good: stolen, to sell off.</summary>
     public Dictionary<string, int> Loot { get; set; } = new();
     /// <summary>Tonnes it has brought home in all.</summary>
@@ -319,6 +321,9 @@ public sealed class ShipRecord
     /// has what the factory gave the ship: a new ship comes loaded.
     /// </summary>
     public Dictionary<string, int> Magazine { get; set; } = new();
+
+    /// <summary>Hydrogen in the tank, tonnes (below 0: full, as a new ship comes).</summary>
+    public double Fuel { get; set; } = -1;
 
     /// <summary>
     /// What is mounted on its hardpoints where it differs from the factory's (<see cref="Xpace.Ship.ShipSpec.Fitting"/>):
