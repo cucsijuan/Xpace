@@ -6,3 +6,4 @@
 script = ExtResource("1_good")
 Name = "Water"
 BasePrice = 30
+Use = 1

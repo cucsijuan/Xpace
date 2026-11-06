@@ -6,3 +6,4 @@
 script = ExtResource("1_good")
 Name = "Food"
 BasePrice = 120
+Use = 1

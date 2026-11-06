@@ -60,9 +60,9 @@ public static class Market
         for (int i = 0; i < steps; i++)
         {
             double step = hours / steps;
-            // With what its people need run out, or an owner who can't pay for the place, nobody works: what is in stock
-            // can still be sold, and it starts again by itself when both are put right
-            station.Idle = goods.Any(g => g?.Good != null && g.Uses > 0 && station.Stock[g.Good.Id] <= 0) || cash != null && cash.Credits < upkeep * step;
+            // Without workforce or energy, or with an owner who can't pay for the place, nothing is made: what is in stock
+            // can still be sold, and it starts again by itself when all is put right
+            station.Idle = goods.Any(g => g?.Good != null && g.Uses > 0 && g.Good.Use != GoodUse.Production && station.Stock[g.Good.Id] <= 0) || cash != null && cash.Credits < upkeep * step;
             if (!station.Idle)
                 foreach (FactoryLine line in factories ?? Array.Empty<FactoryLine>())
                     Run(station, line, most, step);

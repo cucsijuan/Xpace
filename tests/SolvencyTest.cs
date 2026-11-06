@@ -58,6 +58,8 @@ public partial class SolvencyTest : Node
         Landless();
         Disk();
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
+        GC.Collect();
+        GC.WaitForPendingFinalizers();
         GetTree().Quit(_failures == 0 ? 0 : 1);
     }
 
@@ -102,11 +104,24 @@ public partial class SolvencyTest : Node
         station.Stock[food.Good.Id] = 0;
         before = station.Stock[ore.Good.Id];
         Market.Advance(station, goods, 10800, null, factories, pilot, 100);
-        Check("with its people short of what they need, it makes nothing, money or not", station.Idle && station.Stock[ore.Good.Id] <= before);
+        Check("with its people short of what they need it makes nothing, money or not", station.Idle && station.Stock[ore.Good.Id] <= before);
         station.Stock[food.Good.Id] = 100;
         before = station.Stock[ore.Good.Id];
         Market.Advance(station, goods, 14400, null, factories, pilot, 100);
         Check("both put right, it goes back to work by itself", !station.Idle && station.Stock[ore.Good.Id] > before);
+
+        var metals = new MarketGood { Good = GD.Load<Good>("res://assets/goods/metals.tres"), Stock = 100, Uses = 1 };
+        var material = new StationRecord { Id = "MATERIAL" };
+        Market.Advance(material, new[] { metals }, 0);
+        material.Stock[metals.Good.Id] = 0;
+        Market.Advance(material, new[] { metals }, 3600);
+        Check("a material running out doesn't stop a base", !material.Idle);
+        var fuel = new MarketGood { Good = GD.Load<Good>("res://assets/goods/energy.tres"), Stock = 100, Uses = 1 };
+        var power = new StationRecord { Id = "POWER" };
+        Market.Advance(power, new[] { fuel }, 0);
+        power.Stock[fuel.Good.Id] = 0;
+        Market.Advance(power, new[] { fuel }, 3600);
+        Check("without energy it stops", power.Idle);
     }
 
     private void Selling()

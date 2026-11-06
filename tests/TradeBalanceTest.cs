@@ -242,7 +242,7 @@ public partial class TradeBalanceTest : Node
         // At any stock, a tonne bought and sold straight back loses
         bool safe = true;
         foreach (End end in new[] { _a, _b })
-            foreach (MarketGood line in end.Goods)
+            foreach (MarketGood line in end.Goods.Where(g => g.Good.Traded))
                 for (double stock = 1; stock <= Market.Full * line.Stock; stock += 1)
                 {
                     long buy = Market.BuyPrice(line, stock);
@@ -445,7 +445,7 @@ public partial class TradeBalanceTest : Node
     private static long Toll(End from, End to) => from.Gate == to.Gate ? 0 : from.Toll;
 
     private IEnumerable<string> Goods() =>
-        _a.Goods.Select(g => g.Good.Id).Union(_b.Goods.Select(g => g.Good.Id)).Where(g => Line(_a, g) != null && Line(_b, g) != null);
+        _a.Goods.Select(g => g.Good.Id).Union(_b.Goods.Select(g => g.Good.Id)).Where(g => Line(_a, g) is { Good.Traded: true } && Line(_b, g) != null);
 
     private static MarketGood Line(End end, string good) => end.Goods.FirstOrDefault(g => g.Good.Id == good);
 

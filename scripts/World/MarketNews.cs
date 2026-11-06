@@ -30,7 +30,7 @@ public static class MarketNews
     public static StationNews Report(StationBook.Station station, StationRecord record, double clock)
     {
         var news = new StationNews { AsOf = clock };
-        foreach (MarketGood line in station.Goods)
+        foreach (MarketGood line in station.Goods.Where(g => g.Good.Traded))
         {
             double stock = record.Stock.GetValueOrDefault(line.Good.Id);
             news.Goods[line.Good.Id] = new GoodNews { Stock = stock, Buy = Market.BuyPrice(record, line), Sell = Market.SellPrice(line, stock) };

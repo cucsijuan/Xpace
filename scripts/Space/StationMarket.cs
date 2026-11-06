@@ -378,7 +378,7 @@ public partial class StationMarket : Node
                     {
                         Title = universe.NameOf(id), Name = line.Good.Name, Hours = (state.Clock - news.AsOf) / 3600, Stock = (int)good.Stock, Buy = good.Buy, Sell = good.Sell,
                     });
-        foreach (MarketGood line in Goods.Where(g => g?.Good != null))
+        foreach (MarketGood line in Goods.Where(g => g?.Good is { Traded: true }))
         {
             double stock = station.Stock.GetValueOrDefault(line.Good.Id);
             view.Lines.Add(new MarketLine

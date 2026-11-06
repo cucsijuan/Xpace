@@ -6,3 +6,4 @@
 script = ExtResource("1_good")
 Name = "Medicines"
 BasePrice = 1100
+Use = 1

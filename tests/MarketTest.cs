@@ -97,7 +97,7 @@ public partial class MarketTest : Node
             return;
         }
         Check($"the window shows the market ({window.View?.Lines.Count} goods, {window.View?.Credits} credits)",
-              window.View is { Docked: true } v && v.Lines.Count == market.Goods.Length && v.Credits == PilotRecord.StartingCredits);
+              window.View is { Docked: true } v && v.Lines.Count == market.Goods.Count(g => g.Good.Traded) && v.Credits == PilotRecord.StartingCredits);
         Shot("1_window");
 
         MarketLine food = window.View.Lines.First(l => l.Good == "food");
