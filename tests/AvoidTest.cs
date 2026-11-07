@@ -11,7 +11,9 @@ namespace Xpace.Tests;
 /// Ships crossing a thick rock field, counting the crashes: drones with no
 /// eyes for rocks, with a poor rock sensor (short, few rays) and with a
 /// good one, down the same lanes through the same rocks; then the raider,
-/// flown by its pilot through the computer, with no sensor and with one.
+/// flown by its pilot through the computer, with no sensor and with one;
+/// then the raider at a jump gate standing across its way, blind and with
+/// eyes for the gate's structure.
 /// A better sensor must make a measurable difference.
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/avoid_test.tscn
 /// Exits with 0 if every check passed.
@@ -54,6 +56,13 @@ public partial class AvoidTest : Node
         Check($"the raider's pilot steers round rocks it sees ({avoided} times)", avoided > 0);
         Check($"and crashes less with eyes ({eyedCrash} against {blindCrash})", eyedCrash < blindCrash);
         Check($"and gets across, slowly where the rocks are thick ({crossed} of 3)", crossed == 3);
+
+        // ---------- a gate's ring in the way ----------
+        var (blindLeft, _, blindSeconds) = await Gate(origin, false);
+        var (eyedLeft, past, eyedSeconds) = await Gate(origin, true);
+        GD.Print($"gate across its way: blind {blindLeft:0.00} of the hull left, with a sensor {eyedLeft:0.00} and {(past ? "past it" : "not past")} in {eyedSeconds:0} s");
+        Check("blind, the raider flies into a gate's ring and is wrecked", blindLeft == 0);
+        Check("with eyes it sees the ring's structure and goes round it, at most a scrape", eyedLeft > 0.95f && past);
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         System.GC.Collect();
@@ -143,6 +152,41 @@ public partial class AvoidTest : Node
             await Frames(1);
         }
         return (lost, crashes, avoided, crossed, crossed > 0 ? seconds / crossed : 0);
+    }
+
+    /// <summary>The raider flies at a jump gate set edge on across its way, aiming at the gate's middle: does it hit the ring, does it get past.</summary>
+    private async Task<(float Left, bool Past, double Seconds)> Gate(Node origin, bool eyes)
+    {
+        const float x = 8000, at = -1000;              // clear of the rocks
+        var gate = GD.Load<PackedScene>("res://scenes/gates/jump_gate.tscn").Instantiate<Node3D>();
+        gate.Name = "Gate";
+        gate.Position = new Vector3(x, 0, at);
+        gate.Rotation = new Vector3(0, Mathf.Pi / 2, 0);   // the ring stands in the way, not facing it
+        origin.AddChild(gate);
+        var raider = GD.Load<PackedScene>("res://scenes/ships/ai_fighter.tscn").Instantiate<ShipBody>();
+        raider.Name = "Raider";
+        raider.Position = new Vector3(x, 0, at + 3000);
+        if (!eyes)
+            raider.GetNode("RockSensor").Free();
+        origin.AddChild(raider);
+        var pilot = raider.GetNode<FighterAi>("Pilot");
+        var hull = raider.GetNode<ShipHull>("Hull");
+        hull.Insured = false;
+        pilot.RespectsZones = false;
+        pilot.PatrolRadius = 100;
+        pilot.Anchor = new Vector3(x, 0, at - 3000);
+        bool past = false;
+        int f = 0;
+        for (; f < 180 * 60 && !raider.Wrecked && !past; f++)
+        {
+            await Frames(1);
+            past = raider.GlobalPosition.Z < at - 1000;
+        }
+        float left = hull.Fraction;
+        raider.QueueFree();
+        gate.QueueFree();
+        await Frames(1);
+        return (left, past, f / 60.0);
     }
 
     private async Task Frames(int n)

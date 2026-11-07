@@ -4,7 +4,8 @@ using Godot;
 namespace Xpace.Space;
 
 /// <summary>
-/// A ship's eyes for rocks, and for the capsules round stations and other
+/// A ship's eyes for rocks, for the structures of stations and gates (their
+/// <see cref="Solid"/>s), and for the capsules round stations and other
 /// big things (<see cref="AvoidCapsule"/>): a lidar looking along the way
 /// it flies. Every
 /// <see cref="ScanSeconds"/> it sends a ray along its heading and rings of
@@ -12,7 +13,7 @@ namespace Xpace.Space;
 /// (<see cref="Clearance"/>), each out to <see cref="Range"/>, and learns
 /// how far each way is clear (<see cref="RockField.SegmentAll"/>,
 /// <see cref="AvoidCapsule.SegmentAll"/>). A pilot going into a station
-/// sets <see cref="Entering"/> to it: its capsules are no longer seen.
+/// sets <see cref="Entering"/> to it: its capsules and solids are no longer seen.
 ///
 /// <see cref="Steer"/> turns that into a way to go: the way its pilot
 /// wants while that is clear far enough, else the clear ray nearest it,
@@ -36,7 +37,7 @@ public partial class RockSensor : Node3D
     /// <summary>The ship's half width and then some: a ray is clear only if something this far round it gets through (m).</summary>
     [Export] public float Clearance = 12f;
 
-    /// <summary>What the ship means to go into (a station): the capsules below it are not seen.</summary>
+    /// <summary>What the ship means to go into (a station): the capsules and solids below it are not seen.</summary>
     public Node Entering;
 
     /// <summary>The rays of the last scan (world directions) and how far each was clear.</summary>
@@ -47,7 +48,7 @@ public partial class RockSensor : Node3D
     /// <summary>How far ahead in time it minds ships that close on it (s): a ship coming fast is minded from farther off.</summary>
     [Export] public float ShipSeconds = 5f;
 
-    /// <summary>The last scan saw rocks or capsules, not just ships.</summary>
+    /// <summary>The last scan saw rocks, solids or capsules, not just ships.</summary>
     public bool RocksNear { get; private set; }
 
     /// <summary>Steering round a rock, this step.</summary>
@@ -101,6 +102,8 @@ public partial class RockSensor : Node3D
             float rock = RockField.SegmentAll(GetWorld3D(), from, to, out float t, out _, Clearance) ? t : 1;
             if (AvoidCapsule.SegmentAll(GetWorld3D(), from, to, out float c, Clearance, Entering))
                 rock = MathF.Min(rock, c);
+            if (Solid.Seen(GetWorld3D(), from, to, out float wall, Entering))
+                rock = MathF.Min(rock, MathF.Max(0, wall - Clearance / Range));     // its edge, the ship's half width short of it
             RocksNear |= rock < 0.99f;
             Clear[i] = MathF.Min(rock * Range, ShipAlong(from, Rays[i], speed));
         }

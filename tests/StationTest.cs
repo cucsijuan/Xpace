@@ -137,7 +137,10 @@ public partial class StationTest : Node
         world.AddChild(inside);
         await Frames(1);
         inside.Look(-station.GlobalBasis.Y, 1);
-        Check($"a lidar inside a capsule sees the way out clear ({inside.Clear[0]:0} m)", inside.Clear[0] >= inside.Range);
+        // From inside, the capsule isn't there to see: only the station's own structure, where there is some
+        Vector3 outEnd = inside.GlobalPosition - station.GlobalBasis.Y.Normalized() * inside.Range;
+        float structure = Solid.Seen(inside.GetWorld3D(), inside.GlobalPosition, outEnd, out float met) ? Mathf.Max(0, met * inside.Range - inside.Clearance) : inside.Range;
+        Check($"a lidar inside a capsule doesn't see the capsule ({inside.Clear[0]:0} m clear, the structure at {structure:0} m)", inside.Clear[0] >= structure - 1);
 
         System.GC.Collect();
         System.GC.WaitForPendingFinalizers();

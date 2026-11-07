@@ -264,6 +264,31 @@ public partial class Solid : Node3D
         return false;
     }
 
+    /// <summary>
+    /// Where a long segment (a lidar's ray) first meets any solid of the world, as a share of the way: each solid tried
+    /// first against the sphere that holds it. Solids under <paramref name="except"/> (a station a ship is going into)
+    /// are not seen.
+    /// </summary>
+    public static bool Seen(World3D world, Vector3 from, Vector3 to, out float along, Node except = null)
+    {
+        along = 1;
+        bool hit = false;
+        Vector3 d = to - from;
+        float length2 = d.LengthSquared();
+        foreach (Solid s in All)
+        {
+            if (s.World != world || except != null && except.IsAncestorOf(s))
+                continue;
+            Vector3 centre = s.Frame.Origin;
+            float t = length2 > 0 ? Mathf.Clamp((centre - from).Dot(d) / length2, 0, 1) : 0;
+            if ((from + d * t).DistanceTo(centre) > s.Reach || !s.Segment(from, to, out float a, out _) || a >= along)
+                continue;
+            along = a;
+            hit = true;
+        }
+        return hit;
+    }
+
     /// <summary>The nearest of every solid's <see cref="Segment"/>.</summary>
     public static bool SegmentAll(World3D world, Vector3 from, Vector3 to, out float along, out Vector3 normal)
     {

@@ -139,7 +139,7 @@ Solids do not yet block radar or seeker lines of sight. Rocks do.
 
 ## AvoidCapsule
 
-Every module has an `AvoidCapsule`: a rough shape round it that AI pilots' lidars (`RockSensor`) keep clear of, as they keep clear of rocks. The pilot steers round the capsule, not round every spar. The capsule is not solid.
+Every module has an `AvoidCapsule`: a rough shape round it that AI pilots' lidars (`RockSensor`) keep clear of, as they keep clear of rocks. The pilot steers round the capsule, not round every spar. The capsule is not solid. The lidar also sees the structures themselves (every `Solid`: a station's modules, a gate's rings), so something with no capsule, such as a gate a ship has to be able to fly through, is still seen; going into a station (`RockSensor.Entering`) it sees neither that station's capsules nor its solids.
 
 | Field | Meaning |
 |---|---|
