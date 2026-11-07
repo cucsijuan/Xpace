@@ -13,7 +13,7 @@ namespace Xpace.Tests;
 /// A pirate doesn't know what a ship carries until its scanner has read it. Runs with real ships where no player
 /// is: an empty freighter is followed, read and let go, and remembered; a loaded one is read and then fired on. No shot
 /// is fired before the reading ends. Then one met in cruise, on a long way: the pirate leaves its own way going as it
-/// went, catches up in cruise, and comes alongside to read it without ever running into it.
+/// went, catches up in cruise, and comes alongside to read it without ever running into it or pulling it out of cruise.
 ///
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/pirate_scan_test.tscn
 /// </summary>
@@ -90,8 +90,15 @@ public partial class PirateScanTest : Node
         void Crashed(float joules) => crashes++;
         raider.Impact += Crashed;
         prey.Impact += Crashed;
-        read = await Watch(attacker, raider, () => scanner.ResultOf == prey && scanner.Result != null, 150);
+        var interdictor = raider.Device<InterdictorDevice>();
+        bool pulled = false;
+        read = await Watch(attacker, raider, () =>
+        {
+            pulled |= interdictor.On;
+            return scanner.ResultOf == prey && scanner.Result != null;
+        }, 150);
         Check($"it catches up and reads it ({read:0} s): {scanner.Result?.Tonnes} t", scanner.ResultOf == prey && scanner.Result?.Tonnes == 10);
+        Check("without pulling it out of cruise only to look it over", !pulled);
         Check($"never running into it ({crashes} knocks)", crashes == 0);
         if (IsInstanceValid(raider))
             raider.Impact -= Crashed;

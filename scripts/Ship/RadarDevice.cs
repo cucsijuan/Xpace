@@ -348,6 +348,8 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
         _gateVelocity = Locked.Velocity;
         if (!Follow(0))
             Locked = null;
+        else
+            MeasureTrack(ship);                 // the new lock's own track from now on, not the last one's
     }
 
     /// <summary>
@@ -540,11 +542,18 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
         return axes.Inverse() * (seen - from);
     }
 
-    private unsafe void WriteTrack(ShipBody ship, byte* track)
+    // Measures the locked echoes into the track (from the track origin, in the ship's axes) and moves the gate there
+    private Vector3 MeasureTrack(ShipBody ship)
     {
         Vector3 p = Measure(_centroid, LockedSnr, _trackOrigin.GlobalPosition, ship.GlobalBasis);
         _track = Spot.At(this, _trackOrigin.GlobalPosition + ship.GlobalBasis * p);
         _gate = _track;                      // the gate goes where the echoes were measured
+        return p;
+    }
+
+    private unsafe void WriteTrack(ShipBody ship, byte* track)
+    {
+        Vector3 p = MeasureTrack(ship);
         Put(track, 0, Locked.RadarId);
         Put(track, 2, Clamp16(p.X * 4));
         Put(track, 4, Clamp16(p.Y * 4));

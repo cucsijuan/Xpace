@@ -12,7 +12,7 @@ namespace Xpace.Tests;
 /// <summary>
 /// A lock held close by, against a ship with its jammer on and off, and on a freighter on its way, flown after over
 /// several kilometres so that the world's origin moves under the tracker: how much of the time the radar keeps it,
-/// with FIRECTL at the buttons.
+/// with FIRECTL at the buttons. Every new lock's track is on its ship from its first step.
 ///
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/close_lock_test.tscn
 /// </summary>
@@ -24,6 +24,9 @@ public partial class CloseLockTest : Node
     private bool _press;
     private Vector3 _at, _velocity;
     private float _range, _jink, _clock;
+    private bool _wasLocked;
+    private float _newLockOff;
+    private int _newLocks;
 
     public override async void _Ready()
     {
@@ -51,6 +54,8 @@ public partial class CloseLockTest : Node
                         GD.Print($"{range,6:0} m  jammer {(jam ? "on " : "off")}  speed {speed,3:0}  jink {jink,2:0} m/s2  lock held {held * 100,3:0}%  snr {_radar.LockedSnr:0}");
                         Check($"held at {range:0} m, jammer {jam}, speed {speed}, jink {jink}", held > 0.9f);
                     }
+        GD.Print($"{_newLocks} new locks, the track at most {_newLockOff:0.0} m off the ship the step each began");
+        Check("a new lock's track is on its own ship from the step it begins, not where the last lock was", _newLocks >= 4 && _newLockOff < 50);
         await Freighter(main);
         GC.Collect();
         GC.WaitForPendingFinalizers();
@@ -139,6 +144,12 @@ public partial class CloseLockTest : Node
         for (int i = 0; i < Math.Max(1, seconds * 60); i++)
         {
             await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
+            if (_radar.Locked != null && !_wasLocked)
+            {
+                _newLocks++;
+                _newLockOff = MathF.Max(_newLockOff, _radar.TrackPosition.DistanceTo(_prey.GlobalPosition));
+            }
+            _wasLocked = _radar.Locked != null;
             _clock += 1f / 60;
             _at = _ship.GlobalPosition + _velocity / 60;
             Place();

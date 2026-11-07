@@ -761,7 +761,8 @@ public partial class FighterAi : Node
     // What it locked moves faster than it can follow on its engine: in cruise. Once on, the beam stays on it while the
     // lock holds, or it would only spool up again. The button in pulses until the interdictor is as it wants it. (The
     // speed is from the radar's track, as a pilot would read it: over a second or so, not a step, whose jitter alone
-    // can read as hundreds of metres a second.)
+    // can read as hundreds of metres a second.) A ship it is only looking over it follows, in cruise if need be: pulled
+    // out, it would brake harder than any radar's gate follows, and the lock and the reading would start again.
     private bool Interdicting()
     {
         if (_interdictor == null || _radar == null)
@@ -780,7 +781,8 @@ public partial class FighterAi : Node
             _trackSpeed = _interdictVelocity.Length();
         }
         bool settled = _trackSamples > 30;
-        bool want = tracking && settled && (_trackSpeed > EngineTop() * InterdictAboveShare || _interdictor.On);
+        bool looking = Engagement?.Holds(Space.Combat.ShipOf(_radar.Tracked)) == true;
+        bool want = tracking && settled && !looking && (_trackSpeed > EngineTop() * InterdictAboveShare || _interdictor.On);
         _interdictPulse = !_interdictPulse && want != _interdictor.On;
         return _interdictPulse;
     }
