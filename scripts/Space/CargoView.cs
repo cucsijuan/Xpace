@@ -52,6 +52,8 @@ public partial class CargoView : Node
 
     /// <summary>How many fights it runs at once where nobody is: each one is a sector running.</summary>
     [Export] public int MostFights = 2;
+    /// <summary>How long a pilot flies to where it saw a ship before it gives up finding it on the radar.</summary>
+    [Export] public double TurnSearchSeconds = 90;
 
     /// <summary>The ships shown now, by the record's id.</summary>
     public IReadOnlyDictionary<string, ShipBody> Shown => _shown;
@@ -141,15 +143,23 @@ public partial class CargoView : Node
         Look(attacker, universe, host);
         Look(victim, universe, host);
         if (_shown.TryGetValue(attacker.Id, out ShipBody ship) && _shown.TryGetValue(victim.Id, out ShipBody prey))
-            Turn(attacker, ship, prey);
+        {
+            PersonRecord person = universe.State.People.GetValueOrDefault(attacker.Owner);
+            bool looks = person?.Livelihood == nameof(Livelihood.Pirate) && person.Quarry != victim.Owner;
+            Turn(attacker, ship, prey, looks);
+        }
     }
 
     // Off its way, its pilot flying it, after that ship
-    private void Turn(CargoShipRecord record, ShipBody ship, Node3D at)
+    private void Turn(CargoShipRecord record, ShipBody ship, Node3D at, bool looks = false)
     {
         if (!_duties.TryGetValue(record.Id, out EscortDuty duty))
             return;
-        duty.Add(at);
+        if (looks)
+            duty.Inspect(at);
+        else
+            duty.Add(at);
+        ship.Find<FighterAi>()?.SeenAt(at.GlobalPosition, (at as ShipBody)?.LinearVelocity ?? Vector3.Zero, TurnSearchSeconds);
         _fights.Add(record.Id);
         record.Phase = CargoShipRecord.Loose;
         _dealt[record.Id] = double.MaxValue;
@@ -241,8 +251,11 @@ public partial class CargoView : Node
                         Forget(ship, duty);
                     else
                         Run(ship, duty);
-                    if (universe.State.People.GetValueOrDefault(record.Owner)?.Livelihood == nameof(Livelihood.Pirate))
+                    if (universe.State.People.GetValueOrDefault(record.Owner) is PersonRecord { Livelihood: nameof(Livelihood.Pirate) } pirate)
+                    {
+                        LookOver(pirate, ship, duty, universe);
                         Plunder(record, model, ship, duty, universe);
+                    }
                 }
                 if (!duty.Over(LookEverySeconds, StandDownSeconds))
                     return;
@@ -283,6 +296,33 @@ public partial class CargoView : Node
 
     // What a pirate came for is the cargo: with some drifting near it stops fighting and goes for that, and with
     // nothing in what it attacked there is nothing to stay for
+    // A pirate reads a ship's hold before it fires: its radar on it for as long as its scanner takes. What isn't worth it
+    // it leaves alone, and remembers
+    private void LookOver(PersonRecord pirate, ShipBody ship, EscortDuty duty, Universe universe)
+    {
+        if (duty.Inspecting is not Node3D target)
+            return;
+        if (ship.Device<ScannerDevice>() is not ScannerDevice scanner)
+        {
+            duty.Inspected(target);
+            return;
+        }
+        if (scanner.ResultOf != target || scanner.Result == null)
+        {
+            if (!scanner.Scanning)
+                scanner.Start();
+            return;
+        }
+        if (scanner.Result.Tonnes >= (pirate.Personality?.PrizeTonnes ?? 1))
+        {
+            duty.Inspected(target);
+            return;
+        }
+        duty.Forget(target);
+        if (_shown.FirstOrDefault(kv => kv.Value == target).Key is string id)
+            Memories.Note(pirate, id, Memories.NothingAboard, 0.1, universe.State.Clock);
+    }
+
     private void Plunder(CargoShipRecord record, ShipModel model, ShipBody ship, EscortDuty duty, Universe universe)
     {
         if (ship.Find<FighterAi>() is not FighterAi pilot)
@@ -308,7 +348,7 @@ public partial class CargoView : Node
             }
             return;
         }
-        foreach (Node3D other in duty.Attackers.ToList())
+        foreach (Node3D other in duty.Attackers.Where(a => !duty.Holds(a)).ToList())
             if (_shown.FirstOrDefault(kv => kv.Value == other).Key is string id && universe.State.CargoShips.GetValueOrDefault(id)?.Tonnes == 0)
                 duty.Forget(other);
     }

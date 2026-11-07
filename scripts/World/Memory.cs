@@ -30,7 +30,7 @@ public interface IRemembers
 /// </summary>
 public static class Memories
 {
-    public const string HitMe = "hit me", KilledMine = "destroyed my ship", HitMine = "hit my ship";
+    public const string HitMe = "hit me", KilledMine = "destroyed my ship", HitMine = "hit my ship", NothingAboard = "nothing aboard";
 
     /// <summary>Keeps something that happened. With no room left, what matters least now goes.</summary>
     public static void Note(IRemembers who, string about, string what, double weight, double clock, string sector = "", double fadeHours = 48)
@@ -41,6 +41,10 @@ public static class Memories
         while (who.Memories.Count > Math.Max(1, who.MemoryRoom))
             who.Memories.Remove(who.Memories.OrderBy(m => Math.Abs(Faded(m, clock, fadeHours))).First());
     }
+
+    /// <summary>It has that memory of an actor, no older than that.</summary>
+    public static bool Knows(IRemembers who, string about, string what, double clock, double seconds) =>
+        who?.Memories.Any(m => m.About == about && m.What == what && clock - m.Clock <= seconds) ?? false;
 
     /// <summary>What it feels about an actor now: below 0 a grudge, above 0 goodwill.</summary>
     public static double Feeling(IRemembers who, string about, double clock, double fadeHours = 48) =>

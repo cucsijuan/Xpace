@@ -49,6 +49,7 @@ public partial class CruiseTest : Node
 
         Check("the software is running", await Until(() => _ship.Computer.ScreenText().Contains("Comm") || radio.Contacts.Count > 1, 90));
         await Seconds(25);
+        await Desk.OpenComms(this, display);
         Check("the gate is heard across the sector", radio.Contacts.Contains(gate.Radio));
 
         // Too near the station to thin anything
@@ -181,7 +182,7 @@ public partial class CruiseTest : Node
         Check("and off", !interdictor.On);
         var hunter = GD.Load<PackedScene>("res://scenes/ships/ai_fighter.tscn").Instantiate<ShipBody>();
         hunter.GetNode("Pilot").ProcessMode = ProcessModeEnum.Disabled;
-        hunter.AddChild(new InterdictorDevice { Name = "Interdictor", Wander = 0, Quiver = 0, Centre = 0 });
+        hunter.GetNode<InterdictorDevice>("Weapons/Interdictor").Spec = new InterdictorSpec { Wander = 0, Quiver = 0, Centre = 0 };
         _main.Sector.AddChild(hunter);
         Point(open, open + new Vector3(1000, 0, 1000), 0);
         _controls.Throttle = 1;

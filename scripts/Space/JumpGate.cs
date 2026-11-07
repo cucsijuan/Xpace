@@ -130,7 +130,7 @@ public partial class JumpGate : Node3D
         ship.GlobalTransform = pose;
         ship.LinearVelocity = Vector3.Zero;
         ship.AngularVelocity = Vector3.Zero;
-        ship.Holder = new GateTransit(pose, outward * velocity, outward * spin, TransitSeconds, tunnel);
+        ship.Holder = new GateTransit(ship, pose, outward * velocity, outward * spin, TransitSeconds, tunnel);
     }
 }
 
@@ -140,14 +140,16 @@ public partial class JumpGate : Node3D
 /// </summary>
 public sealed class GateTransit : IShipHold
 {
-    private readonly Transform3D _pose;
+    private readonly Spot _at;
+    private readonly Quaternion _facing;
     private readonly Vector3 _velocity, _spin;
     private readonly Node3D _tunnel;
     private double _left;
 
-    public GateTransit(Transform3D pose, Vector3 velocity, Vector3 spin, double seconds, Node3D tunnel)
+    public GateTransit(ShipBody ship, Transform3D pose, Vector3 velocity, Vector3 spin, double seconds, Node3D tunnel)
     {
-        _pose = pose;
+        _at = Spot.At(ship, pose.Origin);
+        _facing = pose.Basis.GetRotationQuaternion();
         _velocity = velocity;
         _spin = spin;
         _left = seconds;
@@ -163,7 +165,7 @@ public sealed class GateTransit : IShipHold
     public ShipState Hold(ShipBody ship, double delta)
     {
         _left -= delta;
-        var state = new ShipState { Position = _pose.Origin, Orientation = _pose.Basis.GetRotationQuaternion() };
+        var state = new ShipState { Position = _at.World, Orientation = _facing };
         if (_left > 0)
             return state;
         ship.Holder = null;

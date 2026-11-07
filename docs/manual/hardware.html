@@ -231,8 +231,9 @@ pre.listing.full { font-size: 7.3pt; line-height: 1.16; }
 <tr><td>17</td><td>210h</td><td>19</td><td>Cargo hold</td></tr>
 <tr><td>18</td><td>220h</td><td>20</td><td>Cruise generator</td></tr>
 <tr><td>19</td><td>230h</td><td>21</td><td>Interdictor</td></tr>
+<tr><td>20</td><td>240h</td><td>22</td><td>Cargo scanner</td></tr>
 </table>
-<p>Slots 20 to 31 are free for devices still to come.</p>
+<p>Slots 21 to 31 are free for devices still to come.</p>
 <p>Not every ship has every device: a ship may have a laser and no turret, or no jammer. Before a program uses a device, it reads the device's type register and checks it. A program that writes to an empty slot does nothing; one that reads from it reads zeros, which may be taken for real readings.</p>
 <pre class="listing">    mov dx, 1D0h            ; a heat sink launcher?
     in al, dx
@@ -762,6 +763,18 @@ COOL resident.
 <tr><td>+7</td><td>The pilot's interdictor button</td></tr>
 </table>
 
+<h2 class="cmd">Cargo Scanner<span>240h &middot; type 22</span></h2>
+<p>Reads the hold of the ship the radar has locked. The lock must stay on that ship for the scanner's whole reading time (15 seconds on the CS-1, 8 on the CS-2), within its range: a lock lost, or pulled off by a deceiving jammer, starts it over. It draws on the systems capacitor, and with too little power it takes longer. Scanning a ship is no crime.</p>
+<table class="ref">
+<tr><th>Register</th><th>Contents</th></tr>
+<tr><td>+2</td><td>Status: bit 0 reading, bit 1 a reading is in the window, bit 2 a ship locked, bit 3 the last reading was broken off, bit 4 out of range</td></tr>
+<tr><td>+3</td><td>Progress, 0 to 255</td></tr>
+<tr><td>+4</td><td>Write 1 to start, 0 to stop</td></tr>
+<tr><td>+6</td><td>Seconds left (word)</td></tr>
+<tr><td>+8, +10</td><td>Segment and offset of the window</td></tr>
+</table>
+<p>The window: +0 the ship's callsign (8 characters), +8 its capacity in tonnes, +10 what it carries, +12 the kinds of good, +16 up to eight entries laid out as the hold's list.</p>
+
 <h2 class="cmd">Display Card<span>150h &middot; type 6</span></h2>
 <p>The cockpit's screens, other than the computer's console, with their memory in segment D000h. Each screen has a name (RADAR, WEAPON, RWR, FLIGHT), a size and a mode; a program finds the screen it draws on by its name, in the screen table. A cockpit may have more screens or fewer: a program that finds no screen of its name works the same, unseen. Version 4.</p>
 <table class="ref">
@@ -814,8 +827,15 @@ COOL resident.
 <p>Moves the power distributor's pips: a pip to systems, engines or weapons, from the others; evens them out; throws heat sinks.</p>
 <p>Buttons: systems, engines, weapons, even out, heat sink.</p>
 
+<h2 class="cmd">DESK<span>DeskPilot, the desktop</span></h2>
+<p>StubCorp DeskPilot owns the COMMS screen. It starts with its logo and tune, then shows each application's icon with its name beside it: UP and DOWN choose, SELECT opens, and the application has the screen until BACK returns to the desktop. It is written in Small-C, and the sources are on the diskette: DESK.C, TSR.H, FONT.H, ICONS.H and LOGO.H.</p>
+<p>An application is any resident program that keeps to TSR.H. It calls <code>join_desk</code> with a mark of its own, its name and a 32 by 32 icon of 2 bits a pixel, and draws only while the screen's lending byte (+9 in the card's table) holds its mark. The desktop writes the mark to open it; the application writes 0 to go back. Up to six can join. SCANNER.C is a short example, and the speaker on ports 42h, 43h and 61h is free for any program.</p>
+
+<h2 class="cmd">SCANNER<span>Cargo scanner</span></h2>
+<p>An application of the desktop, also in Small-C. With a ship locked on the radar, SELECT starts a reading and stops it. It shows the lock, how far the reading has gone, then the ship, what its hold carries and what it can carry. BACK returns to the desktop.</p>
+
 <h2 class="cmd">COMMS<span>Radio contacts</span></h2>
-<p>Works the radio from the COMMS screen and its keys. It lists the contacts: callsign, station or ship, range in kilometres, and LAWS beside the station whose laws the radio holds (DOCK if it cleared the ship to a dock). UP and DOWN move the cursor, SELECT gives the contact's options (a station: request docking, request laws, request launch; a gate: request transit, request laws; a beacon: request data; any of them: set course) and SELECT again sends the one under the cursor; BACK returns to the list. Below, the last message heard and the hangar the ship is cleared to. The bottom line gives the speed limit where the ship is and whose it is, PROTECTED ZONE inside a zone but outside its speed limit, OPEN SPACE outside the zone of the laws held, NO LAWS RECEIVED with none.</p>
+<p>An application of the desktop: BACK on the list returns to it. Works the radio from the COMMS screen and its keys. It lists the contacts: callsign, station or ship, range in kilometres, and LAWS beside the station whose laws the radio holds (DOCK if it cleared the ship to a dock). UP and DOWN move the cursor, SELECT gives the contact's options (a station: request docking, request laws, request launch; a gate: request transit, request laws; a beacon: request data; any of them: set course) and SELECT again sends the one under the cursor; BACK returns to the list. Below, the last message heard and the hangar the ship is cleared to. The bottom line gives the speed limit where the ship is and whose it is, PROTECTED ZONE inside a zone but outside its speed limit, OPEN SPACE outside the zone of the laws held, NO LAWS RECEIVED with none.</p>
 
 <h2 class="cmd">TUNE<span>Generator tuner</span></h2>
 <p>With an interdictor's beam on the ship it takes the RADAR screen and sweeps two waves across it, the beam's above (BEAM) and the generator's below (YOU). More waves above than below: tune up. Fewer: tune down. Alike: it is tuned. A tap moves the frequency a little; held, it goes faster. A needle under the traces shows where it is at once; the traces change as the sweep gets there. Under them, how much of the beam the generator cancels (LOCK) and the strain on it (STRAIN). The screen goes back when the beam goes.</p>
@@ -828,7 +848,9 @@ COOL resident.
 <tr><td>FIRECTL</td><td>XPFC13</td></tr>
 <tr><td>RWR</td><td>XPRW15</td></tr>
 <tr><td>POWER</td><td>XPPW11</td></tr>
-<tr><td>COMMS</td><td>XPCM16</td></tr>
+<tr><td>COMMS</td><td>XPCM17</td></tr>
+<tr><td>DESK</td><td>XPDK10</td></tr>
+<tr><td>SCANNER</td><td>XPSC10</td></tr>
 <tr><td>TUNE</td><td>XPTU10</td></tr>
 </table>
 <p>The last two characters are the version. Change them when you change a program, so that a new version is not taken for the old one; a program that finds another version of itself on the chain does not take it out.</p>

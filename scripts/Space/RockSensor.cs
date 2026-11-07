@@ -42,6 +42,12 @@ public partial class RockSensor : Node3D
     /// <summary>The rays of the last scan (world directions) and how far each was clear.</summary>
     public Vector3[] Rays { get; private set; } = Array.Empty<Vector3>();
     public float[] Clear { get; private set; } = Array.Empty<float>();
+    /// <summary>How near a ship it minds (m): farther off, ships go their way and so does it.</summary>
+    [Export] public float ShipRange = 400f;
+
+    /// <summary>The last scan saw rocks or capsules, not just ships.</summary>
+    public bool RocksNear { get; private set; }
+
     /// <summary>Steering round a rock, this step.</summary>
     public bool Avoiding { get; private set; }
     /// <summary>Scans so far.</summary>
@@ -78,14 +84,36 @@ public partial class RockSensor : Node3D
                 Rays[i++] = (heading * MathF.Cos(off) + (side * MathF.Cos(round) + up * MathF.Sin(round)) * MathF.Sin(off)).Normalized();
             }
         }
+        _ships.Clear();
+        Spatial.Grid(this, Spatial.Ships).Within(from, ShipRange + Xpace.Ship.ShipCollision.MostReach, _ships);
+        RocksNear = false;
         for (i = 0; i < count; i++)
         {
             Vector3 to = from + Rays[i] * Range;
             float rock = RockField.SegmentAll(GetWorld3D(), from, to, out float t, out _, Clearance) ? t : 1;
             if (AvoidCapsule.SegmentAll(GetWorld3D(), from, to, out float c, Clearance, Entering))
                 rock = MathF.Min(rock, c);
-            Clear[i] = rock * Range;
+            RocksNear |= rock < 0.99f;
+            Clear[i] = MathF.Min(rock * Range, ShipAlong(from, Rays[i]));
         }
+    }
+
+    private readonly System.Collections.Generic.List<Node> _ships = new();
+
+    // How far along a ray it is clear of the ships near
+    private float ShipAlong(Vector3 from, Vector3 ray)
+    {
+        float clear = Range;
+        foreach (Node node in _ships)
+        {
+            if (node is not Xpace.Ship.ISolidShip ship || !IsInstanceValid(node) || !ship.Solid || node.IsAncestorOf(this))
+                continue;
+            Vector3 to = ship.GlobalPosition - from;
+            float along = to.Dot(ray), wide = ship.SolidReach + Clearance;
+            if (along > 0 && along < clear && (to - ray * along).LengthSquared() < wide * wide)
+                clear = MathF.Max(0, along - wide);
+        }
+        return clear;
     }
 
     /// <summary>How far the last scan saw clear along the ray nearest a direction (its range before any scan).</summary>

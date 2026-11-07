@@ -27,7 +27,7 @@ public interface IPilotJob
 /// (<see cref="StationMarket.Deliver"/>) and goes back. A stand-in until mining is a loop of its own. Put it under the
 /// ship, beside its <see cref="FighterAi"/>, which does the flying.
 /// </summary>
-public partial class MinerJob : Node, IPilotJob, IOriginShift
+public partial class MinerJob : Node, IPilotJob
 {
     /// <summary>What it cuts out of the rock.</summary>
     [Export] public Good Ore;
@@ -62,7 +62,25 @@ public partial class MinerJob : Node, IPilotJob, IOriginShift
     /// <summary>Tonnes handed over since it started.</summary>
     public float Delivered { get; private set; }
     /// <summary>The rock it is working, if any.</summary>
-    public RockSphere? Rock { get; private set; }
+    public RockSphere? Rock
+    {
+        get
+        {
+            if (_rock is not RockSphere rock)
+                return null;
+            rock.Centre = _rockAt.World;
+            return rock;
+        }
+        private set
+        {
+            _rock = value;
+            if (value is RockSphere rock)
+                _rockAt = Spot.At(this, rock.Centre);
+        }
+    }
+
+    private RockSphere? _rock;
+    private Spot _rockAt;
 
     private ShipBody _ship;
     private LaserDevice _laser;
@@ -76,15 +94,6 @@ public partial class MinerJob : Node, IPilotJob, IOriginShift
     {
         _ship = ShipBody.Of(this);
         _random = new RandomNumberGenerator { Seed = (ulong)Seed };
-    }
-
-    public void ShiftOrigin(Vector3 offset)
-    {
-        if (Rock is RockSphere rock)
-        {
-            rock.Centre -= offset;
-            Rock = rock;
-        }
     }
 
     private float Capacity => Math.Max(TonnesPerCycle, _ship.Spec?.CargoCapacity ?? 0);

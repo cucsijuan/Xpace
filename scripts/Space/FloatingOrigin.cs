@@ -2,7 +2,10 @@ using Godot;
 
 namespace Xpace.Space;
 
-/// <summary>Something that keeps world-space positions of its own (not just its transform).</summary>
+/// <summary>
+/// Something with too many world positions to keep as <see cref="Spot"/>s, or that draws them every frame (rounds,
+/// trails, dust). Anything else keeps spots and needs no telling.
+/// </summary>
 public interface IOriginShift
 {
     /// <summary>The world moved by -offset: move what you keep the same way.</summary>
@@ -13,8 +16,9 @@ public interface IOriginShift
 /// Keeps the ship near the world's origin. Single-precision floats lose
 /// millimetres tens of kilometres out, enough to make the cockpit shake;
 /// so when the ship gets <see cref="Threshold"/> metres away, every 3D node
-/// under this one moves back by the ship's position, and the nodes that
-/// keep their own world positions (<see cref="IOriginShift"/>) are told.
+/// under this one moves back by the ship's position. Places kept for later are
+/// <see cref="Spot"/>s, which stay right by themselves; the few nodes that can't
+/// use them (<see cref="IOriginShift"/>) are told.
 /// Velocities do not change: nothing feels it.
 /// </summary>
 public partial class FloatingOrigin : Node3D

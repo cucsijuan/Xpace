@@ -63,7 +63,15 @@ namespace Xpace.Ship;
 /// Put it under the <see cref="ShipBody"/> it flies, beside the ship's
 /// radar, launcher, warning receiver, datalink and rock sensor.
 /// </summary>
-public partial class FighterAi : Node, IOriginShift
+public enum RadarUse
+{
+    /// <summary>It is hunting: the radar is its eyes all the time.</summary>
+    Always,
+    /// <summary>Off, heard by nobody, until it has someone to look for or someone is after it.</summary>
+    WhenNeeded,
+}
+
+public partial class FighterAi : Node
 {
     [Export] public float PatrolRadius = 3000f;
     [Export] public float PatrolSpeed = 150f;           // m/s, asked of the flight assist
@@ -105,12 +113,16 @@ public partial class FighterAi : Node, IOriginShift
     [Export] public float RouteEndSpeed = 25f;          // m/s, nearing the route's last point
     /// <summary>It goes after nobody: it only defends itself and does its job.</summary>
     [Export] public bool Peaceful;
+    /// <summary>When its radar is on. A peaceful ship has no use for it: it can only give the ship away.</summary>
+    [Export] public RadarUse RadarUse = RadarUse.Always;
+    /// <summary>How long the radar stays on after the last reason for it.</summary>
+    [Export] public double RadarLingerSeconds = 10;
 
     /// <summary>What it does with no target and no route (an <see cref="IPilotJob"/> on its ship), if anything.</summary>
     public IPilotJob Job { get; private set; }
 
     /// <summary>Points to fly through, in turn, while it has no target.</summary>
-    public readonly Queue<Vector3> Route = new();
+    public readonly Spots Route;
 
     /// <summary>It wants the cruise generator on (its ship's, if it has one).</summary>
     public bool WantsCruise;
@@ -123,10 +135,10 @@ public partial class FighterAi : Node, IOriginShift
     /// <summary>What it patrols round (where its ship was at the start, unless told otherwise).</summary>
     public Vector3 Anchor
     {
-        get => _anchor;
+        get => _anchor.World;
         set
         {
-            _anchor = value;
+            _anchor = Spot.At(this, value);
             _hasWaypoint = false;
         }
     }
@@ -136,10 +148,12 @@ public partial class FighterAi : Node, IOriginShift
     private RwrDevice _rwr;
     /// <summary>It turns its interdictor on a target going faster than this (m/s), if it has one.</summary>
     [Export] public float InterdictAboveSpeed = 700f;
+    /// <summary>How close it keeps to a ship it is only looking at, metres: near enough to hold a lock through a jammer.</summary>
+    [Export] public float InspectRange = 1500f;
 
     private JammerDevice _jammer;
     private InterdictorDevice _interdictor;
-    private Vector3 _interdictTrack;
+    private Spot _interdictTrack;
     private float _trackSpeed;
     private bool _interdictPulse;
     private double _jamFor;
@@ -156,11 +170,16 @@ public partial class FighterAi : Node, IOriginShift
     private float _threatRange;
     private Vector2 _jink;
     private float _breakSide = 1;
-    private Vector3 _lastTrack, _trackVelocity, _lastSeen, _anchor, _waypoint;
-    private bool _hadTrack, _hasWaypoint;
+    private Vector3 _trackVelocity;
+    private Spot _lastTrack, _lastSeen, _anchor, _waypoint;
+    private bool _hadTrack, _hasWaypoint, _told;
+    private double _radarLeft, _radarLook;
+    private Vector3 _toldVelocity;
     private readonly Dictionary<RwrDevice.Contact, Queue<(double At, Vector3 Way, float Range)>> _plumes = new();
     private double _clock, _sinceSafePress = double.MaxValue;
     private readonly RandomNumberGenerator _rng = new() { Seed = 9001 };
+
+    public FighterAi() => Route = new Spots(this);
 
     public override void _Ready()
     {
@@ -179,7 +198,9 @@ public partial class FighterAi : Node, IOriginShift
             _eyes ??= n as RockSensor;
             Job ??= n as IPilotJob;
         }
-        _anchor = _ship.GlobalPosition;
+        _anchor = Spot.At(this, _ship.GlobalPosition);
+        if (_radar != null && RadarUse == RadarUse.WhenNeeded)
+            _radar.Powered = false;
     }
 
     public override void _PhysicsProcess(double delta)
@@ -203,6 +224,7 @@ public partial class FighterAi : Node, IOriginShift
         _sinceSeen += delta;
         _sinceSafePress += delta;
 
+        KeepRadar(delta);
         Threats();
         Jam(delta);
         if (_breakLeft > 0)
@@ -259,11 +281,13 @@ public partial class FighterAi : Node, IOriginShift
                 Press("target");
             }
         }
-        else if (_sinceSeen < SearchSeconds && MayEngage(_lastSeen))
+        else if (_sinceSeen < SearchSeconds && (_told || MayEngage(_lastSeen.World)))
         {
             Doing = "searching";
+            if (_told)
+                _lastSeen = _lastSeen.Moved(_toldVelocity * dt);        // where it would be by now, going as it went
             _hadTrack = false;
-            Steer(ref c, _ship.GlobalBasis.Inverse() * (_lastSeen - _ship.GlobalPosition));
+            Steer(ref c, _ship.GlobalBasis.Inverse() * (_lastSeen.World - _ship.GlobalPosition));
             c.Throttle = 1;
         }
         else
@@ -274,15 +298,13 @@ public partial class FighterAi : Node, IOriginShift
         _controls = Buttons(c);
     }
 
-    /// <summary>The world moved: what it keeps in world positions moves with it.</summary>
-    public void ShiftOrigin(Vector3 offset)
+    /// <summary>It knows where to look for something, for that long, until its radar finds it.</summary>
+    public void SeenAt(Vector3 point, Vector3 velocity, double seconds)
     {
-        _anchor -= offset;
-        _waypoint -= offset;
-        _lastSeen -= offset;
-        int points = Route.Count;
-        for (int i = 0; i < points; i++)
-            Route.Enqueue(Route.Dequeue() - offset);
+        _lastSeen = Spot.At(this, point);
+        _toldVelocity = velocity;
+        _told = true;
+        _sinceSeen = SearchSeconds - seconds;
     }
 
     /// <summary>The throttle that asks the flight assist for a speed (m/s): a share of the ship's top.</summary>
@@ -350,9 +372,14 @@ public partial class FighterAi : Node, IOriginShift
     {
         Doing = "attacking";
         Vector3 at = _radar.TrackPosition;
-        _lastSeen = at;
+        _lastSeen = Spot.At(this, at);
         _sinceSeen = 0;
         Vector3 velocity = TrackVelocity(at, dt);
+        if (Engagement != null)
+        {
+            _told = true;                               // a ship it was sent after: lost, it follows its way
+            _toldVelocity = velocity;
+        }
         Vector3 to = at - _ship.GlobalPosition;
         float range = to.Length();
         // A fixed laser: the computer's lead point on the nose. A turret aims itself: the nose only near the target's way
@@ -371,6 +398,12 @@ public partial class FighterAi : Node, IOriginShift
         float off = Mathf.RadToDeg(Vector3.Forward.AngleTo(local));
         Steer(ref c, local);
         c.Throttle = range > 2000 ? 1 : Speed(range < CloseRange ? CloseSpeed : AttackSpeed);
+        if (Engagement?.Holds(Space.Combat.ShipOf(_radar.Tracked)) == true)
+        {
+            Doing = "looking it over";                  // its radar on it, its guns quiet
+            c.Throttle = range > InspectRange ? 1 : Speed(velocity.Length());
+            return;
+        }
         c.Trigger = range < GunRange && off < cone && _plan.Count == 0;
         if (!UsesMissiles || _plan.Count > 0 || _sinceMissile < MissileInterval || off > 10 || _launcher == null)
             return;
@@ -396,19 +429,37 @@ public partial class FighterAi : Node, IOriginShift
         }
     }
 
+    // On while there is someone to look for, or someone is after it; a few times a second is enough to know
+    private void KeepRadar(double delta)
+    {
+        if (_radar == null || RadarUse == RadarUse.Always)
+            return;
+        _radarLeft -= delta;
+        if ((_radarLook -= delta) <= 0)
+        {
+            _radarLook = 0.25;
+            if (RadarNeeded)
+                _radarLeft = RadarLingerSeconds;
+        }
+        _radar.Powered = _radarLeft > 0;
+    }
+
+    private bool RadarNeeded =>
+        !Peaceful && (_rwr?.LockWarning == true || _rwr?.LaunchWarning == true || (((Space.IEngagement)Police ?? Engagement)?.Hostiles.Any() ?? false));
+
     private void Patrol(ref PilotControls c)
     {
         Doing = "patrolling";
         _hadTrack = false;
-        if (!_hasWaypoint || _ship.GlobalPosition.DistanceTo(_waypoint) < 400)
+        if (!_hasWaypoint || _waypoint.DistanceTo(_ship.GlobalPosition) < 400)
         {
             var way = new Vector3(_rng.RandfRange(-1, 1), _rng.RandfRange(-0.3f, 0.3f), _rng.RandfRange(-1, 1)).Normalized();
-            _waypoint = _anchor + way * _rng.RandfRange(0.4f, 1f) * PatrolRadius;
+            _waypoint = _anchor.Moved(way * _rng.RandfRange(0.4f, 1f) * PatrolRadius);
             if (RespectsZones && Police == null)
-                _waypoint = StationRadio.Outside(_ship.GetWorld3D(), _waypoint);
+                _waypoint = Spot.At(this, StationRadio.Outside(_ship.GetWorld3D(), _waypoint.World));
             _hasWaypoint = true;
         }
-        Steer(ref c, _ship.GlobalBasis.Inverse() * (_waypoint - _ship.GlobalPosition));
+        Steer(ref c, _ship.GlobalBasis.Inverse() * (_waypoint.World - _ship.GlobalPosition));
         c.Pitch *= 0.5f;                                // easy turns: it is looking, not fighting
         c.Yaw *= 0.5f;
         c.Roll *= 0.5f;
@@ -528,13 +579,13 @@ public partial class FighterAi : Node, IOriginShift
         Vector3 way = _eyes.Steer(going, MathF.Max(speed, 50) * AvoidSeconds);
         if (_eyes.Avoiding && Job?.HoldsStill != true)
         {
-            Doing = "avoiding a rock";
+            Doing = "avoiding something";
             Steer(ref c, _ship.GlobalBasis.Inverse() * way);
         }
         if (SafeTurnsNearRocks && _eyes.Clear.Length > 0)
         {
             // What FLIGHT shows on the thrusters' mode: bit 1, safe turns
-            bool rocks = _eyes.Clear.Min() < _eyes.Range * 0.99f;
+            bool rocks = _eyes.RocksNear;
             bool safe = (_ship.Computer.Bus[ShipBody.SlotThrusters, 15] & 2) != 0;
             if (rocks != safe && _sinceSafePress > 1)
             {
@@ -567,10 +618,10 @@ public partial class FighterAi : Node, IOriginShift
     private Vector3 TrackVelocity(Vector3 at, float dt)
     {
         if (_hadTrack && dt > 0)
-            _trackVelocity = _trackVelocity.Lerp((at - _lastTrack) / dt, 0.05f);
+            _trackVelocity = _trackVelocity.Lerp((at - _lastTrack.World) / dt, 0.05f);
         else
             _trackVelocity = Vector3.Zero;
-        _lastTrack = at;
+        _lastTrack = Spot.At(this, at);
         _hadTrack = true;
         return _trackVelocity;
     }
@@ -633,8 +684,8 @@ public partial class FighterAi : Node, IOriginShift
         bool tracking = _radar.Locked != null;
         if (tracking)
         {
-            _trackSpeed = (_radar.TrackPosition - _interdictTrack).Length() * Engine.PhysicsTicksPerSecond;
-            _interdictTrack = _radar.TrackPosition;
+            _trackSpeed = (_radar.TrackPosition - _interdictTrack.World).Length() * Engine.PhysicsTicksPerSecond;
+            _interdictTrack = Spot.At(this, _radar.TrackPosition);
         }
         bool want = tracking && _trackSpeed > InterdictAboveSpeed && _trackSpeed < 20000;
         _interdictPulse = !_interdictPulse && want != _interdictor.On;

@@ -42,6 +42,11 @@
 [ext_resource type="Resource" path="res://assets/ship/hulls/hull_fighter.tres" id="48_hull"]
 [ext_resource type="Resource" path="res://assets/weapons/pylons/pyl_1.tres" id="50_pylon"]
 [ext_resource type="Script" path="res://scripts/Ship/RadioDevice.cs" id="49_radio"]
+[ext_resource type="Script" path="res://scripts/Ship/ScannerDevice.cs" id="scanner"]
+[ext_resource type="Resource" path="res://assets/ship/scanners/scanner_cs1.tres" id="scanner_cs1"]
+[ext_resource type="Script" path="res://scripts/Ship/InterdictorDevice.cs" id="interdictor"]
+[ext_resource type="Resource" path="res://assets/ship/interdictors/interdictor_i1.tres" id="interdictor_i1"]
+[ext_resource type="Script" path="res://scripts/OnFoot/WalkSurface.cs" id="walk_surface"]
 
 [sub_resource type="SphereMesh" id="ShieldSphere"]
 radius = 1.0
@@ -78,6 +83,9 @@ Material = ExtResource("5_paint")
 
 [node name="Hitboxes" parent="." instance=ExtResource("6_hitboxes")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 0, 0)
+
+[node name="Walk" type="Node3D" parent="Hitboxes"]
+script = ExtResource("walk_surface")
 
 [node name="Hull" type="Node" parent="."]
 script = ExtResource("7_hull")
@@ -120,6 +128,14 @@ Spec = ExtResource("spec_dispenser")
 [node name="Engine" type="Node" parent="Systems"]
 script = ExtResource("46_engine")
 Spec = ExtResource("47_d50")
+
+[node name="Interdictor" type="Node" parent="Weapons"]
+script = ExtResource("interdictor")
+Spec = ExtResource("interdictor_i1")
+
+[node name="Scanner" type="Node" parent="Sensors"]
+script = ExtResource("scanner")
+Spec = ExtResource("scanner_cs1")
 
 [node name="Jammer" type="Node3D" parent="Sensors"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -1)

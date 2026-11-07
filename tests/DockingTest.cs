@@ -57,6 +57,7 @@ public partial class DockingTest : Node3D
         Check("shut, a door stops the way in", Obstacles.Segment(Sectors.WorldOf(this), any.ApproachPoint, any.InsidePoint, out _, out _));
 
         Check("COMMS.COM is resident", await Until(() => _ship.Computer.ScreenText().Contains("Radio resident"), 60));
+        await Desk.OpenComms(this, _display);
         await Seconds(0.5);
         Check($"the station is listed, under the cursor\n{Comms()}", Comms().Contains("HAVEN") && Comms().Contains("STATION"));
 

@@ -58,6 +58,9 @@
 [ext_resource type="Script" uid="uid://cmy33yl0n6lmu" path="res://scripts/OnFoot/ShipSeat.cs" id="seat_script"]
 [ext_resource type="PackedScene" path="res://scenes/characters/walker.tscn" id="walker_scene"]
 [ext_resource type="Script" uid="uid://dgrvmekmojxsh" path="res://scripts/OnFoot/WalkSurface.cs" id="walk_surface"]
+[ext_resource type="Script" path="res://scripts/Ship/ScannerDevice.cs" id="scanner"]
+[ext_resource type="Resource" path="res://assets/ship/scanners/scanner_cs1.tres" id="scanner_cs1"]
+[ext_resource type="Script" path="res://scripts/Cockpit/ComputerSpeaker.cs" id="speaker"]
 
 [sub_resource type="SphereMesh" id="ShieldSphere"]
 radius = 1.0
@@ -145,6 +148,13 @@ Spec = ExtResource("71_d50")
 [node name="Interdictor" type="Node" parent="Weapons" unique_id=1147875884]
 script = ExtResource("interdictor")
 Spec = ExtResource("interdictor_i1")
+
+[node name="ComputerSpeaker" type="AudioStreamPlayer" parent="Systems"]
+script = ExtResource("speaker")
+
+[node name="Scanner" type="Node" parent="Sensors"]
+script = ExtResource("scanner")
+Spec = ExtResource("scanner_cs1")
 
 [node name="Jammer" type="Node3D" parent="Sensors" unique_id=2090665327]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, -1)

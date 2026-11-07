@@ -56,6 +56,16 @@ A station's or planet's `MediumMass` is a child node with a `Reach`; to drop out
 
 An interdictor's beam adds (Reach / distance)² to the density on a frequency that wanders (`InterdictorDevice.BandAt`, 0-255 band, 0.5-4 Hz). The generator cancels up to `Rejection` of it: all of that within `TuneFlat` of `TuneBand` of the beam's frequency, falling to none at `TuneBand`. Over `Thinning` from a beam it holds for `HoldSeconds`, then drops out; a mass still drops it at once. `TuneRate` limits how fast it retunes. TUNE.COM takes the RADAR screen while a beam is on: the two waves swept one above the other (as many waves in both when tuned) with bars for the share cancelled and the strain; keys `,` and `.`. An `InterdictorBuoy` is the same beam from a fixed point on any cruising ship within `Range`, for hazards on routes (one in sector_01, off the line to the gate). No AI ship carries an interdictor for now.
 
+## Ships meeting ships
+
+`ShipCollision` runs after `ShipContact` in a ship's step: its hitboxes against those of the ships near (`Spatial.Ships`), along the way both went this step, so a fast ship can't go through another. The impulse goes by their masses, with the hull's `Restitution` and `Friction`; the energy lost goes to the hulls, half each, as in a crash into a rock. A ship held by a pad or on its way doesn't move, and its hull takes its half. A crash taking `BlowJoules` from a hull counts as a blow from the faster ship (`Combat.Struck`), so ramming is an attack.
+
+In a session each machine works out its own ships against what it sees of the others (`ISolidShip.MovedHere`). AI pilots see ships within `RockSensor.ShipRange` and steer round them. Drones are not solid yet.
+
+## Cargo scanner (`ScannerSpec`)
+
+`assets/ship/scanners`: `Seconds` it must stay on a ship the radar has locked (CS-1 15, CS-2 8), `Range`, `Megawatts`. `ScannerDevice` is on bus slot 20; a pilot works it through SCANNER.COM on the desktop, a ship's AI calls `Start()` with no program in the way. A lost lock starts it over, and a jammer can make that happen until the ship reading it comes close enough to burn through. Pirates read a ship before firing on it (`CargoView.LookOver`, `Personality.PrizeTonnes`, `LookAgainHours`).
+
 ## Hull (`ShipSpec`)
 
 | Field | Units | What it does |

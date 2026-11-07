@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Collections.Generic;
 using Godot;
 using Xpace.Ship;
@@ -17,6 +18,10 @@ public static class Voyage
     {
         public List<(Vector3 At, float Reach)> Masses = new();
         public List<(Vector3 At, float Radius, float Limit)> Limits = new();
+        /// <summary>Protected zones: nobody starts a fight in one, nor reaches into one from outside.</summary>
+        public List<(Vector3 At, float Radius)> Zones = new();
+
+        public bool Protected(Vector3 point) => Zones.Any(z => z.At.DistanceTo(point) <= z.Radius);
         /// <summary>Fixed interdictors: they aren't in a way's times, they work on the ships as they pass (<see cref="Interdiction"/>).</summary>
         public List<(Vector3 At, InterdictorSpec Spec)> Beams = new();
     }

@@ -65,6 +65,8 @@ public partial class ShipComputer : Node, IRearmable
     public bool Powered => _pc != IntPtr.Zero && Pc86.pc_status(_pc) != Pc86.PcOff;
     public bool DriveLight => _drive != IntPtr.Zero && Pc86.fdd_motor(_drive) != 0;
     public string Error => _pc == IntPtr.Zero ? "" : Pc86.ErrorText(_pc);
+    /// <summary>The tone its speaker is playing, or 0.</summary>
+    public double SpeakerHz => _pc == IntPtr.Zero ? 0 : Pc86.pc_speaker_hz(_pc);
     public double EmulatedSeconds => _pc == IntPtr.Zero ? 0 : Pc86.pc_time_us(_pc) / 1e6;
 
     private IntPtr _pc, _vga, _fdc, _monitor, _keyboard, _drive, _disk;

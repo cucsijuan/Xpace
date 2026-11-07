@@ -109,3 +109,13 @@ Look at how a cost grows, not only at its size: time it with 25 and 50 per side.
 - [ ] Can any single call take more than a couple of milliseconds? Then in pieces, or on another thread.
 - [ ] Does it hold in the three stages: nothing in the compute stage, no dependence on the order of the ships?
 - [ ] If it can matter in a battle: `swarm_test` before and after, whole step.
+
+## Positions and the moving origin
+
+The world's origin moves under everything as a ship flies (`FloatingOrigin`, every kilometre). A world position in a `Vector3` is only good until the end of the step it was worked out in.
+
+- **Anything that keeps a world position past the step keeps a `Spot`**: `Spot.At(node, world)` to keep it, `.World` to use it, `.Moved(by)` to move it, `Spots` for a queue of them. No one has to be told of a shift.
+- Between things that exist now, use their positions as they are: `a.GlobalPosition.DistanceTo(b.GlobalPosition)` is always right.
+- Directions, speeds and what is relative to a node are plain `Vector3`s.
+- `IOriginShift` is only for what is too many or is drawn every frame (rounds, trails, dust).
+- `tests/places_test` goes through every field in the game: a new position that is not a `Spot` fails it until someone decides, with a reason on its lists.

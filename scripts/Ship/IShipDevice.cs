@@ -27,4 +27,5 @@ public static class ShipMemory
     public const ushort Pad = 0x1900;                                     // the landing pad's guidance, as the radio hears it
     public const ushort Cargo = 0x1A00;                                   // what the hold carries
     public const ushort Turret = 0x1B00;                                  // the turret's magazine
+    public const ushort Scan = 0x1C00;                                    // what the cargo scanner read
 }

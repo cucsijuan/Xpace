@@ -24,6 +24,9 @@ public partial class WalkSurface : Node3D
     /// <summary>Also the box shapes under the parent (hitboxes, a solid's boxes).</summary>
     [Export] public bool Boxes = true;
 
+    /// <summary>Only those: not the meshes under the parent (a ship's hull made of parts).</summary>
+    [Export] public bool OnlyBoxes;
+
     public StaticBody3D Body { get; private set; }
 
     public const string Group = "walk_surfaces";
@@ -61,7 +64,7 @@ public partial class WalkSurface : Node3D
                 faces.Add(frame * solid.C[i]);
             }
         }
-        else if (parent is Node3D owner)
+        else if (parent is Node3D owner && !OnlyBoxes)
             foreach (Node child in owner.GetChildren())
                 if (child != this)
                     Meshes(child, owner.GlobalTransform, faces, toLocal);

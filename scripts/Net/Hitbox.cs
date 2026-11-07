@@ -36,11 +36,13 @@ public struct Hitbox
     public static Hitbox[] FromShapes(Node3D root)
     {
         var boxes = new List<Hitbox>();
-        Transform3D toRoot = root.GlobalTransform.AffineInverse();
         foreach (Node n in root.FindChildren("*", nameof(CollisionShape3D), true, false))
             if (n is CollisionShape3D { Shape: BoxShape3D box } shape && !OtherUse(shape, root))
             {
-                Transform3D t = toRoot * shape.GlobalTransform;
+                Transform3D t = shape.Transform;
+                for (Node up = shape.GetParent(); up != root && up != null; up = up.GetParent())
+                    if (up is Node3D node)
+                        t = node.Transform * t;
                 Vector3 scale = t.Basis.Scale;
                 boxes.Add(new Hitbox(t.Origin, box.Size * scale, t.Basis.Orthonormalized()));
             }
@@ -70,7 +72,7 @@ public struct Hitbox
     {
         for (Node p = shape.GetParent(); p != null && p != root; p = p.GetParent())
             if (p is CollisionObject3D o)
-                return (o.CollisionLayer & Hitboxes.RoundLayer) == 0;
+                return o is not HitArea && (o.CollisionLayer & Hitboxes.RoundLayer) == 0;     // (a hit area takes its layer when it starts)
         return false;
     }
 

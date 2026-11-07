@@ -142,6 +142,27 @@ if(EXISTS ${CC_DIR}/main.c)
     DEPENDS smallc asm86 ${DISK_WORK}/CLIB.LIB ${CC_SOURCES} ${CC_DIR}/smallc.h ${CC_HEADERS}
     VERBATIM)
   list(APPEND DISK_PROGRAMS ${DISK_WORK}/CLIB.LIB ${DISK_WORK}/SMALLC.EXE)
+
+  # The ship's programs in C: the desktop and its applications
+  set(DESK_DIR ${XPACE_ROOT}/software/desk)
+  set(DESK_HEADERS ${DESK_DIR}/tsr.h ${DESK_DIR}/font.h ${DESK_DIR}/icons.h ${DESK_DIR}/logo.h)
+  foreach(source desk/desk scanner/scanner)
+    get_filename_component(name ${source} NAME)
+    string(TOUPPER ${name} upper)
+    add_custom_command(OUTPUT ${DISK_WORK}/${upper}.COM
+      COMMAND $<TARGET_FILE:smallc> -n -L${DISK_WORK}/CLIB.LIB -I${CC_DIR}/include/ -I${DESK_DIR}/ -S -o ${DISK_WORK}/${upper}.COM ${XPACE_ROOT}/software/${source}.c
+      COMMAND $<TARGET_FILE:asm86> ${DISK_WORK}/${upper}.ASM -o ${DISK_WORK}/${upper}.COM
+      DEPENDS smallc asm86 ${DISK_WORK}/CLIB.LIB ${XPACE_ROOT}/software/${source}.c ${DESK_HEADERS}
+      VERBATIM)
+    list(APPEND DISK_PROGRAMS ${DISK_WORK}/${upper}.COM)
+    list(APPEND CC_DISK_COMMANDS
+      COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/${upper}.COM
+      COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/${source}.c ${upper}.C)
+  endforeach()
+  foreach(h tsr font icons logo)
+    string(TOUPPER ${h} upper)
+    list(APPEND CC_DISK_COMMANDS COMMAND ${FD} add ${XPACE_DISK} ${DESK_DIR}/${h}.h ${upper}.H)
+  endforeach()
   list(APPEND CC_DISK_COMMANDS
     COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/SMALLC.EXE
     COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/CLIB.LIB
@@ -159,7 +180,8 @@ set(DISK_SOURCES
   ${XPACE_ROOT}/software/rwr/rwr.asm ${XPACE_ROOT}/software/power/power.asm
   ${XPACE_ROOT}/software/comms/comms.asm ${XPACE_ROOT}/software/tune/tune.asm
   ${XPACE_ROOT}/software/missile/missile.asm ${XPACE_ROOT}/software/missile/irmissile.asm
-  ${XPACE_ROOT}/software/autoexec.bat)
+  ${XPACE_ROOT}/software/autoexec.bat ${XPACE_ROOT}/software/desk/desk.c ${XPACE_ROOT}/software/scanner/scanner.c
+  ${XPACE_ROOT}/software/desk/tsr.h ${XPACE_ROOT}/software/desk/font.h ${XPACE_ROOT}/software/desk/icons.h ${XPACE_ROOT}/software/desk/logo.h)
 add_custom_command(OUTPUT ${XPACE_DISK}
   COMMAND ${CMAKE_COMMAND} -E make_directory ${XPACE_ROOT}/disks
   COMMAND ${CMAKE_COMMAND} -E rm -f ${XPACE_DISK}

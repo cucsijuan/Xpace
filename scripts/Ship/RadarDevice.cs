@@ -106,7 +106,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     /// <summary>The locked target's SNR this step (linear).</summary>
     public float LockedSnr { get; private set; }
     /// <summary>Where this step's track puts the locked target, in the world (noise and all): what a datalink passes on.</summary>
-    public Vector3 TrackPosition { get; private set; }
+    public Vector3 TrackPosition => _track.World;
     /// <summary>
     /// Counts the locks the program asked for. A lock the tracker carries
     /// on to another echo (chaff) keeps its number: to the datalink it is
@@ -136,7 +136,8 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     public struct Echo
     {
         public ushort Id;
-        public Vector3 Seen;
+        public Spot At;
+        public readonly Vector3 Seen => At.World;
         public float Snr;
     }
 
@@ -154,8 +155,9 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
 
     /// <summary>What the track's positions are measured from (ship axes).</summary>
     public Node3D TrackOrigin => _trackOrigin ?? this;
-    private Vector3 _gate, _gateVelocity, _centroid;
-    private Vector3 _lostGate;                          // where the gate would be now, for a lost target   // the tracker's gate and its velocity, the echoes' middle (world)
+    private Spot _gate, _track;
+    private Vector3 _gateVelocity, _centroid;
+    private Spot _lostGate;                          // where the gate would be now, for a lost target   // the tracker's gate and its velocity, the echoes' middle (world)
     private double _sinceSweep = double.MaxValue;
     private byte _sweeps;
     private bool _registersSet;
@@ -301,13 +303,13 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
             else if (_lost != null)
             {
                 _lostFor += delta;
-                _lostGate += _gateVelocity * (float)delta;
+                _lostGate = _lostGate.Moved(_gateVelocity * (float)delta);
                 if (_lostFor > ReacquireSeconds || !_lost.Alive)
                     _lost = null;
-                else if (InCone(_lost) && _lost.GlobalPosition.DistanceTo(_lostGate) <= ReacquireWindow && Snr(_lost) >= LockSnr)
+                else if (InCone(_lost) && _lostGate.DistanceTo(_lost.GlobalPosition) <= ReacquireWindow && Snr(_lost) >= LockSnr)
                 {
                     Locked = _lost;
-                    _gate = Locked.GlobalPosition;
+                    _gate = Spot.At(this, Locked.GlobalPosition);
                     _gateVelocity = Locked.Velocity;
                     _lost = null;
                     if (!Follow(0))
@@ -342,7 +344,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
             return;
         if (Locked != (before is FalseEcho copy ? copy.Source : before))
             TrackNumber++;
-        _gate = Locked.GlobalPosition;
+        _gate = Spot.At(this, Locked.GlobalPosition);
         _gateVelocity = Locked.Velocity;
         if (!Follow(0))
             Locked = null;
@@ -355,8 +357,9 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     /// </summary>
     private bool Follow(double delta)
     {
-        _gate += _gateVelocity * (float)delta;
-        Vector3 toGate = _gate - GlobalPosition;
+        _gate = _gate.Moved(_gateVelocity * (float)delta);
+        Vector3 gate = _gate.World;
+        Vector3 toGate = gate - GlobalPosition;
         float gateRange = toGate.Length();
         float beam = Mathf.DegToRad(BeamwidthDegrees);
         float total = 0, strongest = 0;
@@ -365,7 +368,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
         Basis toRadar = GlobalBasis.Inverse();
         // An echo this many cells out in place weighs nothing, however strong: the gate looks only at what is round it
         float reach = GateCells * (RangeResolution + beam * (gateRange + GateCells * RangeResolution));
-        foreach (Blip b in RadarPicture.Of(this).Near(_gate, reach))
+        foreach (Blip b in RadarPicture.Of(this).Near(gate, reach))
         {
             if (!InCone(b, here, toRadar))
                 continue;
@@ -466,7 +469,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
             Vector3 local = Measure(b.Position, snr, here, axes);
             byte* e = table + _contacts.Count * 16;
             _contacts.Add(t);
-            _echoes.Add(new Echo { Id = t.RadarId, Seen = here + axes * local, Snr = snr });
+            _echoes.Add(new Echo { Id = t.RadarId, At = Spot.At(this, here + axes * local), Snr = snr });
             float az = Mathf.Atan2(local.X, -local.Z);
             float el = Mathf.Atan2(local.Y, new Vector2(local.X, local.Z).Length());
             Vector3 relative = b.Velocity - ship.LinearVelocity;
@@ -540,8 +543,8 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
     private unsafe void WriteTrack(ShipBody ship, byte* track)
     {
         Vector3 p = Measure(_centroid, LockedSnr, _trackOrigin.GlobalPosition, ship.GlobalBasis);
-        TrackPosition = _trackOrigin.GlobalPosition + ship.GlobalBasis * p;
-        _gate = TrackPosition;                      // the gate goes where the echoes were measured
+        _track = Spot.At(this, _trackOrigin.GlobalPosition + ship.GlobalBasis * p);
+        _gate = _track;                      // the gate goes where the echoes were measured
         Put(track, 0, Locked.RadarId);
         Put(track, 2, Clamp16(p.X * 4));
         Put(track, 4, Clamp16(p.Y * 4));

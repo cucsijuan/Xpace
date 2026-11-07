@@ -42,7 +42,18 @@ public partial class ShipHull : Node, IDamageable
     public float Fraction => Left / Integrity;
 
     /// <summary>Where a new ship appears: where this one was when the game put it there.</summary>
-    public Transform3D Spawn { get; set; }
+    public Transform3D Spawn
+    {
+        get => new(_spawnBasis, _spawn.World);
+        set
+        {
+            _spawn = Space.Spot.At(this, value.Origin);
+            _spawnBasis = value.Basis;
+        }
+    }
+
+    private Space.Spot _spawn;
+    private Basis _spawnBasis = Basis.Identity;
 
     private ShipBody _ship;
     private ShieldDevice _shield;

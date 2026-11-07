@@ -10,3 +10,6 @@ Material = ExtResource("2_paint")
 
 [node name="Datalink" parent="."]
 Channel = "police"
+
+[node name="Pilot" parent="."]
+RadarUse = 1

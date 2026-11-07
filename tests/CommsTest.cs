@@ -36,6 +36,7 @@ public partial class CommsTest : Node
         Node3D station = main.Sector.GetNode<Node3D>("MiltecAlpha");
 
         await Seconds(25);
+        await Desk.OpenComms(this, display);
         foreach (CargoShipRecord ship in Universe.Current.State.CargoShips.Values)
             ship.NextLook = 1e12;
         Place(station.GlobalPosition + new Vector3(0, 6000, 0));

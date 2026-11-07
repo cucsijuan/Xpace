@@ -147,6 +147,15 @@ public partial class Universe : Node
             }
             return null;
         });
+        Answer(ScanTopic, (pilot, text) =>
+        {
+            string[] asked = text.Split(' ');
+            if (asked.Length != 2 || !ushort.TryParse(asked[0], out ushort id) || !int.TryParse(asked[1], out int number) || Xpace.Net.SessionNode.Instance?.NodeOf(id) is not Node3D ship)
+                return null;
+            Xpace.Ship.ScanReading reading = Scan(ship);
+            reading.Asked = number;
+            return JsonSerializer.Serialize(reading);
+        });
         Answer(JettisonTopic, (pilot, _) =>
         {
             if (ShipOf(pilot) is Node3D ship && State.Pilot(pilot) is { } record && record.Ship.Cargo.Count > 0)
@@ -384,7 +393,7 @@ public partial class Universe : Node
         }
     }
 
-    public const string JettisonTopic = "jettison", FuelTopic = "fuel";
+    public const string JettisonTopic = "jettison", FuelTopic = "fuel", ScanTopic = "scan";
 
     /// <summary>A guest's pilot burnt fuel: the host hears of it now and then, and keeps the record.</summary>
     public void Burnt(double tonnes)
@@ -512,6 +521,33 @@ public partial class Universe : Node
     /// </summary>
     public PilotRecord RecordOf(Node3D ship) =>
         IsGuest ? PilotIdOf(ship) == LocalPilotId ? Me : null : PilotOf(ship);
+
+    /// <summary>What a cargo scanner reads of a ship: a pilot's hold, a ship on the records', or what the ship carries itself.</summary>
+    public Xpace.Ship.ScanReading Scan(Node3D ship)
+    {
+        var reading = new Xpace.Ship.ScanReading { Callsign = Radio.All(ship).FirstOrDefault(r => Combat.ShipOf(r as Node) == ship)?.Callsign ?? "" };
+        var body = ship as Xpace.Ship.ShipBody;
+        if (PilotOf(ship) is PilotRecord pilot)
+        {
+            reading.Cargo = new Dictionary<string, int>(pilot.Ship.Cargo);
+            reading.Capacity = (ResourceLoader.Exists(pilot.Ship.Hull) ? Xpace.World.ResourceCache.Load<Xpace.Ship.ShipSpec>(pilot.Ship.Hull)?.CargoCapacity : 0) ?? 0;
+        }
+        else if (body != null && State.CargoShips.TryGetValue(body.RecordId, out CargoShipRecord record))
+        {
+            if (record.Tonnes > 0 && record.Good != "")
+                reading.Cargo[record.Good] = record.Tonnes;
+            foreach ((string good, int tonnes) in record.Loot)
+                reading.Cargo[good] = reading.Cargo.GetValueOrDefault(good) + tonnes;
+            reading.Capacity = body.Spec?.CargoCapacity ?? 0;
+        }
+        else if (body?.Device<Xpace.Ship.CargoHold>() is Xpace.Ship.CargoHold hold)
+        {
+            reading.Cargo = new Dictionary<string, int>(hold.Carried.Cargo);
+            reading.Capacity = hold.Capacity;
+        }
+        reading.Tonnes = reading.Cargo.Values.Sum();
+        return reading;
+    }
 
     /// <summary>A ship this machine's pilot flies is in play (its played time runs while one is).</summary>
     public void Board(Node3D ship) => _boarded.Add(ship);

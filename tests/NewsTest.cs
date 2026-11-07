@@ -137,6 +137,7 @@ public partial class NewsTest : Node
             main.Sector.GetNodeOrNull(name)?.QueueFree();
         CommercialBeacon beacon = main.Sector.GetNode<CommercialBeacon>("Beacon");
         await Seconds(25);
+        await Desk.OpenComms(this, display);
         foreach (CargoShipRecord cargo in Universe.Current.State.CargoShips.Values)
             cargo.NextLook = 1e12;
         ship.State = new ShipState { Position = beacon.GlobalPosition + new Vector3(0, 1000, 0), Orientation = Quaternion.Identity };

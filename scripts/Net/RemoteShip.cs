@@ -23,7 +23,7 @@ namespace Xpace.Net;
 /// fuse goes off on it; the damage is the host's to judge and its owner's
 /// to take.
 /// </summary>
-public partial class RemoteShip : Node3D, Space.ICruiseShown, INetEntity, IRadarTarget, IHeatSource, IDamageable
+public partial class RemoteShip : Node3D, Space.ICruiseShown, INetEntity, IRadarTarget, IHeatSource, IDamageable, Xpace.Ship.ISolidShip
 {
     /// <summary>The hull's echo (m²), and in cruise the wake's on top of it, as its owner's snapshots say.</summary>
     [Export] public float RadarCrossSection
@@ -68,6 +68,19 @@ public partial class RemoteShip : Node3D, Space.ICruiseShown, INetEntity, IRadar
     public ushort RadarId { get; private set; }
     public bool Alive => Visible && !_down;
 
+    public Hitbox[] SolidBoxes => Hitboxes;
+    public float SolidReach => _reach ??= Xpace.Ship.ShipContact.Bound(Hitboxes);
+    public Vector3 SolidVelocity => Velocity;
+    public float SolidMass => Hull?.Mass ?? 20000f;
+    public bool Solid => Alive;
+    public bool Immovable => false;
+    public bool MovedHere => false;
+
+    /// <summary>Its owner works out its side of a crash, there.</summary>
+    public void Rammed(Vector3 push, Vector3 speedChange, float joules) { }
+
+    private float? _reach;
+
     private FloatingOrigin _origin;
     private RadarEmitter _radar;
     private Xpace.Ship.JammerDevice _jammer;
@@ -83,6 +96,7 @@ public partial class RemoteShip : Node3D, Space.ICruiseShown, INetEntity, IRadar
         Hitboxes = Hitbox.FromShapes(this);
         Visible = false;                        // until there is something to show
         RadarId = RadarIds.Next();
+        AddToGroup(Xpace.Ship.ShipCollision.Group);
         AddToGroup("radar_targets");
         AddToGroup("heat_sources");
         _radar = new RadarEmitter { Name = "Radar", Signature = RadarSignature, PowerAt1Km = RadarPowerAt1Km };

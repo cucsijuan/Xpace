@@ -65,6 +65,7 @@ public partial class LandingPadTest : Node3D
         _ship.GlobalTransform = dock.GlobalTransform * new Transform3D(new Basis(Vector3.Up, 0), new Vector3(0, 0, 600));
 
         Check("COMMS.COM is resident", await Until(() => _ship.Computer.ScreenText().Contains("Radio resident"), 90));
+        await Desk.OpenComms(this, _display);
         await Seconds(1);
         Check($"the fighter fits the pads (its box {_ship.Bounds.Size})", dock.Pads.All(p => p.Fits(_ship)));
         Check("no beacon yet: FIRECTL has the RADAR screen", Lent() == 0 && Pixel(0, 64) != 0);

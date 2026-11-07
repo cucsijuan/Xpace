@@ -27,6 +27,9 @@ public static class Spatial
     /// <summary>Cargo drifting in space.</summary>
     public static readonly Layer Pods = new(CargoPod.Group, 2000f, n => n is Node3D n3 ? n3.GlobalPosition : Vector3.Zero);
 
+    /// <summary>Ships that can be run into.</summary>
+    public static readonly Layer Ships = new(Xpace.Ship.ShipCollision.Group, 200f, n => n is Node3D n3 ? n3.GlobalPosition : Vector3.Zero);
+
     /// <summary>The layer's grid for the sector of <paramref name="from"/>.</summary>
     public static SpatialGrid<Node> Grid(Node from, Layer layer) => Sectors.GridOf(from, layer.Group, layer.Cell, layer.Where);
 }

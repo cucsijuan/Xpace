@@ -1,12 +1,11 @@
-[gd_resource type="Resource" script_class="TurretSpec" load_steps=4 format=3]
+[gd_resource type="Resource" script_class="TurretSpec" format=3 uid="uid://cgbplwpg25rqw"]
 
-[ext_resource type="Script" path="res://scripts/Ship/TurretSpec.cs" id="1_spec"]
-
+[ext_resource type="Script" uid="uid://nvsl68y041m1" path="res://scripts/Ship/TurretSpec.cs" id="1_spec"]
 [ext_resource type="PackedScene" path="res://scenes/weapons/turrets/gatling_t1.tscn" id="2_model"]
 [ext_resource type="Resource" path="res://assets/weapons/ammo/rounds_1.tres" id="3_ammo"]
 
 [resource]
 script = ExtResource("1_spec")
-Model = "GUN-1"
 Scene = ExtResource("2_model")
 Ammunition = ExtResource("3_ammo")
+Model = "GUN-1"

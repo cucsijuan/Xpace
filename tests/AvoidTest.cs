@@ -128,7 +128,7 @@ public partial class AvoidTest : Node
                 else
                     quiet++;
                 before = hull.CrashDamage;
-                bool avoiding = pilot.Doing == "avoiding a rock";
+                bool avoiding = pilot.Doing == "avoiding something";
                 if (avoiding && !wasAvoiding)
                     avoided++;
                 wasAvoiding = avoiding;

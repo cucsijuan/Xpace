@@ -43,7 +43,7 @@ namespace Xpace.Space;
 /// puppet: its mind is off, and it only shows what its owner's snapshots
 /// say (its velocity for the radars, blowing up and coming back).
 /// </summary>
-public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IHeatSource, INetShip
+public partial class Drone : Node3D, IRadarTarget, IDamageable, IHeatSource, INetShip
 {
 
     [Export] public float Speed = 120f;
@@ -109,7 +109,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     public bool HeadTone => _head.Tone;
 
     private Node3D _anchor, _body;
-    private Vector3 _waypoint;
+    private Spot _waypoint;
     private float _health;
     private double _respawn;
     private StandardMaterial3D _paint;
@@ -119,7 +119,8 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     private RadarEmitter _radar;
     private Datalink _link;
     private RockSensor _eyes;
-    private Vector3 _home, _seenAt, _seenVelocity;
+    private Spot _home, _seenAt;
+    private Vector3 _seenVelocity;
     private double _seenAge;
     private readonly SeekerHead _head = new();
     private double _toneFor, _missileWait, _extend;
@@ -144,7 +145,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
             _link ??= child as Datalink;
             _eyes ??= child as RockSensor;
         }
-        _home = GlobalPosition;
+        _home = Spot.At(this, GlobalPosition);
         if (MissileScene != null)
         {
             Missile pattern = MissileScene.Instantiate<Missile>();
@@ -152,7 +153,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
             pattern.Free();
         }
         Velocity = -GlobalBasis.Z * Speed;
-        _waypoint = GlobalPosition + Velocity * 10;
+        _waypoint = Spot.At(this, GlobalPosition + Velocity * 10);
         BuildModel();
     }
 
@@ -212,14 +213,14 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
         }
         Hunt(dt);
         Node3D quarry = Quarry;
-        Vector3 estimate = _seenAt + _seenVelocity * (float)_seenAge;
+        Vector3 estimate = _seenAt.World + _seenVelocity * (float)_seenAge;
         Attacking = false;
         if (quarry != null && threat == null && _extend <= 0)
         {
             if (GlobalPosition.DistanceTo(estimate) < BreakOffRange)
             {
                 _extend = ExtendSeconds;            // on past it, then round again
-                _waypoint = GlobalPosition + Velocity.Normalized() * 2500;
+                _waypoint = Spot.At(this, GlobalPosition + Velocity.Normalized() * 2500);
             }
             else
                 Attacking = true;
@@ -228,10 +229,10 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
             Velocity = Velocity.Rotated(Vector3.Up, Circling * dt);
         if (!Straight)
         {
-            if (!Attacking && GlobalPosition.DistanceTo(_waypoint) < 300)
-                _waypoint = NewWaypoint();
+            if (!Attacking && _waypoint.DistanceTo(GlobalPosition) < 300)
+                _waypoint = Spot.At(this, NewWaypoint());
             Vector3 heading = Velocity.Normalized();
-            Vector3 wanted = ((Attacking ? estimate : _waypoint) - GlobalPosition).Normalized();
+            Vector3 wanted = ((Attacking ? estimate : _waypoint.World) - GlobalPosition).Normalized();
             if (_eyes != null)
             {
                 _eyes.Look(heading, delta);
@@ -292,13 +293,13 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
                     nearestRange = range;
                 }
             }
-            float quarryRange = Quarry != null ? GlobalPosition.DistanceTo(_seenAt + _seenVelocity * (float)_seenAge) : float.MaxValue;
+            float quarryRange = Quarry != null ? GlobalPosition.DistanceTo(_seenAt.World + _seenVelocity * (float)_seenAge) : float.MaxValue;
             if (nearest != null && (Quarry == null || nearest == Quarry || nearestRange < quarryRange))
                 See(nearest);
             else if (sawQuarry)
                 See(Quarry);
         }
-        if (Quarry != null && (_seenAge > MemorySeconds || Protected(_seenAt)))
+        if (Quarry != null && (_seenAge > MemorySeconds || Protected(_seenAt.World)))
             Lose();
         _radar.Target = Quarry;
     }
@@ -309,7 +310,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
     private void See(Node3D echo)
     {
         Quarry = echo;
-        _seenAt = echo.GlobalPosition;
+        _seenAt = Spot.At(this, echo.GlobalPosition);
         _seenVelocity = echo is IRadarTarget t ? t.Velocity : Vector3.Zero;
         _seenAge = 0;
     }
@@ -363,18 +364,11 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
         return null;
     }
 
-    public void ShiftOrigin(Vector3 offset)
-    {
-        _waypoint -= offset;
-        _home -= offset;
-        _seenAt -= offset;
-    }
-
     /// <summary>Sets it flying with this velocity from where it is (a test, a mission).</summary>
     public void Fly(Vector3 velocity)
     {
         Velocity = velocity;
-        _waypoint = GlobalPosition + velocity * 10;
+        _waypoint = Spot.At(this, GlobalPosition + velocity * 10);
         _jinkLeft = 0;
     }
 
@@ -483,7 +477,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
         return heat * (FrontHeat + (1 - FrontHeat) * behind);
     }
 
-    private Vector3 Centre => _anchor?.GlobalPosition ?? _home;
+    private Vector3 Centre => _anchor?.GlobalPosition ?? _home.World;
 
     private Vector3 NewWaypoint()
     {
@@ -548,7 +542,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IOriginShift, IH
         Explosion.Fade(_body, 0);
         var direction = new Vector3(_rng.RandfRange(-1, 1), _rng.RandfRange(-0.3f, 0.3f), _rng.RandfRange(-1, 1)).Normalized();
         GlobalPosition = Centre + direction * 3500f;
-        _waypoint = NewWaypoint();
-        Velocity = (_waypoint - GlobalPosition).Normalized() * Speed;
+        _waypoint = Spot.At(this, NewWaypoint());
+        Velocity = (_waypoint.World - GlobalPosition).Normalized() * Speed;
     }
 }

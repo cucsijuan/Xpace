@@ -1,7 +1,9 @@
-; comms.asm - Radio Contacts 1.6 (COMMS.COM)
+; comms.asm - Radio Contacts 1.7 (COMMS.COM)
 ;
 ;   COMMS       stays resident and works the radio from the ship's COMMS
-;               screen (32 x 12 text) and its keys
+;               screen (32 x 12 text) and its keys, as an application of the
+;               desktop (DESK.COM) if there is one: the desktop opens it and
+;               BACK on the list goes back to it
 ;   COMMS OFF   takes it out of memory
 ;
 ; The screen lists the radio's contacts, nearest first: callsign, station
@@ -56,6 +58,9 @@ RADIO       equ 200h
 CRUISE      equ 220h
 TYPE_DISPLAYS equ 6
 TYPE_RADIO  equ 18
+MARK        equ 'C'                 ; whose the screen is, in its table (+9)
+DESK_LIST   equ 10Dh                ; the desktop's: where its list is
+MOST_APPS   equ 6
 IRQ_VECTOR  equ 0Dh
 IRQ_BIT     equ 20h
 
@@ -93,7 +98,7 @@ ATTR_CURSOR equ 70h
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPCM16'             ; 103h
+signature   db 'XPCM17'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -112,6 +117,28 @@ on_irq:
     push cs
     pop es
     cld
+    mov es, [card_seg]
+    mov bx, [my_entry]
+    cmp byte [es:bx + 9], MARK
+    je .ours
+    mov byte [open], 0              ; the desktop's or another's: only the keys go by
+    mov dx, DISPLAYS + 8
+    in al, dx
+    mov [key_count], al
+    jmp .later
+.ours:
+    cmp byte [open], 0
+    jne .is_open
+    mov byte [open], 1              ; just opened: the key that opened it is gone
+    mov dx, DISPLAYS + 8
+    in al, dx
+    mov [key_count], al
+    mov byte [es:bx + 6], 0         ; text
+    call draw_labels
+    jmp .now
+.is_open:
+    push cs
+    pop es
     call keys
     jc .now                         ; a key: show it at once
     dec byte [countdown]
@@ -162,8 +189,19 @@ press:
     add al, KEY_UP - 1
 .mapped:
     cmp byte [mode], 0
-    jne .options
-    cmp al, KEY_UP                  ; the list
+    jne near .options
+    cmp al, KEY_BACK                ; the list: back to the desktop, if there is one
+    jne .list_up
+    cmp byte [alone], 0
+    jne near .done
+    push es
+    mov es, [card_seg]
+    mov bx, [my_entry]
+    mov byte [es:bx + 9], 0
+    pop es
+    ret
+.list_up:
+    cmp al, KEY_UP
     jne .list_down
     cmp byte [cursor], 0
     je near .done
@@ -777,7 +815,13 @@ s_data      db ' REQUEST DATA                 ', 0
 beacon_asks   db 5, ASK_COURSE        ; a beacon's: market data, course
 s_no_options db 'NO OPTIONS FOR SHIPS', 0
 s_hint      db 'SELECT: SEND   BACK: LIST', 0
+s_title     db 'RADIO 1.7', 0
+s_header    db 'CALLSIGN  KIND       KM', 0
 
+card_seg    dw 0
+my_entry    dw 0
+open        db 0
+alone       db 0                    ; no desktop: the screen is always ours
 countdown   db 1
 key_count   db 0
 my_screen   db 0FFh
@@ -794,6 +838,48 @@ sel_name    times 8 db ' '          ; the contact under the cursor
 sel_kind    db 0                    ; (right after its callsign)
 entry       times 20 db 0
 msg         times MSG_SIZE db 0
+
+draw_labels:
+    push es
+    mov es, [screen_seg]
+    xor di, di
+    mov ax, (ATTR_LABEL << 8) | ' '
+    mov cx, COLS * ROWS
+    rep stosw
+    xor di, di
+    mov ax, (ATTR_TITLE << 8) | ' '
+    mov cx, COLS
+    rep stosw
+    mov di, 1 * 2
+    mov si, s_title
+    mov ah, ATTR_TITLE
+    call put_text
+    mov di, (1 * COLS + 1) * 2
+    mov si, s_header
+    mov ah, ATTR_LABEL
+    call put_text
+    pop es
+    ret
+
+; ---- the icon (tools/desk_art.py) ----
+icon
+            db 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255, 255
+            db 255, 254, 191, 255, 255, 255, 175, 255, 255, 250, 255, 255, 255, 255, 235, 255
+            db 255, 235, 247, 255, 255, 247, 250, 255, 255, 171, 213, 255, 255, 213, 250, 191
+            db 255, 175, 215, 255, 255, 245, 254, 191, 255, 175, 95, 252, 15, 253, 126, 191
+            db 254, 191, 95, 192, 0, 253, 127, 175, 254, 189, 127, 193, 80, 255, 95, 175
+            db 254, 189, 127, 5, 84, 63, 95, 175, 254, 189, 127, 5, 84, 63, 95, 175
+            db 254, 189, 127, 5, 84, 63, 95, 175, 254, 189, 127, 193, 80, 255, 95, 175
+            db 254, 191, 95, 192, 0, 253, 127, 175, 255, 175, 95, 252, 15, 253, 126, 191
+            db 255, 175, 215, 250, 171, 245, 254, 191, 255, 171, 213, 250, 171, 213, 250, 191
+            db 255, 235, 247, 234, 170, 247, 250, 255, 255, 250, 255, 234, 234, 255, 235, 255
+            db 255, 254, 191, 170, 234, 191, 175, 255, 255, 255, 255, 171, 250, 191, 255, 255
+            db 255, 255, 254, 171, 250, 175, 255, 255, 255, 255, 254, 175, 254, 175, 255, 255
+            db 255, 255, 250, 175, 254, 171, 255, 255, 255, 255, 250, 170, 170, 171, 255, 255
+            db 255, 255, 234, 170, 170, 170, 255, 255, 255, 255, 234, 255, 255, 234, 255, 255
+            db 255, 255, 170, 255, 255, 234, 191, 255, 255, 255, 171, 255, 255, 250, 191, 255
+            db 255, 254, 171, 255, 255, 250, 175, 255, 255, 255, 255, 255, 255, 255, 255, 255
+; ---- end of the icon ----
 
 resident_end:
 
@@ -851,7 +937,8 @@ install:
     mov dx, DISPLAYS + 8
     in al, dx
     mov [key_count], al
-    mov byte [es:bx + 6], 0         ; text
+    mov [card_seg], es
+    mov [my_entry], bx
     mov ax, [es:bx + 14]
     mov cl, 4
     shr ax, cl
@@ -861,7 +948,7 @@ install:
     mov dx, RADIO + 8
     in ax, dx
     mov [table_seg], ax
-    call draw_labels
+    call join_desk
 
     mov ax, 3500h + IRQ_VECTOR
     int 21h
@@ -891,12 +978,13 @@ remove:
     jmp quit_message
 .found:
     call unlink                     ; out of the IRQ 5 chain, wherever it is
-    push es                         ; the screen says so
-    mov es, [es:screen_seg]
-    mov di, (LAWS_ROW * COLS + 1) * 2
-    mov si, s_removed
-    mov ah, ATTR_OFF
-    call put_text
+    push es
+    call leave_desk
+    pop es
+    push es                         ; the screen back to the desktop
+    mov bx, [es:my_entry]
+    mov es, [es:card_seg]
+    mov byte [es:bx + 9], 0
     pop es
     mov ah, 49h
     int 21h
@@ -955,6 +1043,84 @@ unlink:
 
 prev_seg    dw 0
 
+; The desktop along the chain: ES its segment, BX its list, or CF set
+find_desk:
+    mov ax, 3500h + IRQ_VECTOR
+    int 21h
+.next:
+    cmp word [es:103h], 'XP'
+    jne .none
+    mov si, s_desk
+    mov di, 103h
+    mov cx, 6
+    repe cmpsb
+    je .found
+    les bx, [es:109h]
+    jmp .next
+.found:
+    mov bx, [es:DESK_LIST]
+    clc
+    ret
+.none:
+    stc
+    ret
+
+; On the desktop's list, or alone with the screen if there is no room or desktop
+join_desk:
+    push es
+    call find_desk
+    jc .alone
+    mov di, bx
+    mov cx, MOST_APPS
+.slot:
+    add di, 16
+    cmp byte [es:di], 0
+    je .free
+    loop .slot
+.alone:
+    pop es
+    mov byte [alone], 1
+    push es
+    mov es, [card_seg]
+    mov bx, [my_entry]
+    mov byte [es:bx + 9], MARK
+    pop es
+    ret
+.free:
+    push di
+    inc di
+    mov si, s_app
+    mov cx, 6
+    rep movsb
+    pop di
+    mov word [es:di + 12], icon
+    mov [es:di + 14], cs
+    mov byte [es:di], MARK
+    inc byte [es:bx]                ; the list changed
+    pop es
+    ret
+
+; Off the desktop's list
+leave_desk:
+    call find_desk
+    jc .done
+    mov di, bx
+    mov cx, MOST_APPS
+.slot:
+    add di, 16
+    cmp byte [es:di], MARK
+    je .found
+    loop .slot
+    ret
+.found:
+    mov byte [es:di], 0
+    inc byte [es:bx]
+.done:
+    ret
+
+s_desk      db 'XPDK10'
+s_app       db 'Comms', 0
+
 ; DS:SI a screen's name (6 characters): CF clear and ES:BX its entry in
 ; the display card's screen table, or CF set if the ship has no such screen
 find_screen:
@@ -990,37 +1156,12 @@ find_screen:
 
 n_comms     db 'COMMS '
 
-draw_labels:
-    push es
-    mov es, [screen_seg]
-    xor di, di
-    mov ax, (ATTR_LABEL << 8) | ' '
-    mov cx, COLS * ROWS
-    rep stosw
-    xor di, di
-    mov ax, (ATTR_TITLE << 8) | ' '
-    mov cx, COLS
-    rep stosw
-    mov di, 1 * 2
-    mov si, s_title
-    mov ah, ATTR_TITLE
-    call put_text
-    mov di, (1 * COLS + 1) * 2
-    mov si, s_header
-    mov ah, ATTR_LABEL
-    call put_text
-    pop es
-    ret
-
 quit_message:
     mov ah, 09h
     int 21h
     mov ax, 4C01h
     int 21h
 
-s_title         db 'RADIO 1.6', 0
-s_header        db 'CALLSIGN  KIND       KM', 0
-s_removed       db 'COMMS REMOVED', 0
 msg_installed   db 'Radio resident: contacts on the COMMS screen.', 13, 10, '$'
 msg_already     db 'Radio program is already resident.', 13, 10, '$'
 msg_not_running db 'Radio program is not resident, or a program that is not', 13, 10

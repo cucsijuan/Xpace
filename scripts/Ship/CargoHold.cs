@@ -64,11 +64,21 @@ public partial class CargoHold : Node, IShipDevice
         bus.SetWord(Slot, 10, ShipMemory.Cargo);
         bus.SetWord(Slot, 12, (short)Math.Min(32767, (ship.Device<CruiseDevice>()?.Fuel(ship) ?? 0) * 16));
         bus.SetWord(Slot, 14, (short)Math.Min(32767, ship.Spec.FuelTank * 16));
-        byte* list = ship.Computer.Memory + ShipMemory.Base + ShipMemory.Cargo;
+        int kinds = List(ship.Computer.Memory + ShipMemory.Base + ShipMemory.Cargo, contents.Cargo, MaxKinds);
+        bus[Slot, 6] = (byte)kinds;
+    }
+
+    public void AfterStep(ShipBody ship, double delta)
+    {
+    }
+
+    /// <summary>Writes a list of goods as programs read it: how many kinds it wrote.</summary>
+    public static unsafe int List(byte* list, System.Collections.Generic.IReadOnlyDictionary<string, int> cargo, int most)
+    {
         int kinds = 0;
-        foreach ((string id, int tonnes) in contents.Cargo.OrderBy(c => c.Key, System.StringComparer.Ordinal))
+        foreach ((string id, int tonnes) in cargo.OrderBy(c => c.Key, System.StringComparer.Ordinal))
         {
-            if (kinds == MaxKinds)
+            if (kinds == most)
                 break;
             byte* entry = list + kinds++ * EntrySize;
             string name = (GoodsCatalog.Find(id)?.Name ?? id).ToUpperInvariant().PadRight(NameLength);
@@ -78,10 +88,6 @@ public partial class CargoHold : Node, IShipDevice
             entry[13] = (byte)(tonnes >> 8);
             entry[14] = entry[15] = 0;
         }
-        bus[Slot, 6] = (byte)kinds;
-    }
-
-    public void AfterStep(ShipBody ship, double delta)
-    {
+        return kinds;
     }
 }

@@ -68,6 +68,12 @@ public partial class Personality : Resource
     [Export(PropertyHint.Range, "0,1,0.05")] public double SaleFloor = 0.3;
     [Export] public double SaleFallHours = 72;
 
+    [ExportGroup("Going for ships")]
+    /// <summary>A pirate goes for a ship only with this much aboard, as its scanner reads it.</summary>
+    [Export] public int PrizeTonnes = 1;
+    /// <summary>Hours before it looks again at a ship it found not worth it.</summary>
+    [Export] public double LookAgainHours = 3;
+
     [ExportGroup("Under fire")]
     /// <summary>With a ship that can't fight, they start thinking of throwing its cargo out with this much of the hull left, in the hope that is what they came for.</summary>
     [Export(PropertyHint.Range, "0,1,0.05")] public float JettisonBelowHull = 0.7f;

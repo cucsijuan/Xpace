@@ -24,6 +24,7 @@ Channel = "miners"
 
 [node name="Pilot" parent="."]
 Peaceful = true
+RadarUse = 1
 
 [node name="Job" type="Node" parent="."]
 script = ExtResource("4_job")

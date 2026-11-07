@@ -32,7 +32,7 @@ namespace Xpace.Ship;
 /// the thruster controller takes the controls directly (direct mode).
 /// See software/flight/flight.asm for the registers.
 /// </summary>
-public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.ICruiseShown
+public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.ICruiseShown, ISolidShip
 {
     public const int SlotControls = 0, SlotInertial = 1, SlotThrusters = 2, SlotRatings = 10;
     public const byte TypeControls = 1, TypeInertial = 2, TypeThrusters = 3, TypeRatings = 12;
@@ -161,6 +161,34 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
             _hitboxes = new[] { new Hitbox(Vector3.Zero, new Vector3(5, 3, 10)) };
         _bound = ShipContact.Bound(_hitboxes);
         Bounds = Hitbox.Bounds(_hitboxes);
+        ShipCollision.Measure(_bound);
+        AddToGroup(ShipCollision.Group);
+    }
+
+    private readonly List<Node> _ships = new();
+
+    public Hitbox[] SolidBoxes => _hitboxes;
+    public float SolidReach => _bound;
+    public Vector3 SolidVelocity => LinearVelocity;
+    public float SolidMass => Mass;
+    public bool Solid => Visible;
+    public bool Immovable => Held;
+    public bool MovedHere => !Net.NetBody.IsPuppet(this);
+
+    /// <summary>Another ship ran into this one.</summary>
+    public void Rammed(Vector3 push, Vector3 speedChange, float joules)
+    {
+        if (!MovedHere)
+            return;                                     // its owner works it out, there
+        if (!Held)
+        {
+            ShipState now = State;
+            now.Position += push;
+            now.Velocity += speedChange;
+            State = now;
+        }
+        if (joules > 0)
+            Impact?.Invoke(joules);
     }
 
     /// <summary>The ship <paramref name="node"/> is part of (a device on a hardpoint is not its child), or null.</summary>
@@ -269,6 +297,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
             return;
         Dormant = true;
         Computer.PowerOnAtStart = false;
+        Device<RadarDevice>()?.Silence();
         foreach (FighterAi pilot in FindChildren("*", "", true, false).OfType<FighterAi>())
             pilot.SetPhysicsProcess(false);
         foreach (Space.RadarEmitter emitter in FindChildren("*", "", true, false).OfType<Space.RadarEmitter>())
@@ -604,6 +633,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
         float load = Mass / s.Mass;
         ShipState after = ShipMotion.Step(before, force, torque, Mass, s.Inertia * load, dt, s.VeilAxes * Thin, s.VeilSpin);
         float crash = ShipContact.Collide(GetWorld3D(), ref after, before.Position, _hitboxes, _bound, s, _near, load);
+        crash += ShipCollision.Meet(this, ref after, before.Position, dt, _ships);
         State = after;
         if (crash > 0)
             Impact?.Invoke(crash);

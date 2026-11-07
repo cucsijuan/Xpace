@@ -92,6 +92,8 @@ public sealed class StationBook
                 Beacons.Add(new Beacon { Id = radio.Id, Sector = sector, At = at, Reach = beacon.ReachJumps, Heard = beacon.HeardMeters });
             if (radio.Laws is StationLaws laws && parent is not JumpGate)
                 space.Limits.Add((at, laws.SpeedRadius, laws.SpeedLimit));
+            if (radio.Laws != null)
+                space.Zones.Add((at, radio.Laws.ZoneRadius));
             if (parent is JumpGate gate)
                 Gates.Add(new Gate
                 {
@@ -208,10 +210,11 @@ public sealed class StationBook
     {
         if (!_bounds.TryGetValue(model, out Aabb bounds))
         {
-            if (model.Hull?.Exterior?.Instantiate() is Node3D exterior)
+            // The same boxes the ship itself goes by, whatever its hull is made of
+            if (model.Scene?.Instantiate() is Node3D ship)
             {
-                bounds = Xpace.Ship.ShipPart.Bounds(exterior);
-                exterior.Free();
+                bounds = Xpace.Net.Hitbox.Bounds(Xpace.Net.Hitbox.FromShapes(ship));
+                ship.Free();
             }
             _bounds[model] = bounds;
         }

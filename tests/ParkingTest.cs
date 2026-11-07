@@ -59,6 +59,7 @@ public partial class ParkingTest : Node3D
         AddChild(_ship);
 
         Check("COMMS.COM is resident", await Until(() => _ship.Computer.ScreenText().Contains("Radio resident"), 60));
+        await Desk.OpenComms(this, _display);
         await Seconds(0.5);
         Check($"the radio off: COMMS says so\n{Comms()}", Comms().Contains("RADIO OFF") && _radio.Laws == null);
 

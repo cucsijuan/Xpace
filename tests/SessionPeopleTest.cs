@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -78,6 +79,15 @@ public partial class SessionPeopleTest : Node
 
         ace.Ship.Cargo["iron"] = 4;
         Universe.Current.Touch(ace);
+
+        // A guest's scanner asks the host what a hold has
+        string reading = null;
+        _code.DocumentArrived += (topic, text) => reading = topic == Universe.ScanTopic ? text : reading;
+        _code.Ask(Universe.ScanTopic, $"{GuestShipId} 7");
+        Check("the host reads a hold for a guest's scanner", await Run(120, () => reading != null));
+        var read = reading == null ? null : System.Text.Json.JsonSerializer.Deserialize<ScanReading>(reading);
+        Check($"and answers what it asked ({reading})", read?.Asked == 7 && read.Tonnes == 4 && read.Cargo.GetValueOrDefault("iron") == 4);
+
         _code.Ask(Universe.JettisonTopic, "");
         Check("the guest's jettison empties its pilot's hold on the host", await Run(120, () => ace.Ship.Tonnes == 0));
         Check($"the guest sees the pod ({pods})", await Run(120, () => pods == 1));

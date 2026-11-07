@@ -57,6 +57,23 @@ public partial class CargoViewTest : Node
         Check($"at rest on it ({Off(ship, rest, main, first.Sector):0.00} m off)", Off(ship, rest, main, first.Sector) < 0.1f);
         LandingPad real = station.Docks.First(d => d.Number == record.Dock).PadNumbered(record.Pad);
         Check("as the pad itself reckons it", real.Docks(ship));
+        foreach (string file in DirAccess.GetFilesAt("res://assets/ship/models").Where(f => f.EndsWith(".tres")))
+        {
+            ShipModel any = GD.Load<ShipModel>($"res://assets/ship/models/{file}");
+            var body = any.Scene.Instantiate<ShipBody>();
+            foreach (Xpace.Computer.ShipComputer c in body.FindChildren("*", "", true, false).OfType<Xpace.Computer.ShipComputer>())
+                c.PowerOnAtStart = false;
+            foreach (FighterAi ai in body.FindChildren("*", "", true, false).OfType<FighterAi>())
+                ai.ProcessMode = ProcessModeEnum.Disabled;
+            AddChild(body);
+            var walk = body.FindChildren("*", "", true, false).OfType<Xpace.OnFoot.WalkSurface>().FirstOrDefault();
+            walk?.Build();
+            Check($"{any.Name} stops people on foot", walk?.Body?.GetChildCount() > 0);
+            Vector3 onRecord = pad.Pose.AffineInverse() * book.Rest(pad, any);
+            Check($"{any.Name} on a record stands where the pad would put it ({onRecord.Y:0.00} m up, its belly {onRecord.Y + body.Bounds.Position.Y:0.00} m off the deck)",
+                onRecord.DistanceTo(real.Rest(body).Origin) < 0.01f && onRecord.Y + body.Bounds.Position.Y > 0);
+            body.QueueFree();
+        }
 
         // Detail: nobody deals with it, so its computer rests; hit, it wakes; left alone, it rests again
         Check("left alone it is at detail level 1", ship.Dormant);

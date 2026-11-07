@@ -192,7 +192,7 @@ godot --headless --fixed-fps 60 --path . res://tests/maneuver_test.tscn
 
 - `computer_test`: boots COS, types `DIR`, saves and loads the computer, and measures how many 4.77 MHz machines one core runs.
 - `flight_test`: the ship flown by FLIGHT.COM: turn rates and speed hold with flight assist, drift without it, the FA button, safe turns (at 150 m/s full stick slides the nose 80 degrees off the path without them, a few with them, and twice the thrust turns twice as hard), the console free while flying, and direct mode after `FLIGHT OFF`.
-- `combat_test`: FIRECTL.COM against drones: locks with T, measures the aiming error against the exact intercept, counts the hits of a burst at 2 km, destroys the drone, switches target with G and turns the radar off with `FIRECTL OFF`.
+- `combat_test`: FIRECTL.COM against drones: locks with T, measures the aiming error against the exact intercept, counts the hits of four bursts at 2 km, destroys the drone, switches target with G and turns the radar off with `FIRECTL OFF`.
 - `accuracy_test`: hit probability by range against a drone jinking at 2 g (four runs per range), and a jammer on the drone: no lock at 4 km, burn-through at 1.5 km. It currently gives about 33% at 500 m, 10% at 1 km, 2% at 2 km and 0% from 4 km (46% against a straight target at 2 km): an evading drone dies inside 1 km, one flying straight even at 2 km.
 
 - `disk_test` (no `--fixed-fps` needed): the pilot's diskette kept between games, and the insurer's copy (the factory diskette with no backup, the last backup sent with one).

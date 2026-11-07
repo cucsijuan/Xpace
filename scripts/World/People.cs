@@ -243,7 +243,7 @@ public static class People
 
     /// <summary>
     /// Who is going for whom on the ways now, by where the records say they are: a grid for each sector, so it costs what
-    /// the ships near each other cost.
+    /// the ships near each other cost. Nobody starts anything in a protected zone.
     /// </summary>
     public static List<(CargoShipRecord Attacker, CargoShipRecord Victim)> Meetings(UniverseState state, StationBook book, float meters)
     {
@@ -251,7 +251,8 @@ public static class People
         var grids = new Dictionary<string, SpatialGrid<CargoShipRecord>>();
         var fixes = new Dictionary<CargoShipRecord, StationBook.Fix>();
         foreach (CargoShipRecord ship in state.CargoShips.Values)
-            if (ship.Phase == CargoShipRecord.Flying && ResourceLoader.Exists(ship.Model) && Xpace.World.ResourceCache.Load<ShipModel>(ship.Model) is ShipModel model && book.FixOf(ship, model, state.Clock) is StationBook.Fix fix)
+            if (ship.Phase == CargoShipRecord.Flying && ResourceLoader.Exists(ship.Model) && Xpace.World.ResourceCache.Load<ShipModel>(ship.Model) is ShipModel model && book.FixOf(ship, model, state.Clock) is StationBook.Fix fix
+                && !(book.Space.TryGetValue(fix.Sector, out Voyage.Space space) && space.Protected(fix.At)))
             {
                 fixes[ship] = fix;
                 if (!grids.TryGetValue(fix.Sector, out SpatialGrid<CargoShipRecord> grid))
@@ -272,13 +273,14 @@ public static class People
         return meetings;
     }
 
-    // Its quarry, or for a pirate whoever carries something; hunters and pirates also go for pirates with a price on them
+    // Its quarry, or for a pirate any ship it hasn't looked at lately: what a ship carries it can only learn with its
+    // scanner, up close; hunters and pirates also go for pirates with a price on them
     private static bool Goes(PersonRecord person, CargoShipRecord other, UniverseState state)
     {
         if (person.Quarry != "" && other.Owner == person.Quarry)
             return true;
         if (person.Livelihood == nameof(Livelihood.Pirate))
-            return other.Tonnes > 0;
+            return !Memories.Knows(person, other.Id, Memories.NothingAboard, state.Clock, (person.Personality?.LookAgainHours ?? 3) * 3600);
         return person.Livelihood == nameof(Livelihood.Hunter) && state.People.GetValueOrDefault(other.Owner)?.Livelihood == nameof(Livelihood.Pirate);
     }
 }

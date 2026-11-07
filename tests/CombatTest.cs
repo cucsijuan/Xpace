@@ -40,10 +40,10 @@ public partial class CombatTest : Node3D
         // A drone crossing 2 km ahead, and another off to the right
         _crossing = new Drone { Straight = true, Evades = false, Speed = 120, Position = new Vector3(-500, 60, -2000) };
         AddChild(_crossing);
-        _crossing.LookAt(_crossing.GlobalPosition + Vector3.Right, Vector3.Up);
+        _crossing.Fly(Vector3.Right * 120);
         _other = new Drone { Straight = true, Evades = false, Speed = 60, Position = new Vector3(1800, -100, -2600) };
         AddChild(_other);
-        _other.LookAt(_other.GlobalPosition + Vector3.Back, Vector3.Up);
+        _other.Fly(Vector3.Back * 60);
 
         Check("FIRECTL.COM goes resident from AUTOEXEC.BAT", await Until(() => FireControl.Running(_ship), 40));
         Check("the radar is on and sees both drones", await Until(() => _ship.Computer.Bus[RadarDevice.Slot, 3] == 2, 3));
@@ -55,13 +55,18 @@ public partial class CombatTest : Node3D
         float error = Mathf.RadToDeg(_turret.BarrelDirection.AngleTo(Intercept(_crossing)));
         Check($"the turret leads the crossing drone ({error:0.000} degrees off the intercept)", error < 0.25f);
 
-        _controls.Trigger = true;                   // a 1 s burst, then wait for the rounds to arrive
-        await Seconds(1);
-        _controls.Trigger = false;
+        // Bursts of 1 s, waiting for the rounds to arrive: at this range one burst alone can all go wide
+        const int Bursts = 4;
+        for (int i = 0; i < Bursts; i++)
+        {
+            _controls.Trigger = true;
+            await Seconds(1);
+            _controls.Trigger = false;
+            await Seconds(2.5);
+        }
         int fired = _turret.RoundsFired;
-        await Seconds(2.5);
         int hits = _crossing.Hits;
-        Check($"a 1 s burst at 2 km: {hits} hits of {fired} rounds (the radar is noisy now)", fired >= 8 && hits >= 1);
+        Check($"{Bursts} bursts of 1 s at 2 km: {hits} hits of {fired} rounds (the radar is noisy now)", fired >= 8 * Bursts && hits >= 1);
         _crossing.GlobalPosition = new Vector3(-300, 60, -1000);   // closer in, where the gun can kill
         _crossing.Fly(Vector3.Right * 120);
         await Seconds(1.5);

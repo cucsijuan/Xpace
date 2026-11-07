@@ -69,9 +69,11 @@ public partial class LaserDevice : Node3D, IShipDevice
     /// <summary>The weapons capacitor hasn't a pulse's power.</summary>
     public bool NoPower { get; private set; }
     /// <summary>The lead point the program wrote this step (world), or null: no circle.</summary>
-    public Vector3? LeadPoint { get; private set; }
+    public Vector3? LeadPoint => _lead?.World;
     /// <summary>Where the pulses go at the lead point's range (world): the pipper, while there is a circle.</summary>
-    public Vector3? Pipper { get; private set; }
+    public Vector3? Pipper => _pipper?.World;
+
+    private Spot? _lead, _pipper;
 
     private readonly List<Node3D> _emitters = new();
     private readonly List<OmniLight3D> _flashes = new();
@@ -198,7 +200,7 @@ public partial class LaserDevice : Node3D, IShipDevice
         bus.TakeWritten(Slot, 12);
         if (!show)
         {
-            LeadPoint = Pipper = null;
+            _lead = _pipper = null;
             return;
         }
         _radar ??= ship.Device<RadarDevice>();
@@ -206,7 +208,7 @@ public partial class LaserDevice : Node3D, IShipDevice
         var local = new Vector3(bus.Word(Slot, 8), bus.Word(Slot, 10), -bus.Word(Slot, 12)) / 4f;
         Basis axes = ship.GlobalBasis.Orthonormalized();
         Vector3 lead = origin.GlobalPosition + axes * local;
-        LeadPoint = lead;
-        Pipper = GlobalPosition - GlobalBasis.Z.Normalized() * GlobalPosition.DistanceTo(lead);
+        _lead = Spot.At(this, lead);
+        _pipper = Spot.At(this, GlobalPosition - GlobalBasis.Z.Normalized() * GlobalPosition.DistanceTo(lead));
     }
 }
