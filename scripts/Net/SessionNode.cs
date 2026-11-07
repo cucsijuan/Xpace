@@ -47,7 +47,7 @@ namespace Xpace.Net;
 /// a round or a missile another machine fires goes off here too, the host's
 /// hits name the ship that fired, and a ship that blew up on its owner's
 /// machine was destroyed by the last ship to hit it (within
-/// <see cref="BlameSeconds"/>). So a station's security, on the host, judges
+/// <see cref="Combat.BlameSeconds"/>). So a station's security, on the host, judges
 /// a guest as it judges anyone, and what its radio says to a guest's ship
 /// (a <see cref="RemoteRadio"/> hears it) reaches that guest's radio.
 ///
@@ -87,9 +87,6 @@ public partial class SessionNode : Node
     /// </summary>
     [Export] public bool FollowsPlayers = true;
 
-    /// <summary>A ship that blows up this soon after a hit was destroyed by whoever hit it.</summary>
-    [Export] public float BlameSeconds = 10f;
-
     /// <summary>What a session can make on every machine: missiles, chaff, flares (the same list everywhere).</summary>
     [Export] public Godot.Collections.Array<PackedScene> Spawnables = new();
 
@@ -119,7 +116,6 @@ public partial class SessionNode : Node
 
     private FloatingOrigin _origin;                 // the sector this node is in, without a sector host
     private SectorHost _sectors;
-    private readonly System.Collections.Generic.Dictionary<ushort, (ushort By, uint At)> _lastHit = new();
     private readonly System.Collections.Generic.HashSet<ushort> _down = new();
     private readonly System.Collections.Generic.Dictionary<ushort, (IRadio Radio, string Sign, bool On)> _radios = new();
     private readonly System.Collections.Generic.Dictionary<ushort, (string Sign, bool On)> _theirRadios = new();
@@ -368,10 +364,8 @@ public partial class SessionNode : Node
             bool down = e.Track.Sample().Destroyed;
             if (down && _down.Add(e.NetId))
             {
-                Node3D by = _lastHit.TryGetValue(e.NetId, out var hit) && (Now - hit.At) * Session.TickSeconds < BlameSeconds
-                    ? NodeOf(hit.By) : null;
                 if (NodeOf(e.NetId) is Node3D ship)
-                    Combat.Lost(ship, by, ship.GlobalPosition);
+                    Combat.Down(ship, ship.GlobalPosition);
             }
             else if (!down)
                 _down.Remove(e.NetId);
@@ -572,7 +566,6 @@ public partial class SessionNode : Node
         Rounds(Session.PlaceOf(hit.Ship))?.Remove(hit.Shooter, hit.Sequence);
         if (Session.Entity(hit.Target) is INetEntity { IsLocal: false } victim)
         {
-            _lastHit[victim.NetId] = (hit.Ship, Now);
             Combat.Struck(NodeOf(victim.NetId), NodeOf(hit.Ship));     // the owner takes it (and Combat hears of it there)
         }
     }

@@ -114,7 +114,8 @@ public partial class SessionPeopleTest : Node
             c.PowerOnAtStart = false;
         main.Sector.AddChild(prey);
         long before = ace.Credits;
-        Combat.Lost(prey, puppet, prey.GlobalPosition);
+        Combat.Struck(prey, puppet);
+        Combat.Down(prey, prey.GlobalPosition);
         Check($"the bounty goes to the guest's pilot ({ace.Credits - before})", ace.Credits - before == 3000);
         End();
     }

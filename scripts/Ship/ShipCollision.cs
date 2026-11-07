@@ -35,7 +35,7 @@ public interface ISolidShip
 ///
 /// In a session each machine works out the ships it flies, against what it sees of the others: a ship's owner has the
 /// last word on it, as for everything else about it. A hard crash counts as a blow from the faster ship
-/// (<see cref="Combat.Struck"/>); a bump in a hangar doesn't.
+/// (<see cref="Combat.Struck"/>), and if it wrecks the other, the faster ship destroyed it; a bump in a hangar doesn't.
 /// </summary>
 public static class ShipCollision
 {
@@ -120,7 +120,7 @@ public static class ShipCollision
 
         float reduced = other.Immovable ? m1 : m1 * m2 / (m1 + m2);
         float each = 0.25f * reduced * (1 - e * e) * closing * closing;
-        other.Rammed(shares ? push : Vector3.Zero, shares ? -n * (change * (1 - mine)) : Vector3.Zero, each);
+        // The blow first, then the damage: a hull it breaks blames whoever struck it
         if (each >= BlowJoules && other is Node3D ship)
         {
             bool mineFaster = s.Velocity.LengthSquared() + (n * change * mine).LengthSquared() >= other.SolidVelocity.LengthSquared();
@@ -129,6 +129,7 @@ public static class ShipCollision
             else
                 Combat.Struck(me, ship);
         }
+        other.Rammed(shares ? push : Vector3.Zero, shares ? -n * (change * (1 - mine)) : Vector3.Zero, each);
         return each;
     }
 

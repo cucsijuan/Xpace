@@ -504,6 +504,8 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IHeatSource, INe
     private void Explode()
     {
         Alive = false;
+        if (!Xpace.Net.NetBody.IsPuppet(this))
+            Combat.Down(this, GlobalPosition);      // a puppet's is told by its owner's machine
         // gone into the fire and smoke
         var fade = _body.CreateTween();
         fade.TweenInterval(Explosion.FadeFrom);

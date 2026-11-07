@@ -131,6 +131,7 @@ public partial class ShipHull : Node, IDamageable
             (n as RadarDevice)?.Silence();
         Explosion.Spawn(_ship.GetParent(), _ship.GlobalPosition, 30f, 1.6, 16f);
         EmitSignal(SignalName.Destroyed);
+        Combat.Down(_ship, _ship.GlobalPosition);
     }
 
     /// <summary>The insurer's new ship, where the first one started, full.</summary>

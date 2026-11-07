@@ -10,8 +10,9 @@ using Xpace.Space;
 namespace Xpace.Tests;
 
 /// <summary>
-/// Ships run into each other: head on, a fighter against a freighter, a bump that hurts nobody, at cruise speed, into a
-/// ship held on a pad, into a ship flown on another machine; and a pilot sees a ship ahead and steers round it.
+/// Ships run into each other: head on, a fighter against a freighter, a bump that hurts nobody, at cruise speed, one
+/// rammed into a wreck (blamed on the rammer), into a ship held on a pad, into a ship flown on another machine; and a
+/// pilot sees a ship ahead and steers round it.
 ///
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/ship_collision_test.tscn
 /// </summary>
@@ -64,6 +65,25 @@ public partial class ShipCollisionTest : Node3D
         (a, b) = Pair("ai_fighter", "ai_fighter", root, 400, 3000, 0);
         await Seconds(0.5);
         Check($"at 3 km/s it doesn't go through ({P(a) - P(b):0} m, {a.Find<ShipHull>().CrashDamage:0} of damage)", a.Find<ShipHull>().CrashDamage > 0 && P(a) < P(b));
+        Free(a, b);
+
+        // Rammed into a wreck: the one that ran into it did it; the one that ran in has only itself to blame
+        (a, b) = Pair("ai_fighter", "ai_freighter", root, 120, 60, 0);
+        a.Find<ShipHull>().Mend(0.01f);
+        b.Find<ShipHull>().Mend(0.01f);
+        Node3D rammer = a, rammed = b;
+        Node3D killedBy = null, selfBy = rammed;
+        bool killed = false, self = false;
+        void Down(Node3D victim, Node3D by, Vector3 at)
+        {
+            if (victim == rammed) { killed = true; killedBy = by; }
+            if (victim == rammer) { self = true; selfBy = by; }
+        }
+        Combat.Destroyed += Down;
+        await Until(() => killed && self, 6);
+        Combat.Destroyed -= Down;
+        Check($"a ship rammed into a wreck was destroyed by the one that ran into it ({killedBy?.Name})", killed && killedBy == rammer);
+        Check($"the one that ran in was destroyed by nobody ({selfBy?.Name})", self && selfBy == null);
         Free(a, b);
 
         // Into a ship on a pad
