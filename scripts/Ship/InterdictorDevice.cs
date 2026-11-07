@@ -11,14 +11,15 @@ namespace Xpace.Ship;
 /// the ship the radar tracks, by (Reach / distance)² (GDD 4.3.1). A cruising
 /// ship caught in it can thin its veil less and less, slows, and drops out when
 /// the density reaches what its generator can bear: a better generator holds
-/// on longer, from nearer. It does nothing to a ship not in cruise, and needs
-/// the radar's lock. It draws on the systems capacitor, and with too little
+/// on longer, from nearer. It needs the radar's lock, and a ship in cruise: the
+/// beam works on the medium a generator is thinning, and a ship out of cruise
+/// has none (its wake is what it holds on to; see <see cref="CruiseDevice.Thicken"/>). It draws on the systems capacitor, and with too little
 /// power its reach falls. In a session the ship's owner is told. The beam's
 /// frequency wanders by its own program (<see cref="InterdictorSpec.Band"/>), and a generator
 /// tuned to it cancels most of it.
 ///
 /// Registers: +0 type 21  +1 version 1  +2 status: bit 0 on, bit 1 its beam
-/// is on a target  +3 the share of the power it wants that it gets, 0 to 255
+/// holds a target (one in cruise)  +3 the share of the power it wants that it gets, 0 to 255
 /// +5 write: 1 on, 0 off  +7 the pilot's interdictor button
 /// </summary>
 public partial class InterdictorDevice : Node, IShipDevice, IRearmable
@@ -38,7 +39,7 @@ public partial class InterdictorDevice : Node, IShipDevice, IRearmable
     private InterdictorSpec S => Spec ??= new InterdictorSpec();
 
     public bool On { get; private set; }
-    /// <summary>Its beam reached a ship this step.</summary>
+    /// <summary>Its beam held a ship in cruise this step.</summary>
     public bool OnTarget { get; private set; }
     /// <summary>A ship to hold the beam on, whatever the radar says (a test).</summary>
     public Node3D Forced;
@@ -82,10 +83,19 @@ public partial class InterdictorDevice : Node, IShipDevice, IRearmable
             On = bus[Slot, 5] != 0;
     }
 
+    // What the beam can hold: a ship stirring the medium, its generator on (one flown elsewhere: its wake, as its owner says)
+    private static bool InCruise(Node3D target) => target switch
+    {
+        ShipBody local when !NetBody.IsPuppet(local) => local.Device<CruiseDevice>()?.Cruising == true,
+        RemoteShip remote => remote.WakeLevel > 0,
+        ShipBody puppet => puppet.WakeLevel > 0,
+        _ => false,
+    };
+
     private void Reaching(ShipBody ship, double delta)
     {
         Node3D target = Forced ?? Combat.ShipOf(_radar?.Tracked);
-        if (target == null || !IsInstanceValid(target) || target == ship)
+        if (target == null || !IsInstanceValid(target) || target == ship || !InCruise(target))
             return;
         OnTarget = true;
         _beamTime += delta;
@@ -97,6 +107,7 @@ public partial class InterdictorDevice : Node, IShipDevice, IRearmable
             return;
         }
         _sinceTold += delta;
+        // (the owner's machine holds it only if its generator is on there too)
         if (_sinceTold >= TellEvery && SessionNode.Instance is { Active: true } session && session.IdOf(target) is ushort id)
         {
             _sinceTold = 0;

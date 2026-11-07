@@ -124,7 +124,7 @@ public partial class FighterAi : Node
     /// <summary>Points to fly through, in turn, while it has no target.</summary>
     public readonly Spots Route;
 
-    /// <summary>It wants the cruise generator on (its ship's, if it has one).</summary>
+    /// <summary>It wants the cruise generator on (its ship's, if it has one), when it is going after nobody.</summary>
     public bool WantsCruise;
 
     /// <summary>What it is doing, for the tests and the curious.</summary>
@@ -146,8 +146,12 @@ public partial class FighterAi : Node
     private ShipBody _ship;
     private RadarDevice _radar;
     private RwrDevice _rwr;
-    /// <summary>It turns its interdictor on a target going faster than this (m/s), if it has one.</summary>
-    [Export] public float InterdictAboveSpeed = 700f;
+    /// <summary>
+    /// It turns its interdictor on a target going faster than this share of what its own engine alone takes it to, if it
+    /// has one: one it couldn't keep up with out of cruise, its boost included (the boost's half again of thrust is
+    /// about 1.22 of the top). Once on, it holds the beam while it keeps the lock.
+    /// </summary>
+    [Export] public float InterdictAboveShare = 1.3f;
     /// <summary>How close it keeps to a ship it is only looking at, metres: near enough to hold a lock through a jammer.</summary>
     [Export] public float InspectRange = 1500f;
 
@@ -155,6 +159,9 @@ public partial class FighterAi : Node
     private InterdictorDevice _interdictor;
     private Spot _interdictTrack;
     private float _trackSpeed;
+    private Vector3 _interdictVelocity;
+    private int _trackSamples;
+    private IRadarTarget _interdictLocked;
     private bool _interdictPulse;
     private double _jamFor;
     private LauncherDevice _launcher;
@@ -223,6 +230,7 @@ public partial class FighterAi : Node
         _sinceLockPress += delta;
         _sinceSeen += delta;
         _sinceSafePress += delta;
+        _sinceChase += delta;
 
         KeepRadar(delta);
         Threats();
@@ -267,13 +275,20 @@ public partial class FighterAi : Node
             FollowRoute(ref c);
         else if (Job?.Fly(this, ref c, delta) == true)
             Doing = Job.Doing;
-        else if (Interest() is Vector3 echo)
+        else if (Interest() is RadarDevice.Echo interest)
         {
             Doing = "intercepting";
             _hadTrack = false;
+            Vector3 echo = interest.Seen, moving = EchoVelocity(interest);
+            if (_told && _sinceSeen < SearchSeconds)
+            {
+                _lastSeen = Spot.At(this, echo);        // what it was sent after, seen again: lost, it is looked for from here
+                _toldVelocity = moving;
+                _sinceSeen = 0;
+            }
             Vector3 local = _ship.GlobalBasis.Inverse() * (echo - _ship.GlobalPosition);
             Steer(ref c, local);
-            c.Throttle = 1;
+            c.Throttle = Pursue(echo, moving, LockRange * 0.5f);
             float range = local.Length();
             if (range < LockRange && Mathf.RadToDeg(Vector3.Forward.AngleTo(local)) < LockCone && _sinceLockPress > 0.6)
             {
@@ -288,7 +303,7 @@ public partial class FighterAi : Node
                 _lastSeen = _lastSeen.Moved(_toldVelocity * dt);        // where it would be by now, going as it went
             _hadTrack = false;
             Steer(ref c, _ship.GlobalBasis.Inverse() * (_lastSeen.World - _ship.GlobalPosition));
-            c.Throttle = 1;
+            c.Throttle = Pursue(_lastSeen.World, _told ? _toldVelocity : Vector3.Zero, CloseRange);
         }
         else
             Patrol(ref c);
@@ -310,11 +325,52 @@ public partial class FighterAi : Node
     /// <summary>The throttle that asks the flight assist for a speed (m/s): a share of the ship's top.</summary>
     private float Speed(float metresPerSecond) => Math.Clamp(metresPerSecond / FullThrottleSpeed(), 0, 1);
 
-    /// <summary>What full throttle asks of the flight assist: the top speed the ship's rating plate gives (its engine against the veil).</summary>
+    /// <summary>What full throttle asks of the flight assist: the top speed the ship's rating plate gives now (its engine, or its generator, against the veil).</summary>
     private float FullThrottleSpeed()
+    {
+        float top = _ship.TopSpeedNow;
+        return float.IsFinite(top) ? top : 1000f;
+    }
+
+    /// <summary>How fast its engine alone takes it, out of cruise.</summary>
+    private float EngineTop()
     {
         float top = _ship.Spec.TopSpeed(_ship.Device<EngineDevice>()?.Spec?.RatedThrust ?? _ship.Spec.MainThrust);
         return float.IsFinite(top) ? top : 1000f;
+    }
+
+    /// <summary>Of its engine's top, past which a chase wants the generator on, and under which it wants it off.</summary>
+    [Export] public float ChaseCruiseAbove = 1.1f, ChaseCruiseBelow = 0.9f;
+
+    /// <summary>How long a chase's say over the generator outlasts the chase (a sweep that misses its quarry is no reason to drop out).</summary>
+    [Export] public double ChaseMemorySeconds = 2;
+
+    private bool _chaseCruise;
+    private double _sinceChase = double.MaxValue;
+
+    /// <summary>
+    /// The throttle to come up to something moving, at <paramref name="keep"/> metres from it, going as it goes: as fast
+    /// as its brakes can still take back by then, plus how fast it draws away and moves across. Faster than the engine
+    /// alone takes it, it wants its cruise generator; slow enough, not. Pilots in a chase are the ones who know.
+    /// </summary>
+    private float Pursue(Vector3 at, Vector3 velocity, float keep)
+    {
+        Vector3 to = at - _ship.GlobalPosition;
+        float range = to.Length();
+        Vector3 los = range > 1 ? to / range : -_ship.GlobalBasis.Z;
+        float away = velocity.Dot(los);
+        float brake = BrakeShare * _ship.Spec.Reverse / _ship.Mass;
+        float closing = MathF.Sqrt(2 * brake * MathF.Max(0, range - keep));
+        float wanted = MathF.Sqrt((away + closing) * (away + closing) + (velocity - los * away).LengthSquared());
+        if (_sinceChase > ChaseMemorySeconds)
+            _chaseCruise = _ship.Device<CruiseDevice>()?.On == true;
+        _sinceChase = 0;
+        float engine = EngineTop();
+        if (wanted > engine * ChaseCruiseAbove)
+            _chaseCruise = true;
+        else if (wanted < engine * ChaseCruiseBelow)
+            _chaseCruise = false;
+        return Speed(wanted);
     }
 
     private bool Friendly(Vector3 point) => _link?.Friendly(point, FriendGate) ?? false;
@@ -350,11 +406,11 @@ public partial class FighterAi : Node
     }
 
     /// <summary>The nearest echo of the last sweep that is none of its friends.</summary>
-    private Vector3? Interest()
+    private RadarDevice.Echo? Interest()
     {
         if (_radar == null)
             return null;
-        Vector3? best = null;
+        RadarDevice.Echo? best = null;
         float nearest = float.MaxValue;
         foreach (RadarDevice.Echo e in _radar.Echoes)
         {
@@ -362,10 +418,32 @@ public partial class FighterAi : Node
             if (range < nearest && !Friendly(e.Seen) && MayEngage(e.Seen))
             {
                 nearest = range;
-                best = e.Seen;
+                best = e;
             }
         }
         return best;
+    }
+
+    // Where each echo was seen the sweep before and how fast it went, as a pilot reads it off two sweeps of the scope
+    private readonly Dictionary<ushort, (Spot At, double Clock)> _echoSeen = new();
+    private readonly Dictionary<ushort, Vector3> _echoVelocity = new();
+
+    private Vector3 EchoVelocity(RadarDevice.Echo e)
+    {
+        if (!_echoSeen.TryGetValue(e.Id, out var was) || _clock - was.Clock > 3 * _radar.SweepSeconds)
+        {
+            if (_echoSeen.Count > 64)
+            {
+                _echoSeen.Clear();
+                _echoVelocity.Clear();
+            }
+            _echoSeen[e.Id] = (e.At, _clock);
+            return _echoVelocity[e.Id] = Vector3.Zero;
+        }
+        if (was.At.World.IsEqualApprox(e.Seen))
+            return _echoVelocity[e.Id];                 // the same sweep
+        _echoSeen[e.Id] = (e.At, _clock);
+        return _echoVelocity[e.Id] = (e.Seen - was.At.World) / (float)(_clock - was.Clock);
     }
 
     private void Attack(ref PilotControls c, float dt)
@@ -397,11 +475,13 @@ public partial class FighterAi : Node
         }
         float off = Mathf.RadToDeg(Vector3.Forward.AngleTo(local));
         Steer(ref c, local);
-        c.Throttle = range > 2000 ? 1 : Speed(range < CloseRange ? CloseSpeed : AttackSpeed);
+        // Far off, or going faster than its engine alone takes it: it closes as fast as it can still match its speed
+        float chase = Pursue(at, velocity, CloseRange);
+        c.Throttle = range > 2000 || velocity.Length() > EngineTop() ? chase : Speed(range < CloseRange ? CloseSpeed : AttackSpeed);
         if (Engagement?.Holds(Space.Combat.ShipOf(_radar.Tracked)) == true)
         {
             Doing = "looking it over";                  // its radar on it, its guns quiet
-            c.Throttle = range > InspectRange ? 1 : Speed(velocity.Length());
+            c.Throttle = Pursue(at, velocity, InspectRange * 0.8f);
             return;
         }
         c.Trigger = range < GunRange && off < cone && _plan.Count == 0;
@@ -593,7 +673,9 @@ public partial class FighterAi : Node
                 Press("safe");
             }
         }
-        if (_eyes.Clear.Length > 0)
+        // In cruise it is far from any mass, rocks too (the generator works only there): what it steers round is ships
+        _cruise ??= _ship.Device<CruiseDevice>();
+        if (_eyes.Clear.Length > 0 && _cruise?.On != true)
         {
             float brake = BrakeShare * _ship.Spec.Reverse / _ship.Spec.Mass;
             float room = MathF.Max(0, _eyes.Clear.Min() - _eyes.Clearance);      // turning, it may sweep into any of them
@@ -668,26 +750,37 @@ public partial class FighterAi : Node
     private bool CruiseButton()
     {
         _cruise ??= _ship.Device<CruiseDevice>();
-        _cruisePulse = !_cruisePulse && _cruise != null && WantsCruise != _cruise.On;
+        bool wants = _sinceChase <= ChaseMemorySeconds ? _chaseCruise : WantsCruise;
+        _cruisePulse = !_cruisePulse && _cruise != null && wants != (_cruise.On || _cruise.Charging);
         return _cruisePulse;
     }
 
     private bool _cruisePulse;
     private CruiseDevice _cruise;
 
-    // What it locked moves faster than anything flies on its engine: in cruise. The button in pulses until the
-    // interdictor is as it wants it. (The speed is from the radar's track, as a pilot would read it.)
+    // What it locked moves faster than it can follow on its engine: in cruise. Once on, the beam stays on it while the
+    // lock holds, or it would only spool up again. The button in pulses until the interdictor is as it wants it. (The
+    // speed is from the radar's track, as a pilot would read it: over a second or so, not a step, whose jitter alone
+    // can read as hundreds of metres a second.)
     private bool Interdicting()
     {
         if (_interdictor == null || _radar == null)
             return false;
         bool tracking = _radar.Locked != null;
+        if (!tracking || !ReferenceEquals(_radar.Locked, _interdictLocked))
+            _trackSamples = 0;                          // a new lock: its track starts again
+        _interdictLocked = _radar.Locked;
         if (tracking)
         {
-            _trackSpeed = (_radar.TrackPosition - _interdictTrack.World).Length() * Engine.PhysicsTicksPerSecond;
-            _interdictTrack = Spot.At(this, _radar.TrackPosition);
+            Vector3 now = _radar.TrackPosition;
+            Vector3 step = (now - _interdictTrack.World) * Engine.PhysicsTicksPerSecond;
+            if (_trackSamples++ > 0 && step.Length() < 20000)
+                _interdictVelocity = _trackSamples == 2 ? step : _interdictVelocity.Lerp(step, 1f / 30);
+            _interdictTrack = Spot.At(this, now);
+            _trackSpeed = _interdictVelocity.Length();
         }
-        bool want = tracking && _trackSpeed > InterdictAboveSpeed && _trackSpeed < 20000;
+        bool settled = _trackSamples > 30;
+        bool want = tracking && settled && (_trackSpeed > EngineTop() * InterdictAboveShare || _interdictor.On);
         _interdictPulse = !_interdictPulse && want != _interdictor.On;
         return _interdictPulse;
     }

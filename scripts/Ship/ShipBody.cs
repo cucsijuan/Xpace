@@ -572,7 +572,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
     private unsafe void WriteRatings(ShipBus bus)
     {
         ShipSpec s = Spec;
-        float forward = _cruise?.Pushes == true ? _cruise.Push : _engine?.Spec?.RatedThrust ?? s.MainThrust;
+        float forward = ForwardPush;
         Vector3 turn = s.TurnAcceleration, top = s.TopTurnRate();
         float thin = Thin;
         Span<int> plate = stackalloc int[]
@@ -592,6 +592,12 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
             table[i * 2 + 1] = (byte)(plate[i] >> 8);
         }
     }
+
+    // What pushes it forward now: the cruise generator while it is on, else the main engine at its rating
+    private float ForwardPush => _cruise?.Pushes == true ? _cruise.Push : _engine?.Spec?.RatedThrust ?? Spec.MainThrust;
+
+    /// <summary>How fast it can go forward now, as its rating plate says: in cruise, on the thinned veil.</summary>
+    public float TopSpeedNow => Spec.TopSpeed(ForwardPush, Spec.VeilDrag * Thin);
 
     /// <summary>What the veil's drag is multiplied by now (the cruise generator thins it; a wreck's is as normal).</summary>
     private float Thin => Wrecked ? 1 : _cruise?.Thin ?? 1;

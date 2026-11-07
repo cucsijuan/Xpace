@@ -44,6 +44,8 @@ public partial class RockSensor : Node3D
     public float[] Clear { get; private set; } = Array.Empty<float>();
     /// <summary>How near a ship it minds (m): farther off, ships go their way and so does it.</summary>
     [Export] public float ShipRange = 400f;
+    /// <summary>How far ahead in time it minds ships that close on it (s): a ship coming fast is minded from farther off.</summary>
+    [Export] public float ShipSeconds = 5f;
 
     /// <summary>The last scan saw rocks or capsules, not just ships.</summary>
     public bool RocksNear { get; private set; }
@@ -55,9 +57,14 @@ public partial class RockSensor : Node3D
 
     private double _sinceScan = double.MaxValue;
 
-    /// <summary>Looks along a heading (world), when a scan is due.</summary>
-    public void Look(Vector3 heading, double delta)
+    /// <summary>
+    /// Looks along a heading (world), when a scan is due, at a speed (m/s; none given: the heading's length). Ships are
+    /// seen moving: what matters is where they will be when this one gets there.
+    /// </summary>
+    public void Look(Vector3 heading, double delta, float speed = -1)
     {
+        if (speed < 0)
+            speed = heading.Length();
         _sinceScan += delta;
         if (_sinceScan < ScanSeconds || heading.LengthSquared() < 1e-6f)
             return;
@@ -85,7 +92,8 @@ public partial class RockSensor : Node3D
             }
         }
         _ships.Clear();
-        Spatial.Grid(this, Spatial.Ships).Within(from, ShipRange + Xpace.Ship.ShipCollision.MostReach, _ships);
+        // Another ship as fast as this one, coming at it, closes at twice its speed
+        Spatial.Grid(this, Spatial.Ships).Within(from, MathF.Max(ShipRange, 2 * speed * ShipSeconds) + Xpace.Ship.ShipCollision.MostReach, _ships);
         RocksNear = false;
         for (i = 0; i < count; i++)
         {
@@ -94,24 +102,36 @@ public partial class RockSensor : Node3D
             if (AvoidCapsule.SegmentAll(GetWorld3D(), from, to, out float c, Clearance, Entering))
                 rock = MathF.Min(rock, c);
             RocksNear |= rock < 0.99f;
-            Clear[i] = MathF.Min(rock * Range, ShipAlong(from, Rays[i]));
+            Clear[i] = MathF.Min(rock * Range, ShipAlong(from, Rays[i], speed));
         }
     }
 
     private readonly System.Collections.Generic.List<Node> _ships = new();
 
-    // How far along a ray it is clear of the ships near
-    private float ShipAlong(Vector3 from, Vector3 ray)
+    // How far along a ray it is clear of the ships near, flying it at that speed: each ship where it will be by then,
+    // going as it goes. A ship keeping pace alongside is no danger; one it closes on fast is, from far off: what is clear
+    // is how far this one goes before they meet
+    private float ShipAlong(Vector3 from, Vector3 ray, float speed)
     {
         float clear = Range;
         foreach (Node node in _ships)
         {
             if (node is not Xpace.Ship.ISolidShip ship || !IsInstanceValid(node) || !ship.Solid || node.IsAncestorOf(this))
                 continue;
-            Vector3 to = ship.GlobalPosition - from;
-            float along = to.Dot(ray), wide = ship.SolidReach + Clearance;
-            if (along > 0 && along < clear && (to - ray * along).LengthSquared() < wide * wide)
-                clear = MathF.Max(0, along - wide);
+            Vector3 p = ship.GlobalPosition - from, w = ship.SolidVelocity - ray * speed;
+            float wide = ship.SolidReach + Clearance;
+            float a = w.LengthSquared(), b = 2 * p.Dot(w), c = p.LengthSquared() - wide * wide;
+            if (c <= 0)
+            {
+                if (b < 0 || p.Dot(ray) > 0)            // touching already: only the ways that go further in are shut
+                    clear = 0;
+                continue;
+            }
+            float disc = b * b - 4 * a * c;
+            if (a < 1e-6f || b >= 0 || disc < 0)
+                continue;                               // not closing, or passing wide
+            float t = (-b - MathF.Sqrt(disc)) / (2 * a);
+            clear = MathF.Min(clear, t * speed);
         }
         return clear;
     }

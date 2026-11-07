@@ -54,6 +54,8 @@ public static class Interdiction
             generator.Strain = Mathf.Max(0, generator.Strain - dt / Mathf.Max(2 * spec.HoldSeconds, 0.01f));
             return wayspeed;
         }
+        if (!generator.On)
+            beam = 0;                                   // out of cruise (spooling up again too) no beam holds it
         float tuneTo = ship.Crew.Hear(beam > 0, band, dt, model.CrewTuneSeconds);
         generator.Step(spec, Voyage.Density(space, at), beam, band, tuneTo, dt);
         if (!generator.On)

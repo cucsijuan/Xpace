@@ -13,7 +13,7 @@ namespace Xpace.Tests;
 ///
 ///   - left alone, the generator holds on for a few seconds against the beam, then drops out;
 ///   - TUNE.COM takes the RADAR screen while the beam is on: the two waves and the bars are drawn on it, and the
-///     screen goes back when the beam goes;
+///     screen goes back when the beam goes: out of cruise there is none, even in the buoy's reach;
 ///   - the pilot's real keys reach the generator, through TUNE.COM;
 ///   - a pilot holding the tuning buttons (here, following the beam as a person reads the figure) goes through the
 ///     beam to the far side still in cruise;
@@ -60,6 +60,7 @@ public partial class TuneTest : Node
         float held = (float)(droppedAt - beamAt);
         Check($"left alone it drops out ({_ship.GlobalPosition.DistanceTo(_buoy.GlobalPosition) / 1000:0} km from the buoy)", _cruise.DroppedOut && !_cruise.On);
         Check($"not at once: it held on {held:0.0} s past what it can bear", beamAt >= 0 && held >= _cruise.Spec.HoldSeconds * 0.9f);
+        Check($"out of cruise, still in the buoy's reach ({_ship.GlobalPosition.DistanceTo(_buoy.GlobalPosition) / 1000:0} km), no beam holds it", await Until(() => !_cruise.BeamOn, 1) && await Steady(() => !_cruise.BeamOn, 2));
         Check("the screen goes back when the beam goes", await Until(() => !_cruise.BeamOn && Lent(display) == 0, 3));
 
         // The real keys, through the program. Off frequency, the picture is two different waves
@@ -185,6 +186,18 @@ public partial class TuneTest : Node
     }
 
     private async Task Seconds(double s) => await Until(() => false, s);
+
+    // True if it holds every step for that long
+    private async Task<bool> Steady(Func<bool> holds, double seconds)
+    {
+        for (int i = 0; i < seconds * 60; i++)
+        {
+            if (!holds())
+                return false;
+            await ToSignal(GetTree(), SceneTree.SignalName.PhysicsFrame);
+        }
+        return holds();
+    }
 
     private async Task<bool> Until(Func<bool> done, double seconds)
     {

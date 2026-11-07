@@ -235,7 +235,7 @@ public partial class Drone : Node3D, IRadarTarget, IDamageable, IHeatSource, INe
             Vector3 wanted = ((Attacking ? estimate : _waypoint.World) - GlobalPosition).Normalized();
             if (_eyes != null)
             {
-                _eyes.Look(heading, delta);
+                _eyes.Look(heading, delta, Speed);
                 wanted = _eyes.Steer(wanted, 2 * Speed / TurnRate);
             }
             float angle = heading.AngleTo(wanted);

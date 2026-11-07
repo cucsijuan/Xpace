@@ -159,10 +159,19 @@ public partial class CargoView : Node
             duty.Inspect(at);
         else
             duty.Add(at);
-        ship.Find<FighterAi>()?.SeenAt(at.GlobalPosition, (at as ShipBody)?.LinearVelocity ?? Vector3.Zero, TurnSearchSeconds);
+        Vector3 going = (at as ShipBody)?.Holder is CargoRun held ? held.Velocity((ShipBody)at) : (at as ShipBody)?.LinearVelocity ?? Vector3.Zero;
+        ship.Find<FighterAi>()?.SeenAt(at.GlobalPosition, going, TurnSearchSeconds);
         _fights.Add(record.Id);
+        LetGo(ship);
         record.Phase = CargoShipRecord.Loose;
         _dealt[record.Id] = double.MaxValue;
+    }
+
+    // Off its way, its pilot flying it from here: going as its way had it going
+    private static void LetGo(ShipBody ship)
+    {
+        if (ship.Holder is CargoRun run)
+            run.LetGo(ship);
         ship.Wake();
         ship.Unshow();
         ship.Holder = null;
@@ -374,11 +383,9 @@ public partial class CargoView : Node
                 duty.Add(by);
                 if (guard.Phase is not (CargoShipRecord.Flying or CargoShipRecord.Holding))
                     continue;
+                LetGo(ship);
                 guard.Phase = CargoShipRecord.Loose;
                 _dealt[guard.Id] = double.MaxValue;
-                ship.Wake();
-                ship.Unshow();
-                ship.Holder = null;
             }
     }
 
@@ -640,10 +647,39 @@ public sealed class CargoRun : IShipHold
         float angle = _facing.AngleTo(Facing(fix.Heading));
         if (angle > 0.0001f)
             _facing = _facing.Slerp(Facing(fix.Heading), Mathf.Min(1, TurnRate * (float)delta / angle)).Normalized();
-        bool cruising = speed > _model.Hull.TopSpeed(_model.Engine?.RatedThrust ?? _model.Hull.MainThrust) * 1.05f;
+        bool cruising = Cruising(speed);
         ship.Show(speed > 0 ? 0.6f : 0, cruising ? 1 : 0);
         if (cruise != null)
-            cruise.Riding = cruising;
+            cruise.Riding = _record.Phase == CargoShipRecord.Flying && _record.Generator.On && Cruising(fix.Speed);    // its crew runs it: a beam slowing it doesn't stop it
+        _held = true;
         return new ShipState { Position = Local(fix.At), Orientation = _facing, Velocity = fix.Heading * speed };
+    }
+
+    /// <summary>How the ship is going on its way: as held the last step, or as its way has it now if it was never held.</summary>
+    public Vector3 Velocity(ShipBody ship)
+    {
+        if (_held || Universe.Current.Book.FixOf(_record, _model, Universe.Current.State.Clock) is not StationBook.Fix fix)
+            return ship.LinearVelocity;
+        return fix.Heading * (_record.Pace >= 0 ? Mathf.Min(_record.Pace, fix.Speed) : fix.Speed);
+    }
+
+    // Faster than its engine alone takes it: its generator is on
+    private bool Cruising(float speed) => speed > _model.Hull.TopSpeed(_model.Engine?.RatedThrust ?? _model.Hull.MainThrust) * 1.05f;
+
+    private bool _held;
+
+    /// <summary>
+    /// It lets the ship go: it goes on where and as fast as its way had it going (if it never held it a step, as the way
+    /// has it now), its generator as its crew worked it.
+    /// </summary>
+    public void LetGo(ShipBody ship)
+    {
+        if (!_held && Universe.Current.Book.FixOf(_record, _model, Universe.Current.State.Clock) is StationBook.Fix fix)
+            ship.State = new ShipState { Position = Local(fix.At), Orientation = _facing, Velocity = Velocity(ship) };
+        if (ship.Device<CruiseDevice>() is CruiseDevice cruise)
+        {
+            var worked = new GeneratorState { On = Cruising(ship.LinearVelocity.Length()), Tune = _record.Generator.Tune, Strain = _record.Generator.Strain };
+            cruise.TakeOver(worked, ship);
+        }
     }
 }

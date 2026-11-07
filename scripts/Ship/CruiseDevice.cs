@@ -102,9 +102,14 @@ public partial class CruiseDevice : Node, IShipDevice, IRearmable
     private float _beamPhase, _ownPhase;
     private byte _courseIndex = NoCourse;
 
-    /// <summary>Adds to the medium's density round this ship (an interdictor's beam, on that frequency), for this step and a little after.</summary>
+    /// <summary>
+    /// Adds to the medium's density round this ship (an interdictor's beam, on that frequency), for this step and a little
+    /// after. A beam works on the medium a generator is thinning: out of cruise there is nothing for it to hold, and no beam.
+    /// </summary>
     public void Thicken(float density, byte band)
     {
+        if (!Cruising)
+            return;
         _thickened = Mathf.Max(_thickened, density);
         BeamBand = band;
         _sinceBeam = 0;
@@ -136,6 +141,19 @@ public partial class CruiseDevice : Node, IShipDevice, IRearmable
             return;
         _generator.Stop();
         DroppedOut = true;
+    }
+
+    /// <summary>
+    /// Its holder lets go of a ship it had going on a record's way: the generator is as the crew had it there, and the
+    /// veil as thin as that keeps it here, so the ship goes on as it was going.
+    /// </summary>
+    public void TakeOver(GeneratorState worked, ShipBody ship)
+    {
+        Riding = false;
+        _generator = new GeneratorState { On = worked.On, Charge = worked.Charge, Strain = worked.Strain, Tune = worked.Tune };
+        _tuneTo = worked.Tune;
+        float natural = MediumMass.Density(ship.GetWorld3D(), ship.GlobalPosition);
+        Thin = On ? Mathf.Clamp(natural / S.Thinning, 1 / S.Thinning, 1) : 1;
     }
 
     public void Rearm()

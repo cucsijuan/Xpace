@@ -10,9 +10,10 @@ using Xpace.World;
 namespace Xpace.Tests;
 
 /// <summary>
-/// A pirate doesn't know what a ship carries until its scanner has read it. Two runs with real ships where no player
+/// A pirate doesn't know what a ship carries until its scanner has read it. Runs with real ships where no player
 /// is: an empty freighter is followed, read and let go, and remembered; a loaded one is read and then fired on. No shot
-/// is fired before the reading ends.
+/// is fired before the reading ends. Then one met in cruise, on a long way: the pirate leaves its own way going as it
+/// went, catches up in cruise, and comes alongside to read it without ever running into it.
 ///
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/pirate_scan_test.tscn
 /// </summary>
@@ -42,7 +43,7 @@ public partial class PirateScanTest : Node
             other.Memories.Clear();
         CargoShipRecord attacker = state.CargoShips.Values.First(s => s.Owner == pirate.Id);
         ShipModel freighter = GD.Load<ShipModel>("res://assets/ship/models/freighter.tres");
-        var victims = state.CargoShips.Values.Where(s => s.Model == freighter.ResourcePath).Take(2).ToList();
+        var victims = state.CargoShips.Values.Where(s => s.Model == freighter.ResourcePath).Take(3).ToList();
 
         // Empty
         await Meeting(attacker, victims[0], 0, "");
@@ -76,6 +77,27 @@ public partial class PirateScanTest : Node
         Check("then it opens fire", await Until(() => fired, 60));
         Combat.Fired -= Fired;
 
+        // In cruise, a gate's way off: both on it, the freighter well ahead
+        Check("a third freighter", victims.Count == 3);
+        _view.Shown.GetValueOrDefault(attacker.Id)?.QueueFree();      // the last fight's ship goes: its record is put on a new way
+        await Meeting(attacker, victims[2], 10, "iron", "ALPHA", 0.2);
+        Check("the pirate goes after one in cruise", await Until(() => attacker.Phase == CargoShipRecord.Loose, 30));
+        raider = _view.Shown.GetValueOrDefault(attacker.Id);
+        ShipBody prey = _view.Shown.GetValueOrDefault(victims[2].Id);
+        scanner = raider?.Device<ScannerDevice>();
+        Check($"it leaves its way going as it went ({raider?.LinearVelocity.Length():0} m/s), its generator on", raider?.LinearVelocity.Length() > 300 && raider.Device<CruiseDevice>().On);
+        int crashes = 0;
+        void Crashed(float joules) => crashes++;
+        raider.Impact += Crashed;
+        prey.Impact += Crashed;
+        read = await Watch(attacker, raider, () => scanner.ResultOf == prey && scanner.Result != null, 150);
+        Check($"it catches up and reads it ({read:0} s): {scanner.Result?.Tonnes} t", scanner.ResultOf == prey && scanner.Result?.Tonnes == 10);
+        Check($"never running into it ({crashes} knocks)", crashes == 0);
+        if (IsInstanceValid(raider))
+            raider.Impact -= Crashed;
+        if (IsInstanceValid(prey))
+            prey.Impact -= Crashed;
+
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
@@ -83,11 +105,11 @@ public partial class PirateScanTest : Node
     }
 
     // Both on the same way, in the sector no player is in
-    private async Task Meeting(CargoShipRecord attacker, CargoShipRecord victim, int tonnes, string good)
+    private async Task Meeting(CargoShipRecord attacker, CargoShipRecord victim, int tonnes, string good, string going = "DRYDOCK", double along = 0.5)
     {
         UniverseState state = Universe.Current.State;
         StationBook book = Universe.Current.Book;
-        StationBook.Station from = book.Find("KESTREL"), to = book.Find("DRYDOCK");
+        StationBook.Station from = book.Find("KESTREL"), to = book.Find(going);
         foreach (CargoShipRecord s in new[] { victim, attacker })
         {
             ShipModel m = GD.Load<ShipModel>(s.Model);
@@ -98,7 +120,7 @@ public partial class PirateScanTest : Node
             s.Going = to.Id;
             s.LeftDock = s.LeftPad = s.Dock = s.Pad = 0;
             s.ContactPoint = contact;
-            s.Left = state.Clock - way.Sum(l => l.Seconds) * 0.5;
+            s.Left = state.Clock - way.Sum(l => l.Seconds) * along;
             s.Arrives = s.Left + way.Sum(l => l.Seconds + l.Transit);
             s.WorkedTo = state.Clock;
         }
