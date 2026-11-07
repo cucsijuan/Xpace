@@ -40,6 +40,7 @@
 [ext_resource type="Script" uid="uid://co2r7e2mkcti4" path="res://scripts/Ship/ScannerDevice.cs" id="scanner"]
 [ext_resource type="Resource" path="res://assets/ship/scanners/scanner_cs1.tres" id="scanner_cs1"]
 [ext_resource type="Resource" path="res://assets/weapons/decoys/dispenser_1.tres" id="spec_dispenser"]
+[ext_resource type="Script" path="res://scripts/OnFoot/WalkSurface.cs" id="walk_surface"]
 
 [sub_resource type="SphereMesh" id="ShieldSphere"]
 radius = 1.0
@@ -148,6 +149,10 @@ script = ExtResource("cruise_wake")
 script = ExtResource("3_netbody")
 
 [node name="Exterior" parent="." unique_id=1995272029 instance=ExtResource("4_model")]
+
+[node name="Walk" type="Node3D" parent="Exterior"]
+script = ExtResource("walk_surface")
+OnlyBoxes = true
 
 [node name="Hull" type="Node" parent="." unique_id=504009939]
 script = ExtResource("7_hull")
