@@ -50,8 +50,6 @@ public partial class CargoView : Node
     /// <summary>How often it looks for who comes across whom on the ways, seconds.</summary>
     [Export] public double MeetEverySeconds = 5;
 
-    /// <summary>How many fights it runs at once where nobody is: each one is a sector running.</summary>
-    [Export] public int MostFights = 2;
     /// <summary>How long a pilot flies to where it saw a ship before it gives up finding it on the radar.</summary>
     [Export] public double TurnSearchSeconds = 90;
 
@@ -101,8 +99,7 @@ public partial class CargoView : Node
         {
             _sinceMeet = 0;
             foreach ((CargoShipRecord attacker, CargoShipRecord victim) in People.Meetings(state, universe.Book, universe.Population.MeetMeters))
-                if (_fights.Count < MostFights || _fights.Contains(attacker.Id))
-                    Attack(attacker, victim, universe, host);
+                Attack(attacker, victim, universe, host);
         }
         foreach (string pilot in state.Pilots.Keys)
             if (universe.ShipOf(pilot) is Node3D ship && (ship is not ShipBody flown || (flown.Device<RadioDevice>() as IRadio)?.RadioOn == true) && StationRadio.ProtectingAt(Sectors.WorldOf(ship), ship.GlobalPosition) != null)
@@ -628,7 +625,7 @@ public sealed class CargoRun : IShipHold
 
     public ShipState Hold(ShipBody ship, double delta)
     {
-        if (ship.Find<ShipHull>()?.Wrecked == true)
+        if (ship.Wrecked)
         {
             ship.Holder = null;
             return ship.State;

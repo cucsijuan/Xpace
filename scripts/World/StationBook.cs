@@ -343,15 +343,36 @@ public sealed class StationBook
     public Station Origin(CargoShipRecord ship) => Find(ship.From) ??
         (string.IsNullOrEmpty(ship.FromSector) ? null : new Station { Id = "", Sector = ship.FromSector, At = new Vector3((float)ship.FromX, (float)ship.FromY, (float)ship.FromZ) });
 
-    /// <summary>The way of a ship's voyage, at its pace: that of the ship it goes with, if any.</summary>
+    /// <summary>
+    /// The way of a ship's voyage, at its pace: that of the ship it goes with, if any. Worked out again only when what it
+    /// depends on changes (a ship shown asks for it every step); the legs are shared, so nobody changes them.
+    /// </summary>
     public List<Leg> Way(CargoShipRecord ship, ShipModel model, out Vector3 contact)
     {
-        contact = default;
-        if (Origin(ship) is not Station from || Find(ship.Going) is not Station to)
-            return null;
         (ShipModel pace, int tonnes) = Pace(ship, model);
-        return Departure(from, PadOf(from, ship.LeftDock, ship.LeftPad), to, pace, tonnes, out contact);
+        var key = new WayKey(ship.From, ship.FromSector, ship.FromX, ship.FromY, ship.FromZ, ship.Going, ship.LeftDock, ship.LeftPad, pace, tonnes);
+        if (_ways.TryGetValue(ship, out WayKnown known) && known.Key == key)
+        {
+            contact = known.Contact;
+            return known.Legs;
+        }
+        contact = default;
+        List<Leg> legs = Origin(ship) is Station from && Find(ship.Going) is Station to
+            ? Departure(from, PadOf(from, ship.LeftDock, ship.LeftPad), to, pace, tonnes, out contact) : null;
+        _ways.AddOrUpdate(ship, new WayKnown { Key = key, Legs = legs, Contact = contact });
+        return legs;
     }
+
+    private readonly record struct WayKey(string From, string FromSector, double FromX, double FromY, double FromZ, string Going, int LeftDock, int LeftPad, ShipModel Pace, int Tonnes);
+
+    private sealed class WayKnown
+    {
+        public WayKey Key;
+        public List<Leg> Legs;
+        public Vector3 Contact;
+    }
+
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<CargoShipRecord, WayKnown> _ways = new();
 
     /// <summary>The model and load a ship flies its way at.</summary>
     public static (ShipModel Model, int Tonnes) Pace(CargoShipRecord ship, ShipModel model)
