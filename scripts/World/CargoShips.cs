@@ -608,8 +608,16 @@ public static class CargoShips
     {
         CargoShipRecord ward = state.CargoShips.GetValueOrDefault(ship.Ward);
         StationBook.Station to = book.Find(!model.Escort ? ship.Going : ward == null ? ship.Home : ward.Phase == CargoShipRecord.Parked ? ward.At : ward.Going);
-        if (to == null)
-            return;
+        if (to != null)
+            SetOff(ship, model, sector, at, to, model.Escort, state, book, account);
+    }
+
+    /// <summary>A ship flown by hand sets off from where it is for another station, after a ship it saw go that way: the tolls on the way it pays now.</summary>
+    public static void Follow(CargoShipRecord ship, ShipModel model, string sector, Vector3 at, StationBook.Station to, UniverseState state, StationBook book, Func<string, IAccount> account) =>
+        SetOff(ship, model, sector, at, to, true, state, book, account);
+
+    private static void SetOff(CargoShipRecord ship, ShipModel model, string sector, Vector3 at, StationBook.Station to, bool pays, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
         ship.From = "";
         ship.FromSector = sector;
         (ship.FromX, ship.FromY, ship.FromZ) = (at.X, at.Y, at.Z);
@@ -621,7 +629,7 @@ public static class CargoShips
         ship.Legs = null;
         ship.Pace = -1;
         ship.Generator = new Xpace.Ship.GeneratorState { On = !ship.Dry };
-        if (model.Escort)
+        if (pays)
             PayTolls(book.Origin(ship), to, account(ship.Owner), book, account);
         ship.Arrives = state.Clock + book.Way(ship, model, out Vector3 contact).Sum(l => l.Seconds + l.Transit);
         ship.ContactPoint = contact;

@@ -73,6 +73,12 @@ public partial class Personality : Resource
     [Export] public int PrizeTonnes = 1;
     /// <summary>Hours before it looks again at a ship it found not worth it.</summary>
     [Export] public double LookAgainHours = 3;
+    /// <summary>
+    /// It follows a ship it saw go into a gate when what it hopes to get is this many times the tolls: what its scanner
+    /// read aboard, the price on its crew's heads, or, before it has looked, the least it ever goes for. Its own quarry it
+    /// follows whatever it costs, if it can pay.
+    /// </summary>
+    [Export] public double GateMargin = 3;
 
     [ExportGroup("Under fire")]
     /// <summary>With a ship that can't fight, they start thinking of throwing its cargo out with this much of the hull left, in the hope that is what they came for.</summary>

@@ -39,6 +39,9 @@ public partial class JumpGate : Node3D
     /// <summary>The radio that speaks for it.</summary>
     public StationRadio Radio { get; private set; }
 
+    /// <summary>A ship went through a gate's ring, as anyone near could see it go: the ship, the gate.</summary>
+    public static event System.Action<Node3D, JumpGate> Entered;
+
     /// <summary>Where it leads, as players see it.</summary>
     public string Leads => SectorHost.Current?.Map?.Find(Destination)?.Title ?? Destination;
 
@@ -92,6 +95,7 @@ public partial class JumpGate : Node3D
     {
         if (!_cleared.Remove(ship))
             Radio?.Security?.UnpaidTransit(ship);
+        Entered?.Invoke(ship, this);
         if (ship is ShipBody body && body == SectorHost.Current?.Ship && !body.Held)
             Transit(body, at);
     }

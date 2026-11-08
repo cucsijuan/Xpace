@@ -44,6 +44,9 @@ public partial class CargoView : Node
     /// <summary>How far a cargo ship under attack will run for the shelter of a station's zone (m).</summary>
     [Export] public float ShelterMeters = 60000f;
 
+    /// <summary>A ship it lost sight of this recently, going into a gate, a pilot knows went through it (s).</summary>
+    [Export] public double GateLostSeconds = 10;
+
     /// <summary>How far a pirate sees cargo drifting (m).</summary>
     [Export] public float PodMeters = 5000f;
 
@@ -214,7 +217,11 @@ public partial class CargoView : Node
         if (ship != null && (root == null || ship.GetParent() != root))
         {
             if (ship.Holder is CargoRun)
+            {
+                if (record.Phase == CargoShipRecord.Flying)
+                    ThroughGate(record, ship, universe, host);
                 ship.QueueFree();
+            }
             _shown.Remove(record.Id);
             ship = null;
         }
@@ -269,7 +276,14 @@ public partial class CargoView : Node
         }
         var from = new Vector3((float)record.FromX, (float)record.FromY, (float)record.FromZ);
         CargoShips.Resume(record, model, record.FromSector, from, universe.State, universe.Book, universe.Account);
-        if (ship == null || universe.Book.FixOf(record, model, universe.State.Clock) is not StationBook.Fix fix)
+        if (ship != null)
+            PutOnWay(record, model, ship, universe);
+    }
+
+    // Back on its record: its pilot leaves the flying to its way
+    private static void PutOnWay(CargoShipRecord record, ShipModel model, ShipBody ship, Universe universe)
+    {
+        if (universe.Book.FixOf(record, model, universe.State.Clock) is not StationBook.Fix fix)
             return;
         if (ship.Find<FighterAi>() is FighterAi pilot)
         {
@@ -277,6 +291,74 @@ public partial class CargoView : Node
             pilot.WantsCruise = false;
         }
         ship.Holder = new CargoRun(record, model, fix, FloatingOrigin.Of(ship));
+    }
+
+    // A ship on its way went into a gate. Whoever was after it and had it on the radar saw it go, and follows it through if
+    // it is worth the tolls to them (People.Follows): on its record, after it, to where its wake leads, the tolls paid as
+    // anyone pays them. Over there the ways bring them together again
+    private void ThroughGate(CargoShipRecord prey, ShipBody preyShip, Universe universe, SectorHost host)
+    {
+        string sector = universe.Book.Space.Keys.FirstOrDefault(id => host.Root(id) == FloatingOrigin.Of(preyShip));
+        if (sector != null && universe.Book.Find(prey.Going) is StationBook.Station to)
+            Follow(preyShip, prey.Owner, sector, to, universe, prey.Id);
+    }
+
+    // A player went through a gate's ring. Whoever was after them and saw them go knows where that gate leads: it follows
+    // to the station nearest the gate they came out of, after them from now on
+    private void PlayerThroughGate(Node3D ship, JumpGate gate)
+    {
+        if (Universe.Current is not Universe { IsGuest: false } universe || universe.Book == null || SectorHost.Current is not SectorHost host
+            || universe.PilotIdOf(ship) is not string pilot)
+            return;
+        StationBook book = universe.Book;
+        string sector = book.Space.Keys.FirstOrDefault(id => host.Root(id) == FloatingOrigin.Of(gate));
+        StationBook.Gate exit = book.Gates.FirstOrDefault(g => g.Sector == gate.Destination && g.Name == gate.ExitGate);
+        StationBook.Station to = exit == null ? null : book.Stations.Where(s => s.Sector == exit.Sector).OrderBy(s => s.At.DistanceTo(exit.At)).FirstOrDefault();
+        if (sector != null && to != null)
+            Follow(ship, pilot, sector, to, universe, pilot);
+    }
+
+    // Whoever is after a ship that went into a gate, and had it on the radar then or lost it moments before, follows it if
+    // it is worth it to them
+    private void Follow(Node3D preyShip, string owner, string sector, StationBook.Station to, Universe universe, string preyId)
+    {
+        UniverseState state = universe.State;
+        FloatingOrigin root = FloatingOrigin.Of(preyShip);
+        foreach ((string id, EscortDuty duty) in _duties.ToList())
+        {
+            if (!duty.Has(preyShip) || !_shown.TryGetValue(id, out ShipBody hunter) || !IsInstanceValid(hunter) || FloatingOrigin.Of(hunter) != root
+                || !state.CargoShips.TryGetValue(id, out CargoShipRecord record) || record.Phase != CargoShipRecord.Loose
+                || state.People.GetValueOrDefault(record.Owner) is not PersonRecord person
+                || !Sees(hunter, preyShip) && !(hunter.Find<FighterAi>()?.SinceSeen <= GateLostSeconds)
+                || !ResourceLoader.Exists(record.Model) || Xpace.World.ResourceCache.Load<ShipModel>(record.Model) is not ShipModel model || model.Escort)
+                continue;
+            ScannerDevice scanner = hunter.Device<ScannerDevice>();
+            long? read = scanner?.ResultOf == preyShip && scanner.Result != null
+                ? scanner.Result.Cargo.Sum(c => c.Value * (GoodsCatalog.Find(c.Key)?.BasePrice ?? 0)) : null;
+            long tolls = CargoShips.TollsBetween(universe.Book, new StationBook.Station { Id = "", Sector = sector }, to);
+            if (!People.Follows(person, owner, tolls, read, state))
+                continue;
+            duty.Forget(preyShip);
+            if (universe.PilotIdOf(preyShip) == owner)
+                person.Quarry = owner;                  // a player has no way to be met on: it goes after them where it finds them
+            CargoShips.Follow(record, model, sector, ToSector(hunter), to, state, universe.Book, universe.Account);
+            PutOnWay(record, model, hunter, universe);
+            Followed?.Invoke(record.Id, preyId);
+        }
+    }
+
+    /// <summary>A ship (its record's id) went through a gate after another it saw go in (a record's id, or a pilot's).</summary>
+    public event System.Action<string, string> Followed;
+
+    // Its radar had it: locked, or an echo in the last sweep
+    private static bool Sees(ShipBody hunter, Node3D prey)
+    {
+        if (hunter.Device<RadarDevice>() is not RadarDevice radar || !radar.On)
+            return false;
+        if (Combat.ShipOf(radar.Tracked) == prey)
+            return true;
+        ushort echo = (prey as IRadarTarget ?? prey.FindChildren("*", "", true, false).OfType<IRadarTarget>().FirstOrDefault())?.RadarId ?? 0;
+        return echo != 0 && radar.Echoes.Any(e => e.Id == echo);
     }
 
     // A cargo ship under attack and alone runs: for a station's zone if one is near and not past who attacked it, else
@@ -419,12 +501,14 @@ public partial class CargoView : Node
     {
         Combat.Damaged += Struck;
         Combat.Destroyed += Destroyed;
+        JumpGate.Entered += PlayerThroughGate;
     }
 
     public override void _ExitTree()
     {
         Combat.Damaged -= Struck;
         Combat.Destroyed -= Destroyed;
+        JumpGate.Entered -= PlayerThroughGate;
     }
 
     private void Struck(Node3D victim, Node3D by)

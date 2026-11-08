@@ -12,7 +12,7 @@ namespace Xpace.Tests;
 /// <summary>
 /// A measurement, not a check: the universe with its people runs for a while with the player sitting at the start,
 /// and what comes of the meetings out of sight is counted: who went for whom, what was read, what was fired on, what
-/// was lost and looted.
+/// was lost and looted, who followed whom through a gate.
 ///
 /// Run: XPACE_FIGHT_MINUTES=60 Godot --headless --fixed-fps 60 --path . res://tests/fights_test.tscn
 /// </summary>
@@ -42,6 +42,12 @@ public partial class FightsTest : Node
             shooters.Add(by);
         }
         Combat.Fired += Shot;
+        int followed = 0;
+        view.Followed += (by, after) =>
+        {
+            followed++;
+            GD.Print($"       {by} follows {after} through a gate");
+        };
         int lost = 0;
         Combat.Destroyed += (ship, by, at) =>
         {
@@ -79,7 +85,7 @@ public partial class FightsTest : Node
             {
                 reads = state.People.Values.Sum(p => p.Memories.Count(e => e.What == Memories.NothingAboard));
                 int hits = state.People.Values.Sum(p => p.Memories.Count(e => e.What is Memories.HitMe or Memories.HitMine or Memories.KilledMine));
-                GD.Print($"{step / 3600.0,6:0} min  went for a ship {turns,3}  now loose {loose.Count}  empty reads {reads,3}  shots {shotsSeen,6}  shooters {shooters.Count,2}  lost {lost,2}  records {state.CargoShips.Count}/{shipsAtStart}  people {state.People.Count}/{people}  remembered hits {hits}  loot {state.CargoShips.Values.Sum(s => s.Loot.Values.Sum())} t  sectors {string.Join(",", view.Shown.Count)} shown  real {(System.Diagnostics.Stopwatch.GetTimestamp() - started) / (double)System.Diagnostics.Stopwatch.Frequency,5:0} s");
+                GD.Print($"{step / 3600.0,6:0} min  went for a ship {turns,3}  now loose {loose.Count}  empty reads {reads,3}  shots {shotsSeen,6}  shooters {shooters.Count,2}  lost {lost,2}  through gates {followed,2}  records {state.CargoShips.Count}/{shipsAtStart}  people {state.People.Count}/{people}  remembered hits {hits}  loot {state.CargoShips.Values.Sum(s => s.Loot.Values.Sum())} t  sectors {string.Join(",", view.Shown.Count)} shown  real {(System.Diagnostics.Stopwatch.GetTimestamp() - started) / (double)System.Diagnostics.Stopwatch.Frequency,5:0} s");
             }
         }
         GC.Collect();

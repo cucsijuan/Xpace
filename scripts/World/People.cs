@@ -273,6 +273,27 @@ public static class People
         return meetings;
     }
 
+    /// <summary>
+    /// Whether a person follows a ship it saw go into a gate (by the ship's owner: a person, an owner, a pilot): its quarry
+    /// if it can pay the tolls; else if what it hopes
+    /// for is <see cref="Personality.GateMargin"/> times the tolls: the price on the crew's heads for a hunter, what its
+    /// scanner read aboard for a pirate (<paramref name="read"/>, credits at the goods' base prices), or before it looked,
+    /// the least it goes for, at the goods' average price.
+    /// </summary>
+    public static bool Follows(PersonRecord person, string owner, long tolls, long? read, UniverseState state)
+    {
+        if (person.Credits < tolls)
+            return false;
+        if (person.Quarry != "" && owner == person.Quarry)
+            return true;
+        double hoped = 0;
+        if (person.Livelihood == nameof(Livelihood.Hunter))
+            hoped = Reactions.Hunted(state, owner);
+        else if (person.Livelihood == nameof(Livelihood.Pirate))
+            hoped = read ?? (person.Personality?.PrizeTonnes ?? 1) * GoodsCatalog.All.Goods.Where(g => g != null && g.Traded).Select(g => (double)g.BasePrice).DefaultIfEmpty(0).Average();
+        return hoped > 0 && hoped >= tolls * (person.Personality?.GateMargin ?? 3);
+    }
+
     // Its quarry, or for a pirate any ship it hasn't looked at lately: what a ship carries it can only learn with its
     // scanner, up close; hunters and pirates also go for pirates with a price on them
     private static bool Goes(PersonRecord person, CargoShipRecord other, UniverseState state)

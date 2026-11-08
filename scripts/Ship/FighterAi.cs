@@ -313,6 +313,9 @@ public partial class FighterAi : Node
         _controls = Buttons(c);
     }
 
+    /// <summary>Seconds since it last had what it is after on the radar (or was told where it is).</summary>
+    public double SinceSeen => _sinceSeen;
+
     /// <summary>It knows where to look for something, for that long, until its radar finds it.</summary>
     public void SeenAt(Vector3 point, Vector3 velocity, double seconds)
     {

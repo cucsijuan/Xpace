@@ -37,6 +37,9 @@ public sealed class EscortDuty : IEngagement
         _quiet = 0;
     }
 
+    /// <summary>After that ship, to fight it or to look at it.</summary>
+    public bool Has(Node3D ship) => ship != null && _attackers.Contains(ship);
+
     /// <summary>It is no longer anyone to fight.</summary>
     public void Forget(Node3D attacker)
     {
