@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Organisation" format=3]
+
+[ext_resource type="Script" path="res://scripts/World/Organisation.cs" id="1_o"]
+[ext_resource type="Resource" path="res://assets/personalities/warlord.tres" id="2_p"]
+
+[resource]
+script = ExtResource("1_o")
+Name = "Red Maw"
+Kind = "Pirate clan"
+About = "Vask Morrow's crews, out of Redhold. They buy what others lose on the ways, sell it cheap and ask nothing."
+Personality = ExtResource("2_p")
+StartingCredits = 600000

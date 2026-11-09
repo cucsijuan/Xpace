@@ -125,6 +125,7 @@ public partial class CrimeTest : Node3D
         AddChild(other);
         StationMarket factor = other.GetNode<StationMarket>("Market");
         factor.Factor = true;
+        other.GetNode<StationRadio>("Radio").OwnedBy = GD.Load<Organisation>("res://assets/organisations/red_maw.tres");
         HangarDock hangar = other.GetNode("HangarBig1").GetNode<HangarDock>("Dock");
         b.Position = hangar.InsidePoint;
         state.Pilot("bob").Credits = 10_000;
@@ -134,8 +135,10 @@ public partial class CrimeTest : Node3D
         DebtLine debt = view.Elsewhere.FirstOrDefault(l => l.Station == _station.Sign);
         Check($"a factor shows what is owed elsewhere ({debt?.Owed}), and asks half as much again ({debt?.Cost})",
               debt != null && debt.Owed == owed && debt.Cost == owed * 3 / 2);
+        long house = factor.Radio.Cash?.Credits ?? -1;
         view = factor.Serve("bob", new MarketRequest { Station = factor.Radio.Id, Do = MarketRequest.Factor, Good = _station.Sign });
         Check($"and settles it ({view.Message})", Of("bob").Owed == 0 && state.Pilot("bob").Credits == 10_000 - owed * 3 / 2);
+        Check($"the owner of the factor's station keeps what it asks on top ({(factor.Radio.Cash?.Credits ?? -1) - house} of {owed / 2})", house >= 0 && factor.Radio.Cash.Credits - house == owed * 3 / 2 - owed);
         StationMarket plain = _station.GetParent().GetNode<StationMarket>("Market");
         Check("a station with no factor settles nothing of others'",
               plain.Serve("bob", new MarketRequest { Station = _station.Sign, Do = MarketRequest.Factor, Good = factor.Radio.Id }).Message == plain.NoFactorText);

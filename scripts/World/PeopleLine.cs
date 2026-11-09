@@ -11,6 +11,8 @@ public partial class PeopleLine : Resource
 {
     [Export] public Livelihood Livelihood;
     [Export] public int Count = 2;
+    /// <summary>The station they come to and start from, by id (empty: any station their ship fits).</summary>
+    [Export] public string Home = "";
     [Export] public ShipModel Model;
     /// <summary>Their characters, in turn.</summary>
     [Export] public Personality[] Personalities = [];

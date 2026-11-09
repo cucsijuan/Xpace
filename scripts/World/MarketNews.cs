@@ -9,6 +9,8 @@ public sealed class StationNews
     /// <summary>The universe time it was true.</summary>
     public double AsOf { get; set; }
     public Dictionary<string, GoodNews> Goods { get; set; } = new();
+    /// <summary>What it asked and paid of a market price (<see cref="StationRecord.Share"/>).</summary>
+    public double Share { get; set; } = 1;
 }
 
 /// <summary>A good at a station, as it stood.</summary>
@@ -29,11 +31,11 @@ public static class MarketNews
     /// <summary>The station's market as it is now.</summary>
     public static StationNews Report(StationBook.Station station, StationRecord record, double clock)
     {
-        var news = new StationNews { AsOf = clock };
+        var news = new StationNews { AsOf = clock, Share = record.Share };
         foreach (MarketGood line in station.Goods.Where(g => g.Good.Traded))
         {
             double stock = record.Stock.GetValueOrDefault(line.Good.Id);
-            news.Goods[line.Good.Id] = new GoodNews { Stock = stock, Buy = Market.BuyPrice(record, line), Sell = Market.SellPrice(line, stock) };
+            news.Goods[line.Good.Id] = new GoodNews { Stock = stock, Buy = Market.BuyPrice(record, line), Sell = Market.SellPrice(record, line) };
         }
         return news;
     }

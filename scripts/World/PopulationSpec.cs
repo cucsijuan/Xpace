@@ -16,6 +16,8 @@ public partial class PopulationSpec : Resource
     [Export] public float MeetMeters = 20000f;
     /// <summary>What stolen goods fetch, of a market's price: nobody asks where they came from, and pays for it.</summary>
     [Export(PropertyHint.Range, "0,1,0.05")] public double FenceShare = 0.6;
+    /// <summary>Only a station whose owner goes this far outside the law (<see cref="Personality.Shadiness"/>) buys stolen goods.</summary>
+    [Export(PropertyHint.Range, "0,1,0.05")] public double FenceShadiness = 0.5;
     /// <summary>Someone with less than this can't keep going, and after <see cref="GiveUpHours"/> of that gives up: sells their ship and leaves.</summary>
     [Export] public long BrokeBelow = 300;
     [Export] public double GiveUpHours = 48;

@@ -78,6 +78,7 @@ public static class Market
                 Settle(station, cash, income);
         }
         station.UpdatedAt = Math.Max(station.UpdatedAt, clock);
+        station.Share = cash?.Nature?.PriceShare ?? 1;
         if (cash != null)
             Reckon(station, goods, outfits, factories, cash.Margin, upkeep);
     }
@@ -185,8 +186,18 @@ public static class Market
     /// <summary>What the next tonne costs a pilot (none in stock: -1).</summary>
     public static long BuyPrice(MarketGood line, double stock) => stock >= 1 ? Price(line, stock - 1) : -1;
 
-    /// <summary>What the next tonne costs at this station now: never under what its owner makes it for.</summary>
-    public static long BuyPrice(StationRecord station, MarketGood line) => Floored(station, line.Good.Id, BuyPrice(line, station.Stock.GetValueOrDefault(line.Good.Id)));
+    /// <summary>What the next tonne costs at this station now, as its owner deals: never under what its owner makes it for.</summary>
+    public static long BuyPrice(StationRecord station, MarketGood line) => Floored(station, line.Good.Id, Shared(station, BuyPrice(line, station.Stock.GetValueOrDefault(line.Good.Id))));
+
+    /// <summary>What this station pays a pilot for the next tonne now, as its owner deals (full: -1).</summary>
+    public static long SellPrice(StationRecord station, MarketGood line) => Shared(station, SellPrice(line, station.Stock.GetValueOrDefault(line.Good.Id)));
+
+    /// <summary>What this station's dealer pays for a piece of equipment now (it takes no more: -1).</summary>
+    public static long PieceSellPrice(StationRecord station, OutfitLine line) => Shared(station, PieceSellPrice(line, station.Stock.GetValueOrDefault(line.Id)));
+
+    // A price as the station's owner deals: asking and paying alike, so buying and selling back still loses
+    private static long Shared(StationRecord station, long price) =>
+        price < 0 || station.Share >= 1 ? price : (long)Math.Floor(price * station.Share);
 
     public const string Fuel = "hydrogen";
 
@@ -246,7 +257,7 @@ public static class Market
     }
 
     /// <summary>What the next one of an outfit costs at this station now.</summary>
-    public static long OutfitPrice(StationRecord station, OutfitLine line) => Floored(station, line.Id, OutfitPrice(line, station.Stock.GetValueOrDefault(line.Id)));
+    public static long OutfitPrice(StationRecord station, OutfitLine line) => Floored(station, line.Id, Shared(station, OutfitPrice(line, station.Stock.GetValueOrDefault(line.Id))));
 
     private static long Floored(StationRecord station, string id, long price) =>
         price >= 0 && station.Floors.TryGetValue(id, out double floor) ? Math.Max(price, (long)Math.Ceiling(floor)) : price;
@@ -283,7 +294,7 @@ public static class Market
     public static Result SellPiece(StationRecord station, OutfitLine line, PilotRecord pilot, List<ItemRecord> locker, out long paid, IAccount cash = null)
     {
         double stock = station.Stock.GetValueOrDefault(line.Id);
-        paid = PieceSellPrice(line, stock);
+        paid = PieceSellPrice(station, line);
         int index = locker.FindIndex(i => i.Kind == ItemRecord.Piece && i.Data == line.Item.ResourcePath);
         if (index < 0)
             return Result.NotHeld;
@@ -366,7 +377,7 @@ public static class Market
             if (pilot.Ship.Holds(id) < 1)
                 return Result.NotHeld;
             double stock = station.Stock.TryGetValue(id, out double s) ? s : 0;
-            long price = SellPrice(line, stock);
+            long price = SellPrice(station, line);
             if (price < 0)
                 return Result.MarketFull;
             if (!Pay(cash, price))
@@ -406,7 +417,7 @@ public static class Market
         for (int i = 0; i < tonnes; i++)
         {
             double stock = station.Stock.GetValueOrDefault(id);
-            long price = SellPrice(line, stock);
+            long price = SellPrice(station, line);
             if (price < 0)
                 return;
             if (!ReferenceEquals(seller, cash))

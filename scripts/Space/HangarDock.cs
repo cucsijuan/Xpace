@@ -69,9 +69,9 @@ public partial class HangarDock : Node3D
             Beacon.Visible = IsOpen;
         Node hangar = GetParent() ?? this;
         _pads = hangar.FindChildren("*", "", true, false).OfType<LandingPad>().ToList();
+        int[] numbers = LandingPad.Numbers(_pads);
         for (int i = 0; i < _pads.Count; i++)
-            if (_pads[i].Number == 0)
-                _pads[i].Number = i + 1;
+            _pads[i].Number = numbers[i];
         _pads.Sort((a, b) => a.Number.CompareTo(b.Number));
     }
 

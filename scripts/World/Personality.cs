@@ -24,6 +24,12 @@ public partial class Personality : Resource
     /// <summary>What it asks on top of what a thing costs it to make, of that cost.</summary>
     [Export(PropertyHint.Range, "0,1,0.01")] public float Margin = 0.15f;
 
+    /// <summary>
+    /// What its stations ask and pay, of what a market's stock would make a price: under 1 they deal cheaper than
+    /// anyone, living on how much they move and asking no questions. Never under what it costs them to make a thing.
+    /// </summary>
+    [Export(PropertyHint.Range, "0.5,1,0.01")] public double PriceShare = 1;
+
     /// <summary>How much of its money it risks to grow.</summary>
     [Export(PropertyHint.Range, "0,1,0.01")] public float Ambition = 0.5f;
 

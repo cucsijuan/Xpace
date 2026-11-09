@@ -1,0 +1,221 @@
+[gd_scene format=3 uid="uid://cs0q6xwbhxokg"]
+
+[ext_resource type="PackedScene" uid="uid://c1fni1v27e8yx" path="res://scenes/stations/props/landing_pad_big.tscn" id="10_n3vkd"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/dock_beacon.tscn" id="beacon"]
+[ext_resource type="Script" uid="uid://c3whd186rsyc1" path="res://scripts/Space/AvoidCapsule.cs" id="capsule"]
+[ext_resource type="PackedScene" uid="uid://ilayv16ynqu2" path="res://assets/stations/redhold/redhold_collision.glb" id="collision"]
+[ext_resource type="Script" uid="uid://di7sf57pnphfr" path="res://scripts/Space/HangarDock.cs" id="dock"]
+[ext_resource type="PackedScene" path="res://scenes/ships/maw_guard.tscn" id="guard"]
+[ext_resource type="Resource" path="res://assets/stations/laws/laws_redhold.tres" id="laws"]
+[ext_resource type="Script" uid="uid://dd5kcqq3ig75u" path="res://scripts/Space/StationLockers.cs" id="lockers"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/locker_kiosk.tscn" id="locker_kiosk"]
+[ext_resource type="Script" uid="uid://bl72dgevviygy" path="res://scripts/Space/StationMarket.cs" id="market"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/market_kiosk.tscn" id="market_kiosk"]
+[ext_resource type="Script" uid="uid://c4eo2r8iqim7n" path="res://scripts/Space/MediumMass.cs" id="medium_mass"]
+[ext_resource type="PackedScene" uid="uid://c5yroincymcox" path="res://assets/stations/redhold/redhold.glb" id="model"]
+[ext_resource type="PackedScene" uid="uid://41o7n6kb33s0" path="res://scenes/stations/props/landing_pad_small.tscn" id="pad_small"]
+[ext_resource type="Material" path="res://assets/materials/redhold.tres" id="paint"]
+[ext_resource type="Material" path="res://assets/materials/redhold_lights.tres" id="paint_lights"]
+[ext_resource type="Script" uid="uid://c70hoi0gx5bok" path="res://scripts/Space/ModelPaint.cs" id="paint_script"]
+[ext_resource type="Resource" path="res://assets/voices/pilot_f1/voice.tres" id="pilot_f1"]
+[ext_resource type="Resource" path="res://assets/voices/pilot_m1/voice.tres" id="pilot_m1"]
+[ext_resource type="Script" uid="uid://dwp1swe75tq44" path="res://scripts/Space/StationRadio.cs" id="radio"]
+[ext_resource type="Script" uid="uid://4tepgqawhiod" path="res://scripts/Space/StationSecurity.cs" id="security"]
+[ext_resource type="Script" uid="uid://cj8fhex8toh4y" path="res://scripts/Space/MeshSlide.cs" id="slide"]
+[ext_resource type="Script" uid="uid://cu4q4napecli5" path="res://scripts/Space/Solid.cs" id="solid"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/turret_laser_double.tscn" id="turret_laser"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/turret_missile_double.tscn" id="turret_missile"]
+[ext_resource type="Resource" path="res://assets/voices/operator_m1/voice.tres" id="voice_m1"]
+[ext_resource type="Resource" path="res://assets/voices/operator_m2/voice.tres" id="voice_m2"]
+[ext_resource type="Script" uid="uid://cihqw4p8vnrgn" path="res://scripts/Space/RadioVoicePack.cs" id="voice_pack"]
+[ext_resource type="Script" uid="uid://dgrvmekmojxsh" path="res://scripts/OnFoot/WalkSurface.cs" id="walk"]
+
+[sub_resource type="BoxShape3D" id="door_box"]
+size = Vector3(72, 36, 2)
+
+[node name="Redhold" type="Node3D" unique_id=649539040]
+
+[node name="Model" parent="." unique_id=1843693623 instance=ExtResource("model")]
+
+[node name="Paint" type="Node" parent="Model" unique_id=324057430]
+script = ExtResource("paint_script")
+Material = ExtResource("paint")
+ByMesh = Dictionary[String, Material]({
+"GuideLights": ExtResource("paint_lights")
+})
+
+[node name="Doors" type="Node" parent="Model" unique_id=911192216]
+script = ExtResource("slide")
+Meshes = PackedStringArray("DoorLeft", "DoorRight")
+Travels = PackedVector3Array(-40, 0, 0, 40, 0, 0)
+Open = 0.0
+Seconds = 10.0
+
+[node name="Solid" type="Node3D" parent="." unique_id=34703491]
+script = ExtResource("solid")
+Shape = ExtResource("collision")
+
+[node name="Walk" type="Node3D" parent="Solid" unique_id=786549595]
+script = ExtResource("walk")
+
+[node name="AvoidCapsule" type="Node3D" parent="." unique_id=1232864987]
+script = ExtResource("capsule")
+Radius = 175.0
+Height = 80.0
+
+[node name="Hangar" type="Node3D" parent="." unique_id=1699618603]
+
+[node name="Dock" type="Node3D" parent="Hangar" unique_id=658578449 node_paths=PackedStringArray("Door", "DoorSolid", "Beacon")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 122)
+script = ExtResource("dock")
+Door = NodePath("../../Model/Doors")
+DoorSolid = NodePath("DoorSolid")
+Beacon = NodePath("Beacon")
+Inside = Vector3(0, -4, -95)
+Approach = Vector3(0, -6, 300)
+InsideRadius = 95.0
+
+[node name="DoorSolid" type="Node3D" parent="Hangar/Dock" unique_id=838966295]
+script = ExtResource("solid")
+
+[node name="Box" type="CollisionShape3D" parent="Hangar/Dock/DoorSolid" unique_id=615725688]
+shape = SubResource("door_box")
+
+[node name="Walk" type="Node3D" parent="Hangar/Dock/DoorSolid" unique_id=1062691532]
+script = ExtResource("walk")
+
+[node name="Beacon" parent="Hangar/Dock" unique_id=1886350559 instance=ExtResource("beacon")]
+transform = Transform3D(1.3, 0, 0, 0, 1.6, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="LandingPadBig" parent="Hangar" unique_id=931102758 instance=ExtResource("10_n3vkd")]
+transform = Transform3D(-1, 0, -8.742278e-08, 0, 1, 0, 8.742278e-08, 0, -1, 0, -12.809999, 17.39)
+MaxFootprint = Vector2(48, 48)
+MaxHeight = 24.0
+
+[node name="PadSmall1" parent="Hangar" unique_id=1561233820 instance=ExtResource("pad_small")]
+transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, -15, -15.556, -37)
+
+[node name="PadSmall2" parent="Hangar" unique_id=875459177 instance=ExtResource("pad_small")]
+transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 15, -15.556, -37)
+
+[node name="MarketKiosk" parent="Hangar" unique_id=49154183 instance=ExtResource("market_kiosk")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -18, -62)
+
+[node name="LockerKiosk" parent="Hangar" unique_id=2122159681 instance=ExtResource("locker_kiosk")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -18, -62)
+
+[node name="Light1" type="OmniLight3D" parent="Hangar" unique_id=1282203079]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 14, 90)
+light_color = Color(1, 0.86, 0.78, 1)
+light_energy = 2.0
+omni_range = 45.0
+
+[node name="Light2" type="OmniLight3D" parent="Hangar" unique_id=1019727938]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 14, 90)
+light_color = Color(1, 0.86, 0.78, 1)
+light_energy = 2.0
+omni_range = 45.0
+
+[node name="Light3" type="OmniLight3D" parent="Hangar" unique_id=801755480]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 14, 30)
+light_color = Color(1, 0.86, 0.78, 1)
+light_energy = 2.0
+omni_range = 45.0
+
+[node name="Light4" type="OmniLight3D" parent="Hangar" unique_id=1136153458]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 14, 30)
+light_color = Color(1, 0.86, 0.78, 1)
+light_energy = 2.0
+omni_range = 45.0
+
+[node name="Light5" type="OmniLight3D" parent="Hangar" unique_id=1044776427]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 14, -30)
+light_color = Color(1, 0.86, 0.78, 1)
+light_energy = 2.0
+omni_range = 45.0
+
+[node name="Light6" type="OmniLight3D" parent="Hangar" unique_id=569937885]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 14, -30)
+light_color = Color(1, 0.86, 0.78, 1)
+light_energy = 2.0
+omni_range = 45.0
+
+[node name="Light7" type="OmniLight3D" parent="Hangar" unique_id=561268290]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 14, -60)
+light_color = Color(1, 0.86, 0.78, 1)
+light_energy = 2.0
+omni_range = 45.0
+
+[node name="Light8" type="OmniLight3D" parent="Hangar" unique_id=1171498439]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 18, 14, -60)
+light_color = Color(1, 0.86, 0.78, 1)
+light_energy = 2.0
+omni_range = 45.0
+
+[node name="Turrets" type="Node3D" parent="." unique_id=143123435]
+
+[node name="Turret01" parent="Turrets" unique_id=996524819 instance=ExtResource("turret_laser")]
+transform = Transform3D(-4.5574, 5.4313, 0, 0, 0, 7.09, 5.4313, 4.5574, 0, 124.67, 0, 104.61)
+
+[node name="Turret02" parent="Turrets" unique_id=968499429 instance=ExtResource("turret_missile")]
+transform = Transform3D(0, 9.67, 0, 0, 0, 9.67, 9.67, 0, 0, 162.75, 0, 0)
+
+[node name="Turret03" parent="Turrets" unique_id=1285519511 instance=ExtResource("turret_laser")]
+transform = Transform3D(4.5574, 5.4313, 0, 0, 0, 7.09, 5.4313, -4.5574, 0, 124.67, 0, -104.61)
+
+[node name="Turret04" parent="Turrets" unique_id=848026099 instance=ExtResource("turret_missile")]
+transform = Transform3D(9.5231, 1.6792, 0, 0, 0, 9.67, 1.6792, -9.5231, 0, 28.261, 0, -160.28)
+
+[node name="Turret05" parent="Turrets" unique_id=663526752 instance=ExtResource("turret_laser")]
+transform = Transform3D(6.1401, -3.545, 0, 0, 0, 7.09, -3.545, -6.1401, 0, -81.374, 0, -140.94)
+
+[node name="Turret06" parent="Turrets" unique_id=898340225 instance=ExtResource("turret_missile")]
+transform = Transform3D(3.3073, -9.0868, 0, 0, 0, 9.67, -9.0868, -3.3073, 0, -152.93, 0, -55.663)
+
+[node name="Turret07" parent="Turrets" unique_id=50220107 instance=ExtResource("turret_laser")]
+transform = Transform3D(-1.9543, -6.8153, 0, 0, 0, 7.09, -6.8153, 1.9543, 0, -156.44, 0, 44.86)
+
+[node name="Turret08" parent="Turrets" unique_id=1812313292 instance=ExtResource("turret_missile")]
+transform = Transform3D(-7.1862, -6.4705, 0, 0, 0, 9.67, -6.4705, 7.1862, 0, -108.9, 0, 120.95)
+
+[node name="Turret09" parent="Turrets" unique_id=1920114871 instance=ExtResource("turret_laser")]
+transform = Transform3D(6.8484, -1.5892, 0.91751, 0, 3.545, 6.1401, -1.835, -5.9309, 3.4242, -35.303, 78.75, -131.75)
+
+[node name="Turret10" parent="Turrets" unique_id=30851684 instance=ExtResource("turret_missile")]
+transform = Transform3D(1.6792, -8.2472, 4.7615, 0, 4.835, 8.3745, -9.5231, -1.4542, 0.83959, -134.33, 78.75, -23.685)
+
+[node name="Turret11" parent="Turrets" unique_id=1315459629 instance=ExtResource("turret_laser")]
+transform = Transform3D(-5.4313, -3.9468, 2.2787, 0, 3.545, 6.1401, -4.5574, 4.7036, -2.7156, -87.676, 78.75, 104.49)
+
+[node name="Turret12" parent="Turrets" unique_id=531414821 instance=ExtResource("turret_missile")]
+transform = Transform3D(-4.835, 6.4152, 5.383, 0, -6.2158, 7.4076, 8.3745, 3.7038, 3.1079, 104.49, -101.24, 60.326)
+
+[node name="Turret13" parent="Turrets" unique_id=502512488 instance=ExtResource("turret_laser")]
+transform = Transform3D(6.1401, 2.7156, 2.2787, 0, -4.5574, 5.4313, 3.545, -4.7036, -3.9468, 60.326, -101.24, -104.49)
+
+[node name="Turret14" parent="Turrets" unique_id=1014135692 instance=ExtResource("turret_missile")]
+transform = Transform3D(4.835, -6.4152, -5.383, 0, -6.2158, 7.4076, -8.3745, -3.7038, -3.1079, -104.49, -101.24, -60.326)
+
+[node name="Turret15" parent="Turrets" unique_id=743066153 instance=ExtResource("turret_laser")]
+transform = Transform3D(-6.1401, -2.7156, -2.2787, 0, -4.5574, 5.4313, -3.545, 4.7036, 3.9468, -60.326, -101.24, 104.49)
+
+[node name="Radio" type="Node3D" parent="." unique_id=901867977]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 205, 0)
+script = ExtResource("radio")
+Laws = ExtResource("laws")
+Voices = Array[ExtResource("voice_pack")]([ExtResource("voice_m1"), ExtResource("voice_m2")])
+TrafficVoices = Array[ExtResource("voice_pack")]([ExtResource("pilot_m1"), ExtResource("pilot_f1")])
+
+[node name="Market" type="Node" parent="." unique_id=1811947969]
+script = ExtResource("market")
+
+[node name="Lockers" type="Node" parent="." unique_id=1550564746]
+script = ExtResource("lockers")
+
+[node name="Security" type="Node" parent="." unique_id=1248437383]
+script = ExtResource("security")
+PoliceScene = ExtResource("guard")
+
+[node name="Mass" type="Node3D" parent="." unique_id=1456858453]
+script = ExtResource("medium_mass")
+Reach = 20000.0

@@ -45,6 +45,30 @@ public partial class LandingPad : Node3D, IShipHold
     /// <summary>Its number in its hangar (0: in the order the hangar finds its pads).</summary>
     [Export] public int Number;
 
+    /// <summary>
+    /// The numbers a hangar's pads go by, in the order they come: a pad's own <see cref="Number"/> if it has one, else
+    /// the lowest number no other pad has.
+    /// </summary>
+    public static int[] Numbers(IReadOnlyList<LandingPad> pads)
+    {
+        var numbers = new int[pads.Count];
+        var taken = new HashSet<int>(pads.Where(p => p.Number > 0).Select(p => p.Number));
+        int next = 1;
+        for (int i = 0; i < pads.Count; i++)
+        {
+            if (pads[i].Number > 0)
+            {
+                numbers[i] = pads[i].Number;
+                continue;
+            }
+            while (taken.Contains(next))
+                next++;
+            numbers[i] = next;
+            taken.Add(next);
+        }
+        return numbers;
+    }
+
     /// <summary>The ships it takes: at most this wide (x) and long (z), metres.</summary>
     [Export] public Vector2 MaxFootprint = new(24, 24);
     /// <summary>And at most this tall.</summary>

@@ -41,7 +41,7 @@ public static class People
     private static void Arrive(UniverseState state, PopulationSpec spec, PeopleLine line, int index, StationBook book, Func<string, IAccount> account)
     {
         int serial = ++state.PeopleEver;
-        var stations = book.Stations.Where(s => s.Pads.Any(p => book.Fits(p, line.Model))).ToList();
+        var stations = book.Stations.Where(s => s.Pads.Any(p => book.Fits(p, line.Model)) && (string.IsNullOrEmpty(line.Home) || s.Id == line.Home)).ToList();
         if (stations.Count == 0)
             return;
         StationBook.Station home = stations[serial % stations.Count];
@@ -104,9 +104,12 @@ public static class People
             if (actor != "" && -feeling * (character?.Aggression ?? 0.5) >= (spec?.GrudgeToHunt ?? 1))
                 person.Quarry = actor;
         }
+        // With stolen goods aboard and no buyer for them here, to the nearest station that takes them and can be paid the way to
+        if (ship.Loot.Count > 0 && NearestFence(here, model, person, spec, state, book, account) is StationBook.Station fence)
+            return CargoShips.Hop(ship, model, fence, state, book, account);
         if (person.Quarry != "" && state.Sightings.GetValueOrDefault(person.Quarry) is Sighting seen)
         {
-            StationBook.Station nearest = book.Stations.Where(s => s.Sector == seen.Sector && s.Pads.Any(p => book.Fits(p, model))).OrderBy(s => s.At.DistanceTo(seen.At)).FirstOrDefault();
+            StationBook.Station nearest = book.Stations.Where(s => s.Sector == seen.Sector && s.Pads.Any(p => book.Fits(p, model)) && CargoShips.Welcomes(s, person.Id, state, account)).OrderBy(s => s.At.DistanceTo(seen.At)).FirstOrDefault();
             if (nearest != null && nearest != here)
                 return CargoShips.Hop(ship, model, nearest, state, book, account);
         }
@@ -142,9 +145,15 @@ public static class People
         return true;
     }
 
-    // What it stole goes for less than a market pays: the rest stays with the station's owner
+    /// <summary>A station whose owner buys stolen goods: one whose nature goes far enough outside the law (<see cref="PopulationSpec.FenceShadiness"/>).</summary>
+    public static bool Fences(StationBook.Station station, PopulationSpec spec, UniverseState state, Func<string, IAccount> account) =>
+        account(CargoShips.OwnerOf(state, station))?.Nature is Personality nature && nature.Shadiness >= (spec?.FenceShadiness ?? 0.5);
+
+    // What it stole goes for less than a market pays, and only where the owner asks no questions: the rest stays with the owner
     private static void Fence(CargoShipRecord ship, StationBook.Station here, PersonRecord person, PopulationSpec spec, UniverseState state, Func<string, IAccount> account)
     {
+        if (ship.Loot.Count == 0 || !Fences(here, spec, state, account))
+            return;
         IAccount cash = account(CargoShips.OwnerOf(state, here));
         StationRecord record = CargoShips.Bring(state, here, account);
         foreach ((string good, int tonnes) in ship.Loot.ToList())
@@ -161,6 +170,12 @@ public static class People
             }
     }
 
+    // The nearest station that buys stolen goods (by the way's time), unless this one does; null: none it can reach
+    private static StationBook.Station NearestFence(StationBook.Station here, ShipModel model, PersonRecord person, PopulationSpec spec, UniverseState state, StationBook book, Func<string, IAccount> account) =>
+        Fences(here, spec, state, account) ? null
+            : book.Stations.Where(s => s != here && s.Pads.Any(p => book.Fits(p, model)) && book.Way(here.Sector, s.Sector) != null && person.Credits >= CargoShips.TollsBetween(book, here, s) && Fences(s, spec, state, account) && CargoShips.Welcomes(s, person.Id, state, account))
+                .OrderBy(s => book.Seconds(here, s, model, 0)).ThenBy(s => s.Id, StringComparer.Ordinal).FirstOrDefault();
+
     // The best offer on this station's owner's board that is worth a trip for someone they could hope to find
     private static string Worthwhile(PersonRecord person, PopulationSpec spec, string owner, UniverseState state, Func<string, IAccount> account)
     {
@@ -170,10 +185,10 @@ public static class People
             : null;
     }
 
-    // Where it has been least lately, of those it can reach and pay the way to
+    // Where it has been least lately, of those it can reach, pay the way to and will be let in
     private static bool Roam(CargoShipRecord ship, ShipModel model, StationBook.Station here, IAccount person, UniverseState state, StationBook book, Func<string, IAccount> account)
     {
-        StationBook.Station next = book.Stations.Where(s => s != here && s.Pads.Any(p => book.Fits(p, model)) && book.Way(here.Sector, s.Sector) != null && person.Credits >= CargoShips.TollsBetween(book, here, s))
+        StationBook.Station next = book.Stations.Where(s => s != here && s.Pads.Any(p => book.Fits(p, model)) && book.Way(here.Sector, s.Sector) != null && person.Credits >= CargoShips.TollsBetween(book, here, s) && CargoShips.Welcomes(s, ship.Owner, state, account))
             .OrderBy(s => person.Known.GetValueOrDefault(s.Id)?.AsOf ?? 0).ThenBy(s => s.Id, StringComparer.Ordinal).FirstOrDefault();
         return next != null && CargoShips.Hop(ship, model, next, state, book, account);
     }
@@ -189,7 +204,8 @@ public static class People
         foreach ((string fromId, StationNews fromNews) in person.Known.Where(k => k.Value.AsOf >= since).OrderBy(k => k.Key, StringComparer.Ordinal))
             foreach ((string toId, StationNews toNews) in person.Known.Where(k => k.Key != fromId && k.Value.AsOf >= since).OrderBy(k => k.Key, StringComparer.Ordinal))
             {
-                if (book.Find(fromId) is not StationBook.Station from || book.Find(toId) is not StationBook.Station to || !from.Pads.Any(p => book.Fits(p, model)) || !to.Pads.Any(p => book.Fits(p, model)))
+                if (book.Find(fromId) is not StationBook.Station from || book.Find(toId) is not StationBook.Station to || !from.Pads.Any(p => book.Fits(p, model)) || !to.Pads.Any(p => book.Fits(p, model))
+                    || !CargoShips.Welcomes(from, ship.Owner, state, account) || !CargoShips.Welcomes(to, ship.Owner, state, account))
                     continue;
                 long tolls = CargoShips.TollsBetween(book, here, from) + CargoShips.TollsBetween(book, from, to);
                 tolls += FuelCost(model, book, here, from, to, person);
@@ -197,7 +213,7 @@ public static class People
                 {
                     if (buy.Buy <= 0 || buy.Stock < 1 || !toNews.Goods.TryGetValue(good, out GoodNews sell) || sell.Sell <= buy.Buy)
                         continue;
-                    int tonnes = Worth(from, to, good, buy, sell, hold, person.Credits - tolls, out long gain);
+                    int tonnes = Worth(from, to, good, buy, sell, fromNews.Share, toNews.Share, hold, person.Credits - tolls, out long gain);
                     if (gain - tolls > best.Gain)
                         best = (from, to, good, gain - tolls, tonnes);
                 }
@@ -210,8 +226,9 @@ public static class People
     }
 
     // How much of a good is worth carrying and what that would leave: every tonne bought makes the next dearer and every
-    // tonne sold makes the next cheaper, so it stops where a tonne would no longer pay for itself
-    private static int Worth(StationBook.Station from, StationBook.Station to, string good, GoodNews buy, GoodNews sell, int hold, long money, out long gain)
+    // tonne sold makes the next cheaper, so it stops where a tonne would no longer pay for itself; each station deals as
+    // its owner does (its share of a market price)
+    private static int Worth(StationBook.Station from, StationBook.Station to, string good, GoodNews buy, GoodNews sell, double fromShare, double toShare, int hold, long money, out long gain)
     {
         gain = 0;
         MarketGood bought = from.Goods.FirstOrDefault(g => g.Good.Id == good), sold = to.Goods.FirstOrDefault(g => g.Good.Id == good);
@@ -222,7 +239,7 @@ public static class People
         int tonnes = 0;
         for (; tonnes < hold; tonnes++, there--, here++)
         {
-            long price = Math.Max(Market.BuyPrice(bought, there), buy.Buy), paid = Market.SellPrice(sold, here);
+            long price = Math.Max((long)Math.Floor(Market.BuyPrice(bought, there) * fromShare), buy.Buy), paid = (long)Math.Floor(Market.SellPrice(sold, here) * toShare);
             if (Market.BuyPrice(bought, there) < 0 || paid <= price || spent + price > money)
                 break;
             spent += price;

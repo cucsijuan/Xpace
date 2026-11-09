@@ -42,7 +42,7 @@ public partial class NewsTest : Node
         StationBook.Beacon first = book.Beacons.First(b => b.Id == "BEACON1");
         Check("a beacon reports its own sector", book.ReportedBy(first).All(s => s.Sector == first.Sector) && book.ReportedBy(first).Any(s => s.Id == "ALPHA"));
         var wide = new StationBook.Beacon { Id = "WIDE", Sector = first.Sector, At = first.At, Reach = 1, Heard = first.Heard };
-        Check("and with a reach of one gate, the next as well", book.ReportedBy(wide).Count() == book.Stations.Count);
+        Check("and with a reach of one gate, the next as well, not the one past it", book.ReportedBy(wide).Count() == book.Stations.Count(s => s.Sector is "sector_01" or "sector_02") && book.ReportedBy(wide).All(s => s.Sector != "sector_03"));
 
         var state = new UniverseState();
         var owners = new Dictionary<string, OrganisationRecord>();

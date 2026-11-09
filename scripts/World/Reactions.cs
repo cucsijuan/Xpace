@@ -45,6 +45,20 @@ public static class Reactions
             owner.Bounties[by] = owner.Bounties.GetValueOrDefault(by) + Math.Min(amount, free);
     }
 
+    /// <summary>An owner with a price on someone's head shuts its stations and gates to them: no pad, no trade, no fuel, no clearance.</summary>
+    public static bool Shuts(IAccount owner, string actor) =>
+        owner is OrganisationRecord company && !string.IsNullOrEmpty(actor) && company.Bounties.ContainsKey(actor);
+
+    /// <summary>Someone went through a gate without clearance: what its owner adds to the price on their head, as far as its money goes.</summary>
+    public static void Unpaid(IAccount owner, string actor, long bounty)
+    {
+        if (owner is not OrganisationRecord company || string.IsNullOrEmpty(actor))
+            return;
+        long free = company.Credits - company.Bounties.Values.Sum();
+        if (Math.Min(bounty, free) > 0)
+            company.Bounties[actor] = company.Bounties.GetValueOrDefault(actor) + Math.Min(bounty, free);
+    }
+
     /// <summary>How long a lost ship keeps the owner off that way, hours, with <paramref name="need"/> (0 to 1) of what it wants missing.</summary>
     public static double FearHours(Personality personality, double need = 0) =>
         personality.FearHours * (1 - personality.Aggression) * (1 - Math.Clamp(need, 0, 1) * personality.NeedOverFear);

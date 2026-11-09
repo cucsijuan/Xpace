@@ -43,6 +43,8 @@ public sealed class StationBook
         public string Id, Name, Sector, Leads, Exit, Owner;
         public Vector3 At;
         public long Toll;
+        /// <summary>What its owner adds to the price on the head of someone who goes through without clearance.</summary>
+        public long Unpaid;
         public double TransitSeconds;
     }
 
@@ -98,7 +100,7 @@ public sealed class StationBook
                 Gates.Add(new Gate
                 {
                     Id = radio.Id, Name = gate.Name, Sector = sector, Leads = gate.Destination, Exit = gate.ExitGate, At = at, Owner = radio.OwnedBy?.Id ?? "",
-                    Toll = radio.Laws?.Toll ?? 0, TransitSeconds = gate.TransitSeconds,
+                    Toll = radio.Laws?.Toll ?? 0, TransitSeconds = gate.TransitSeconds, Unpaid = gate.GetNodeOrNull<Xpace.Space.StationSecurity>("Security")?.UnpaidTransitBounty ?? 0,
                 });
             else if (parent.GetNodeOrNull<StationMarket>("Market") is StationMarket market)
                 Stations.Add(new Station
@@ -120,10 +122,11 @@ public sealed class StationBook
             HangarDock dock = docks[d];
             Transform3D pose = Pose(dock);
             List<LandingPad> here = (dock.GetParent() ?? dock).FindChildren("*", "", true, false).OfType<LandingPad>().ToList();
+            int[] numbers = LandingPad.Numbers(here);
             for (int p = 0; p < here.Count; p++)
                 pads.Add(new Pad
                 {
-                    Dock = dock.Number != 0 ? dock.Number : d + 1, Number = here[p].Number != 0 ? here[p].Number : p + 1, Pose = Pose(here[p]),
+                    Dock = dock.Number != 0 ? dock.Number : d + 1, Number = numbers[p], Pose = Pose(here[p]),
                     Door = pose * dock.Approach, Inside = pose * dock.Inside, Footprint = here[p].MaxFootprint, Height = here[p].MaxHeight,
                     Clearance = here[p].Clearance, Lift = here[p].LaunchHeight,
                 });

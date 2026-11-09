@@ -188,6 +188,8 @@ public interface IAccount
     double Margin { get; }
     /// <summary>What it knows of each station's market, by station id.</summary>
     Dictionary<string, StationNews> Known { get; }
+    /// <summary>Its character, if it has one set up: how it deals, how far outside the law it goes.</summary>
+    Personality Nature => null;
 }
 
 /// <summary>Where someone was seen, and when.</summary>
@@ -217,6 +219,7 @@ public sealed class PersonRecord : IAccount, IRemembers
     /// <summary>Their <see cref="World.Personality"/>, by resource path.</summary>
     public string Character { get; set; } = "";
     [JsonIgnore] public Personality Personality => Godot.ResourceLoader.Exists(Character) ? Xpace.World.ResourceCache.Load<Personality>(Character) : null;
+    [JsonIgnore] public Personality Nature => Personality;
     public long Credits { get; set; }
     [JsonIgnore] public double Margin => 0;
     public Dictionary<string, StationNews> Known { get; set; } = new();
@@ -236,6 +239,7 @@ public sealed class OrganisationRecord : IAccount, IRemembers
     public long Credits { get; set; }
     public double Margin { get; set; } = 0.15;
     public Dictionary<string, StationNews> Known { get; set; } = new();
+    [JsonIgnore] public Personality Nature => OrganisationCatalog.Find(Id)?.Personality;
     /// <summary>What was done to its ships lately, oldest first.</summary>
     public List<Incident> Incidents { get; set; } = new();
     /// <summary>What it offers for each actor destroyed, by actor id (<see cref="Universe.ActorOf"/>).</summary>
@@ -380,6 +384,9 @@ public sealed class StationRecord
     /// its share of the upkeep and the owner's margin (<see cref="Market.Advance"/>). Nothing for what it doesn't make.
     /// </summary>
     public Dictionary<string, double> Floors { get; set; } = new();
+
+    /// <summary>What it asks and pays of a market price, by its owner's nature (<see cref="Personality.PriceShare"/>), as of <see cref="UpdatedAt"/>.</summary>
+    public double Share { get; set; } = 1;
 
     /// <summary>The pads taken by cargo ships, as "dock:pad", and by which.</summary>
     public Dictionary<string, string> CargoPads { get; set; } = new();

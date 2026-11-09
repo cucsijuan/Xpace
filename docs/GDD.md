@@ -283,7 +283,7 @@ Engines are products: a manufacturer can close a flaw in a newer firmware, so an
 - **Fines** (speeding, firing in the protected zone) are owed: the pilot docks, trades and pays as anyone.
 - **A bounty** (damaging a ship that did nothing) makes the pilot wanted: docked, they are held on the pad until it is paid.
 - **Destroying a ship that did nothing** brings a big bounty and **infamy**. While infamy is high the station refuses docking and its police attack the pilot on sight. Infamy wears off with the pilot's played time; money owed never goes away by itself.
-- A station can only tell who flies a ship with its radio on (scanning later). Two ways out, one dearer than the other: slip in with the radio off and pay at face value, or pay a disreputable factor at another station half as much again.
+- A station can only tell who flies a ship with its radio on (scanning later). Two ways out, one dearer than the other: slip in with the radio off and pay at face value, or pay a disreputable factor half as much again (only at the pirate base, Redhold, whose owner keeps the surcharge).
 - A wanted pilot with no money surrenders: the cargo is seized, then the ship is impounded where it is (no loss, no storage fee), and the insurer gives a free basic courtesy ship (old monochrome green screens) to earn the money back.
 
 ## 9. Player roles

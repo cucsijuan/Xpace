@@ -81,6 +81,10 @@ public static class CargoShips
         return true;
     }
 
+    /// <summary>The station lets the actor in: its owner has no price on their head (<see cref="Reactions.Shuts"/>).</summary>
+    public static bool Welcomes(StationBook.Station station, string actor, UniverseState state, Func<string, IAccount> account) =>
+        !Reactions.Shuts(account(OwnerOf(state, station)), actor);
+
     /// <summary>What the gates between two stations ask.</summary>
     public static long TollsBetween(StationBook book, StationBook.Station from, StationBook.Station to) => Tolls(book, from, to);
 
@@ -336,7 +340,7 @@ public static class CargoShips
                 return;
             case CargoShipRecord.Holding:
                 if (state.Clock >= ship.NextLook)
-                    Ask(ship, model, state, book);
+                    Ask(ship, model, state, book, account);
                 return;
             case CargoShipRecord.Landing:
                 if (state.Clock >= ship.Arrives)
@@ -359,12 +363,27 @@ public static class CargoShips
 
     public static string Key(int dock, int pad) => $"{dock}:{pad}";
 
-    // The station gives it the free pad nearest to it that fits; none free, it holds there and asks again
-    private static void Ask(CargoShipRecord ship, ShipModel model, UniverseState state, StationBook book)
+    // The station gives it the free pad nearest to it that fits; none free, it holds there and asks again. Turned away by
+    // an owner with a price on its head, it goes on to the nearest station that will have it
+    private static void Ask(CargoShipRecord ship, ShipModel model, UniverseState state, StationBook book, Func<string, IAccount> account)
     {
         if (book.Find(ship.Going) is not StationBook.Station station)
             return;
         Vector3 at = ship.ContactPoint;
+        if (!Welcomes(station, ship.Owner, state, account))
+        {
+            StationBook.Station other = book.Stations.Where(s => s != station && s.Pads.Any(p => book.Fits(p, model)) && book.Way(station.Sector, s.Sector) != null && Welcomes(s, ship.Owner, state, account))
+                .OrderBy(s => book.Way(station.Sector, s.Sector).Count).ThenBy(s => s.At.DistanceTo(at)).ThenBy(s => s.Id, StringComparer.Ordinal).FirstOrDefault();
+            if (other == null)
+            {
+                ship.NextLook = state.Clock + model.AskEverySeconds;
+                return;
+            }
+            ship.Home = other.Id;
+            ship.State = CargoShipRecord.Returning;
+            SetOff(ship, model, station.Sector, at, other, true, state, book, account);
+            return;
+        }
         StationBook.Pad pad = station.Pads.Where(p => book.Fits(p, model) && Free(station, p, state)).OrderBy(p => p.Door.DistanceTo(at)).ThenBy(p => p.Pose.Origin.DistanceTo(at)).FirstOrDefault();
         Xpace.Space.StationRadio radio = Xpace.Space.StationRadio.Called(station.Id);
         if (pad == null)
@@ -537,7 +556,7 @@ public static class CargoShips
             return;
         IAccount money = account(ship.Owner);
         Fuel(ship, model, from, to, state, book, account);
-        PayTolls(from, to, money, book, account);
+        PayTolls(from, to, ship.Owner, book, account);
         if (Xpace.Space.StationRadio.Called(from.Id) is Xpace.Space.StationRadio radio)
             radio.Traffic(Sign(ship), radio.TrafficLaunchAskText, radio.TrafficLaunchAskSpeech, radio.TrafficLaunchText, radio.TrafficLaunchSpeech);
         StationRecord leaving = state.Station(from.Id);
@@ -589,10 +608,14 @@ public static class CargoShips
             .OrderBy(s => s.Ward == ship.Id ? 0 : 1).ThenBy(s => s.Id, StringComparer.Ordinal).FirstOrDefault();
 
     // The tolls are paid to the gates' owners as it sets out
-    private static void PayTolls(StationBook.Station from, StationBook.Station to, IAccount money, StationBook book, Func<string, IAccount> account)
+    // A gate whose owner has a price on the payer's head gives no clearance: it goes through all the same, and the price goes up
+    private static void PayTolls(StationBook.Station from, StationBook.Station to, string payer, StationBook book, Func<string, IAccount> account)
     {
+        IAccount money = account(payer);
         foreach (StationBook.Gate gate in book.Way(from.Sector, to.Sector) ?? new List<StationBook.Gate>())
-            if (money != null && money.Credits >= gate.Toll)
+            if (Reactions.Shuts(account(gate.Owner), payer))
+                Reactions.Unpaid(account(gate.Owner), payer, gate.Unpaid);
+            else if (money != null && money.Credits >= gate.Toll)
             {
                 money.Credits -= gate.Toll;
                 if (account(gate.Owner) is IAccount keeper)
@@ -630,7 +653,7 @@ public static class CargoShips
         ship.Pace = -1;
         ship.Generator = new Xpace.Ship.GeneratorState { On = !ship.Dry };
         if (pays)
-            PayTolls(book.Origin(ship), to, account(ship.Owner), book, account);
+            PayTolls(book.Origin(ship), to, ship.Owner, book, account);
         ship.Arrives = state.Clock + book.Way(ship, model, out Vector3 contact).Sum(l => l.Seconds + l.Transit);
         ship.ContactPoint = contact;
     }

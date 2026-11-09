@@ -1,0 +1,200 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/FloatingOrigin.cs" id="origin"]
+[ext_resource type="Script" path="res://scripts/Space/Projectiles.cs" id="rounds"]
+[ext_resource type="Script" path="res://scripts/Space/RoundLook.cs" id="look"]
+[ext_resource type="Resource" path="res://assets/weapons/round_cannon.tres" id="cannon_look"]
+[ext_resource type="Resource" path="res://assets/weapons/round_laser.tres" id="laser_look"]
+[ext_resource type="Script" path="res://scripts/Space/HeatSun.cs" id="heat"]
+[ext_resource type="Script" path="res://scripts/Space/SunShadows.cs" id="sun_shadows"]
+[ext_resource type="Resource" path="res://assets/lighting/shadows_flying.tres" id="shadows_flying"]
+[ext_resource type="Resource" path="res://assets/lighting/shadows_on_foot.tres" id="shadows_on_foot"]
+[ext_resource type="Material" path="res://assets/materials/synty_skybox_04.tres" id="skybox"]
+[ext_resource type="Script" path="res://scripts/Menu/QualityEnvironment.cs" id="q_env"]
+[ext_resource type="PackedScene" path="res://scenes/stations/redhold.tscn" id="redhold"]
+[ext_resource type="Resource" path="res://assets/organisations/red_maw.tres" id="owner_red_maw"]
+[ext_resource type="PackedScene" path="res://scenes/gates/jump_gate.tscn" id="gate_scene"]
+[ext_resource type="Script" path="res://scripts/World/MarketGood.cs" id="market_good"]
+[ext_resource type="Script" path="res://scripts/World/FactoryLine.cs" id="factory_line"]
+[ext_resource type="Script" path="res://scripts/World/FleetLine.cs" id="fleet_line"]
+[ext_resource type="Resource" path="res://assets/ship/models/freighter.tres" id="freighter_model"]
+[ext_resource type="Resource" path="res://assets/recipes/solar.tres" id="recipe_solar"]
+[ext_resource type="Resource" path="res://assets/recipes/food.tres" id="recipe_food"]
+[ext_resource type="Resource" path="res://assets/goods/energy.tres" id="good_energy"]
+[ext_resource type="Resource" path="res://assets/goods/food.tres" id="good_food"]
+[ext_resource type="Resource" path="res://assets/goods/water.tres" id="good_water"]
+[ext_resource type="Resource" path="res://assets/goods/hydrogen.tres" id="good_hydrogen"]
+[ext_resource type="Resource" path="res://assets/goods/iron_ore.tres" id="good_iron_ore"]
+[ext_resource type="Resource" path="res://assets/goods/iron.tres" id="good_iron"]
+[ext_resource type="Resource" path="res://assets/goods/metals.tres" id="good_metals"]
+[ext_resource type="Resource" path="res://assets/goods/silicon.tres" id="good_silicon"]
+[ext_resource type="Resource" path="res://assets/goods/copper.tres" id="good_copper"]
+[ext_resource type="Resource" path="res://assets/goods/chips.tres" id="good_chips"]
+[ext_resource type="Resource" path="res://assets/goods/electronics.tres" id="good_electronics"]
+[ext_resource type="Resource" path="res://assets/goods/machinery.tres" id="good_machinery"]
+[ext_resource type="Resource" path="res://assets/goods/medicines.tres" id="good_medicines"]
+
+[sub_resource type="Sky" id="Sky_space"]
+sky_material = ExtResource("skybox")
+
+[sub_resource type="Environment" id="Environment_space"]
+background_mode = 2
+background_color = Color(0, 0, 0.01, 1)
+sky = SubResource("Sky_space")
+ambient_light_source = 2
+ambient_light_color = Color(0.3, 0.24, 0.24, 1)
+ambient_light_energy = 0.6
+tonemap_mode = 2
+ssr_enabled = true
+ssao_enabled = true
+ssao_radius = 3.0
+ssao_intensity = 3.0
+ssao_power = 1.5
+ssao_light_affect = 0.3
+ssil_enabled = true
+ssil_radius = 8.0
+glow_enabled = true
+
+[sub_resource type="Resource" id="Redhold_energy"]
+script = ExtResource("market_good")
+Good = ExtResource("good_energy")
+Stock = 100
+Uses = 20.0
+
+[sub_resource type="Resource" id="Redhold_food"]
+script = ExtResource("market_good")
+Good = ExtResource("good_food")
+Stock = 200
+Uses = 12.0
+
+[sub_resource type="Resource" id="Redhold_water"]
+script = ExtResource("market_good")
+Good = ExtResource("good_water")
+Stock = 300
+Uses = 2.0
+
+[sub_resource type="Resource" id="Redhold_hydrogen"]
+script = ExtResource("market_good")
+Good = ExtResource("good_hydrogen")
+Stock = 80
+Uses = 2.0
+
+[sub_resource type="Resource" id="Redhold_iron_ore"]
+script = ExtResource("market_good")
+Good = ExtResource("good_iron_ore")
+Stock = 30
+Uses = 0.0
+
+[sub_resource type="Resource" id="Redhold_iron"]
+script = ExtResource("market_good")
+Good = ExtResource("good_iron")
+Stock = 30
+Uses = 0.0
+
+[sub_resource type="Resource" id="Redhold_metals"]
+script = ExtResource("market_good")
+Good = ExtResource("good_metals")
+Stock = 40
+Uses = 1.0
+
+[sub_resource type="Resource" id="Redhold_silicon"]
+script = ExtResource("market_good")
+Good = ExtResource("good_silicon")
+Stock = 20
+Uses = 0.0
+
+[sub_resource type="Resource" id="Redhold_copper"]
+script = ExtResource("market_good")
+Good = ExtResource("good_copper")
+Stock = 20
+Uses = 0.0
+
+[sub_resource type="Resource" id="Redhold_chips"]
+script = ExtResource("market_good")
+Good = ExtResource("good_chips")
+Stock = 20
+Uses = 0.0
+
+[sub_resource type="Resource" id="Redhold_electronics"]
+script = ExtResource("market_good")
+Good = ExtResource("good_electronics")
+Stock = 30
+Uses = 0.0
+
+[sub_resource type="Resource" id="Redhold_machinery"]
+script = ExtResource("market_good")
+Good = ExtResource("good_machinery")
+Stock = 20
+Uses = 0.0
+
+[sub_resource type="Resource" id="Redhold_medicines"]
+script = ExtResource("market_good")
+Good = ExtResource("good_medicines")
+Stock = 10
+Uses = 0.0
+
+[sub_resource type="Resource" id="Redhold_works_solar"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_solar")
+PerHour = 30.0
+
+[sub_resource type="Resource" id="Redhold_works_food"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_food")
+PerHour = 20.0
+
+[sub_resource type="Resource" id="fleet_Redhold"]
+script = ExtResource("fleet_line")
+Model = ExtResource("freighter_model")
+Count = 1
+
+[node name="Sector" type="Node3D"]
+script = ExtResource("origin")
+
+[node name="PlayerStart" type="Marker3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 400)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_space")
+script = ExtResource("q_env")
+
+[node name="Sun" type="DirectionalLight3D" parent="."]
+transform = Transform3D(-0.5, 0.433013, -0.75, 0, 0.866025, 0.5, 0.866025, 0.25, -0.433013, 0, 0, 0)
+light_color = Color(1, 0.86, 0.76, 1)
+light_energy = 1.3
+shadow_enabled = true
+directional_shadow_blend_splits = true
+script = ExtResource("heat")
+
+[node name="Shadows" type="Node" parent="Sun"]
+script = ExtResource("sun_shadows")
+Flying = ExtResource("shadows_flying")
+OnFoot = ExtResource("shadows_on_foot")
+
+[node name="Redhold" parent="." instance=ExtResource("redhold")]
+transform = Transform3D(0.866025, 0, -0.5, 0, 1, 0, 0.5, 0, 0.866025, 40000, 1500, -55000)
+
+[node name="Radio" parent="Redhold"]
+StationId = "REDHOLD"
+Title = "Redhold"
+OwnedBy = ExtResource("owner_red_maw")
+
+[node name="Market" parent="Redhold"]
+Fleet = Array[ExtResource("fleet_line")]([SubResource("fleet_Redhold")])
+UpkeepPerHour = 900.0
+Worth = 1500000
+Goods = Array[ExtResource("market_good")]([SubResource("Redhold_energy"), SubResource("Redhold_food"), SubResource("Redhold_water"), SubResource("Redhold_hydrogen"), SubResource("Redhold_iron_ore"), SubResource("Redhold_iron"), SubResource("Redhold_metals"), SubResource("Redhold_silicon"), SubResource("Redhold_copper"), SubResource("Redhold_chips"), SubResource("Redhold_electronics"), SubResource("Redhold_machinery"), SubResource("Redhold_medicines")])
+Factories = Array[ExtResource("factory_line")]([SubResource("Redhold_works_solar"), SubResource("Redhold_works_food")])
+Factor = true
+
+[node name="Projectiles" type="MultiMeshInstance3D" parent="."]
+script = ExtResource("rounds")
+Looks = Array[ExtResource("look")]([ExtResource("cannon_look"), ExtResource("laser_look")])
+
+[node name="Gate4" parent="." instance=ExtResource("gate_scene")]
+Destination = "sector_02"
+ExitGate = "Gate3"
+
+[node name="Radio" parent="Gate4"]
+StationId = "GATE4"
+OwnedBy = ExtResource("owner_red_maw")

@@ -52,7 +52,7 @@ public partial class PeopleTest : Node
     private void Records()
     {
         var population = GD.Load<PopulationSpec>("res://assets/people/population.tres");
-        Check("the population is data", population.Lines.Length == 3 && population.Lines.All(l => l.Model != null));
+        Check("the population is data", population.Lines.Length == 4 && population.Lines.All(l => l.Model != null));
         var map = GD.Load<SectorMap>("res://assets/sectors/map.tres");
         var state = new UniverseState();
         StationBook book = StationBook.Read(map);
@@ -73,7 +73,7 @@ public partial class PeopleTest : Node
         Check($"names differ ({string.Join(", ", state.People.Values.Select(p => p.Name))})", state.People.Values.Select(p => p.Name).Distinct().Count() == wanted);
         Check("everyone has a ship of their own", state.People.Keys.All(id => state.CargoShips.Values.Any(s => s.Owner == id)));
         PersonRecord pirate = state.People.Values.First(p => p.Livelihood == "Pirate");
-        Check("a pirate has a price on their head", Reactions.Hunted(state, pirate.Id) == 3000);
+        Check("nobody is born wanted: a pirate earns the price on their head", Reactions.Hunted(state, pirate.Id) == 0);
 
         // A hunter at a station reads its owner's board
         PersonRecord hunter = state.People.Values.First(p => p.Livelihood == "Hunter");
@@ -108,8 +108,9 @@ public partial class PeopleTest : Node
         Check($"a big grudge sends someone after who did it ({trader.Quarry})", trader.Quarry == pirate.Id);
 
         // Whoever gets them is paid, and a person's ship takes them with it
-        long before = hunter.Credits;
-        Check("what was on a head goes to a person who gets it", Reactions.Collect(state, pirate.Id, hunter) == 3000 && hunter.Credits == before + 3000);
+        ((OrganisationRecord)Account(owner)).Bounties[pirate.Id] = 3000;
+        long before = hunter.Credits, onHead = Reactions.Hunted(state, pirate.Id);
+        Check($"what was on a head goes to a person who gets it ({onHead})", onHead >= 3000 && Reactions.Collect(state, pirate.Id, hunter) == onHead && hunter.Credits == before + onHead);
         CargoShips.Lose(state, state.CargoShips.Values.First(s => s.Owner == pirate.Id).Id);
         Check("a person who loses their ship is gone", !state.People.ContainsKey(pirate.Id));
         People.Muster(state, population, book, Account);
@@ -118,21 +119,22 @@ public partial class PeopleTest : Node
         People.Muster(state, population, book, Account);
         Check("in time a newcomer does, ordering a ship from a yard", state.People.Count == wanted && state.ShipOrders.Values.Any(o => o.Owner.StartsWith(PersonRecord.OwnerPrefix)));
 
-        // Stolen goods go for less than a market pays
+        // Stolen goods go for less than a market pays, and only where the owner asks no questions
         PersonRecord fence = state.People.Values.First(p => p.Livelihood == "Hunter" && p != hunter);
         CargoShipRecord loaded = state.CargoShips.Values.First(s => s.Owner == fence.Id);
-        StationBook.Station market = book.Stations.First(s => s.Goods.Any(g => g.Good.Id == "iron") && s.Pads.Count > 0);
+        StationBook.Station market = book.Stations.First(s => s.Goods.Any(g => g.Good.Id == "iron") && s.Pads.Count > 0 && People.Fences(s, population, state, Account));
         loaded.At = market.Id;
         loaded.Phase = CargoShipRecord.Parked;
         loaded.State = CargoShipRecord.Waiting;
         loaded.NextLook = 0;
         loaded.Loot["iron"] = 5;
         StationRecord stock = CargoShips.Bring(state, market, Account);
-        long honest = 5 * Market.SellPrice(market.Goods.First(g => g.Good.Id == "iron"), stock.Stock["iron"]);
+        long honest = 5 * Market.SellPrice(stock, market.Goods.First(g => g.Good.Id == "iron"));
         long purse = fence.Credits;
+        double ironBefore = stock.Stock["iron"];
         CargoShips.Tick(state, book, Account);
         long fenced = fence.Credits - purse;
-        Check($"a fence pays less than the market would ({fenced} of about {honest})", loaded.Loot.Count == 0 && fenced > 0 && fenced < honest * 0.75);
+        Check($"a fence takes it, and pays less than the market would ({fenced} after setting off again, of about {honest})", loaded.Loot.Count == 0 && stock.Stock["iron"] >= ironBefore + 5 && fenced < honest * 0.75);
 
         // The universe's work and its documents come a piece at a time
         Check($"the universe's work comes in pieces ({CargoShips.Work(state, book, Account).Count()})", CargoShips.Work(state, book, Account).Count() > book.Stations.Count);
@@ -142,12 +144,12 @@ public partial class PeopleTest : Node
         UniverseStore.Prepare(folder);
         foreach ((string file, string text) in UniverseStore.Documents(state, folder).ToList())
             UniverseStore.Write(file, text);
-        Check("documents made one by one load as a whole", UniverseStore.Load(folder).People.Count == wanted);
+        Check("documents made one by one load as a whole", UniverseStore.Load(folder).People.Count == state.People.Count);
         if (Directory.Exists(folder))
             Directory.Delete(folder, true);
         UniverseStore.Save(state, folder);
         UniverseState again = UniverseStore.Load(folder);
-        Check("people, their memories and sightings are kept on disk", again.People.Count == wanted && again.People[trader.Id].Memories.Count == trader.Memories.Count && again.Sightings.ContainsKey(pirate.Id) == state.Sightings.ContainsKey(pirate.Id) && again.PeopleEver == state.PeopleEver);
+        Check("people, their memories and sightings are kept on disk", again.People.Count == state.People.Count && state.People.Count > 0 && again.People[trader.Id].Memories.Count == trader.Memories.Count && again.Sightings.ContainsKey(pirate.Id) == state.Sightings.ContainsKey(pirate.Id) && again.PeopleEver == state.PeopleEver);
         Directory.Delete(folder, true);
     }
 

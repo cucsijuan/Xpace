@@ -319,7 +319,6 @@ UpkeepPerHour = 12000.0
 Goods = Array[ExtResource("drydock_market_good")]([SubResource("Drydock_energy"), SubResource("Drydock_water"), SubResource("Drydock_food"), SubResource("Drydock_medicines"), SubResource("Drydock_metals"), SubResource("Drydock_machinery"), SubResource("Drydock_electronics"), SubResource("Drydock_hydrogen")])
 Outfits = Array[ExtResource("drydock_outfit")]([])
 Factories = Array[ExtResource("factory_line")]([SubResource("Drydock_works_solar"), SubResource("Drydock_works_food"), SubResource("Drydock_works_medicines")])
-Factor = true
 
 [node name="Kestrel" parent="." instance=ExtResource("keel_three")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -85000, 2000, -100000)
@@ -351,6 +350,14 @@ ExitGate = "Gate2"
 
 [node name="Radio" parent="Gate1"]
 StationId = "GATE1"
+
+[node name="Gate3" parent="." instance=ExtResource("gate_scene")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 60000, -3000, 70000)
+Destination = "sector_03"
+ExitGate = "Gate4"
+
+[node name="Radio" parent="Gate3"]
+StationId = "GATE3"
 
 [node name="Belt" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -76270, 2000, -109020)

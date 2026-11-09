@@ -1,8 +1,8 @@
-[gd_resource type="Resource" script_class="Recipe" format=3]
+[gd_resource type="Resource" script_class="Recipe" format=3 uid="uid://bic0y5h13is0v"]
 
-[ext_resource type="Script" path="res://scripts/World/Recipe.cs" id="1_recipe"]
-[ext_resource type="Script" path="res://scripts/World/RecipePart.cs" id="2_part"]
-[ext_resource type="Resource" path="res://assets/weapons/turrets/gun_1.tres" id="3_output"]
+[ext_resource type="Script" uid="uid://xk88ks4dl1jd" path="res://scripts/World/Recipe.cs" id="1_recipe"]
+[ext_resource type="Script" uid="uid://c4bfbkk76j70v" path="res://scripts/World/RecipePart.cs" id="2_part"]
+[ext_resource type="Resource" uid="uid://cgbplwpg25rqw" path="res://assets/weapons/turrets/gun_1.tres" id="3_output"]
 [ext_resource type="Resource" path="res://assets/goods/metals.tres" id="in_0"]
 
 [sub_resource type="Resource" id="Part_0"]
@@ -13,4 +13,4 @@ Amount = 4
 [resource]
 script = ExtResource("1_recipe")
 Output = ExtResource("3_output")
-Inputs = Array[ExtResource("2_part")]([SubResource("Part_0")])
+Inputs = [SubResource("Part_0")]

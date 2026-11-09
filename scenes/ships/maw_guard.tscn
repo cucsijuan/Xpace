@@ -1,0 +1,12 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ships/police_fighter.tscn" id="1_police"]
+[ext_resource type="Material" path="res://assets/materials/paint_raider.tres" id="2_paint"]
+
+[node name="MawGuard" instance=ExtResource("1_police")]
+
+[node name="Paint" parent="Exterior/Model"]
+Material = ExtResource("2_paint")
+
+[node name="Datalink" parent="."]
+Channel = "red_maw"

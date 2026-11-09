@@ -1,0 +1,77 @@
+[gd_scene format=3 uid="uid://c1fni1v27e8yx"]
+
+[ext_resource type="Script" uid="uid://cuymq6ciq7k46" path="res://scripts/Space/LandingPad.cs" id="1_iy6uv"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/landing_pad.tscn" id="2_y6iio"]
+[ext_resource type="Shader" uid="uid://bqvn7u6jwm4ho" path="res://assets/materials/pad_glow.gdshader" id="3_ohop4"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/pad_stairs.tscn" id="4_hrplt"]
+
+[sub_resource type="ShaderMaterial" id="Material_column"]
+render_priority = 0
+shader = ExtResource("3_ohop4")
+shader_parameter/strength = 1.5
+shader_parameter/height = 24.0
+shader_parameter/edge_sharpness = 2.0
+shader_parameter/pulse = 0.25
+shader_parameter/pulse_speed = 1.5
+
+[sub_resource type="CylinderMesh" id="Mesh_column"]
+material = SubResource("Material_column")
+top_radius = 3.0
+bottom_radius = 3.0
+height = 24.0
+radial_segments = 32
+rings = 1
+cap_top = false
+cap_bottom = false
+
+[sub_resource type="ShaderMaterial" id="Material_ring"]
+render_priority = 0
+shader = ExtResource("3_ohop4")
+shader_parameter/strength = 3.0
+shader_parameter/height = 1.2
+shader_parameter/edge_sharpness = 0.5
+shader_parameter/pulse = 0.25
+shader_parameter/pulse_speed = 1.5
+
+[sub_resource type="CylinderMesh" id="Mesh_ring"]
+material = SubResource("Material_ring")
+top_radius = 12.6
+bottom_radius = 12.6
+height = 1.2
+rings = 1
+cap_top = false
+cap_bottom = false
+
+[node name="LandingPadBig" type="Node3D" unique_id=931102758]
+script = ExtResource("1_iy6uv")
+
+[node name="Platform" parent="." unique_id=1516197991 instance=ExtResource("2_y6iio")]
+transform = Transform3D(4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0)
+
+[node name="Glow" type="Node3D" parent="." unique_id=2074202788]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.892, 0)
+
+[node name="Column" type="MeshInstance3D" parent="Glow" unique_id=724215067]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 12, 0)
+cast_shadow = 0
+mesh = SubResource("Mesh_column")
+
+[node name="Ring" type="MeshInstance3D" parent="Glow" unique_id=1341598072]
+transform = Transform3D(2, 0, 0, 0, 2, 0, 0, 0, 2, 0, 0.6, 0)
+cast_shadow = 0
+mesh = SubResource("Mesh_ring")
+
+[node name="Light" type="OmniLight3D" parent="Glow" unique_id=955814836]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
+light_energy = 3.0
+omni_range = 30.0
+
+[node name="Nose" type="Marker3D" parent="." unique_id=661217661]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.392, -10)
+gizmo_extents = 2.0
+
+[node name="Stairs" parent="." unique_id=1497490293 instance=ExtResource("4_hrplt")]
+transform = Transform3D(-0.5754, 0, 0, 0, 0.5754, 0, 0, 0, -0.5754, -3.9769263, -2.3445299, -24.668505)
+
+[node name="Stairs" parent="Stairs" unique_id=70683594 instance=ExtResource("4_hrplt")]
+transform = Transform3D(1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, 1, -0.031846046, -4.98617, 7.8444443)

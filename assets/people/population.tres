@@ -8,7 +8,6 @@
 [ext_resource type="Resource" path="res://assets/personalities/aggressive.tres" id="4_aggressive"]
 [ext_resource type="Resource" path="res://assets/personalities/shady.tres" id="5_shady"]
 [ext_resource type="Resource" path="res://assets/personalities/mediator.tres" id="6_mediator"]
-[ext_resource type="Resource" path="res://assets/organisations/gate_authority.tres" id="7_gates"]
 
 [sub_resource type="Resource" id="traders"]
 script = ExtResource("1_line")
@@ -33,11 +32,18 @@ Count = 2
 Model = ExtResource("2_fighter")
 Personalities = Array[Object]([ExtResource("5_shady"), ExtResource("4_aggressive")])
 Savings = 2000
-WantedBy = ExtResource("7_gates")
-Reward = 3000
+
+[sub_resource type="Resource" id="redhold_pirates"]
+script = ExtResource("1_line")
+Livelihood = 2
+Count = 1
+Home = "REDHOLD"
+Model = ExtResource("2_fighter")
+Personalities = Array[Object]([ExtResource("4_aggressive"), ExtResource("5_shady")])
+Savings = 2000
 
 [resource]
 script = ExtResource("1_pop")
-Lines = Array[Object]([SubResource("traders"), SubResource("hunters"), SubResource("pirates")])
+Lines = Array[Object]([SubResource("traders"), SubResource("hunters"), SubResource("pirates"), SubResource("redhold_pirates")])
 FirstNames = PackedStringArray("Ada", "Bruno", "Carmen", "Dario", "Elena", "Fermin", "Greta", "Hugo", "Ines", "Joaquin", "Katya", "Lucio", "Marta", "Nestor", "Olga", "Pablo", "Quira", "Rafael", "Sofia", "Tomas", "Ursula", "Victor", "Wanda", "Ximena", "Yago", "Zoe")
 Surnames = PackedStringArray("Acosta", "Bianchi", "Castro", "Dorn", "Esposito", "Ferrer", "Galvan", "Haddad", "Ibarra", "Jensen", "Kovacs", "Lombardi", "Moreno", "Novak", "Okafor", "Paz", "Quiroga", "Rossi", "Sato", "Torres", "Ueda", "Vidal", "Weber", "Yilmaz", "Zapata")

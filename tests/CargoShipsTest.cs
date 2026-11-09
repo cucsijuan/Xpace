@@ -33,7 +33,7 @@ public partial class CargoShipsTest : Node
     {
         var map = GD.Load<SectorMap>("res://assets/sectors/map.tres");
         StationBook book = StationBook.Read(map);
-        Check($"the book has the stations and the gates ({string.Join(", ", book.Stations.Select(s => s.Id))})", book.Stations.Count == 4 && book.Gates.Count == 2);
+        Check($"the book has the stations and the gates ({string.Join(", ", book.Stations.Select(s => s.Id))})", book.Stations.Count == 5 && book.Gates.Count == 4);
         StationBook.Station first = book.Find("ALPHA"), kestrel = book.Find("DRYDOCK"), quartz = book.Find("QUARTZ");
         Check("there is a way across the gate, and none is needed inside a sector",
               book.Way(first.Sector, kestrel.Sector)?.Count == 1 && book.Way(first.Sector, quartz.Sector)?.Count == 0);
@@ -65,7 +65,7 @@ public partial class CargoShipsTest : Node
             Check($"{good}: made as fast as it is used ({net:+0.0;-0.0} t/h)", net >= 0);
         }
         Check("all the owners gain, or at least hold, with their ships at work", owners.Values.All(o => o.Credits >= OrganisationCatalog.Find(o.Id).StartingCredits));
-        Check($"the fleets are mustered ({state.CargoShips.Count} ships, owned as their stations)", state.CargoShips.Count == 8 && state.CargoShips.Values.All(s => s.Owner == book.Find(s.Home).Owner));
+        Check($"the fleets are mustered ({state.CargoShips.Count} ships, owned as their stations)", state.CargoShips.Count == 9 && state.CargoShips.Values.All(s => s.Owner == book.Find(s.Home).Owner));
         Check("all of them have worked", state.CargoShips.Values.All(s => s.Delivered > 0));
         Check("the gates took their tolls", owners["gate_authority"].Credits > OrganisationCatalog.Find("gate_authority").StartingCredits);
         Check("nobody is ruined", owners.Values.All(o => o.Credits > 0));

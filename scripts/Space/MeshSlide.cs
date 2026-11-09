@@ -6,13 +6,16 @@ namespace Xpace.Space;
 /// Slides meshes of an imported model, such as a hangar's doors: a child of
 /// the model's instance that moves the named meshes by <see cref="Travel"/>
 /// (in the model's frame) times <see cref="Open"/>, over
-/// <see cref="Seconds"/> whenever Open changes. Like <see cref="ModelPaint"/>,
+/// <see cref="Seconds"/> whenever Open changes. Leaves that part, such as
+/// doors sliding apart, each go their own way (<see cref="Travels"/>). Like <see cref="ModelPaint"/>,
 /// it is the outer scene's own node, so an export keeps it.
 /// </summary>
 public partial class MeshSlide : Node
 {
     [Export] public string[] Meshes = [];
     [Export] public Vector3 Travel = new(0, 11.5f, 0);
+    /// <summary>Each mesh's own travel, in the order of <see cref="Meshes"/> (none, or fewer: <see cref="Travel"/>).</summary>
+    [Export] public Vector3[] Travels = [];
     [Export(PropertyHint.Range, "0,1")] public float Open = 1;
     [Export] public float Seconds = 6;
 
@@ -51,6 +54,6 @@ public partial class MeshSlide : Node
     {
         for (int i = 0; i < _parts.Length; i++)
             if (_parts[i] != null)
-                _parts[i].Position = _shut[i] + Travel * _at;
+                _parts[i].Position = _shut[i] + (i < Travels.Length ? Travels[i] : Travel) * _at;
     }
 }

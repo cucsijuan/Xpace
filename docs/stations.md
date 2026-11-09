@@ -104,6 +104,12 @@ Make a new scene the way `landing_pad_small.tscn` is made, rather than scaling t
 
 Pads only work inside a hangar with a `HangarDock`. Pads out in the open are not supported yet.
 
+## Redhold
+
+Red Maw's base in sector 3 (`scenes/stations/redhold.tscn`), our own sphere, not a Synty model: `tools/pirate_base/build_redhold.py` (`blender -b -P`) builds it and writes `assets/stations/redhold/redhold.glb` (what is seen) and `redhold_collision.glb` (the `Solid`: all but the door leaves and the guide lights). Its faces point at swatches of Synty's atlas; `assets/materials/redhold.tres` (`synty_retint.gdshader`) paints it with the belt's panels darkened and the cyan lights red, and `redhold_lights.tres` runs the runway lights on the deck along their second UV. The script prints where each turret goes, which is how the `Turrets` transforms were set.
+
+The hangar is a plain room (72 x 36 x 190 m) to be dressed with Synty pieces. Its door is two leaves parting sideways: one `MeshSlide` with `Travels`, a travel for each mesh. Two small pads stand at the back; the two big pads in line in front of them wait for a big pad scene (`PadGuides` in the .blend show where). The market (energy, food, and the goods pirates bring in) is set in `scenes/sectors/sector_03.tscn`, as for every station.
+
 ## Hull panels
 
 `tools/station_bay/hull_panels.py` cuts slices of the ring's outer band (an angle and a height, `PANELS`), unrolls them flat and writes them as panels: 30 x 30 m, facing +Z, the skin at z = 0 and its plates standing out up to 4 m (0.6 m behind it). They have the ring's plates, colours and lit windows. A: light, B: white, C: blue. Scale them to fit; cover their edges with `hull_trim.tscn`.

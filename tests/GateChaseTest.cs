@@ -65,7 +65,7 @@ public partial class GateChaseTest : Node
         prey.Tonnes = 10;
         prey.Good = "iron";
         pirate.Credits = 5000;
-        long before = pirate.Credits;
+        long before = pirate.Credits, hunted = Reactions.Hunted(state, pirate.Id);
         var follows = new List<(string, string)>();
         view.Followed += (a, b) => follows.Add((a, b));
 
@@ -75,7 +75,7 @@ public partial class GateChaseTest : Node
         bool followed = await Until(() => follows.Any(f => f.Item1 == attacker.Id && f.Item2 == prey.Id), 5);
         Check($"the pirate saw it go and follows it through ({follows.Count})", followed);
         Check($"on its way to where the freighter goes ({attacker.Going})", attacker.Going == prey.Going && attacker.Phase == CargoShipRecord.Flying);
-        Check($"paying the toll ({before - pirate.Credits} credits)", before - pirate.Credits == CargoShips.TollsBetween(book, kestrel, alpha));
+        Check($"paying the toll ({before - pirate.Credits} credits), or wanted by the gate's owner going through unpaid (price on its head {hunted} -> {Reactions.Hunted(state, pirate.Id)})", before - pirate.Credits == CargoShips.TollsBetween(book, kestrel, alpha) || before == pirate.Credits && Reactions.Hunted(state, pirate.Id) > hunted);
         bool through = await Until(() => Sector(attacker, book, state) == "sector_01", 120);
         Check($"it goes through the gate too ({Sector(attacker, book, state)})", through);
         bool again = await Until(() => attacker.Phase == CargoShipRecord.Loose && view.Shown.GetValueOrDefault(attacker.Id) is ShipBody hunter && IsInstanceValid(hunter)
@@ -112,7 +112,7 @@ public partial class GateChaseTest : Node
         view.Shown.GetValueOrDefault(attacker.Id)?.QueueFree();
         pirate.Quarry = pilot;
         pirate.Credits = 5000;
-        long before = pirate.Credits;
+        long before = pirate.Credits, hunted = Reactions.Hunted(state, pirate.Id);
         Vector3 near = ToSector(player) + gate.GlobalBasis.X.Normalized() * 3000;
         attacker.Phase = CargoShipRecord.Flying;
         attacker.From = "";
@@ -142,7 +142,7 @@ public partial class GateChaseTest : Node
         StationBook.Gate exit = book.Gates.First(g => g.Sector == gate.Destination && g.Name == gate.ExitGate);
         string nearest = book.Stations.Where(st => st.Sector == exit.Sector).OrderBy(st => st.At.DistanceTo(exit.At)).First().Id;
         Check($"to the station nearest the gate the player came out of ({nearest})", attacker.Going == nearest);
-        Check($"paying the toll ({before - pirate.Credits} credits)", before - pirate.Credits == exit.Toll || before - pirate.Credits == 100);
+        Check($"paying the toll ({before - pirate.Credits} credits), or wanted by the gate's owner going through unpaid (price on its head {hunted} -> {Reactions.Hunted(state, pirate.Id)})", before - pirate.Credits == exit.Toll || before - pirate.Credits == 100 || before == pirate.Credits && Reactions.Hunted(state, pirate.Id) > hunted);
         bool through = await Until(() => Sector(attacker, book, state) == gate.Destination, 120);
         Check($"it goes through the gate too ({Sector(attacker, book, state)})", through);
         bool again = await Until(() => attacker.Phase == CargoShipRecord.Loose && view.Shown.GetValueOrDefault(attacker.Id) is ShipBody hunter && IsInstanceValid(hunter)

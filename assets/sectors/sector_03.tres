@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="Sector" format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/Sector.cs" id="1_sector"]
+
+[resource]
+script = ExtResource("1_sector")
+Id = "sector_03"
+Title = "Redhold Reach"
+Scene = "res://scenes/sectors/sector_03.tscn"

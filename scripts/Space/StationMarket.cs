@@ -434,7 +434,7 @@ public partial class StationMarket : Node
             double stock = station.Stock.GetValueOrDefault(line.Good.Id);
             view.Lines.Add(new MarketLine
             {
-                Good = line.Good.Id, Name = line.Good.Name, Buy = Market.BuyPrice(station, line), Sell = Market.SellPrice(line, stock),
+                Good = line.Good.Id, Name = line.Good.Name, Buy = Market.BuyPrice(station, line), Sell = Market.SellPrice(station, line),
                 Stock = (int)stock, Held = pilot.Ship.Holds(line.Good.Id),
             });
         }
@@ -534,7 +534,7 @@ public partial class StationMarket : Node
                 Piece = piece,
                 Fitted = piece ? fitted.Values.Count(m => m == line.Item || m.ResourcePath == line.Item.ResourcePath) : 0,
                 Kept = piece ? station.LockerOf(pilotId).Count(i => i.Kind == ItemRecord.Piece && i.Data == line.Item.ResourcePath) : 0,
-                SellPrice = piece ? Market.PieceSellPrice(line, stock) : -1,
+                SellPrice = piece ? Market.PieceSellPrice(station, line) : -1,
                 Id = line.Id, Name = line.Item.Model, About = line.Item.About, Details = line.Item.Details,
                 Stock = (int)stock, Price = Market.OutfitPrice(station, line), Aboard = Universe.Aboard(pilot, line.Item), Rack = rack,
                 Lot = System.Math.Max(1, line.Item.Lot),
