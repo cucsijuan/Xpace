@@ -12,7 +12,8 @@ namespace Xpace.Space;
 ///
 /// The gate's radio (a <see cref="StationRadio"/> child, with the laws and
 /// the toll) clears a ship that asks (<see cref="Clear"/>). The ring does
-/// not know who passes: every ship that goes through jumps, cleared or not,
+/// not know who passes: every ship that flies through jumps, cleared or not
+/// (one held, in a tunnel, on a pad or on its way, is placed, not flying),
 /// and one without clearance has broken the gate's law (its
 /// <see cref="StationSecurity"/> judges it, on the machine that judges).
 ///
@@ -73,6 +74,11 @@ public partial class JumpGate : Node3D
         {
             if (Combat.ShipOf(node) is not Node3D ship || !seen.Add(ship) || node == Radio)
                 continue;
+            if (ship is ShipBody { Held: true })
+            {
+                _was.Remove(ship);                  // placed by what holds it (a tunnel, a pad, its way): it flies through nothing
+                continue;
+            }
             Vector3 now = ToLocal(ship.GlobalPosition);
             if (_was.TryGetValue(ship, out Vector3 was) && Mathf.Sign(was.Z) != Mathf.Sign(now.Z) && was.Z != 0)
             {

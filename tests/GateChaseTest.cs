@@ -128,6 +128,14 @@ public partial class GateChaseTest : Node
         Check("the pirate finds the player it is after", found);
         await Seconds(8);                               // its radar on them
 
+        int crossings = 0;
+        void Crossed(Node3D ship, JumpGate through)
+        {
+            if (ship == player)
+                crossings++;
+        }
+        JumpGate.Entered += Crossed;
+
         // Through the ring at 150 m/s, along its axis
         FloatingOrigin here = FloatingOrigin.Of(player);
         for (int i = 0; i < 60 * 60 && FloatingOrigin.Of(player) == here && player.Holder == null; i++)
@@ -148,6 +156,8 @@ public partial class GateChaseTest : Node
         bool again = await Until(() => attacker.Phase == CargoShipRecord.Loose && view.Shown.GetValueOrDefault(attacker.Id) is ShipBody hunter && IsInstanceValid(hunter)
             && hunter.Find<FighterAi>()?.Engagement is EscortDuty duty && duty.Has(player), 240);
         Check("and over there goes for the player again", again);
+        JumpGate.Entered -= Crossed;
+        Check($"the player went through one gate, once ({crossings})", crossings == 1);
     }
 
     private static Vector3 ToSector(Node3D ship)
