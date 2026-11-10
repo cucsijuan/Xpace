@@ -29,6 +29,7 @@
 [ext_resource type="Resource" path="res://assets/voices/operator_m2/voice.tres" id="voice_m2"]
 [ext_resource type="Script" uid="uid://cihqw4p8vnrgn" path="res://scripts/Space/RadioVoicePack.cs" id="voice_pack"]
 [ext_resource type="Script" uid="uid://dgrvmekmojxsh" path="res://scripts/OnFoot/WalkSurface.cs" id="walk"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/hangar_watch.tscn" id="w_watch"]
 
 [sub_resource type="BoxShape3D" id="door_box"]
 size = Vector3(72, 36, 2)
@@ -219,3 +220,6 @@ PoliceScene = ExtResource("guard")
 [node name="Mass" type="Node3D" parent="." unique_id=1456858453]
 script = ExtResource("medium_mass")
 Reach = 20000.0
+
+[node name="Watch" parent="Hangar/Dock" instance=ExtResource("w_watch")]
+transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 20, 4)

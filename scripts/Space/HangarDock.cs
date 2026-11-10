@@ -46,6 +46,9 @@ public partial class HangarDock : Node3D
     /// <summary>Whom it is cleared for (null: free).</summary>
     public Node ClearedFor { get; private set; }
 
+    /// <summary>The eyes at its mouth, if it has them (they find their dock).</summary>
+    public HangarWatch Watch { get; set; }
+
     /// <summary>The station whose dock it is (set by the station).</summary>
     public StationRadio Station { get; set; }
 

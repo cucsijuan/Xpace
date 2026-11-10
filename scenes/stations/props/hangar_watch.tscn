@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/HangarWatch.cs" id="1_watch"]
+[ext_resource type="Script" path="res://scripts/Space/RadarEmitter.cs" id="2_radar"]
+
+[node name="Watch" type="Node3D"]
+script = ExtResource("1_watch")
+
+[node name="Radar" type="Node3D" parent="."]
+script = ExtResource("2_radar")
+Signature = "A"
+PowerAt1Km = 20000.0
+PrfHz = 1200.0
+ConeDegrees = 60.0
+BeamwidthDegrees = 2.0
+ScanSeconds = 1.5
+LockRange = 0.0
+DetectRange = 3000.0

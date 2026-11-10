@@ -118,6 +118,8 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
 
     /// <summary>The last commands, -1..1: pitch, roll, yaw torque; right, up, forward force.</summary>
     public readonly float[] Commands = new float[6];
+    /// <summary>While something holds the ship: what its thrusters were asked for (they give nothing), as <see cref="Commands"/>.</summary>
+    public readonly float[] Asked = new float[6];
 
     private double _sinceCommand = double.MaxValue;
     private readonly List<IShipDevice> _devices = new();
@@ -444,6 +446,7 @@ public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.
         }
         if (Holder != null)
         {
+            System.Array.Copy(Commands, Asked, Commands.Length);
             System.Array.Clear(Commands);
             State = Holder.Hold(this, delta);
             return;

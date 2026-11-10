@@ -28,6 +28,10 @@ namespace Xpace.Space;
 /// door opens, and once it is opening the clamps lift the ship to
 /// <see cref="LaunchHeight"/> (<see cref="LaunchSeconds"/>) and let it go.
 ///
+/// The clamps don't ask: a pad nobody is cleared to takes any ship that
+/// sits right on it (<see cref="Stowaway"/>), and lets it go when it pushes
+/// up hard enough (<see cref="BreakFreeThrust"/>), door open or not.
+///
 /// Only the machine that flies a ship docks it (in a session, the ship's
 /// owner): the others see it where its owner says it is. The pad's radio
 /// beacon tells the ship's radio where the pad is (<see cref="Guide"/>), for
@@ -119,6 +123,15 @@ public partial class LandingPad : Node3D, IShipHold
     /// <summary>The ship the station here cleared to it (set by the station; null: none).</summary>
     public Node3D AssignedTo { get; set; }
 
+    /// <summary>The ship its clamps hold took no clearance: they take whatever sits right on a free pad.</summary>
+    public bool Stowaway { get; private set; }
+
+    /// <summary>The ship on it now, cleared or not (held here, or another machine's resting in its place), or null.</summary>
+    public Node3D Occupant { get; private set; }
+
+    /// <summary>How far up a stowaway pushes (of its vertical thrusters) for the clamps to let it go.</summary>
+    [Export] public float BreakFreeThrust = 0.5f;
+
     /// <summary>What the beacon tells a ship: where the pad is from it and how it must turn.</summary>
     public struct Guidance
     {
@@ -208,9 +221,10 @@ public partial class LandingPad : Node3D, IShipHold
             return;
         if (HeldShip != null && (!IsInstanceValid(HeldShip) || HeldShip.Wrecked || HeldShip.Holder != this))
             Let(go: false);
+        Occupant = HeldShip;
         if (HeldShip != null)
         {
-            if (State == PadState.Docked && WantsOut(HeldShip) && Dock.IsOpen)
+            if (State == PadState.Docked && (Stowaway ? HeldShip.Asked[4] >= BreakFreeThrust : WantsOut(HeldShip) && Dock.IsOpen))
             {
                 State = PadState.Launching;
                 _from = GlobalTransform.AffineInverse() * HeldShip.GlobalTransform;
@@ -233,7 +247,34 @@ public partial class LandingPad : Node3D, IShipHold
             else if (local != null && aligned && low && slow)
                 Take(local);
         }
+        else if (Dock.Station?.PilotOn(Dock.Number, Number) != true)
+            Uncleared();
         ShowGlow();
+    }
+
+    // Nobody is cleared to it: a ship resting in its place is whoever's, and the clamps take one of this machine's that
+    // sits right, as they take any (they don't ask)
+    private void Uncleared()
+    {
+        foreach (Node n in Sectors.InGroup(this, Radio.Group))
+        {
+            if (Combat.ShipOf(n) is not Node3D ship || ship.GlobalPosition.DistanceSquaredTo(GlobalPosition) > 40 * 40)
+                continue;
+            if (ship is ShipBody body && !body.Wrecked && body.Holder == null && !NetBody.IsPuppet(body) &&
+                body.Device<RadioDevice>() is not { Dock: > 0 })     // cleared elsewhere: it is going to its own pad
+            {
+                Look(body, out bool aligned, out bool low, out bool slow);
+                if (aligned && low && slow && Fits(body))
+                {
+                    Take(body);
+                    Stowaway = true;
+                    Occupant = body;
+                    return;
+                }
+            }
+            else if (Docks(ship))
+                Occupant = ship;
+        }
     }
 
     ShipState IShipHold.Hold(ShipBody ship, double delta)
@@ -314,6 +355,7 @@ public partial class LandingPad : Node3D, IShipHold
         if (HeldShip != null && IsInstanceValid(HeldShip) && HeldShip.Holder == this)
             HeldShip.Holder = null;
         HeldShip = null;
+        Stowaway = false;
         State = PadState.Idle;
         ShowGlow();
     }

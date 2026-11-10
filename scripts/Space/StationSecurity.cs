@@ -74,6 +74,10 @@ public enum Standing
 /// it cannot tell (its radio off): hostile (<see cref="SmugglerText"/>). A
 /// station whose owner fences stolen goods reads nobody's hold.
 ///
+/// A ship a hangar's watch (<see cref="HangarWatch"/>) noticed, one it could not tell, that goes into the hangar all
+/// the same is hostile (<see cref="TrespassText"/>); the station keeps that door shut meanwhile. One it never
+/// noticed is in, and nobody knows.
+///
 /// In a session only the host's security acts, on every machine's ships
 /// alike (<see cref="SessionNode"/> tells it what they do).
 /// </summary>
@@ -135,6 +139,8 @@ public partial class StationSecurity : Node, IEngagement
     /// <summary>{0} the stolen tonnes, {1} the fine.</summary>
     [Export] public string StolenText = "Stolen goods aboard, {0} t. You have been fined {1} credits.";
     [Export] public string SmugglerText = "Unidentified ship carrying stolen goods. Police are engaging you.";
+    /// <summary>{0} the hangar.</summary>
+    [Export] public string TrespassText = "Unidentified ship in hangar {0}. Police are engaging you.";
 
     /// <summary>The station operator's lines for each text (see <see cref="StationRadio.Say"/>).</summary>
     [ExportGroup("Speech")]
@@ -149,6 +155,7 @@ public partial class StationSecurity : Node, IEngagement
     [Export] public string ScanSpeech = "";
     [Export] public string StolenSpeech = "";
     [Export] public string SmugglerSpeech = "";
+    [Export] public string TrespassSpeech = "";
 
     private sealed class Record
     {
@@ -326,6 +333,7 @@ public partial class StationSecurity : Node, IEngagement
             Speeding(_sinceLook);
             OnSight();
             LookFor();
+            Trespass();
             _sinceLook = 0;
         }
         Police(delta);
@@ -419,6 +427,22 @@ public partial class StationSecurity : Node, IEngagement
             if (Combat.ShipOf(node) is Node3D ship && Combat.IsAlive(ship) && !IsPolice(ship) &&
                 Radio.Protects(ship.GlobalPosition) && StandingOf(ship) != Standing.Hostile && Notorious(ship))
                 Engage(ship, NotoriousText, NotoriousSpeech);
+    }
+
+    // ---------- hangars ----------
+
+    // A ship a hangar's watch noticed outside and that went in all the same: hostile
+    private void Trespass()
+    {
+        foreach (HangarDock dock in Radio.Docks)
+        {
+            if (dock.Watch is not HangarWatch watch)
+                continue;
+            foreach (Node3D ship in watch.Noticed.ToList())
+                if (Valid(ship) && Combat.IsAlive(ship) && dock.Holds(ship) && !Radio.Expects(ship) && !IsPolice(ship) &&
+                    StandingOf(ship) != Standing.Hostile)
+                    Engage(ship, string.Format(TrespassText, dock.Number), TrespassSpeech);
+        }
     }
 
     // ---------- cargo scans ----------

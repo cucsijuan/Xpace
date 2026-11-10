@@ -68,6 +68,10 @@ public partial class StationRadio : Node3D, IRadio
     [Export] public string ClearedPadText = "Cleared to dock, hangar {0}, pad {1}. Follow the lights in.";
     [Export] public string NoDockText = "No hangar free. Hold outside and ask again.";
     [Export] public string DeniedText = "Docking denied.";
+    /// <summary>To the ships in the zone, as a hangar shuts for a ship it can't tell ({0} the hangar).</summary>
+    [Export] public string LockdownText = "Unidentified ship at hangar {0}. Hangar {0} closed.";
+    /// <summary>{0} the hangar.</summary>
+    [Export] public string LockdownOverText = "Hangar {0} open again.";
     /// <summary>{0} the dock's number, {1} the pad's.</summary>
     [Export] public string DockedText = "Docked on pad {1}, hangar {0}. Welcome aboard.";
     /// <summary>{0} the dock's number, {1} the pad's.</summary>
@@ -288,6 +292,7 @@ public partial class StationRadio : Node3D, IRadio
                 _inside.Remove(ship);
         }
         _inside.RemoveWhere(r => r is not GodotObject o || !IsInstanceValid(o));
+        Lockdowns();
         for (int i = _replies.Count - 1; i >= 0; i--)
         {
             if (_replies[i].At > _now)
@@ -366,7 +371,7 @@ public partial class StationRadio : Node3D, IRadio
             return false;
         if (dock.Pads.Count == 0)
             return true;
-        pad = dock.Pads.FirstOrDefault(p => p.Fits(ship) && _cleared.All(c => c.Pad != p) && !CargoOn(dock, p));
+        pad = dock.Pads.FirstOrDefault(p => p.Fits(ship) && _cleared.All(c => c.Pad != p) && !CargoOn(dock, p) && p.Occupant == null);
         return pad != null;
     }
 
@@ -440,9 +445,13 @@ public partial class StationRadio : Node3D, IRadio
     public bool Expects(Node3D ship) =>
         ship != null && _cleared.Any(c => !c.Departing && c.Ship is GodotObject o && IsInstanceValid(o) && ShipOf(c.Ship) == ship);
 
-    /// <summary>The ship is docked here, on the pad it was cleared to (and not leaving).</summary>
+    /// <summary>
+    /// The ship is docked here: on the pad it was cleared to (and not leaving), or on any of the station's pads without
+    /// clearance (it slipped in: the pad's clamps took it; the market can't tell).
+    /// </summary>
     public bool DockedHere(Node3D ship) =>
-        ship != null && _cleared.Any(c => c.Docked && !c.Departing && c.Ship is GodotObject o && IsInstanceValid(o) && ShipOf(c.Ship) == ship);
+        ship != null && (_cleared.Any(c => c.Docked && !c.Departing && c.Ship is GodotObject o && IsInstanceValid(o) && ShipOf(c.Ship) == ship) ||
+                         _docks.Any(d => d.Pads.Any(p => p.Stowaway && p.HeldShip == ship || p.Occupant == ship && p.Docks(ship))));
 
     /// <summary>What a cargo ship and the station say to each other, heard by the ships in its zone.</summary>
     public void Traffic(string ship, string ask, string askSpeech, string answer, string answerSpeech, int dock = 0, int pad = 0)
@@ -529,10 +538,34 @@ public partial class StationRadio : Node3D, IRadio
     }
 
     // A dock's door is open while a ship it cleared is on its way in or out (or the station's own ships use it)
+    // A hangar's watch noticed a ship it can't tell: the door stays shut until it has been gone a while; everyone in the
+    // zone is told
+    private readonly HashSet<HangarDock> _lockedDown = new();
+
+    private void Lockdowns()
+    {
+        foreach (HangarDock dock in _docks)
+        {
+            bool alarm = dock.Watch?.Alarm == true;
+            if (alarm == _lockedDown.Contains(dock))
+                continue;
+            if (alarm)
+                _lockedDown.Add(dock);
+            else
+                _lockedDown.Remove(dock);
+            Doors(dock);
+            foreach (IRadioReceiver to in _inside.Where(r => r is GodotObject o && IsInstanceValid(o)))
+                Say(to, string.Format(alarm ? LockdownText : LockdownOverText, dock.Number));
+        }
+    }
+
+    /// <summary>The hangar is shut for a ship its watch can't tell.</summary>
+    public bool LockedDown(HangarDock dock) => _lockedDown.Contains(dock);
+
     private void Doors(HangarDock dock)
     {
         Node3D user = null;
-        bool open = false;
+        bool open = false, own = false;
         foreach (Clearance c in _cleared)
         {
             if (c.Dock != dock)
@@ -540,8 +573,9 @@ public partial class StationRadio : Node3D, IRadio
             if (!c.Passing && (c.Ship == null || c.Pad == null))
                 user = c.Held ?? ShipOf(c.Ship);
             open |= c.Ship == null || c.Pad == null || !c.Docked || c.Departing;
+            own |= c.Held != null;                  // the station's own ships come and go, shut or not
         }
-        dock.Use(user, open);
+        dock.Use(user, open && (own || !_lockedDown.Contains(dock)));
     }
 
     private Clearance Of(IRadioReceiver ship) => ship == null ? null : _cleared.FirstOrDefault(c => c.Ship == ship);
