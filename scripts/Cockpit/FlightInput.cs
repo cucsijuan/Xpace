@@ -25,6 +25,7 @@ public static class FlightInput
     public const string Parking = "parking";
     public const string Cruise = "cruise";
     public const string Jettison = "jettison";
+    public const string Diskette = "diskette";
     public const string Interdict = "interdict";
     public const string TuneUp = "tune_up", TuneDown = "tune_down";
     public const string Zoom = "zoom";
@@ -38,7 +39,7 @@ public static class FlightInput
         (YawLeft, "Yaw left"), (YawRight, "Yaw right"),
         (PitchUp, "Pitch up"), (PitchDown, "Pitch down"), (RollLeft, "Roll left"), (RollRight, "Roll right"),
         (StrafeLeft, "Strafe left"), (StrafeRight, "Strafe right"), (StrafeUp, "Strafe up"), (StrafeDown, "Strafe down"),
-        (FlightAssist, "Flight assist"), (SafeTurns, "Safe turns"), (Parking, "Parking mode"), (Cruise, "Cruise"), (Jettison, "Jettison cargo"), (TuneDown, "Generator frequency down"), (TuneUp, "Generator frequency up"), (Interdict, "Interdictor"), (Boost, "Boost"),
+        (FlightAssist, "Flight assist"), (SafeTurns, "Safe turns"), (Parking, "Parking mode"), (Cruise, "Cruise"), (Jettison, "Jettison cargo"), (Diskette, "Diskette in drive B:"), (TuneDown, "Generator frequency down"), (TuneUp, "Generator frequency up"), (Interdict, "Interdictor"), (Boost, "Boost"),
         (Look, "Look around (tap: stay, hold: peek)"), (LookAhead, "Look ahead"), (Pointer, "Pointer (tap: stay, hold: while held)"),
         (FirePrimary, "Fire"), (TargetAhead, "Target ahead"), (NextTarget, "Next target"), (NextWeapon, "Next weapon"),
         (Chaff, "Chaff"), (Flare, "Flare"), (HeatSink, "Heat sink"), (Jammer, "Jammer (off, noise, deception)"),
@@ -67,6 +68,7 @@ public static class FlightInput
         Add(Parking, Key(Godot.Key.P));
         Add(Cruise, Key(Godot.Key.Y));
         Add(Jettison, Key(Godot.Key.Comma));
+        Add(Diskette, Key(Godot.Key.Insert));
         Add(Interdict, Key(Godot.Key.O));
         Add(TuneDown, Key(Godot.Key.Comma));
         Add(TuneUp, Key(Godot.Key.Period));

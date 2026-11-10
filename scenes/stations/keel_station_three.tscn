@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://scripts/Space/StationRadio.cs" id="radio"]
 [ext_resource type="Resource" path="res://assets/stations/laws/laws_default.tres" id="laws"]
 [ext_resource type="Script" path="res://scripts/Space/StationSecurity.cs" id="security"]
+[ext_resource type="Script" path="res://scripts/Space/StationRegistry.cs" id="registry_script"]
 [ext_resource type="PackedScene" path="res://scenes/ships/police_fighter.tscn" id="police"]
 [ext_resource type="Script" path="res://scripts/Space/RadioVoicePack.cs" id="voice_pack"]
 [ext_resource type="Resource" path="res://assets/voices/operator_f1/voice.tres" id="voice_f1"]
@@ -63,3 +64,6 @@ PoliceScene = ExtResource("police")
 [node name="Mass" type="Node3D" parent="."]
 script = ExtResource("medium_mass")
 Reach = 20000.0
+
+[node name="Registry" type="Node" parent="."]
+script = ExtResource("registry_script")

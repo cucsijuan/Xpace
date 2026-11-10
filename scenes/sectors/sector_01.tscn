@@ -247,6 +247,13 @@ OwnedBy = ExtResource("owner_miltec")
 Fleet = Array[ExtResource("fleet_line")]([SubResource("fleet_Station"), SubResource("fleet_Station_escort")])
 UpkeepPerHour = 8000.0
 
+[node name="Security" parent="MiltecAlpha"]
+RegistrationRange = 250.0
+
+[node name="Registry" parent="MiltecAlpha"]
+MinTonnes = 6
+MaxTonnes = 14
+
 [node name="Quartz" parent="." instance=ExtResource("keel_station")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 25000, 2000, 60000)
 

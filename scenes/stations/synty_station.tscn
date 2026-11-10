@@ -1,4 +1,4 @@
-[gd_scene load_steps=45 format=3]
+[gd_scene load_steps=46 format=3]
 
 [ext_resource type="Resource" path="res://assets/voices/pilot_m1/voice.tres" id="pilot_m1"]
 [ext_resource type="Resource" path="res://assets/voices/pilot_f1/voice.tres" id="pilot_f1"]
@@ -17,6 +17,7 @@
 [ext_resource type="Script" path="res://scripts/Space/StationRadio.cs" id="12_radio"]
 [ext_resource type="Resource" path="res://assets/stations/laws/laws_default.tres" id="13_laws"]
 [ext_resource type="Script" path="res://scripts/Space/StationSecurity.cs" id="14_security"]
+[ext_resource type="Script" path="res://scripts/Space/StationRegistry.cs" id="registry_script"]
 [ext_resource type="PackedScene" path="res://scenes/ships/police_fighter.tscn" id="15_police"]
 [ext_resource type="Script" path="res://scripts/Space/RadioVoicePack.cs" id="20_voice_pack"]
 [ext_resource type="Resource" path="res://assets/voices/operator_f1/voice.tres" id="16_voice_f1"]
@@ -318,3 +319,8 @@ PoliceScene = ExtResource("15_police")
 [node name="Mass" type="Node3D" parent="."]
 script = ExtResource("medium_mass")
 Reach = 46000.0
+
+[node name="Registry" type="Node" parent="."]
+script = ExtResource("registry_script")
+MinTonnes = 4
+MaxTonnes = 10

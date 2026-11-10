@@ -32,6 +32,7 @@
 [ext_resource type="PackedScene" uid="uid://b6s1uquijhxle" path="res://assets/synty/SM_Prop_Detail_Machine_01.fbx" id="p15"]
 [ext_resource type="PackedScene" uid="uid://dcssx2y1o5u1t" path="res://assets/synty/SM_Prop_Antenna_01.fbx" id="p16"]
 [ext_resource type="PackedScene" path="res://scenes/stations/props/hangar_watch.tscn" id="w_watch"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/registry_terminal.tscn" id="w_registry"]
 
 [sub_resource type="BoxShape3D" id="Shape_back"]
 size = Vector3(68, 28, 1)
@@ -351,3 +352,6 @@ occluder = SubResource("occ_end")
 
 [node name="Watch" parent="Dock" instance=ExtResource("w_watch")]
 transform = Transform3D(-1, 0, 0, 0, 1, 0, 0, 0, -1, 0, 13, 4)
+
+[node name="RegistryTerminal" parent="." instance=ExtResource("w_registry")]
+transform = Transform3D(-1, 0, 8.742278e-08, 0, 1, 0, -8.742278e-08, 0, -1, 7, 0, -42.08803)

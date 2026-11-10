@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="SoftwareSpec" format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/SoftwareSpec.cs" id="1_spec"]
+
+[resource]
+script = ExtResource("1_spec")
+Image = "spoof"
+Description = "Makes the ship's radio send a callsign of your choosing."
+Model = "SPOOF"
+Price = 8000

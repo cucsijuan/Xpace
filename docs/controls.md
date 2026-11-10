@@ -26,6 +26,7 @@ frame, so a control works at any angle on any panel.
 | `SliderControl` | Sets the float `Property` between `Min` (bottom) and `Max` (top) | Along Y, from `Bottom` to `Top` metres off its modelled place |
 | `ToggleSwitch` | Sets the bool `Property`, or calls `Method` with the new position | About X through `Hinge`, `OnAngle` / `OffAngle` degrees |
 | `RotaryEncoder` | Adds `Step` to `Property` per detent (or calls `Method` with `UpArguments` / `DownArguments`) | About `Axis`, `DegreesPerStep` per detent |
+| `DiskDrive` | A diskette drive of the ship's computer, as a screen is one of its monitors: `Unit` 0 is A: (the ship's own diskette), 1 is B: (clicked, or the Diskette key, it shows the diskettes the pilot carries to put in or eject); `Light` is lit while its motor runs (scenes/controls/drives/disk_drive.tscn) | Shows the diskette (`Part`) while one is in |
 
 All of them have:
 

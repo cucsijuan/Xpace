@@ -117,7 +117,7 @@ public partial class SessionNode : Node
     private FloatingOrigin _origin;                 // the sector this node is in, without a sector host
     private SectorHost _sectors;
     private readonly System.Collections.Generic.HashSet<ushort> _down = new();
-    private readonly System.Collections.Generic.Dictionary<ushort, (IRadio Radio, string Sign, bool On)> _radios = new();
+    private readonly System.Collections.Generic.Dictionary<ushort, (IRadio Radio, string Sign, bool On, bool Another)> _radios = new();
     private readonly System.Collections.Generic.Dictionary<ushort, (string Sign, bool On)> _theirRadios = new();
     private readonly System.Collections.Generic.Dictionary<ushort, string> _fittings = new();         // sent, of the ships owned here
     private readonly System.Collections.Generic.Dictionary<ushort, string> _theirFittings = new();    // heard, of other machines' ships
@@ -336,11 +336,12 @@ public partial class SessionNode : Node
             if (!e.IsLocal || e is not NetBody { Joined: true } body)
                 continue;
             if (!_radios.TryGetValue(e.NetId, out var radio))
-                radio = (body.Ship.FindChildren("*", "", true, false).OfType<IRadio>().FirstOrDefault(), null, false);
-            if (radio.Radio is IRadio r && (r.Callsign != radio.Sign || r.RadioOn != radio.On))
+                radio = (body.Ship.FindChildren("*", "", true, false).OfType<IRadio>().FirstOrDefault(), null, false, false);
+            bool another = radio.Radio is Xpace.Ship.RadioDevice { Sending: not null };
+            if (radio.Radio is IRadio r && (r.Callsign != radio.Sign || r.RadioOn != radio.On || another != radio.Another))
             {
-                radio = (r, r.Callsign, r.RadioOn);
-                Session.SetRadio(e.NetId, radio.Sign, radio.On);
+                radio = (r, r.Callsign, r.RadioOn, another);
+                Session.SetRadio(e.NetId, radio.Sign, radio.On, another);
             }
             _radios[e.NetId] = radio;
         }
@@ -511,7 +512,7 @@ public partial class SessionNode : Node
             ship.Fit(fitted);
         world.AddChild(ship);
         if (_theirRadios.TryGetValue(id, out var radio))
-            ship.GetNodeOrNull<RemoteRadio>("Radio")?.Follow(radio.Sign, radio.On);
+            ship.GetNodeOrNull<RemoteRadio>("Radio")?.Follow(radio.Sign, radio.On, Session.SendsAnother(id));
         return ship;
     }
 
@@ -532,7 +533,7 @@ public partial class SessionNode : Node
         body.Join(id, false, Session.TickSeconds);
         if (_theirRadios.TryGetValue(id, out var radio))
             foreach (Xpace.Ship.RadioDevice device in ship.FindChildren("*", "", true, false).OfType<Xpace.Ship.RadioDevice>())
-                device.Follow(radio.Sign, radio.On);
+                device.Follow(radio.Sign, radio.On, Session.SendsAnother(id));
         // A guest's missile was launched by its player's ship, the only ship a guest flies
         if (ship is Missile missile && NetIds.Owner(id) != Session.HostPeer && NodeOf(NetIds.PlayerShip(NetIds.Owner(id))) is Node3D shooter)
         {
@@ -618,11 +619,11 @@ public partial class SessionNode : Node
         switch (NodeOf(ship))
         {
             case RemoteShip remote:
-                remote.GetNodeOrNull<RemoteRadio>("Radio")?.Follow(callsign, on);
+                remote.GetNodeOrNull<RemoteRadio>("Radio")?.Follow(callsign, on, Session.SendsAnother(ship));
                 break;
             case Node3D puppet:
                 foreach (Xpace.Ship.RadioDevice radio in puppet.FindChildren("*", "", true, false).OfType<Xpace.Ship.RadioDevice>())
-                    radio.Follow(callsign, on);
+                    radio.Follow(callsign, on, Session.SendsAnother(ship));
                 break;
         }
     }

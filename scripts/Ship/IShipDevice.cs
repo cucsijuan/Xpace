@@ -28,4 +28,5 @@ public static class ShipMemory
     public const ushort Cargo = 0x1A00;                                   // what the hold carries
     public const ushort Turret = 0x1B00;                                  // the turret's magazine
     public const ushort Scan = 0x1C00;                                    // what the cargo scanner read
+    public const ushort Transponder = 0x1D00;                             // the callsign a program has the radio send
 }

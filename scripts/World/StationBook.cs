@@ -26,6 +26,10 @@ public sealed class StationBook
         public ShipModel[] Shipyard;
         public double Upkeep;
         public long Worth;
+        /// <summary>Its registry (<see cref="Xpace.Space.StationRegistry"/>): the tonnes a copy gives, the bounty for being logged, how long until it is new again (none: max 0).</summary>
+        public int RegistryMin, RegistryMax;
+        public long RegistryBounty;
+        public double RegistryFreshHours;
     }
 
     /// <summary>A landing pad of a station, with the way to it from outside its hangar's door.</summary>
@@ -108,6 +112,10 @@ public sealed class StationBook
                     Pads = PadsOf(parent), Radius = RadiusOf(parent, at),
                     Id = radio.Id, Title = radio.ShownName, Sector = sector, At = at, Owner = radio.OwnedBy?.Id ?? "", Upkeep = market.UpkeepPerHour, Worth = market.Worth,
                     Goods = market.Goods.Where(g => g?.Good != null).ToArray(), Outfits = market.Outfits, Factories = market.Factories, Fleet = market.Fleet, Shipyard = market.Shipyard,
+                    RegistryMin = parent.GetNodeOrNull<Xpace.Space.StationRegistry>("Registry")?.MinTonnes ?? 0,
+                    RegistryMax = parent.GetNodeOrNull<Xpace.Space.StationRegistry>("Registry")?.MaxTonnes ?? 0,
+                    RegistryBounty = parent.GetNodeOrNull<Xpace.Space.StationRegistry>("Registry")?.TheftBounty ?? 0,
+                    RegistryFreshHours = parent.GetNodeOrNull<Xpace.Space.StationRegistry>("Registry")?.FreshHours ?? 0,
                 });
         }
     }

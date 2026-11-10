@@ -86,6 +86,8 @@ public static class People
             return false;
         MarketNews.See(person, here, state, account);
         Fence(ship, here, person, spec, state, account);
+        BuyCallsign(here, person, spec, state, account);
+        Heist(ship, model, here, person, state, account);
         if (GivesUp(ship, person, spec, state))
             return false;
         foreach (StationBook.Beacon beacon in book.Beacons.Where(b => b.Sector == here.Sector))
@@ -109,7 +111,7 @@ public static class People
             return CargoShips.Hop(ship, model, fence, state, book, account);
         if (person.Quarry != "" && state.Sightings.GetValueOrDefault(person.Quarry) is Sighting seen)
         {
-            StationBook.Station nearest = book.Stations.Where(s => s.Sector == seen.Sector && s.Pads.Any(p => book.Fits(p, model)) && CargoShips.Welcomes(s, person.Id, state, account)).OrderBy(s => s.At.DistanceTo(seen.At)).FirstOrDefault();
+            StationBook.Station nearest = book.Stations.Where(s => s.Sector == seen.Sector && s.Pads.Any(p => book.Fits(p, model)) && CargoShips.Admits(s, person.Id, state, account)).OrderBy(s => s.At.DistanceTo(seen.At)).FirstOrDefault();
             if (nearest != null && nearest != here)
                 return CargoShips.Hop(ship, model, nearest, state, book, account);
         }
@@ -170,10 +172,41 @@ public static class People
             }
     }
 
+    // At a fence, a shady person with no false callsign that will pass buys one, money allowing (and a little over)
+    private static void BuyCallsign(StationBook.Station here, PersonRecord person, PopulationSpec spec, UniverseState state, Func<string, IAccount> account)
+    {
+        if (!CargoShips.Shady(person) || !Fences(here, spec, state, account) || Registries.Usable(state, person) != null ||
+            here.Outfits?.FirstOrDefault(o => o?.Item is Xpace.Space.CallsignSpec) is not OutfitLine line)
+            return;
+        StationRecord record = CargoShips.Bring(state, here, account);
+        long price = Market.OutfitPrice(record, line);
+        if (price < 0 || person.Credits < price + (spec?.BrokeBelow ?? 0))
+            return;
+        person.Credits -= price;
+        if (account(CargoShips.OwnerOf(state, here)) is IAccount cash)
+            cash.Credits += price;
+        record.Stock[line.Id] = record.Stock.GetValueOrDefault(line.Id) - 1;
+        person.Callsigns.Add(line.Item.MakeItem(state).Name);
+    }
+
+    // Docked as someone else at a lawful station that keeps a registry: a copy of it, as loot for a fence. The terminal
+    // logs who was docked: the false callsign, which is no good any more
+    private static void Heist(CargoShipRecord ship, ShipModel model, StationBook.Station here, PersonRecord person, UniverseState state, Func<string, IAccount> account)
+    {
+        if (string.IsNullOrEmpty(ship.Sending) || !state.Forged.ContainsKey(ship.Sending) || !CargoShips.Heist(here, person, state, account))
+            return;
+        int room = (int)model.Hull.CargoCapacity - ship.Tonnes - ship.Loot.Values.Sum();
+        int tonnes = Registries.Copy(state.Station(here.Id), person.Id, here.RegistryMin, here.RegistryMax, here.RegistryFreshHours, room, state.Clock);
+        if (tonnes <= 0)
+            return;
+        ship.Loot["registry_data"] = ship.Loot.GetValueOrDefault("registry_data") + tonnes;
+        state.Forged[ship.Sending].Burned = true;
+    }
+
     // The nearest station that buys stolen goods (by the way's time), unless this one does; null: none it can reach
     private static StationBook.Station NearestFence(StationBook.Station here, ShipModel model, PersonRecord person, PopulationSpec spec, UniverseState state, StationBook book, Func<string, IAccount> account) =>
         Fences(here, spec, state, account) ? null
-            : book.Stations.Where(s => s != here && s.Pads.Any(p => book.Fits(p, model)) && book.Way(here.Sector, s.Sector) != null && person.Credits >= CargoShips.TollsBetween(book, here, s) && Fences(s, spec, state, account) && CargoShips.Welcomes(s, person.Id, state, account))
+            : book.Stations.Where(s => s != here && s.Pads.Any(p => book.Fits(p, model)) && book.Way(here.Sector, s.Sector) != null && person.Credits >= CargoShips.TollsBetween(book, here, s) && Fences(s, spec, state, account) && CargoShips.Admits(s, person.Id, state, account))
                 .OrderBy(s => book.Seconds(here, s, model, 0)).ThenBy(s => s.Id, StringComparer.Ordinal).FirstOrDefault();
 
     // The best offer on this station's owner's board that is worth a trip for someone they could hope to find
@@ -188,7 +221,7 @@ public static class People
     // Where it has been least lately, of those it can reach, pay the way to and will be let in
     private static bool Roam(CargoShipRecord ship, ShipModel model, StationBook.Station here, IAccount person, UniverseState state, StationBook book, Func<string, IAccount> account)
     {
-        StationBook.Station next = book.Stations.Where(s => s != here && s.Pads.Any(p => book.Fits(p, model)) && book.Way(here.Sector, s.Sector) != null && person.Credits >= CargoShips.TollsBetween(book, here, s) && CargoShips.Welcomes(s, ship.Owner, state, account))
+        StationBook.Station next = book.Stations.Where(s => s != here && s.Pads.Any(p => book.Fits(p, model)) && book.Way(here.Sector, s.Sector) != null && person.Credits >= CargoShips.TollsBetween(book, here, s) && CargoShips.Admits(s, ship.Owner, state, account))
             .OrderBy(s => person.Known.GetValueOrDefault(s.Id)?.AsOf ?? 0).ThenBy(s => s.Id, StringComparer.Ordinal).FirstOrDefault();
         return next != null && CargoShips.Hop(ship, model, next, state, book, account);
     }

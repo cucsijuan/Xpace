@@ -85,6 +85,28 @@ public static class CargoShips
     public static bool Welcomes(StationBook.Station station, string actor, UniverseState state, Func<string, IAccount> account) =>
         !Reactions.Shuts(account(OwnerOf(state, station)), actor);
 
+    /// <summary>The station will let them dock: it has nothing against them, or they carry a false callsign that will pass.</summary>
+    public static bool Admits(StationBook.Station station, string actor, UniverseState state, Func<string, IAccount> account) =>
+        Welcomes(station, actor, state, account) || account(actor) is PersonRecord person && Registries.Usable(state, person) != null;
+
+    /// <summary>
+    /// The callsign the ship's crew has its radio send to dock at the station ("": its own): a person who goes outside the
+    /// law docks at a lawful station as someone else, to copy its registry, if they carry a false callsign that will
+    /// pass; one with a price on their head there has no other way in.
+    /// </summary>
+    public static string Disguise(CargoShipRecord ship, StationBook.Station station, UniverseState state, Func<string, IAccount> account) =>
+        account(ship.Owner) is PersonRecord person && Registries.Usable(state, person) is ForgedRecord forged &&
+        (Heist(station, person, state, account) || !Welcomes(station, ship.Owner, state, account)) ? forged.Callsign : "";
+
+    /// <summary>A person whose nature goes outside the law as far as fences' owners do (<see cref="PopulationSpec.FenceShadiness"/>).</summary>
+    public static bool Shady(PersonRecord person) =>
+        (person.Personality?.Shadiness ?? 0) >= (Universe.Current?.Population?.FenceShadiness ?? 0.5);
+
+    /// <summary>A shady person would copy this lawful station's registry: it keeps one, and it has something new for them.</summary>
+    public static bool Heist(StationBook.Station station, PersonRecord person, UniverseState state, Func<string, IAccount> account) =>
+        Shady(person) && station.RegistryMax > 0 && !People.Fences(station, Universe.Current?.Population, state, account) &&
+        Registries.Fresh(state.Station(station.Id), person.Id, station.RegistryFreshHours, state.Clock);
+
     /// <summary>What the gates between two stations ask.</summary>
     public static long TollsBetween(StationBook book, StationBook.Station from, StationBook.Station to) => Tolls(book, from, to);
 
@@ -349,9 +371,12 @@ public static class CargoShips
         }
     }
 
-    /// <summary>Whether a pad is free: no cargo ship has it, and no pilot was cleared to it.</summary>
-    private static bool Free(StationBook.Station station, StationBook.Pad pad, UniverseState state) =>
-        !Taken(state, station.Id, pad.Dock, pad.Number) && Xpace.Space.StationRadio.Called(station.Id)?.PilotOn(pad.Dock, pad.Number) != true;
+    /// <summary>Whether a pad is free: no cargo ship has it, no pilot was cleared to it, and nobody sits on it (a ship that slipped in).</summary>
+    private static bool Free(StationBook.Station station, StationBook.Pad pad, UniverseState state)
+    {
+        Xpace.Space.StationRadio radio = Xpace.Space.StationRadio.Called(station.Id);
+        return !Taken(state, station.Id, pad.Dock, pad.Number) && radio?.PilotOn(pad.Dock, pad.Number) != true && radio?.Occupied(pad.Dock, pad.Number) != true;
+    }
 
     /// <summary>A cargo ship has that pad, or has only just left it.</summary>
     public static bool Taken(UniverseState state, string station, int dock, int pad)
@@ -370,7 +395,8 @@ public static class CargoShips
         if (book.Find(ship.Going) is not StationBook.Station station)
             return;
         Vector3 at = ship.ContactPoint;
-        if (!Welcomes(station, ship.Owner, state, account))
+        ship.Sending = Disguise(ship, station, state, account);
+        if (ship.Sending == "" && !Welcomes(station, ship.Owner, state, account))
         {
             StationBook.Station other = book.Stations.Where(s => s != station && s.Pads.Any(p => book.Fits(p, model)) && book.Way(station.Sector, s.Sector) != null && Welcomes(s, ship.Owner, state, account))
                 .OrderBy(s => book.Way(station.Sector, s.Sector).Count).ThenBy(s => s.At.DistanceTo(at)).ThenBy(s => s.Id, StringComparer.Ordinal).FirstOrDefault();
@@ -397,6 +423,8 @@ public static class CargoShips
         radio?.Traffic(Sign(ship), ship.AskedHold ? null : radio.TrafficAskText, radio.TrafficAskSpeech, radio.TrafficClearedText, radio.TrafficClearedSpeech, pad.Dock, pad.Number);
         ship.AskedHold = false;
         Take(ship, station, pad, state);
+        if (Registries.Usable(state, ship.Sending) is ForgedRecord sent)
+            sent.Uses--;                                // cleared as that ship
         ship.Phase = CargoShipRecord.Landing;
         ship.Left = state.Clock;
         ship.Arrives = state.Clock + book.Landing(station, pad, at, model, ship.Tonnes).Sum(l => l.Seconds);
@@ -562,6 +590,7 @@ public static class CargoShips
         StationRecord leaving = state.Station(from.Id);
         if (leaving.CargoPads.Remove(Key(ship.Dock, ship.Pad)))
             leaving.PadsResting[Key(ship.Dock, ship.Pad)] = state.Clock + model.PadRestSeconds;
+        ship.Sending = "";
         ship.From = from.Id;
         ship.FromSector = "";
         ship.LeftDock = ship.Dock;

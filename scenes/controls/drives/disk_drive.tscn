@@ -1,0 +1,33 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/Controls/DiskDrive.cs" id="1_drive"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Cartridge_Dock_03.fbx" id="2_dock"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Cartridge_03.fbx" id="3_disk"]
+[ext_resource type="Material" path="res://assets/materials/synty_horror_atlas.tres" id="4_atlas"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="5_paint"]
+
+[node name="DiskDrive" type="Node3D" node_paths=PackedStringArray("Part", "Light")]
+script = ExtResource("1_drive")
+Part = NodePath("Disk")
+Light = NodePath("Light")
+Radius = 0.16
+
+[node name="Dock" parent="." instance=ExtResource("2_dock")]
+
+[node name="Paint" type="Node" parent="Dock"]
+script = ExtResource("5_paint")
+Material = ExtResource("4_atlas")
+
+[node name="Disk" parent="." instance=ExtResource("3_disk")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.03, 0)
+
+[node name="Paint" type="Node" parent="Disk"]
+script = ExtResource("5_paint")
+Material = ExtResource("4_atlas")
+
+[node name="Light" type="OmniLight3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.12, 0.05, 0.06)
+visible = false
+light_color = Color(0.3, 1, 0.4, 1)
+light_energy = 0.3
+omni_range = 0.12

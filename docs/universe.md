@@ -254,6 +254,28 @@ with `Justice`'s rules; `StationSecurity` writes it from what it sees ships do i
   sitting right on it (`LandingPad.Stowaway`; the clamps don't ask), the station counts it docked (`DockedHere`: it
   may trade) and gives that pad to nobody; pushing up hard (`BreakFreeThrust`) the clamps let it go, and it waits for
   a door to open to get out.
+- **False callsigns.** A station's registry (`StationRegistry`, beside its radio; a terminal in each big hangar,
+  `scenes/stations/props/registry_terminal.tscn`) copies onto the hold of a ship in one of its hangars as registry
+  data (`assets/goods/registry_data.tres`, `Good.Illegal`: police scans fine it, `IllegalFinePerTonne`): between
+  `MinTonnes` and `MaxTonnes` (a roll of dice, the user's choice; tighter security, more), new only `FreshHours` after
+  the pilot's last copy. A pilot the station cleared in is logged and gets `TheftBounty`; one who slipped in, nothing.
+  Redhold buys it and makes false callsigns of it (`CallsignSpec`, assets/outfits/callsign.tres, a recipe like any:
+  price and stock go by the market's rules) and sells SPOOF (`SoftwareSpec`, a program on a diskette): both are things
+  the pilot carries (`Outfit.Carried`, `Market.BuyCarried`/`SellCarried`), bought and sold back like any. Each callsign
+  sold is new and on record as false (`UniverseState.Forged`: dockings left, burned). Clicking drive B: in the cockpit (or the
+  Diskette key, Insert) puts a carried diskette in it (`DiskDrive`, scenes/controls/drives/disk_drive.tscn); COPY B:SPOOF.COM A: puts the program on the ship for good; SPOOF asks
+  for a callsign and has the radio send it (radio version 4, `RadioDevice.Sending`). A station takes a false callsign
+  as a ship of its own, with its own record (`Universe.IdentityOf`, `StationSecurity.Jurisdiction`), a docking less on
+  it per clearance; it turns away a callsign on nobody's record or with none left. Found out (a police scan reads
+  the hull, or at a station with tight security, `StationSecurity.RegistrationRange`, the hangar's watch reads it at
+  the door): burned everywhere, the ship hostile, its pilot with `ForgeryBounty`. So: slipping in is free but takes
+  skill and an open door; a false callsign docks as anyone does but costs money and dockings, and a scan before the
+  pad ends it; at a tight station only slipping in works.
+  Free people do the same by the same rules (`Registries`, `CargoShips.Disguise/Admits/Heist`, `People.BuyCallsign/Heist`): a
+  shady one (`Personality.Shadiness` at least the fences') buys a false callsign at a fence, docks as someone else at a
+  lawful station whose registry has something new for them (or where they are wanted), copies it into their loot, the
+  callsign is logged and burned, and they take the loot to the nearest fence. A shown ship sends its crew's callsign
+  (`CargoShipRecord.Sending`), so a police scan finds them out as it would a pilot.
 - A wanted pilot with no money **surrenders**: the cargo is seized (the market buys it), and if that isn't enough the
   ship is impounded on the pad, kept free until paid; the insurer gives a free **courtesy ship**
   (`assets/ship/hulls/hull_courtesy.tres`: a small hold, old green monochrome screens) to earn it back. Paying it all at

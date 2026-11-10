@@ -30,6 +30,9 @@ public sealed class UniverseState
     public Dictionary<string, CargoShipRecord> CargoShips { get; set; } = new();
     public Dictionary<string, ShipOrderRecord> ShipOrders { get; set; } = new();
     public Dictionary<string, PersonRecord> People { get; set; } = new();
+
+    /// <summary>False callsigns, by the callsign: made at pirate bases out of stations' registries.</summary>
+    public Dictionary<string, ForgedRecord> Forged { get; set; } = new();
     /// <summary>Where each actor was last seen, for those who look for them.</summary>
     public Dictionary<string, Sighting> Sightings { get; set; } = new();
     /// <summary>How many people have come so far (it numbers them), and whether the first ones were given their ships.</summary>
@@ -159,6 +162,8 @@ public sealed class CargoShipRecord
     public Dictionary<string, int> Spent { get; set; } = new();
     /// <summary>What it took out of space, by good: stolen, to sell off.</summary>
     public Dictionary<string, int> Loot { get; set; } = new();
+    /// <summary>The false callsign its radio sends at the station it is docked at or going into ("": its own).</summary>
+    public string Sending { get; set; } = "";
     /// <summary>Tonnes it has brought home in all.</summary>
     public long Delivered { get; set; }
 }
@@ -229,6 +234,8 @@ public sealed class PersonRecord : IAccount, IRemembers
     public double BrokeSince { get; set; } = -1;
     /// <summary>The actor they are after (empty: nobody).</summary>
     public string Quarry { get; set; } = "";
+    /// <summary>False callsigns the person carries (<see cref="UniverseState.Forged"/>), to dock where they would be turned away.</summary>
+    public List<string> Callsigns { get; set; } = new();
 }
 
 /// <summary>A company, corporation, guild or faction as it stands now, known by an id (for one set up by hand, its <see cref="Organisation"/>'s).</summary>
@@ -292,7 +299,7 @@ public sealed class PilotRecord : IAccount
 /// <summary>Something a pilot carries on them or keeps in a station's locker: diskettes now, later weapons and more.</summary>
 public sealed class ItemRecord
 {
-    public const string Diskette = "diskette", Piece = "piece";
+    public const string Diskette = "diskette", Piece = "piece", Callsign = "callsign";
 
     public string Kind { get; set; } = Diskette;
     public string Name { get; set; } = "";
@@ -465,6 +472,9 @@ public sealed class StationRecord
     /// <summary>Ships impounded here for debts their pilots couldn't pay (by the pilot's id), kept free until paid.</summary>
     public Dictionary<string, ShipRecord> Impounded { get; set; } = new();
 
+    /// <summary>When each pilot last copied its registry (universe time, by the pilot's id): it is new data only after a while.</summary>
+    public Dictionary<string, double> RegistryCopied { get; set; } = new();
+
     /// <summary>What the station holds against each pilot (by the pilot's id): its jurisdiction.</summary>
     public Dictionary<string, CrimeRecord> Crimes { get; set; } = new();
 
@@ -494,4 +504,21 @@ public sealed class CrimeRecord
 
     [JsonIgnore] public long Owed => Fines + Bounty;
     [JsonIgnore] public bool Clean => Fines == 0 && Bounty == 0 && Infamy <= 0;
+}
+
+/// <summary>What a ship's radio says it is (<see cref="Universe.IdentityOf"/>).</summary>
+public enum Identity { Own, Forged, Unknown }
+
+/// <summary>
+/// A false callsign: a ship's registration made out of a station's registry, good for <see cref="Uses"/> more
+/// dockings with a station that takes it as real, and none once found out (<see cref="Burned"/>).
+/// </summary>
+public sealed class ForgedRecord
+{
+    public string Callsign { get; set; } = "";
+    public int Uses { get; set; }
+    public bool Burned { get; set; }
+
+    /// <summary>The id the stations keep their records of it by, as if a pilot flew it.</summary>
+    public string Pilot => "forged:" + Callsign;
 }

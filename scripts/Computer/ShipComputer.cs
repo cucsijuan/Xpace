@@ -64,12 +64,15 @@ public partial class ShipComputer : Node, IRearmable
 
     public bool Powered => _pc != IntPtr.Zero && Pc86.pc_status(_pc) != Pc86.PcOff;
     public bool DriveLight => _drive != IntPtr.Zero && Pc86.fdd_motor(_drive) != 0;
+
+    /// <summary>Drive B:'s motor is running (its light).</summary>
+    public bool DriveBLight => _driveB != IntPtr.Zero && Pc86.fdd_motor(_driveB) != 0;
     public string Error => _pc == IntPtr.Zero ? "" : Pc86.ErrorText(_pc);
     /// <summary>The tone its speaker is playing, or 0.</summary>
     public double SpeakerHz => _pc == IntPtr.Zero ? 0 : Pc86.pc_speaker_hz(_pc);
     public double EmulatedSeconds => _pc == IntPtr.Zero ? 0 : Pc86.pc_time_us(_pc) / 1e6;
 
-    private IntPtr _pc, _vga, _fdc, _monitor, _keyboard, _drive, _disk;
+    private IntPtr _pc, _vga, _fdc, _monitor, _keyboard, _drive, _disk, _driveB, _diskB;
     private byte[] _kept = Array.Empty<byte>();
     private string _factory = "";
     private bool _driveWas;
@@ -86,10 +89,12 @@ public partial class ShipComputer : Node, IRearmable
         _monitor = Pc86.monitor_create(Pc86.monitor_builtin_model(MonitorModel));
         _keyboard = Pc86.kbd_create(Pc86.kbd_builtin_model(Pc86.KbdEnhanced101));
         _drive = Pc86.fdd_create(Pc86.fdd_builtin_model(Pc86.Fdd35Hd));
+        _driveB = Pc86.fdd_create(Pc86.fdd_builtin_model(Pc86.Fdd35Hd));
 
         Pc86.pc_insert_card(_pc, 0, Pc86.pc_vga_card_slot(_vga));
         Pc86.pc_vga_card_connect_monitor(_vga, _monitor);
         Pc86.pc_fdc_card_connect_drive(_fdc, 0, _drive);
+        Pc86.pc_fdc_card_connect_drive(_fdc, 1, _driveB);
         Pc86.pc_insert_card(_pc, 1, Pc86.pc_fdc_card_slot(_fdc));
         Bus = new ShipBus();
         Pc86.pc_insert_card(_pc, 2, Bus.Card);
@@ -188,6 +193,10 @@ public partial class ShipComputer : Node, IRearmable
         Pc86.fdd_destroy(_drive);
         if (_disk != IntPtr.Zero)
             Pc86.disk_destroy(_disk);
+        Pc86.fdd_eject(_driveB);
+        Pc86.fdd_destroy(_driveB);
+        if (_diskB != IntPtr.Zero)
+            Pc86.disk_destroy(_diskB);
         _pc = IntPtr.Zero;
     }
 
@@ -250,6 +259,36 @@ public partial class ShipComputer : Node, IRearmable
         Pc86.fdd_insert(_drive, _disk);
         return true;
     }
+
+    /// <summary>
+    /// Puts a diskette in drive B: (a 1.44 MB or 720 KB image; empty: takes out the one there). It is the pilot's own,
+    /// not the ship's: nothing written to it is kept (<see cref="DiskBImage"/> reads it back).
+    /// </summary>
+    public unsafe bool InsertDiskB(byte[] image)
+    {
+        IntPtr disk = IntPtr.Zero;
+        if (image.Length > 0)
+        {
+            fixed (byte* p = image)
+                disk = Pc86.disk_create_image(p, (nuint)image.Length);
+            if (disk == IntPtr.Zero)
+                return false;
+        }
+        Pc86.fdd_eject(_driveB);
+        if (_diskB != IntPtr.Zero)
+            Pc86.disk_destroy(_diskB);
+        _diskB = disk;
+        if (disk != IntPtr.Zero)
+            Pc86.fdd_insert(_driveB, _diskB);
+        return true;
+    }
+
+    /// <summary>A diskette is in drive B:.</summary>
+    public bool HasDiskB => _diskB != IntPtr.Zero;
+
+    /// <summary>A copy of the diskette in drive B: (empty if there is none).</summary>
+    public unsafe byte[] DiskBImage() =>
+        _diskB == IntPtr.Zero ? Array.Empty<byte>() : new ReadOnlySpan<byte>(Pc86.disk_data(_diskB), (int)Pc86.disk_size(_diskB)).ToArray();
 
     // ---------- the diskette ----------
 

@@ -1,4 +1,4 @@
-[gd_resource type="Resource" script_class="GoodsCatalog" load_steps=15 format=3]
+[gd_resource type="Resource" script_class="GoodsCatalog" load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/World/GoodsCatalog.cs" id="1_catalog"]
 [ext_resource type="Script" path="res://scripts/World/Good.cs" id="1_good"]
@@ -15,7 +15,8 @@
 [ext_resource type="Resource" path="res://assets/goods/electronics.tres" id="8_electronics"]
 [ext_resource type="Resource" path="res://assets/goods/medicines.tres" id="9_medicines"]
 [ext_resource type="Resource" path="res://assets/goods/energy.tres" id="14_energy"]
+[ext_resource type="Resource" path="res://assets/goods/registry_data.tres" id="15_registry"]
 
 [resource]
 script = ExtResource("1_catalog")
-Goods = Array[ExtResource("1_good")]([ExtResource("2_water"), ExtResource("3_food"), ExtResource("4_hydrogen"), ExtResource("5_iron_ore"), ExtResource("10_iron"), ExtResource("6_metals"), ExtResource("7_machinery"), ExtResource("11_silicon"), ExtResource("12_copper"), ExtResource("13_chips"), ExtResource("8_electronics"), ExtResource("9_medicines"), ExtResource("14_energy")])
+Goods = Array[ExtResource("1_good")]([ExtResource("2_water"), ExtResource("3_food"), ExtResource("4_hydrogen"), ExtResource("5_iron_ore"), ExtResource("10_iron"), ExtResource("6_metals"), ExtResource("7_machinery"), ExtResource("11_silicon"), ExtResource("12_copper"), ExtResource("13_chips"), ExtResource("8_electronics"), ExtResource("9_medicines"), ExtResource("14_energy"), ExtResource("15_registry")])

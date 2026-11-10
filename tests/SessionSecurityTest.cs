@@ -7,6 +7,7 @@ using Xpace.Computer;
 using Xpace.Net;
 using Xpace.Ship;
 using Xpace.Space;
+using Xpace.World;
 
 namespace Xpace.Tests;
 
@@ -138,6 +139,16 @@ public partial class SessionSecurityTest : Node
         Check("turned off there, off on the host", await Until(() => !radio.RadioOn, 1));
         _guest.SetRadio(GuestShipId, "ACE", true);
         Check("and on again", await Until(() => radio.RadioOn, 1));
+        _guest.SetRadio(GuestShipId, "NOBODY", true, another: true);
+        Check("sending a made-up callsign there: on nobody's record on the host",
+              await Until(() => radio.Callsign == "NOBODY" && Universe.Current.IdentityOf(player).Kind == Identity.Unknown, 1));
+        Universe.Current.State.Forged["QX-1111"] = new ForgedRecord { Callsign = "QX-1111", Uses = 5 };
+        _guest.SetRadio(GuestShipId, "QX-1111", true, another: true);
+        Check("sending a false callsign of a pirate base's making: taken as that ship",
+              await Until(() => Universe.Current.IdentityOf(player).Kind == Identity.Forged, 1));
+        Universe.Current.State.Forged.Remove("QX-1111");
+        _guest.SetRadio(GuestShipId, "ACE", true);
+        Check("its own again", await Until(() => Universe.Current.IdentityOf(player).Kind == Identity.Own && radio.Callsign == "ACE", 1));
 
         // Too fast near the station
         _ship.Velocity = new Vector3(80, 0, 0);

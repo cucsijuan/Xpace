@@ -163,8 +163,13 @@ public sealed class Session
     /// <summary>A ship of this machine hears the host's radio: the ship, who speaks, the words, the speech (<see cref="RadioVoicePack"/>).</summary>
     public event Action<INetEntity, string, string, string> RadioHeard;
 
-    /// <summary>A ship's radio, as its owner has it (the ship, callsign, on).</summary>
+    /// <summary>A ship's radio, as its owner has it (the ship, callsign, on; and <see cref="SendsAnother"/>).</summary>
     public event Action<ushort, string, bool> RadioChanged;
+
+    /// <summary>The ship's radio sends a callsign other than the ship's own (a program has it so), as its owner said.</summary>
+    public bool SendsAnother(ushort ship) => _another.GetValueOrDefault(ship);
+
+    private readonly Dictionary<ushort, bool> _another = new();
 
     /// <summary>What is on a ship's hardpoints, as its owner has it (the ship, <see cref="Xpace.Ship.ShipBody.Fitted"/>).</summary>
     public event Action<ushort, string> FittingChanged;
@@ -490,9 +495,9 @@ public sealed class Session
     }
 
     /// <summary>A ship owned here: its radio's callsign and whether it is on (send when either changes).</summary>
-    public void SetRadio(ushort ship, string callsign, bool on)
+    public void SetRadio(ushort ship, string callsign, bool on, bool another = false)
     {
-        var body = new List<byte>(BitConverter.GetBytes(ship)) { (byte)(on ? 1 : 0) };
+        var body = new List<byte>(BitConverter.GetBytes(ship)) { (byte)((on ? 1 : 0) | (another ? 2 : 0)) };
         body.AddRange(Sign(callsign));
         byte[] bytes = body.ToArray();
         if (IsHost)
@@ -1032,7 +1037,8 @@ public sealed class Session
                         _radios[id] = body;
                         Broadcast(KindRadioState, body, reliable: true, except: peer);
                     }
-                    RadioChanged?.Invoke(id, Text(body, 3, body.Length).TrimEnd(), body[2] != 0);
+                    _another[id] = (body[2] & 2) != 0;
+                    RadioChanged?.Invoke(id, Text(body, 3, body.Length).TrimEnd(), (body[2] & 1) != 0);
                 }
                 break;
 

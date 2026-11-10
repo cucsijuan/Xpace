@@ -26,4 +26,13 @@ public partial class Outfit : Resource
 
     /// <summary>What it can do, in figures.</summary>
     public virtual string Details => "";
+
+    /// <summary>The pilot carries it (<see cref="Xpace.World.PilotRecord.Items"/>), not the ship's racks: one bought is one thing in hand.</summary>
+    public virtual bool Carried => false;
+
+    /// <summary>A carried one, as the pilot holds it, newly made (<paramref name="state"/>: the universe it comes into).</summary>
+    public virtual Xpace.World.ItemRecord MakeItem(Xpace.World.UniverseState state) => null;
+
+    /// <summary>The thing the pilot holds is one of these.</summary>
+    public virtual bool Makes(Xpace.World.ItemRecord item) => false;
 }

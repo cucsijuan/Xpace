@@ -159,6 +159,22 @@ if(EXISTS ${CC_DIR}/main.c)
       COMMAND ${FD} add ${XPACE_DISK} ${DISK_WORK}/${upper}.COM
       COMMAND ${FD} add ${XPACE_DISK} ${XPACE_ROOT}/software/${source}.c ${upper}.C)
   endforeach()
+  # Programs sold on diskettes of their own, not on the ship's: disks/<name>.img
+  foreach(source spoof/spoof)
+    get_filename_component(name ${source} NAME)
+    string(TOUPPER ${name} upper)
+    set(image ${XPACE_ROOT}/disks/${name}.img)
+    add_custom_command(OUTPUT ${image}
+      COMMAND $<TARGET_FILE:smallc> -n -L${DISK_WORK}/CLIB.LIB -I${CC_DIR}/include/ -S -o ${DISK_WORK}/${upper}.COM ${XPACE_ROOT}/software/${source}.c
+      COMMAND $<TARGET_FILE:asm86> ${DISK_WORK}/${upper}.ASM -o ${DISK_WORK}/${upper}.COM
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${XPACE_ROOT}/disks
+      COMMAND ${CMAKE_COMMAND} -E rm -f ${image}
+      COMMAND ${FD} new ${image} --label ${upper}
+      COMMAND ${FD} add ${image} ${DISK_WORK}/${upper}.COM
+      DEPENDS smallc asm86 fdimage ${DISK_WORK}/CLIB.LIB ${XPACE_ROOT}/software/${source}.c
+      VERBATIM)
+    list(APPEND XPACE_SOLD_DISKS ${image})
+  endforeach()
   foreach(h tsr font icons logo)
     string(TOUPPER ${h} upper)
     list(APPEND CC_DISK_COMMANDS COMMAND ${FD} add ${XPACE_DISK} ${DESK_DIR}/${h}.h ${upper}.H)
@@ -213,3 +229,4 @@ add_custom_command(OUTPUT ${XPACE_DISK}
   DEPENDS fdimage ${DISK_PROGRAMS} ${DISK_SOURCES}
   VERBATIM)
 add_custom_target(disk ALL DEPENDS ${XPACE_DISK})
+add_custom_target(sold_disks ALL DEPENDS ${XPACE_SOLD_DISKS})

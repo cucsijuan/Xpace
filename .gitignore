@@ -35,3 +35,4 @@ scripts/Net/EosProduct.g.cs.uid
 
 # Python
 __pycache__/
+disks/spoof.img

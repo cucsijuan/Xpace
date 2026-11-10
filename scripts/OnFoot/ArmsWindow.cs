@@ -165,8 +165,8 @@ public partial class ArmsWindow : CanvasLayer, IKioskWindow
         var aboard = new VBoxContainer { CustomMinimumSize = new Vector2(260, 0) };   // room for a dispenser's ten
         if (offer.Piece)
         {
-            aboard.AddChild(new Label { Text = "Fitted / in your locker", Modulate = Dim });
-            aboard.AddChild(new Label { Text = $"{offer.Fitted} / {offer.Kept}" });
+            aboard.AddChild(new Label { Text = offer.Carried ? "You carry" : "Fitted / in your locker", Modulate = Dim });
+            aboard.AddChild(new Label { Text = offer.Carried ? $"{offer.Kept}" : $"{offer.Fitted} / {offer.Kept}" });
         }
         else
         {
@@ -196,7 +196,7 @@ public partial class ArmsWindow : CanvasLayer, IKioskWindow
             {
                 Text = offer.SellPrice >= 0 ? $"Sell {offer.SellPrice:N0}" : "Sell", FocusMode = Control.FocusModeEnum.None,
                 Disabled = !view.Docked || offer.Kept == 0 || offer.SellPrice < 0,
-                TooltipText = "Sell one from your locker here",
+                TooltipText = offer.Carried ? "Sell one of those you carry" : "Sell one from your locker here",
             };
             sell.Pressed += () => Ask(MarketRequest.Sell, offer.Id, 1);
             buy.AddChild(sell);

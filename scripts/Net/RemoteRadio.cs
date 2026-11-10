@@ -31,11 +31,15 @@ public partial class RemoteRadio : Node3D, IRadioReceiver
 
     public override void _Ready() => AddToGroup(Radio.Group);
 
-    /// <summary>The owner's radio: its callsign and whether it is on.</summary>
-    public void Follow(string callsign, bool on)
+    /// <summary>The owner's radio sends a callsign other than the ship's own (a program has it so).</summary>
+    public bool SendsAnother { get; private set; }
+
+    /// <summary>The owner's radio: its callsign, whether it is on, and whether that callsign is the ship's own.</summary>
+    public void Follow(string callsign, bool on, bool another = false)
     {
         _callsign = callsign ?? "";
         _on = on;
+        SendsAnother = another;
     }
 
     public void Receive(StationRadio from, StationLaws laws) { }

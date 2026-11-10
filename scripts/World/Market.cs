@@ -312,6 +312,46 @@ public static class Market
     }
 
     /// <summary>
+    /// The pilot buys one thing they carry (<see cref="Outfit.Carried"/>: a false callsign, a program's diskette), into
+    /// what they have on them, if there is room (<see cref="PilotRecord.InventorySlots"/>). <paramref name="paid"/> is its price.
+    /// </summary>
+    public static Result BuyCarried(StationRecord station, OutfitLine line, PilotRecord pilot, UniverseState state, out long paid, IAccount cash = null)
+    {
+        double stock = station.Stock.GetValueOrDefault(line.Id);
+        paid = OutfitPrice(station, line);
+        if (paid < 0)
+            return Result.NoStock;
+        if (pilot.Items.Count >= PilotRecord.InventorySlots)
+            return Result.HoldFull;
+        if (!pilot.Spend(paid))
+            return Result.NoMoney;
+        Receive(cash, paid);
+        station.Stock[line.Id] = stock - 1;
+        pilot.Items.Add(line.Item.MakeItem(state));
+        return Result.Done;
+    }
+
+    /// <summary>The pilot sells one carried thing of <paramref name="line"/>'s kind to the dealer, which stocks it again.</summary>
+    public static Result SellCarried(StationRecord station, OutfitLine line, PilotRecord pilot, UniverseState state, out long paid, IAccount cash = null)
+    {
+        double stock = station.Stock.GetValueOrDefault(line.Id);
+        paid = PieceSellPrice(station, line);
+        int index = pilot.Items.FindIndex(line.Item.Makes);
+        if (index < 0)
+            return Result.NotHeld;
+        if (paid < 0)
+            return Result.MarketFull;
+        if (!Pay(cash, paid))
+            return Result.NoCash;
+        if (pilot.Items[index].Kind == ItemRecord.Callsign)
+            state.Forged.Remove(pilot.Items[index].Name);   // the dealer sells registrations of its own making, never one back
+        pilot.Items.RemoveAt(index);
+        station.Stock[line.Id] = stock + 1;
+        pilot.Credits += paid;
+        return Result.Done;
+    }
+
+    /// <summary>
     /// The pilot buys <paramref name="count"/> of an outfit, loaded straight onto a ship whose rack takes
     /// <paramref name="rack"/> of them: as many as the stock, the money and the rack allow. With none of it in the
     /// pilot's record, the ship has <paramref name="factory"/> aboard (what a new ship comes with).

@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://ho2rnp52wjg6"]
 
 [ext_resource type="PackedScene" uid="uid://cpyp2sqqa4g3j" path="res://assets/synty/SM_Veh_POV_Cockpit_01.fbx" id="1_body"]
+[ext_resource type="PackedScene" path="res://scenes/controls/drives/disk_drive.tscn" id="drive"]
 [ext_resource type="PackedScene" uid="uid://cp028p5yfjx44" path="res://assets/synty/SM_Veh_POV_Cockpit_Frame_02.fbx" id="2_frame"]
 [ext_resource type="Material" path="res://assets/materials/synty_atlas.tres" id="3_atlas"]
 [ext_resource type="Material" path="res://assets/materials/synty_cockpit_glass.tres" id="4_glass"]
@@ -104,3 +105,10 @@ shadow_enabled = true
 shadow_bias = 0.03
 shadow_normal_bias = 0.6
 script = ExtResource("cockpit_sun")
+
+[node name="DriveA" parent="." instance=ExtResource("drive")]
+transform = Transform3D(0, 0.2945, 0.189, 0, 0.189, -0.2945, -0.35, 0, 0, -0.486, 0.317, 0.117)
+Unit = 0
+
+[node name="DriveB" parent="." instance=ExtResource("drive")]
+transform = Transform3D(0, 0.2945, 0.189, 0, 0.189, -0.2945, -0.35, 0, 0, -0.486, 0.317, -0.003)

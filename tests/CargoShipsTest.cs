@@ -59,7 +59,8 @@ public partial class CargoShipsTest : Node
             long fetch = Market.BuyPrice(state.Station("DRYDOCK"), there), home = Market.SellPrice(line, state.Station("ALPHA").Stock[line.Good.Id]);
             GD.Print($"  {line.Good.Id}: to Drydock {away - here:+0;-0}, to Station {home - fetch:+0;-0} a tonne");
         }
-        foreach (string good in book.Stations.SelectMany(st => st.Goods).Select(g => g.Good.Id).Distinct())
+        // Registry data comes out of stations' registries, as fast as people copy them: no factory makes it
+        foreach (string good in book.Stations.SelectMany(st => st.Goods).Select(g => g.Good.Id).Distinct().Where(g => g != Xpace.Space.StationRegistry.Good.Id))
         {
             double net = book.Stations.Sum(st => Market.Net(good, st.Goods, st.Factories));
             Check($"{good}: made as fast as it is used ({net:+0.0;-0.0} t/h)", net >= 0);

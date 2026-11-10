@@ -70,7 +70,7 @@ public enum Standing
 /// the reading certain: a lock broken (a jammer, chaff, the station between
 /// them, or simply distance) starts it over, and a ship out of the zone is no
 /// longer looked for, nor one cleared to dock here, on its way in. Stolen goods found aboard a ship it can tell: a fine for
-/// each tonne not fined before (<see cref="StolenFinePerTonne"/>); aboard one
+/// each tonne not fined before (<see cref="StolenFinePerTonne"/>; goods the law forbids, <see cref="IllegalFinePerTonne"/>); aboard one
 /// it cannot tell (its radio off): hostile (<see cref="SmugglerText"/>). A
 /// station whose owner fences stolen goods reads nobody's hold.
 ///
@@ -119,6 +119,15 @@ public partial class StationSecurity : Node, IEngagement
     [Export] public double RescanSeconds = 600;
     /// <summary>What each tonne of stolen goods found costs (credits).</summary>
     [Export] public long StolenFinePerTonne = 200;
+    /// <summary>What each tonne of goods the law forbids (<see cref="Good.Illegal"/>) costs.</summary>
+    [Export] public long IllegalFinePerTonne = 300;
+    /// <summary>
+    /// Its hangars' watches read the hulls of ships this near (metres; 0: they don't): a station with tight security,
+    /// where a false callsign is found out at the door (<see cref="HangarWatch.RegistrationRange"/>).
+    /// </summary>
+    [Export] public float RegistrationRange;
+    /// <summary>The bounty on a pilot found sending a false callsign.</summary>
+    [Export] public long ForgeryBounty = 4000;
 
     [ExportGroup("Texts")]
     [Export] public string WarningText = "Weapons fire in the protected zone. Cease fire or you will be engaged.";
@@ -138,6 +147,10 @@ public partial class StationSecurity : Node, IEngagement
     [Export] public string ScanText = "Cargo scan in progress. Hold your course.";
     /// <summary>{0} the stolen tonnes, {1} the fine.</summary>
     [Export] public string StolenText = "Stolen goods aboard, {0} t. You have been fined {1} credits.";
+    /// <summary>{0} the forbidden tonnes, {1} the fine.</summary>
+    [Export] public string IllegalText = "Contraband aboard, {0} t. You have been fined {1} credits.";
+    /// <summary>{0} the false callsign, {1} the bounty.</summary>
+    [Export] public string UnmaskedText = "Callsign {0} is false. A bounty of {1} credits is on you. Police are engaging you.";
     [Export] public string SmugglerText = "Unidentified ship carrying stolen goods. Police are engaging you.";
     /// <summary>{0} the hangar.</summary>
     [Export] public string TrespassText = "Unidentified ship in hangar {0}. Police are engaging you.";
@@ -155,6 +168,8 @@ public partial class StationSecurity : Node, IEngagement
     [Export] public string ScanSpeech = "";
     [Export] public string StolenSpeech = "";
     [Export] public string SmugglerSpeech = "";
+    [Export] public string IllegalSpeech = "";
+    [Export] public string UnmaskedSpeech = "";
     [Export] public string TrespassSpeech = "";
 
     private sealed class Record
@@ -176,7 +191,7 @@ public partial class StationSecurity : Node, IEngagement
     private readonly List<(Node3D Ship, FighterAi Pilot, HangarDock From)> _police = new();
     private readonly HashSet<Node3D> _returning = new();
     private readonly Dictionary<Node3D, double> _inZone = new(), _scanned = new();
-    private readonly Dictionary<Node3D, int> _finedTonnes = new();
+    private readonly Dictionary<Node3D, (int Stolen, int Illegal)> _finedTonnes = new();
     private readonly List<Node3D> _suspects = new();
     private readonly HashSet<Node3D> _toldScan = new();
     private readonly Dictionary<Node3D, (Node3D Of, ScanReading Before)> _reading = new();
@@ -222,7 +237,30 @@ public partial class StationSecurity : Node, IEngagement
         if (Radio == null || ship == null || Universe.Current is not Universe universe || universe.IsGuest ||
             !Identified(ship) || universe.PilotOf(ship) is not PilotRecord pilot)
             return null;
-        return (pilot, universe.State.Station(Radio.Id).CrimesOf(pilot.Id));
+        // A false callsign is a ship of its own here, with its own record; a callsign on no record, or one found out, nobody
+        var (kind, forged) = universe.IdentityOf(ship);
+        if (kind == Identity.Unknown || forged?.Burned == true)
+            return null;
+        return (pilot, universe.State.Station(Radio.Id).CrimesOf(forged?.Pilot ?? pilot.Id));
+    }
+
+    /// <summary>
+    /// A ship sending a false callsign is found out (its hull read, by a scan or a hangar's registration reader): the
+    /// callsign is no good any more anywhere, the ship is hostile, and the pilot behind it has a bounty here.
+    /// </summary>
+    public void Unmask(Node3D ship, ForgedRecord forged)
+    {
+        if (!Acts || forged == null || forged.Burned)
+            return;
+        forged.Burned = true;
+        if (Universe.Current.PilotOf(ship) is PilotRecord pilot)
+        {
+            Universe.Current.State.Station(Radio.Id).CrimesOf(pilot.Id).Bounty += ForgeryBounty;
+            Universe.Current.Touch(pilot);
+        }
+        else if (ship is ShipBody { Actor: { Length: > 0 } actor })
+            Reactions.Unpaid(Radio.Cash, actor, ForgeryBounty);    // a free person: a price on their head with the owner
+        Engage(ship, string.Format(UnmaskedText, forged.Callsign, ForgeryBounty), UnmaskedSpeech, force: true);
     }
 
     private static bool Identified(Node3D ship) =>
@@ -503,24 +541,30 @@ public partial class StationSecurity : Node, IEngagement
     {
         _scanned[ship] = _now;
         _suspects.Remove(ship);
-        int fined = _finedTonnes.GetValueOrDefault(ship);
-        _finedTonnes[ship] = reading.StolenTonnes;
-        if (reading.StolenTonnes <= 0)
+        if (Universe.Current?.IdentityOf(ship) is (Identity.Forged, ForgedRecord forged))
+            Unmask(ship, forged);                       // the hull isn't what the radio says
+        int illegal = reading.Cargo.Where(kv => GoodsCatalog.Find(kv.Key)?.Illegal == true).Sum(kv => kv.Value);
+        var (stolenFined, illegalFined) = _finedTonnes.GetValueOrDefault(ship);
+        _finedTonnes[ship] = (reading.StolenTonnes, illegal);
+        if (reading.StolenTonnes <= 0 && illegal <= 0)
             return;
         if (!Identified(ship))
         {
             Engage(ship, SmugglerText, SmugglerSpeech, force: true);
             return;
         }
-        int tonnes = reading.StolenTonnes - fined;
-        if (tonnes <= 0)
+        int stolen = System.Math.Max(0, reading.StolenTonnes - stolenFined), banned = System.Math.Max(0, illegal - illegalFined);
+        if (stolen + banned == 0)
             return;
-        long fine = tonnes * StolenFinePerTonne;
+        long fine = stolen * StolenFinePerTonne + banned * IllegalFinePerTonne;
         if (Jurisdiction(ship) != null)
             Owe(ship, fine, 0, 0);
         else if (ship is ShipBody { Actor: { Length: > 0 } actor })
             Reactions.Unpaid(Radio.Cash, actor, fine);  // a free person: a price on their head with the owner
-        Say(ship, string.Format(StolenText, reading.StolenTonnes, fine), StolenSpeech);
+        if (stolen > 0)
+            Say(ship, string.Format(StolenText, reading.StolenTonnes, stolen * StolenFinePerTonne), StolenSpeech);
+        if (banned > 0)
+            Say(ship, string.Format(IllegalText, illegal, banned * IllegalFinePerTonne), IllegalSpeech);
     }
 
     private static Vector3? Velocity(Node3D ship) => ship switch

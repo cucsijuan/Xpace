@@ -15,13 +15,16 @@ namespace Xpace.Ship;
 /// messages it heard. The radio ranges the station it holds laws from, so it
 /// knows when the ship is inside their zones.
 ///
-/// Registers: +0 type 18  +1 version 3  +2 contacts in the table
+/// Registers: +0 type 18  +1 version 4  +2 contacts in the table
 /// +3 updates so far  +4 status: bit 0 it holds a station's laws, bit 1 the
 /// ship is inside their speed limit, bit 2 asking, bit 3 off, bit 4 inside
-/// the station's protected zone, bit 5 cleared to a dock
+/// the station's protected zone, bit 5 cleared to a dock, bit 6 sending
+/// another callsign
 /// +5 write: a request to the contact in +6 (1 its laws, 2 docking, 3
 /// launch: let the docked ship go; +6 = FFh: the nearest station, or for a
-/// launch the station whose dock it is)  +6 the request's contact  +7
+/// launch the station whose dock it is); 6: the transponder, +6 = 1 send the
+/// callsign at D000:1D00 (8 characters) in place of the ship's own, 0 the
+/// ship's own again  +6 the request's contact  +7
 /// messages heard so far  +8 segment  +10 the contacts' table  +12 the laws
 /// +14 the messages (offsets).
 ///
@@ -55,13 +58,15 @@ namespace Xpace.Ship;
 public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
 {
     public const int Slot = 16;
-    public const byte Type = 18, Version = 3;
+    public const byte Type = 18, Version = 4;
     public const int PadSize = 32;
     public const byte PadGuidance = 1, PadAligned = 2, PadLow = 4, PadHeld = 8, PadDocked = 16, PadLaunch = 32;
     public const int MaxContacts = 16, EntrySize = 16, LawsSize = 32;
     public const int Messages = 4, MessageSize = 128, MessageWords = 120;
     public const byte NearestStation = 0xFF;
-    public const byte StatusLaws = 1, StatusSpeedZone = 2, StatusAsking = 4, StatusOff = 8, StatusZone = 16, StatusCleared = 32;
+    public const byte StatusLaws = 1, StatusSpeedZone = 2, StatusAsking = 4, StatusOff = 8, StatusZone = 16, StatusCleared = 32, StatusSending = 64;
+    /// <summary>+5 = this: the transponder, +6 = 1 send the callsign at <see cref="ShipMemory.Transponder"/>, 0 the ship's own.</summary>
+    public const byte TransponderCommand = 6;
 
     /// <summary>The power switch (a cockpit switch can work it): off, it hears and sends nothing.</summary>
     [Export] public bool Powered { get; set; } = true;
@@ -121,15 +126,30 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
     /// <summary>A message heard: who sent it, the words, how they are spoken.</summary>
     public event Action<string, string, string> MessageHeard;
 
-    string IRadio.Callsign => Radio.Callsign(Callsign == "" && PilotsName ? Menu.MainMenu.PlayerName : Callsign, (Node)ShipBody.Of(this) ?? GetParent() ?? this);
+    string IRadio.Callsign => Sending ?? Own;
+
+    /// <summary>The ship's own callsign, whatever the radio sends.</summary>
+    public string Own => Radio.Callsign(Callsign == "" && PilotsName ? Menu.MainMenu.PlayerName : Callsign, (Node)ShipBody.Of(this) ?? GetParent() ?? this);
+
+    /// <summary>The callsign a program has it send in place of the ship's own (null: its own).</summary>
+    public string Sending { get; private set; }
 
     /// <summary>On a ship another machine flies (a puppet), it is that machine's radio: stations here leave it to that machine.</summary>
     bool IRadioReceiver.Relayed => Net.NetBody.IsPuppet(this);
 
-    /// <summary>A puppet's radio: as the owner's is (its callsign, on or off).</summary>
-    public void Follow(string callsign, bool on)
+    /// <summary>Sends that callsign in place of the ship's own (null or empty: its own), as a crew of the universe's has it.</summary>
+    public void Transmit(string sign) => Sending = string.IsNullOrEmpty(sign) ? null : sign;
+
+    /// <summary>A puppet's radio: as the owner's is (its callsign, on or off, the ship's own or another).</summary>
+    public void Follow(string callsign, bool on, bool another = false)
     {
-        Callsign = callsign ?? "";
+        if (another)
+            Sending = callsign;
+        else
+        {
+            Callsign = callsign ?? "";
+            Sending = null;
+        }
         PilotsName = false;
         Powered = on;
     }
@@ -294,7 +314,7 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
 
         byte status = (byte)((Laws != null ? StatusLaws : 0) | (InsideSpeedZone ? StatusSpeedZone : 0) |
                              (_asking > 0 ? StatusAsking : 0) | (Powered ? 0 : StatusOff) |
-                             (InsideZone ? StatusZone : 0) | (Dock != 0 ? StatusCleared : 0));
+                             (InsideZone ? StatusZone : 0) | (Dock != 0 ? StatusCleared : 0) | (Sending != null ? StatusSending : 0));
         byte* laws = ship.Computer.Memory + ShipMemory.Base + ShipMemory.Laws;
         for (int i = 0; i < LawsSize; i++)
             laws[i] = 0;
@@ -336,6 +356,11 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
         bus.TakeWritten(Slot, 6);
         if (!bus.TakeWritten(Slot, 5))
             return;
+        if (bus[Slot, 5] == TransponderCommand)
+        {
+            Transpond(ship, bus[Slot, 6] == 1);
+            return;
+        }
         var what = (RadioRequest)bus[Slot, 5];
         if (what is not (RadioRequest.Laws or RadioRequest.Docking or RadioRequest.Launch or RadioRequest.Transit or RadioRequest.News))
             return;
@@ -348,6 +373,22 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
             Ask(what);
         else if (which < Contacts.Count && _contacts[which] is StationRadio station)
             Ask(what, station);
+    }
+
+    // What it sends for a callsign: the ship's own, or the one a program left at the transponder's address
+    private unsafe void Transpond(ShipBody ship, bool other)
+    {
+        if (!other)
+        {
+            Sending = null;
+            return;
+        }
+        byte* p = ship.Computer.Memory + ShipMemory.Base + ShipMemory.Transponder;
+        var chars = new char[Radio.CallsignLength];
+        for (int i = 0; i < chars.Length; i++)
+            chars[i] = p[i] is >= 32 and < 127 ? (char)p[i] : ' ';
+        string sign = new string(chars).Trim().ToUpperInvariant();
+        Sending = sign.Length > 0 ? sign : null;
     }
 
     // What the beacon of the pad the ship is cleared to tells it

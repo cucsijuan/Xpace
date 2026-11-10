@@ -247,10 +247,15 @@ public partial class LandingPad : Node3D, IShipHold
             else if (local != null && aligned && low && slow)
                 Take(local);
         }
-        else if (Dock.Station?.PilotOn(Dock.Number, Number) != true)
+        else if (Dock.Station?.PilotOn(Dock.Number, Number) != true && !CargoWaiting())
             Uncleared();
         ShowGlow();
     }
+
+    // A cargo ship of the universe's has it (on its way here, or only just gone): the clamps keep for it
+    private bool CargoWaiting() =>
+        Dock.Station is StationRadio station && Xpace.World.Universe.Current is { IsGuest: false } universe &&
+        Xpace.World.CargoShips.Taken(universe.State, station.Id, Dock.Number, Number);
 
     // Nobody is cleared to it: a ship resting in its place is whoever's, and the clamps take one of this machine's that
     // sits right, as they take any (they don't ask)

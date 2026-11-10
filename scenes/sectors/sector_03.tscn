@@ -16,6 +16,12 @@
 [ext_resource type="PackedScene" path="res://scenes/gates/jump_gate.tscn" id="gate_scene"]
 [ext_resource type="Script" path="res://scripts/World/MarketGood.cs" id="market_good"]
 [ext_resource type="Script" path="res://scripts/World/FactoryLine.cs" id="factory_line"]
+[ext_resource type="Script" path="res://scripts/World/OutfitLine.cs" id="outfit_line"]
+[ext_resource type="Resource" path="res://assets/goods/registry_data.tres" id="good_registry"]
+[ext_resource type="Resource" path="res://assets/outfits/callsign.tres" id="outfit_callsign"]
+[ext_resource type="Resource" path="res://assets/outfits/spoof.tres" id="outfit_spoof"]
+[ext_resource type="Resource" path="res://assets/recipes/callsign.tres" id="recipe_callsign"]
+[ext_resource type="Resource" path="res://assets/recipes/spoof.tres" id="recipe_spoof"]
 [ext_resource type="Script" path="res://scripts/World/FleetLine.cs" id="fleet_line"]
 [ext_resource type="Resource" path="res://assets/ship/models/freighter.tres" id="freighter_model"]
 [ext_resource type="Resource" path="res://assets/recipes/solar.tres" id="recipe_solar"]
@@ -133,6 +139,32 @@ Good = ExtResource("good_medicines")
 Stock = 10
 Uses = 0.0
 
+[sub_resource type="Resource" id="Redhold_registry"]
+script = ExtResource("market_good")
+Good = ExtResource("good_registry")
+Stock = 20
+Uses = 0.0
+
+[sub_resource type="Resource" id="Redhold_arms_callsign"]
+script = ExtResource("outfit_line")
+Item = ExtResource("outfit_callsign")
+Stock = 8
+
+[sub_resource type="Resource" id="Redhold_arms_spoof"]
+script = ExtResource("outfit_line")
+Item = ExtResource("outfit_spoof")
+Stock = 3
+
+[sub_resource type="Resource" id="Redhold_works_callsign"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_callsign")
+PerHour = 2.0
+
+[sub_resource type="Resource" id="Redhold_works_spoof"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_spoof")
+PerHour = 0.5
+
 [sub_resource type="Resource" id="Redhold_works_solar"]
 script = ExtResource("factory_line")
 Recipe = ExtResource("recipe_solar")
@@ -183,8 +215,9 @@ OwnedBy = ExtResource("owner_red_maw")
 Fleet = Array[ExtResource("fleet_line")]([SubResource("fleet_Redhold")])
 UpkeepPerHour = 900.0
 Worth = 1500000
-Goods = Array[ExtResource("market_good")]([SubResource("Redhold_energy"), SubResource("Redhold_food"), SubResource("Redhold_water"), SubResource("Redhold_hydrogen"), SubResource("Redhold_iron_ore"), SubResource("Redhold_iron"), SubResource("Redhold_metals"), SubResource("Redhold_silicon"), SubResource("Redhold_copper"), SubResource("Redhold_chips"), SubResource("Redhold_electronics"), SubResource("Redhold_machinery"), SubResource("Redhold_medicines")])
-Factories = Array[ExtResource("factory_line")]([SubResource("Redhold_works_solar"), SubResource("Redhold_works_food")])
+Goods = Array[ExtResource("market_good")]([SubResource("Redhold_energy"), SubResource("Redhold_food"), SubResource("Redhold_water"), SubResource("Redhold_hydrogen"), SubResource("Redhold_iron_ore"), SubResource("Redhold_iron"), SubResource("Redhold_metals"), SubResource("Redhold_silicon"), SubResource("Redhold_copper"), SubResource("Redhold_chips"), SubResource("Redhold_electronics"), SubResource("Redhold_machinery"), SubResource("Redhold_medicines"), SubResource("Redhold_registry")])
+Factories = Array[ExtResource("factory_line")]([SubResource("Redhold_works_solar"), SubResource("Redhold_works_food"), SubResource("Redhold_works_callsign"), SubResource("Redhold_works_spoof")])
+Outfits = Array[ExtResource("outfit_line")]([SubResource("Redhold_arms_callsign"), SubResource("Redhold_arms_spoof")])
 Factor = true
 
 [node name="Projectiles" type="MultiMeshInstance3D" parent="."]

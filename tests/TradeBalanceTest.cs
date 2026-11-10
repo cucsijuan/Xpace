@@ -260,7 +260,8 @@ public partial class TradeBalanceTest : Node
     {
         var alone = new List<string>();
         foreach (string good in _book.Stations.SelectMany(s => s.Goods).Select(g => g.Good.Id).Distinct())
-            if (!_book.Stations.Any(s => s.Factories.Any(f => Recipe.IdOf(f?.Recipe?.Output) == good)) ||
+            if (!_book.Stations.Any(s => s.Factories.Any(f => Recipe.IdOf(f?.Recipe?.Output) == good) ||
+                                         good == Xpace.Space.StationRegistry.Good.Id && s.RegistryMax > 0) ||     // copied out of registries
                 !_book.Stations.Any(s => s.Goods.Any(g => g.Good.Id == good && g.Uses > 0) || s.Factories.Any(f => f?.Recipe?.Inputs.Any(p => Recipe.IdOf(p?.Item) == good) == true)))
                 alone.Add(good);
         Check($"every good is made somewhere and used somewhere ({(alone.Count == 0 ? "all" : "not: " + string.Join(", ", alone))})", alone.Count == 0);

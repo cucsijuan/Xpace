@@ -25,6 +25,9 @@ namespace Xpace.Space;
 /// hull), by being too small, too far, too jammed and too cold to be seen, or by keeping close behind a ship the
 /// station cleared.
 ///
+/// Where the station's security is tight, a registration reader (<see cref="RegistrationRange"/>) reads the hull of a
+/// ship it knows as it comes near: a false callsign is found out there, and the only way in is not to be seen.
+///
 /// A noticed ship that turns its radio on is told now, and no longer noticed: the station knows who it was.
 ///
 /// What a noticed ship means is the station's business (<see cref="StationRadio"/> shuts the door while
@@ -52,6 +55,12 @@ public partial class HangarWatch : Node3D
 
     /// <summary>A ship it can't tell was seen lately: the station keeps the door shut.</summary>
     public bool Alarm => _noticed.Values.Any(at => _now - at <= AlarmSeconds);
+
+    /// <summary>
+    /// A registration reader (0: none, as most stations): it reads the hull of a ship within this many metres in its
+    /// cone, so a ship sending a false callsign is found out at the door (<see cref="StationSecurity.Unmask"/>).
+    /// </summary>
+    [Export] public float RegistrationRange;
 
     /// <summary>How often it looks, seconds (the radar's sightings are kept every step).</summary>
     [Export] public double LookSeconds = 0.1;
@@ -124,6 +133,9 @@ public partial class HangarWatch : Node3D
                 continue;
             Vector3 dir = to / range;
             bool known = node is IRadio { RadioOn: true } || _security.IsPolice(ship);
+            if (known && range <= Mathf.Max(RegistrationRange, _security.RegistrationRange) && Xpace.World.Universe.Current?.IdentityOf(ship) is (Xpace.World.Identity.Forged, Xpace.World.ForgedRecord forged) &&
+                !forged.Burned && !Obstacles.Blocked(GetWorld3D(), here, ship.GlobalPosition))
+                _security.Unmask(ship, forged);
             if (known)
                 _noticed.Remove(ship);                  // it says who it is now: the ship seen was this one
             bool echo = _echo.ContainsKey(ship);

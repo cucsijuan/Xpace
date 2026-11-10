@@ -655,13 +655,13 @@ COOL resident.
 <section class="chapter" data-num="7" data-title="The Display Card" data-part="Part Two: The Devices">
 
 <h2 class="cmd">Radio<span>200h &middot; type 18</span></h2>
-<p>Lists the radios it hears, stations and ships, nearest first; keeps the laws the last station sent it, the dock a station cleared the ship to, and the last four messages it heard. A station sends its laws to every ship that comes into its protected zone, once, as it comes in: a radio that was off then has none, and must ask. The radio ranges the station whose laws it holds, so it knows whether the ship is inside the zone, and inside the nearer radius of the speed limit. It also hears the beacon of the landing pad the ship is cleared to (see below). Version 3.</p>
+<p>Lists the radios it hears, stations and ships, nearest first; keeps the laws the last station sent it, the dock a station cleared the ship to, and the last four messages it heard. A station sends its laws to every ship that comes into its protected zone, once, as it comes in: a radio that was off then has none, and must ask. The radio ranges the station whose laws it holds, so it knows whether the ship is inside the zone, and inside the nearer radius of the speed limit. It also hears the beacon of the landing pad the ship is cleared to (see below). Version 4.</p>
 <table class="ref">
 <tr><th>Register</th><th>Contents</th></tr>
 <tr><td>+2</td><td>Contacts in the table (up to 16)</td></tr>
 <tr><td>+3</td><td>Updates so far, counting up</td></tr>
-<tr><td>+4</td><td>Status: bit 0 it holds a station's laws, bit 1 the ship is inside their speed limit, bit 2 asking, bit 3 off, bit 4 inside their protected zone, bit 5 cleared to a dock</td></tr>
-<tr><td>+5</td><td>Write: a request to the contact in +6. 1: its laws; 2: a dock; 3: launch (let the docked ship go); 4: transit; 5: market data (from a commercial beacon)</td></tr>
+<tr><td>+4</td><td>Status: bit 0 it holds a station's laws, bit 1 the ship is inside their speed limit, bit 2 asking, bit 3 off, bit 4 inside their protected zone, bit 5 cleared to a dock, bit 6 sending another callsign (see Re-registration)</td></tr>
+<tr><td>+5</td><td>Write: a request to the contact in +6. 1: its laws; 2: a dock; 3: launch (let the docked ship go); 4: transit; 5: market data (from a commercial beacon); 6: the transponder (see Re-registration)</td></tr>
 <tr><td>+6</td><td>The request's contact: its place in the table, or 0FFh for the nearest station (for a launch, the station whose dock the ship is in)</td></tr>
 <tr><td>+7</td><td>Messages heard so far, counting up</td></tr>
 <tr><td>+8 word</td><td>The segment of the table and the laws</td></tr>
@@ -669,6 +669,8 @@ COOL resident.
 <tr><td>+12 word</td><td>The offset of the laws</td></tr>
 <tr><td>+14 word</td><td>The offset of the messages</td></tr>
 </table>
+<h3>Re-registration</h3>
+<p>For fleet operators who re-register a ship: write the new callsign, eight characters filled with spaces, at D000:1D00, then 1 to +6 and 6 to +5. From the next step the radio sends that callsign in place of the ship's own; 0 to +6 and 6 to +5 return it to its own. The ship's hull keeps its registration plate whatever the radio sends, and a station that reads the hull will know. StubCorp accepts no responsibility for the use of this facility.</p>
 <h3>The Contacts' Table</h3>
 <p>Sixteen bytes a contact:</p>
 <table class="ref">
@@ -1036,7 +1038,7 @@ msg_no_device   db 'COOL: no heat sink launcher on the bus.', 13, 10, '$'</pre>
 <tr><td>130h</td><td>Radar: +2 mode +3 contacts +4 sweeps +5 locked +6 lock id (write) +8 locked id +10 segment +12 table +14 track</td></tr>
 <tr><td>140h</td><td>Turret: +2 +4 wanted (write) +6 +8 now +10 muzzle speed +12 fire (write) +13 status +14 heat +15 rounds fired; magazine at D000:1B00</td></tr>
 <tr><td>150h</td><td>Display card: +2 segment +4 table +6 screens +7 of interest +8 keys +9 key +10 its screen</td></tr>
-<tr><td>200h</td><td>Radio: +2 contacts +3 updates +4 status +5 request (write) +6 its contact +7 messages +8 segment +10 table +12 laws +14 messages; the pad's guidance at D000:1900</td></tr>
+<tr><td>200h</td><td>Radio: +2 contacts +3 updates +4 status +5 request (write) +6 its contact +7 messages +8 segment +10 table +12 laws +14 messages; the pad's guidance at D000:1900; the transponder's callsign at D000:1D00</td></tr>
 <tr><td>210h</td><td>Cargo hold: +2 capacity +4 carried +6 kinds +8 segment +10 list</td></tr>
 <tr><td>160h</td><td>Launcher: +2 radar missiles +3 in flight +4 status +6 fire (write) +7 head (write) +8 time to go +10 status +11 result +12 fuel +14 heat seekers +15 kind</td></tr>
 <tr><td>170h</td><td>Warning receiver: +2 entries +3 updates +4 flags +5 audio (write) +6 segment +8 table</td></tr>

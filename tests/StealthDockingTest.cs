@@ -20,7 +20,7 @@ namespace Xpace.Tests;
 ///   - a cold ship out of radar range is still seen by its heat when near; outside the watch's cone (along the hull to
 ///     the mouth) it is not seen at all;
 ///   - in unseen, on a free pad: the clamps take it, the station counts it docked (it may trade), and nobody's pad is
-///     given away under it; pushing up, the clamps let it go.
+///     given away under it; pushing up, the clamps let it go; a pad a cargo ship has is kept for it.
 ///
 /// Run: Godot --headless --fixed-fps 60 --path . res://tests/stealth_docking_test.tscn
 /// Exits with 0 if every check passed.
@@ -100,9 +100,19 @@ public partial class StealthDockingTest : Node3D
         Check("in unseen, sitting on a free pad: the clamps take it", await Until(() => pad.HeldShip == hugger && pad.Stowaway, 3));
         Check("not hostile, nobody knows", _security.StandingOf(hugger) == Standing.Clean && _watch.NoticedAgo(hugger) == null);
         Check("docked, as the market sees it", await Until(() => _station.DockedHere(hugger), 10));
-        Check("its pad is nobody's to give", pad.Occupant == hugger);
+        Check("its pad is nobody's to give, a cargo ship's no more than a pilot's", pad.Occupant == hugger && _station.Occupied(_dock.Number, pad.Number));
         _up = 1;
         Check("pushing up, the clamps let it go", await Until(() => pad.HeldShip == null && hugger.Holder == null, 10));
+        _up = 0;
+
+        // A pad a cargo ship of the universe's has: the clamps keep it for that ship
+        HangarDock other = _station.Docks.First(d => d != _dock && d.Pads.Count > 0);
+        LandingPad kept = other.Pads[0];
+        Universe.Current.State.Station(_station.Id).CargoPads[CargoShips.Key(other.Number, kept.Number)] = "cargo-1";
+        hugger.GlobalTransform = kept.GlobalTransform * kept.Rest(hugger).Translated(new Vector3(0, 2, 0));
+        hugger.LinearVelocity = Vector3.Zero;
+        await Seconds(2);
+        Check("a pad a cargo ship has is not taken from it", kept.HeldShip == null);
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GC.Collect();

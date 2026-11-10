@@ -24,5 +24,11 @@ public partial class Good : Resource
     /// <summary>It can be bought and sold: off, it stays where it is made, out of markets and news.</summary>
     [Export] public bool Traded = true;
 
+    /// <summary>
+    /// The law forbids it: police who find it aboard fine the ship (<see cref="Xpace.Space.StationSecurity"/>), and only
+    /// stations whose owners ask no questions deal in it (their markets have a line for it).
+    /// </summary>
+    [Export] public bool Illegal;
+
     public string Id => ResourcePath.GetFile().GetBaseName();
 }

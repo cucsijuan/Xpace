@@ -721,6 +721,7 @@ public sealed class CargoRun : IShipHold
         StationBook.Fix? where = Universe.Current.Book.FixOf(_record, _model, state.Clock);
         if (where is not StationBook.Fix fix)
             return ship.State;
+        ship.Device<RadioDevice>()?.Transmit(_record.Sending);      // the callsign its crew has it send
         CruiseDevice cruise = ship.Device<CruiseDevice>();
         if (ship.Dormant)
             cruise?.Fade((float)delta);

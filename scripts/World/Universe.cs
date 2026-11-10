@@ -341,6 +341,22 @@ public partial class Universe : Node
     public PilotRecord PilotOf(Node3D ship) =>
         !IsGuest && PilotIdOf(ship) is string id ? State.Pilot(id, id == LocalPilotId ? LocalPilotName : null) : null;
 
+    /// <summary>
+    /// Who the ship's radio says it is: its own callsign; a false one out of a pirate base's making
+    /// (<see cref="UniverseState.Forged"/>, which a station takes as a ship of its own until it is found out); or a
+    /// callsign on nobody's record (null forged and not its own: <see cref="Identity.Unknown"/>).
+    /// </summary>
+    public (Identity Kind, ForgedRecord Forged) IdentityOf(Node3D ship)
+    {
+        IRadio radio = ship == null ? null : Radio.All(ship).FirstOrDefault(r => Combat.ShipOf(r as Node) == ship);
+        string sign = radio?.Callsign ?? "";
+        if (State.Forged.TryGetValue(sign, out ForgedRecord forged))
+            return (Identity.Forged, forged);
+        // Sending another callsign (another machine's ship as its owner says): one on nobody's record
+        bool another = radio is Xpace.Ship.RadioDevice { Sending: not null } || radio is Xpace.Net.RemoteRadio { SendsAnother: true };
+        return (another ? Identity.Unknown : Identity.Own, null);
+    }
+
     /// <summary>The ship <paramref name="pilot"/> flies in this scene (the owner of the universe), or null.</summary>
     public Node3D ShipOf(string pilot)
     {

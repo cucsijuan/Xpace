@@ -68,6 +68,7 @@ public partial class StationRadio : Node3D, IRadio
     [Export] public string ClearedPadText = "Cleared to dock, hangar {0}, pad {1}. Follow the lights in.";
     [Export] public string NoDockText = "No hangar free. Hold outside and ask again.";
     [Export] public string DeniedText = "Docking denied.";
+    [Export] public string NotOnRecordText = "Your callsign is not on record. Docking denied.";
     /// <summary>To the ships in the zone, as a hangar shuts for a ship it can't tell ({0} the hangar).</summary>
     [Export] public string LockdownText = "Unidentified ship at hangar {0}. Hangar {0} closed.";
     /// <summary>{0} the hangar.</summary>
@@ -98,6 +99,7 @@ public partial class StationRadio : Node3D, IRadio
     [Export] public string ClearedPadSpeech = "cleared hangar_{0} pad_{1} follow_lights";
     [Export] public string NoDockSpeech = "no_dock";
     [Export] public string DeniedSpeech = "denied";
+    [Export] public string NotOnRecordSpeech = "denied";
     [Export] public string ExpiredSpeech = "expired";
     [Export] public string DockedSpeech = "docked";
     [Export] public string LaunchSpeech = "launch";
@@ -140,6 +142,9 @@ public partial class StationRadio : Node3D, IRadio
 
     /// <summary>Its security, if the station has one (beside it in the station's scene).</summary>
     public StationSecurity Security { get; private set; }
+
+    /// <summary>Its registry, if the station keeps one (beside it in the station's scene).</summary>
+    public StationRegistry Registry { get; private set; }
 
     /// <summary>The gate this radio speaks for (its parent), or null: a station's.</summary>
     public JumpGate Gate { get; private set; }
@@ -206,7 +211,10 @@ public partial class StationRadio : Node3D, IRadio
         foreach (HangarDock d in _docks)
             d.Station = this;
         foreach (Node n in station.GetChildren())
+        {
             Security ??= n as StationSecurity;
+            Registry ??= n as StationRegistry;
+        }
         Gate = station as JumpGate;
     }
 
@@ -332,6 +340,19 @@ public partial class StationRadio : Node3D, IRadio
             Say(ship, DeniedText, DeniedSpeech);
             return;
         }
+        // Who the radio says it is must be on someone's record: a false callsign of a pirate base's making passes,
+        // while it has dockings left and nobody found it out
+        Xpace.World.ForgedRecord forged = null;
+        if (Xpace.World.Universe.Current is { IsGuest: false } universe)
+        {
+            var (kind, f) = universe.IdentityOf(ShipOf(ship));
+            if (kind == Xpace.World.Identity.Unknown || f != null && (f.Burned || f.Uses <= 0))
+            {
+                Say(ship, NotOnRecordText, NotOnRecordSpeech);
+                return;
+            }
+            forged = f;
+        }
         Clearance c = Of(ship);
         if (c == null)
         {
@@ -354,6 +375,8 @@ public partial class StationRadio : Node3D, IRadio
             _cleared.Add(c);
             if (c.Pad != null)
                 c.Pad.AssignedTo = body;
+            if (forged != null)
+                forged.Uses--;
         }
         c.Until = _now + ClearanceSeconds;
         Doors(c.Dock);
@@ -464,6 +487,9 @@ public partial class StationRadio : Node3D, IRadio
             Say(to, string.Format(answer, ship, dock, pad), answerSpeech, ship, dock, pad);
         }
     }
+
+    /// <summary>A ship sits on that pad, cleared to it or not.</summary>
+    public bool Occupied(int dock, int pad) => _docks.FirstOrDefault(d => d.Number == dock)?.PadNumbered(pad)?.Occupant != null;
 
     /// <summary>A pilot's ship is cleared to that pad.</summary>
     public bool PilotOn(int dock, int pad) => _cleared.Any(c => c.Ship != null && c.Dock.Number == dock && c.Pad?.Number == pad);

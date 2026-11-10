@@ -11,6 +11,7 @@
 [ext_resource type="PackedScene" path="res://scenes/stations/props/locker_kiosk.tscn" id="locker_kiosk"]
 [ext_resource type="Script" uid="uid://bl72dgevviygy" path="res://scripts/Space/StationMarket.cs" id="market"]
 [ext_resource type="PackedScene" path="res://scenes/stations/props/market_kiosk.tscn" id="market_kiosk"]
+[ext_resource type="PackedScene" path="res://scenes/stations/props/arms_kiosk.tscn" id="arms_kiosk"]
 [ext_resource type="Script" uid="uid://c4eo2r8iqim7n" path="res://scripts/Space/MediumMass.cs" id="medium_mass"]
 [ext_resource type="PackedScene" uid="uid://c5yroincymcox" path="res://assets/stations/redhold/redhold.glb" id="model"]
 [ext_resource type="PackedScene" uid="uid://41o7n6kb33s0" path="res://scenes/stations/props/landing_pad_small.tscn" id="pad_small"]
@@ -104,6 +105,9 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -2, -18, -62)
 
 [node name="LockerKiosk" parent="Hangar" unique_id=2122159681 instance=ExtResource("locker_kiosk")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 2, -18, -62)
+
+[node name="ArmsKiosk" parent="Hangar" instance=ExtResource("arms_kiosk")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 6, -18, -62)
 
 [node name="Light1" type="OmniLight3D" parent="Hangar" unique_id=1282203079]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -18, 14, 90)
