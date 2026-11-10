@@ -1,44 +1,78 @@
-[gd_scene load_steps=9 format=3]
+[gd_scene load_steps=14 format=3]
 
-[ext_resource type="Script" path="res://scripts/OnFoot/StationKiosk.cs" id="1_kiosk"]
-[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Console_01.fbx" id="2_model"]
-[ext_resource type="Material" path="res://assets/materials/synty_horror_atlas.tres" id="3_atlas"]
-[ext_resource type="Material" path="res://assets/materials/kiosk_screen.tres" id="4_screen"]
-[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="5_paint"]
-[ext_resource type="Script" path="res://scripts/OnFoot/WalkSurface.cs" id="6_walk"]
-[ext_resource type="PackedScene" path="res://scenes/ui/registry_window.tscn" id="7_window"]
+[ext_resource type="Script" path="res://scripts/OnFoot/StationTerminal.cs" id="1_terminal"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Desk_02.fbx" id="2_desk"]
+[ext_resource type="PackedScene" path="res://assets/synty/SM_Prop_Kiosk_05.fbx" id="3_crt"]
+[ext_resource type="Material" path="res://assets/materials/synty_horror_atlas.tres" id="4_atlas"]
+[ext_resource type="Material" path="res://assets/materials/kiosk_screen.tres" id="5_screen"]
+[ext_resource type="Script" path="res://scripts/Space/ModelPaint.cs" id="6_paint"]
+[ext_resource type="Script" path="res://scripts/OnFoot/WalkSurface.cs" id="7_walk"]
+[ext_resource type="Script" path="res://scripts/Computer/ShipComputer.cs" id="8_computer"]
+[ext_resource type="Script" path="res://scripts/Space/RegistryDevice.cs" id="9_registry"]
+[ext_resource type="Script" path="res://scripts/Cockpit/CockpitScreen.cs" id="10_screen"]
+[ext_resource type="Resource" path="res://assets/ship/monitors/old_green.tres" id="11_tube"]
 
-[sub_resource type="BoxShape3D" id="Body"]
-size = Vector3(0.81, 0.92, 0.74)
+[sub_resource type="BoxShape3D" id="Desk"]
+size = Vector3(2.31, 0.79, 0.85)
 
-[node name="RegistryTerminal" type="Node3D" node_paths=PackedStringArray("Front")]
-script = ExtResource("1_kiosk")
-WindowScene = ExtResource("7_window")
+[sub_resource type="BoxShape3D" id="Crt"]
+size = Vector3(0.85, 0.86, 0.76)
+
+[node name="RegistryTerminal" type="Node3D" node_paths=PackedStringArray("Front", "Screen")]
+script = ExtResource("1_terminal")
 Prompt = "use the registry terminal"
 Front = NodePath("Front")
+Screen = NodePath("Screen")
 
-[node name="Model" parent="." instance=ExtResource("2_model")]
+[node name="Desk" parent="." instance=ExtResource("2_desk")]
 
-[node name="Paint" type="Node" parent="Model"]
-script = ExtResource("5_paint")
-Material = ExtResource("3_atlas")
+[node name="Paint" type="Node" parent="Desk"]
+script = ExtResource("6_paint")
+Material = ExtResource("4_atlas")
+
+[node name="Crt" parent="." instance=ExtResource("3_crt")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.785, -0.03)
+
+[node name="Paint" type="Node" parent="Crt"]
+script = ExtResource("6_paint")
+Material = ExtResource("4_atlas")
 BySurface = Dictionary[int, Material]({
-1: ExtResource("4_screen")
+1: ExtResource("5_screen")
 })
 
+[node name="Screen" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3816, 0.1046)
+script = ExtResource("10_screen")
+Size = Vector2(0.295, 0.244)
+Monitor = ExtResource("11_tube")
+
+[node name="Computer" type="Node" parent="."]
+script = ExtResource("8_computer")
+DiskPath = "res://disks/terminal.img"
+MonitorModel = 0
+PowerOnAtStart = false
+RunsItself = false
+
+[node name="Registry" type="Node" parent="."]
+script = ExtResource("9_registry")
+
 [node name="Front" type="Marker3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1.0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.9)
 
 [node name="Body" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.46, 0)
-shape = SubResource("Body")
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.395, 0)
+shape = SubResource("Desk")
+
+[node name="CrtBody" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.215, -0.03)
+shape = SubResource("Crt")
 
 [node name="Walk" type="Node3D" parent="."]
-script = ExtResource("6_walk")
-ParentMeshes = false
+script = ExtResource("7_walk")
+OnlyBoxes = true
 
 [node name="Light" type="OmniLight3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 0.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.4, 0.45)
 light_color = Color(0.35, 1, 0.55, 1)
-light_energy = 0.4
+light_energy = 0.3
 omni_range = 1.5

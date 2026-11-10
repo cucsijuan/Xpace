@@ -16,7 +16,9 @@ public partial class CallsignSpec : Outfit
     [Export] public int Uses = 5;
 
     public override string About => "A clean registration, for a ship's radio to send in place of its own.";
-    public override string Details => $"Good for {Uses} dockings, or until a scan finds you out.";
+    public override string Details =>
+        $"Good for {Uses} dockings, or until a scan finds you out. Made from ships' signatures out of stations' registries: " +
+        "the dealer buys registry data, and a registry terminal's service session (Alt+F10) keeps them in its core.";
     public override bool Carried => true;
 
     private static readonly Random Random = new();

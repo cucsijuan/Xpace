@@ -156,6 +156,19 @@ public partial class SessionPadTest : Node
         Check("then what the guest says it has: a laser on the spine, nothing on the nose",
               await Until(() => spine.Mounted is LaserSpec, 2) && player.FindChildren("*", "", true, false).OfType<Hardpoint>().Count(h => h.Mounted != null) == 1);
 
+        // The registry terminal: its card on the guest asks the host
+        _other.Ask(StationRegistry.Topic, System.Text.Json.JsonSerializer.Serialize(new RegistryRequest { Station = "HAVEN", Do = RegistryRequest.Open }));
+        Check("the guest's terminal opens a service session through the host", await Until(() => documents.ContainsKey(StationRegistry.Topic), 2));
+        RegistryView registry = System.Text.Json.JsonSerializer.Deserialize<RegistryView>(documents[StationRegistry.Topic]);
+        Check($"its logbook has the guest's docking ({string.Join(", ", registry.Logbook.Select(e => e.Callsign))})",
+              registry.Session && registry.Logbook.Any(e => e.Callsign == "ACE" && e.Dock == dock.Number));
+        List<string> signatures = Registries.Core(registry.Seed, registry.Records, registry.Known).Records.Values.Take(registry.RecordsPerTonne).ToList();
+        documents.Remove(StationRegistry.Topic);
+        _other.Ask(StationRegistry.Topic, System.Text.Json.JsonSerializer.Serialize(
+            new RegistryRequest { Station = "HAVEN", Do = RegistryRequest.Write, Records = signatures }));
+        Check("the signatures carved on the guest go into the hold on the host's universe",
+              await Until(() => documents.ContainsKey(StationRegistry.Topic), 2) && ace.Ship.Holds("registry_data") == 1);
+
         _other.Request(GuestShipId, "HAVEN", (byte)RadioRequest.Launch);
         Check("asking to launch: the door opens, everywhere", await Until(() => dock.IsOpen && _doors[^1] == ("HAVEN", dock.Number, true), 2));
         Check($"the guest is told ({Last})", await Until(() => Last.Contains("launch"), 1));

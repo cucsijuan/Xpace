@@ -697,20 +697,9 @@ public partial class Pilot : Node3D
         _camera.Transform = _headPose.InterpolateWith(_framed, Mathf.SmoothStep(0, 1, lean));
     }
 
-    // In front of the screen (a quad facing its +Z), far enough for it to fill
-    // the normal field of view, in the camera's parent's frame
-    private Transform3D Framing(CockpitScreen screen)
-    {
-        Transform3D at = screen.GlobalTransform;
-        Vector3 scale = at.Basis.Scale;
-        Vector2 size = screen.Size * new Vector2(scale.X, scale.Y) * FocusMargin;
-        Vector2 view = GetViewport().GetVisibleRect().Size;
-        float tanUp = Mathf.Tan(Mathf.DegToRad(_fov) / 2), aspect = view.Y > 0 ? view.X / view.Y : 1;
-        float distance = Mathf.Max(size.Y / 2 / tanUp, size.X / 2 / (tanUp * aspect));
-        Basis basis = at.Basis.Orthonormalized();
-        var global = new Transform3D(basis, at.Origin + basis.Z * distance);
-        return _camera.GetParentNode3D().GlobalTransform.AffineInverse() * global;
-    }
+    // In front of the screen, filling the normal field of view, in the camera's parent's frame
+    private Transform3D Framing(CockpitScreen screen) =>
+        _camera.GetParentNode3D().GlobalTransform.AffineInverse() * screen.Framing(GetViewport().GetVisibleRect().Size, _fov, FocusMargin);
 
     private static string KeyOf(string action) => GameSettings.Describe(GameSettings.Binding(action));
 

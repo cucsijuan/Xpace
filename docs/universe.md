@@ -254,11 +254,29 @@ with `Justice`'s rules; `StationSecurity` writes it from what it sees ships do i
   sitting right on it (`LandingPad.Stowaway`; the clamps don't ask), the station counts it docked (`DockedHere`: it
   may trade) and gives that pad to nobody; pushing up hard (`BreakFreeThrust`) the clamps let it go, and it waits for
   a door to open to get out.
-- **False callsigns.** A station's registry (`StationRegistry`, beside its radio; a terminal in each big hangar,
-  `scenes/stations/props/registry_terminal.tscn`) copies onto the hold of a ship in one of its hangars as registry
-  data (`assets/goods/registry_data.tres`, `Good.Illegal`: police scans fine it, `IllegalFinePerTonne`): between
-  `MinTonnes` and `MaxTonnes` (a roll of dice, the user's choice; tighter security, more), new only `FreshHours` after
-  the pilot's last copy. A pilot the station cleared in is logged and gets `TheftBounty`; one who slipped in, nothing.
+- **False callsigns.** A station's registry (`StationRegistry`, beside its radio) is kept on terminals in its big
+  hangars (`scenes/stations/props/registry_terminal.tscn`, `StationTerminal`): each one a pc86 of its own booting its
+  diskette (disks/terminal.img: COS and REGISTRY.COM, software/registry/registry.c), linked to the station by its
+  registry card (`RegistryDevice`, bus slot 0). A walker uses it as a pilot types on the ship's computer: the view
+  frames its screen, the keys go to its keyboard, a right click leaves. It shows the station's real traffic logbook
+  (`StationRecord.Logbook`, `Registries.Log`: every docking, a pilot's or a cargo ship's, under the callsign it gave).
+  Alt+F10 opens the service session, behind a service key of `KeyLength` hex digits (`Registries.Key`, new after each
+  write). A wrong key says how long the check took, and the program compares a digit at a time, so each matching
+  digit takes longer (about 340 us a digit, under half of that of noise): a timing attack finds the key from the times
+  alone. In the session the registry's core (`Registries.Core`) is a hex dump: the signatures of the ships the station
+  knows (its logbook first, then others) as 32-byte records ("RG", flag 01, class, callsign, signature, checksum)
+  among deleted ones (flag E5), half overwritten ones and noise. C carves the record at the cursor's row; W writes what
+  was carved to the hold of the pilot's ship in one of the station's hangars as registry data
+  (`assets/goods/registry_data.tres`, `Good.Illegal`: police scans fine it, `IllegalFinePerTonne`), a tonne for every
+  `RecordsPerTonne` signatures, the core holding `MaxTonnes` of them (tighter security, more). In lore the pilot steals
+  the signatures of those callsigns; in play it is a good, and the pirate base makes callsigns of its own from it.
+  The station's intrusion watch (kept on the owner of the universe, per pilot) counts every second of a session,
+  every wrong key and every bad carve (`TracePerSecond`, `TracePerFailure`, `TracePerBadRecord`) and forgets slowly
+  while none is open (`TraceForgetPerSecond`). At `TraceLimit` the session is traced: closed with nothing written, the
+  service locked for the pilot for `FreshHours`, and the station acts on the ship: a false callsign is found out, a
+  ship that tells who it is gets `TheftBounty`, one that doesn't is noticed by its hangar's watch (`HangarWatch.Notice`:
+  the hangar shuts, and a ship that is inside it is hostile). A copy is new only `FreshHours` after the pilot's last
+  write. Out of sight, free people get theirs by `Registries.Copy` (between `MinTonnes` and `MaxTonnes`).
   Redhold buys it and makes false callsigns of it (`CallsignSpec`, assets/outfits/callsign.tres, a recipe like any:
   price and stock go by the market's rules) and sells SPOOF (`SoftwareSpec`, a program on a diskette): both are things
   the pilot carries (`Outfit.Carried`, `Market.BuyCarried`/`SellCarried`), bought and sold back like any. Each callsign

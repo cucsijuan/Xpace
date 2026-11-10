@@ -32,7 +32,7 @@ namespace Xpace.Ship;
 /// the thruster controller takes the controls directly (direct mode).
 /// See software/flight/flight.asm for the registers.
 /// </summary>
-public partial class ShipBody : AnimatableBody3D, IControlHost, INetShip, Space.ICruiseShown, ISolidShip
+public partial class ShipBody : AnimatableBody3D, IControlHost, Xpace.Computer.IComputerHost, INetShip, Space.ICruiseShown, ISolidShip
 {
     public const int SlotControls = 0, SlotInertial = 1, SlotThrusters = 2, SlotRatings = 10;
     public const byte TypeControls = 1, TypeInertial = 2, TypeThrusters = 3, TypeRatings = 12;

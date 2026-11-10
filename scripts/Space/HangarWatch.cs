@@ -69,6 +69,13 @@ public partial class HangarWatch : Node3D
     public IEnumerable<Node3D> Noticed => _noticed.Keys.Where(IsInstanceValid);
 
     /// <summary>Seconds since it last noticed that ship, if it did lately.</summary>
+    /// <summary>Something else told on the ship (the registry's intrusion watch): noticed as if seen.</summary>
+    public void Notice(Node3D ship)
+    {
+        if (ship != null)
+            _noticed[ship] = _now;
+    }
+
     public double? NoticedAgo(Node3D ship) => ship != null && _noticed.TryGetValue(ship, out double at) ? _now - at : null;
 
     private readonly Dictionary<Node3D, double> _noticed = new(), _echo = new();

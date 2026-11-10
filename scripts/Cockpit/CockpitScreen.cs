@@ -136,6 +136,21 @@ public partial class CockpitScreen : MeshInstance3D, IInteractive
         ShowFrame();
     }
 
+    /// <summary>
+    /// Where an eye sees the screen fill a view of <paramref name="view"/> pixels at <paramref name="fov"/> degrees up
+    /// and down, with <paramref name="margin"/> round it (1: edge to edge): in front of it, along its +Z (global).
+    /// </summary>
+    public Transform3D Framing(Vector2 view, float fov, float margin)
+    {
+        Transform3D at = GlobalTransform;
+        Vector3 scale = at.Basis.Scale;
+        Vector2 size = Size * new Vector2(scale.X, scale.Y) * margin;
+        float tanUp = Mathf.Tan(Mathf.DegToRad(fov) / 2), aspect = view.Y > 0 ? view.X / view.Y : 1;
+        float distance = Mathf.Max(size.Y / 2 / tanUp, size.X / 2 / (tanUp * aspect));
+        Basis basis = at.Basis.Orthonormalized();
+        return new Transform3D(basis, at.Origin + basis.Z * distance);
+    }
+
     // Picking it is the pilot's business (it decides what a click on a screen means)
     public void Press() { }
     public void Release() { }
@@ -147,13 +162,13 @@ public partial class CockpitScreen : MeshInstance3D, IInteractive
         if (_bound || Engine.IsEditorHint())
             return;
         // The ship sets up its computer and devices in its own _Ready, after ours.
-        ShipBody ship = FindShip();
-        if (ship?.Computer == null)
+        IComputerHost host = FindHost();
+        if (host?.Computer == null)
             return;
-        Computer = ship.Computer;
+        Computer = host.Computer;
         Texture2D picture = Source == ScreenSource.Computer
             ? Computer.Screen
-            : ship.Device<DisplayDevice>()?.Screen(DisplayName);
+            : (host as ShipBody)?.Device<DisplayDevice>()?.Screen(DisplayName);
         if (picture == null)
             return;
         _material.SetShaderParameter("picture", picture);
@@ -168,11 +183,12 @@ public partial class CockpitScreen : MeshInstance3D, IInteractive
             Computer.Unwatch();
     }
 
-    private ShipBody FindShip()
+    // The ship (or terminal) whose computer it shows: the nearest above it
+    private IComputerHost FindHost()
     {
         for (Node n = GetParent(); n != null; n = n.GetParent())
-            if (n is ShipBody ship)
-                return ship;
+            if (n is IComputerHost host)
+                return host;
         return null;
     }
 }

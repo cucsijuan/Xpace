@@ -475,6 +475,9 @@ public sealed class StationRecord
     /// <summary>When each pilot last copied its registry (universe time, by the pilot's id): it is new data only after a while.</summary>
     public Dictionary<string, double> RegistryCopied { get; set; } = new();
 
+    /// <summary>The ships that docked here lately, newest last, as its registry terminals show them (<see cref="Registries.Log"/>).</summary>
+    public List<LogEntry> Logbook { get; set; } = new();
+
     /// <summary>What the station holds against each pilot (by the pilot's id): its jurisdiction.</summary>
     public Dictionary<string, CrimeRecord> Crimes { get; set; } = new();
 
@@ -513,6 +516,15 @@ public enum Identity { Own, Forged, Unknown }
 /// A false callsign: a ship's registration made out of a station's registry, good for <see cref="Uses"/> more
 /// dockings with a station that takes it as real, and none once found out (<see cref="Burned"/>).
 /// </summary>
+/// <summary>A ship that docked at a station: the callsign it gave, when, where.</summary>
+public sealed class LogEntry
+{
+    public string Callsign { get; set; } = "";
+    public double At { get; set; }
+    public int Dock { get; set; }
+    public int Pad { get; set; }
+}
+
 public sealed class ForgedRecord
 {
     public string Callsign { get; set; } = "";

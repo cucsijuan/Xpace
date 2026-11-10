@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Godot;
+using Xpace.World;
 
 namespace Xpace.Space;
 
@@ -538,6 +539,8 @@ public partial class StationRadio : Node3D, IRadio
                 {
                     c.Docked = true;
                     Doors(c.Dock);
+                    if (Universe.Current is Universe universe)
+                        Registries.Log(universe.State.Station(Id), (c.Ship as IRadio)?.Callsign, universe.State.Clock, c.Dock.Number, c.Pad.Number);
                     Say(c.Ship, string.Format(DockedText, c.Dock.Number, c.Pad.Number), DockedSpeech, c.Dock.Number);
                 }
                 continue;

@@ -144,7 +144,8 @@ endif()
 set(HORROR_MODELS
   Props/SM_Prop_Kiosk_07
   Props/SM_Prop_Kiosk_08
-  Props/SM_Prop_Console_01
+  Props/SM_Prop_Kiosk_05
+  Props/SM_Prop_Desk_02
   Props/SM_Prop_Cartridge_Dock_03
   Props/SM_Prop_Cartridge_03
 )

@@ -444,6 +444,7 @@ public static class CargoShips
         ship.At = ship.Going;
         ship.PaceModel = "";
         ship.Phase = CargoShipRecord.Parked;
+        Registries.Log(state.Station(ship.At), string.IsNullOrEmpty(ship.Sending) ? CallsignOf(ship.Id) : ship.Sending, state.Clock, ship.Dock, ship.Pad);
         if (book.Find(ship.At) is StationBook.Station stores)
         {
             Restock(ship, model, stores, state, account);

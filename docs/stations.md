@@ -21,6 +21,7 @@ A station is a scene of **modules** and **parts**, each a scene of its own. Put 
 | `scenes/stations/props/landing_pad.tscn` | Landing platform, looks and solid only (SM_Bld_Landing_Platform_01, 13.2 m, deck on `assets/surfaces`, joints and dimples in normal maps: `tools/station_bay/build_pad.py`, `pad_maps.py`) |
 | `scenes/stations/props/landing_pad_small.tscn` | A working landing pad for small ships (fighters): the platform at twice its size, clamps, glow and beacon (see Landing pads) |
 | `scenes/stations/props/hangar_watch.tscn` | The eyes at a hangar's mouth (`HangarWatch`): an approach radar and a heat camera looking out along its -Z; put one under each `HangarDock`, turned to look out of the door and a little outside the hull (see docs/universe.md, The law) |
+| `scenes/stations/props/registry_terminal.tscn` | A registry terminal (`StationTerminal`): a pc86 of the station's own on a desk, with its screen, booting disks/terminal.img (REGISTRY.COM) and linked to the station's `StationRegistry` by its `RegistryDevice`; it serves the station above it. Its front is +Z; walkers stand at `Front`. It runs while a walker is within `PowerRange` (see docs/universe.md, False callsigns) |
 | `scenes/stations/props/hull_panel_a.tscn`, `_b`, `_c` | Hull panels, 30 x 30 m, cut from the ring's own skin and flattened |
 | `scenes/stations/props/hull_trim.tscn` | A 1 m beam, to scale over panels' edges and joints |
 | `scenes/stations/props/hangar_casing.tscn` | The hull round a big hangar's back, made of panels and trims |

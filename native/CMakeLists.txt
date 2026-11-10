@@ -173,8 +173,25 @@ if(EXISTS ${CC_DIR}/main.c)
       COMMAND ${FD} add ${image} ${DISK_WORK}/${upper}.COM
       DEPENDS smallc asm86 fdimage ${DISK_WORK}/CLIB.LIB ${XPACE_ROOT}/software/${source}.c
       VERBATIM)
-    list(APPEND XPACE_SOLD_DISKS ${image})
+    list(APPEND XPACE_OTHER_DISKS ${image})
   endforeach()
+  # The software of the stations' registry terminals: a diskette of its own, booting into REGISTRY
+  set(TERMINAL_DISK ${XPACE_ROOT}/disks/terminal.img)
+  add_custom_command(OUTPUT ${TERMINAL_DISK}
+    COMMAND $<TARGET_FILE:smallc> -n -L${DISK_WORK}/CLIB.LIB -I${CC_DIR}/include/ -S -o ${DISK_WORK}/REGISTRY.COM ${XPACE_ROOT}/software/registry/registry.c
+    COMMAND $<TARGET_FILE:asm86> ${DISK_WORK}/REGISTRY.ASM -o ${DISK_WORK}/REGISTRY.COM
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${XPACE_ROOT}/disks
+    COMMAND ${CMAKE_COMMAND} -E rm -f ${TERMINAL_DISK}
+    COMMAND ${FD} new ${TERMINAL_DISK} --label TERMINAL
+    COMMAND ${FD} add ${TERMINAL_DISK} ${DISK_WORK}/COS.SYS
+    COMMAND ${FD} add ${TERMINAL_DISK} ${DISK_WORK}/COMMAND.COM
+    COMMAND ${FD} add ${TERMINAL_DISK} ${DISK_WORK}/REGISTRY.COM
+    COMMAND ${FD} add ${TERMINAL_DISK} ${XPACE_ROOT}/software/registry/autoexec.bat AUTOEXEC.BAT
+    COMMAND ${FD} boot ${TERMINAL_DISK} ${DISK_WORK}/boot.bin
+    DEPENDS smallc asm86 fdimage ${DISK_WORK}/CLIB.LIB ${DISK_WORK}/COS.SYS ${DISK_WORK}/COMMAND.COM ${DISK_WORK}/boot.bin
+            ${XPACE_ROOT}/software/registry/registry.c ${XPACE_ROOT}/software/registry/autoexec.bat
+    VERBATIM)
+  list(APPEND XPACE_OTHER_DISKS ${TERMINAL_DISK})
   foreach(h tsr font icons logo)
     string(TOUPPER ${h} upper)
     list(APPEND CC_DISK_COMMANDS COMMAND ${FD} add ${XPACE_DISK} ${DESK_DIR}/${h}.h ${upper}.H)
@@ -229,4 +246,4 @@ add_custom_command(OUTPUT ${XPACE_DISK}
   DEPENDS fdimage ${DISK_PROGRAMS} ${DISK_SOURCES}
   VERBATIM)
 add_custom_target(disk ALL DEPENDS ${XPACE_DISK})
-add_custom_target(sold_disks ALL DEPENDS ${XPACE_SOLD_DISKS})
+add_custom_target(other_disks ALL DEPENDS ${XPACE_OTHER_DISKS})

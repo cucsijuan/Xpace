@@ -14,9 +14,9 @@ namespace Xpace.Tests;
 /// <summary>
 /// False callsigns, from a station's registry to a ship found out at a hangar's door:
 ///
-///   - a pilot whose ship is in a hangar unseen copies the station's registry into the hold: registry data, a good the
-///     law forbids, as many tonnes as the station's registry gives (between its least and its most); again too soon,
-///     nothing new; a pilot the station cleared in is logged, and has a bounty for it;
+///   - a pilot whose ship is in a hangar unseen writes the signatures of a station's registry core to the hold: registry
+///     data, a good the law forbids, a tonne for so many signatures; again too soon, nothing new; a pilot the station
+///     cleared in who is traced at its terminal has a bounty for it (the terminal itself: registry_terminal_test);
 ///   - police scans fine forbidden goods;
 ///   - a pirate base sells false callsigns (each one new, on record as false) and SPOOF on a diskette, things the pilot
 ///     carries; a callsign sold back is no more;
@@ -68,19 +68,19 @@ public partial class ForgedCallsignTest : Node3D
         await Seconds(0.5);
 
         // The registry
-        Check("in a hangar, not cleared: the terminal is there for it", _registry.Serve("rook", new RegistryRequest { Station = _station.Id }).Present);
-        _registry.Serve("rook", new RegistryRequest { Station = _station.Id, Do = RegistryRequest.Start });
-        RegistryView early = _registry.Serve("rook", new RegistryRequest { Station = _station.Id, Do = RegistryRequest.Finish });
-        Check($"cut short: nothing ({early.Message})", pilot.Ship.Holds("registry_data") == 0 && early.Message.Contains("interrupted"));
-        _registry.Serve("rook", new RegistryRequest { Station = _station.Id, Do = RegistryRequest.Start });
-        universe.State.Clock += _registry.CopySeconds;
-        RegistryView copied = _registry.Serve("rook", new RegistryRequest { Station = _station.Id, Do = RegistryRequest.Finish });
+        Check("in a hangar, not cleared: the terminal is there for it", _registry.Serve("rook", Ask(RegistryRequest.Look)).Present);
+        RegistryView open = _registry.Serve("rook", Ask(RegistryRequest.Open));
+        List<string> live = Registries.Core(open.Seed, open.Records, open.Known).Records.Values.ToList();
+        Check($"a service session: the core has {live.Count} signatures", open.Session && live.Count == _registry.Records);
+        RegistryView one = _registry.Serve("rook", Ask(RegistryRequest.Write, live.Take(1)));
+        Check($"one signature is not a tonne ({one.Message})", pilot.Ship.Holds("registry_data") == 0 && one.Session);
+        RegistryView copied = _registry.Serve("rook", Ask(RegistryRequest.Write, live.Concat(new[] { "XX-0000" })));
         int tonnes = pilot.Ship.Holds("registry_data");
-        Check($"copied: {tonnes} t of registry data in the hold, between {_registry.MinTonnes} and {_registry.MaxTonnes} ({copied.Message})",
-              tonnes >= _registry.MinTonnes && tonnes <= _registry.MaxTonnes && StationRegistry.Good.Illegal);
+        Check($"all of them carved: {tonnes} t of registry data in the hold ({copied.Message})",
+              tonnes == _registry.MaxTonnes && copied.Written == tonnes && !copied.Session && StationRegistry.Good.Illegal);
         Check("unseen: nothing on the pilot's record", universe.State.Station(_station.Id).CrimesOf("rook").Bounty == 0);
-        RegistryView again = _registry.Serve("rook", new RegistryRequest { Station = _station.Id, Do = RegistryRequest.Start });
-        Check($"again too soon: nothing new ({again.Message})", again.Message.Contains("Nothing new"));
+        RegistryView again = _registry.Serve("rook", Ask(RegistryRequest.Open));
+        Check($"again too soon: nothing new ({again.Message})", again.Message.Contains("Nothing new") && !again.Session);
 
         // A pirate base's dealer
         var pirates = new StationRecord { Id = "PIRATES" };
@@ -151,17 +151,22 @@ public partial class ForgedCallsignTest : Node3D
         honest.Find<RadioDevice>().AskDocking();
         await Until(() => honest.Find<RadioDevice>().Dock != 0, 3);
         honest.GlobalPosition = _dock.InsidePoint + _dock.GlobalBasis.X * 15;
-        _registry.Serve("honest", new RegistryRequest { Station = _station.Id, Do = RegistryRequest.Start });
-        universe.State.Clock += _registry.CopySeconds;
-        RegistryView logged = _registry.Serve("honest", new RegistryRequest { Station = _station.Id, Do = RegistryRequest.Finish });
-        Check($"a pilot the station cleared in is logged ({logged.Message})",
-              universe.State.Station(_station.Id).CrimesOf("honest").Bounty == _registry.TheftBounty);
+        _registry.Serve("honest", Ask(RegistryRequest.Open));
+        RegistryView tried = null;
+        for (int i = 0; i < 100 && tried?.Locked != true; i++)
+            tried = _registry.Serve("honest", Ask(RegistryRequest.Failed));
+        Check($"wrong keys until the intrusion watch traces it: a pilot the station cleared in has a bounty ({tried.Message})",
+              tried.Locked && !tried.Session && universe.State.Station(_station.Id).CrimesOf("honest").Bounty == _registry.TheftBounty);
+        Check("and the terminal won't open for them", !_registry.Serve("honest", Ask(RegistryRequest.Open)).Session);
 
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GC.Collect();
         GC.WaitForPendingFinalizers();
         GetTree().Quit(_failures == 0 ? 0 : 1);
     }
+
+    private RegistryRequest Ask(string what, IEnumerable<string> records = null) =>
+        new() { Station = _station.Id, Do = what, Records = records?.ToList() ?? new() };
 
     private ShipBody Ship(string name, Vector3 at)
     {
