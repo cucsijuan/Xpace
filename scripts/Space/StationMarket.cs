@@ -102,6 +102,10 @@ public sealed class MarketLine
     public long Sell { get; set; }
     public int Stock { get; set; }
     public int Held { get; set; }
+    /// <summary>Of what the pilot holds, the tonnes that are stolen.</summary>
+    public int Stolen { get; set; }
+    /// <summary>What the market pays for the next stolen tonne (-1: it buys none).</summary>
+    public long Fenced { get; set; } = -1;
 }
 
 /// <summary>What a station's arms dealer shows a pilot.</summary>
@@ -201,6 +205,7 @@ public partial class StationMarket : Node
     [Export] public string HoldFullText = "The hold is full.";
     [Export] public string NotHeldText = "None of it in the hold.";
     [Export] public string NotTradedText = "Not traded here.";
+    [Export] public string StolenText = "Nobody here buys stolen goods.";
     [Export] public string NotPresentText = "You must be at this station: on foot here, or your ship in a hangar here.";
     /// <summary>{0} credits.</summary>
     [Export] public string PaidText = "Paid {0} credits. Nothing owed here.";
@@ -398,8 +403,9 @@ public partial class StationMarket : Node
             }
             else if (request.Do == MarketRequest.Sell)
             {
-                Market.Result result = Market.Sell(station, line, pilot, request.Tonnes, out int sold, out long earned, Radio.Cash);
-                message = sold > 0 ? string.Format(SoldText, sold, line.Good.Name, earned) : Why(result);
+                Market.Result result = Market.Sell(station, line, pilot, request.Tonnes, out int sold, out long earned, Radio.Cash, FenceShare(universe));
+                message = sold == 0 ? Why(result)
+                    : string.Format(SoldText, sold, line.Good.Name, earned) + (result == Market.Result.Done ? "" : " " + Why(result));
                 changed = sold > 0;
             }
         }
@@ -429,13 +435,15 @@ public partial class StationMarket : Node
                     {
                         Title = universe.NameOf(id), Name = line.Good.Name, Hours = (state.Clock - news.AsOf) / 3600, Stock = (int)good.Stock, Buy = good.Buy, Sell = good.Sell,
                     });
+        double fence = FenceShare(universe);
         foreach (MarketGood line in Goods.Where(g => g?.Good is { Traded: true }))
         {
             double stock = station.Stock.GetValueOrDefault(line.Good.Id);
             view.Lines.Add(new MarketLine
             {
                 Good = line.Good.Id, Name = line.Good.Name, Buy = Market.BuyPrice(station, line), Sell = Market.SellPrice(station, line),
-                Stock = (int)stock, Held = pilot.Ship.Holds(line.Good.Id),
+                Stock = (int)stock, Held = pilot.Ship.Holds(line.Good.Id), Stolen = pilot.Ship.StolenOf(line.Good.Id),
+                Fenced = fence < 0 ? -1 : Market.Fenced(Market.SellPrice(station, line), fence),
             });
         }
         return view;
@@ -588,19 +596,28 @@ public partial class StationMarket : Node
         return string.Format(FactorText, Universe.Current.NameOf(station), cost);
     }
 
-    /// <summary>Seized cargo: what the market buys of it at its prices, the rest at half its base price.</summary>
+    /// <summary>
+    /// Seized cargo: what the market buys of it at its prices, the rest at half its base price. Stolen goods count for
+    /// nothing against the debt, unless the owner here buys them.
+    /// </summary>
     private long Seize(ShipRecord ship)
     {
         StationRecord station = Universe.Current.State.Station(Radio.Id);
+        double fence = FenceShare(Universe.Current);
         var holder = new PilotRecord { Ship = ship };
         foreach ((string id, int tonnes) in ship.Cargo.ToList())
             if (Goods.FirstOrDefault(g => g?.Good?.Id == id) is MarketGood line)
-                Market.Sell(station, line, holder, tonnes, out _, out _, Radio.Cash);
+                Market.Sell(station, line, holder, tonnes, out _, out _, Radio.Cash, fence);
         foreach ((string id, int tonnes) in ship.Cargo)
-            holder.Credits += tonnes * (GoodsCatalog.Find(id)?.BasePrice ?? 0) / 2;
-        ship.Cargo.Clear();
+            holder.Credits += (fence < 0 ? ship.Clean(id) : tonnes) * (GoodsCatalog.Find(id)?.BasePrice ?? 0) / 2;
+        ship.Empty();
         return holder.Credits;
     }
+
+    /// <summary>What the owner here pays for stolen goods, as a share of the market's price; below 0, it buys none (<see cref="People.Fences"/>).</summary>
+    private double FenceShare(Universe universe) =>
+        universe?.Book?.Find(Radio.Id) is StationBook.Station here && People.Fences(here, universe.Population, universe.State, universe.Account)
+            ? universe.Population?.FenceShare ?? 1 : -1;
 
     // Money paid to the station goes to its owner
     private void Receive(long credits)
@@ -618,6 +635,7 @@ public partial class StationMarket : Node
         Market.Result.HoldFull => HoldFullText,
         Market.Result.RackFull => RackFullText,
         Market.Result.NotHeld => NotHeldText,
+        Market.Result.Stolen => StolenText,
         _ => NotTradedText,
     };
 

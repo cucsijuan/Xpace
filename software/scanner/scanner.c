@@ -1,4 +1,4 @@
-/* scanner.c - StubCorp Cargo Scanner 1.0 (SCANNER.COM)
+/* scanner.c - StubCorp Cargo Scanner 1.1 (SCANNER.COM)
  *
  *   SCANNER       stays resident, an application of the desktop
  *   SCANNER OFF   takes it out of memory
@@ -14,8 +14,9 @@
  *         bit 4 out of range)  +3 progress, 0 to 255  +4 write: 1 start,
  *         0 stop  +6 seconds left  +8 segment  +10 offset of the window.
  *         The window: +0 callsign (8 characters)  +8 capacity (t)
- *         +10 carried (t)  +12 kinds of good  +16 entries of 16 bytes: the
- *         good's name (12 characters), its tonnes.
+ *         +10 carried (t)  +12 kinds of good  +14 stolen (t)  +16 entries
+ *         of 16 bytes: the good's name (12 characters), its tonnes, of them
+ *         the stolen ones.
  *
  * Build: SMALLC -I. SCANNER.C
  */
@@ -25,7 +26,7 @@
 #define SCREEN      "COMMS "
 #define SCANNER     0x240
 #define TYPE_SCANNER 22
-#define SIGN        "XPSC10"
+#define SIGN        "XPSC11"
 #define MARK        'S'
 #define COLS        32
 #define ROWS        12
@@ -119,9 +120,10 @@ draw_row(r)
 int r;
 {
     int n, col;
+    unsigned stolen;
     if (r == 0) {
         clear_row(r, ATTR_TITLE);
-        put(r, 1, "CARGO SCANNER 1.0", ATTR_TITLE);
+        put(r, 1, "CARGO SCANNER 1.1", ATTR_TITLE);
         return;
     }
     clear_row(r, ATTR_LABEL);
@@ -150,7 +152,12 @@ int r;
         col = put_number(r, 9, peek(window_seg, window + 10));
         col = put(r, col, " / ", ATTR_LABEL);
         col = put_number(r, col, peek(window_seg, window + 8));
-        put(r, col, " t", ATTR_LABEL);
+        col = put(r, col, " t", ATTR_LABEL);
+        stolen = peek(window_seg, window + 14);
+        if (stolen) {
+            col = put_number(r, col + 2, stolen);
+            put(r, col, " STOLEN", ATTR_WARN);
+        }
     } else if (r >= GOODS_ROW && r < GOODS_ROW + GOODS_SHOWN && (status & HAS_READING)) {
         n = r - GOODS_ROW;
         if (n == 0 && peek(window_seg, window + 10) == 0)
@@ -158,7 +165,12 @@ int r;
         else if (n < peekb(window_seg, window + 12)) {
             put_window(r, 1, 16 + n * 16, 12, ATTR_GOOD);
             col = put_number(r, 15, peek(window_seg, window + 16 + n * 16 + 12));
-            put(r, col, " t", ATTR_LABEL);
+            col = put(r, col, " t", ATTR_LABEL);
+            stolen = peek(window_seg, window + 16 + n * 16 + 14);
+            if (stolen) {
+                col = put_number(r, col + 1, stolen);
+                put(r, col, " STOLEN", ATTR_WARN);
+            }
         }
     } else if (r == ROWS - 1) {
         put(r, 1, status & READING ? "SELECT: STOP" : "SELECT: SCAN", ATTR_LABEL);

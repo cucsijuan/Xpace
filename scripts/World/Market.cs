@@ -267,7 +267,10 @@ public static class Market
         stock + 1 <= Full * line.Stock ? (long)Math.Floor(Price(line, stock + 1) * SellShare) : -1;
 
     /// <summary>Why a trade didn't happen (or <see cref="Done"/>).</summary>
-    public enum Result { Done, NoStock, MarketFull, NoMoney, HoldFull, NotHeld, NotTraded, RackFull, NoCash }
+    public enum Result { Done, NoStock, MarketFull, NoMoney, HoldFull, NotHeld, NotTraded, RackFull, NoCash, Stolen }
+
+    /// <summary>What stolen goods fetch where they are bought: <paramref name="share"/> of the market's price.</summary>
+    public static long Fenced(long price, double share) => price < 0 ? price : (long)(price * share);
 
     /// <summary>
     /// The pilot buys one piece of equipment (a laser, a turret: <see cref="Xpace.Ship.Fittings.IsPiece"/>), put in
@@ -366,8 +369,12 @@ public static class Market
         return Result.Done;
     }
 
-    /// <summary>The pilot sells <paramref name="tonnes"/> of the good from the hold, as many as the hold has and the market takes.</summary>
-    public static Result Sell(StationRecord station, MarketGood line, PilotRecord pilot, int tonnes, out int sold, out long earned, IAccount cash = null)
+    /// <summary>
+    /// The pilot sells <paramref name="tonnes"/> of the good from the hold, as many as the hold has and the market takes:
+    /// the pilot's own tonnes first, then stolen ones where the owner buys them (<paramref name="fence"/> is the share of
+    /// the price it pays for them, <see cref="PopulationSpec.FenceShare"/>; below 0, it buys none).
+    /// </summary>
+    public static Result Sell(StationRecord station, MarketGood line, PilotRecord pilot, int tonnes, out int sold, out long earned, IAccount cash = null, double fence = -1)
     {
         sold = 0;
         earned = 0;
@@ -376,10 +383,15 @@ public static class Market
         {
             if (pilot.Ship.Holds(id) < 1)
                 return Result.NotHeld;
+            bool stolen = pilot.Ship.Clean(id) < 1;
+            if (stolen && fence < 0)
+                return Result.Stolen;
             double stock = station.Stock.TryGetValue(id, out double s) ? s : 0;
             long price = SellPrice(station, line);
             if (price < 0)
                 return Result.MarketFull;
+            if (stolen)
+                price = Fenced(price, fence);
             if (!Pay(cash, price))
                 return Result.NoCash;
             station.Stock[id] = stock + 1;

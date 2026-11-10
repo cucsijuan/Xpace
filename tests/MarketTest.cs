@@ -167,6 +167,14 @@ public partial class MarketTest : Node
         window.Ask(MarketRequest.Sell, "food", 1);
         await Seconds(0.2);
         Check($"none left to sell ({window.View.Message})", window.View.Message == market.NotHeldText);
+        me.Ship.Load("food", 1);
+        me.Ship.Steal("food", 2);
+        window.Ask(MarketRequest.Sell, "food", 3);
+        await Seconds(0.2);
+        MarketLine hot = window.View.Lines.First(l => l.Good == "food");
+        Check($"a lawful market buys the pilot's own tonne, not the stolen ones ({window.View.Message}, {hot.Held} t, {hot.Stolen} stolen)",
+              window.View.Message.StartsWith("Sold 1 t") && window.View.Message.EndsWith(market.StolenText) && hot.Held == 2 && hot.Stolen == 2 && hot.Fenced < 0);
+        me.Ship.Load("food", -2);
 
         universe.State.Station(market.Radio.Id).CrimesOf(me.Id).Fines = 200;
         before = me.Credits;

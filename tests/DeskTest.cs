@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Godot;
@@ -76,7 +77,8 @@ public partial class DeskTest : Node
         foreach (FighterAi ai in prey.FindChildren("*", "", true, false).OfType<FighterAi>())
             ai.ProcessMode = ProcessModeEnum.Disabled;
         var hold = new CargoHold();
-        hold.Carried.Cargo["iron"] = 7;
+        hold.Carried.Load("iron", 4);
+        hold.Carried.Steal("iron", 3);
         prey.AddChild(hold);
         main.Sector.AddChild(prey);
         prey.GlobalPosition = _ship.GlobalPosition - _ship.GlobalBasis.Z * 2000;
@@ -104,6 +106,8 @@ public partial class DeskTest : Node
         Check("ten seconds are not enough", scanner.Scanning && scanner.Result == null);
         await Seconds(6);
         Check($"after its time it has read the hold\n{Text()}", scanner.Result?.Tonnes == 7 && Text().Contains("IRON") && Text().Contains("7 / "));
+        await Seconds(0.5);
+        Check($"and what of it is stolen\n{Text()}", scanner.Result?.StolenTonnes == 3 && scanner.Result.Stolen.GetValueOrDefault("iron") == 3 && Text().Contains("3 STOLEN"));
 
         GC.Collect();
         GC.WaitForPendingFinalizers();

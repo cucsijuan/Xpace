@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using Godot;
 using Xpace.Computer;
@@ -15,16 +16,17 @@ namespace Xpace.Ship;
 /// (<see cref="Carried"/>). When the ship blows up its cargo is left drifting (<see cref="Xpace.Space.CargoPod"/>), and
 /// the hold's release, a lever with no computer in the way (<see cref="PilotControls.Jettison"/>), throws it all out.
 ///
-/// Registers: +0 type 19  +1 version 2  +2 capacity (t, word)  +4 carried (t, word)  +6 kinds of good aboard
+/// Registers: +0 type 19  +1 version 3  +2 capacity (t, word)  +4 carried (t, word)  +6 kinds of good aboard
 /// +8 segment of the list (D000h)  +10 its offset (<see cref="ShipMemory.Cargo"/>)
 /// +12 hydrogen in the tank (1/16 t, word)  +14 what the tank holds (1/16 t, word)
 /// The list: up to <see cref="MaxKinds"/> entries of 16 bytes: the good's name (12 characters, upper case, padded
-/// with spaces), its tonnes (word), 2 spare.
+/// with spaces), its tonnes (word), of them the stolen ones (word: taken out of space and not the pilot's own,
+/// <see cref="ShipRecord.Stolen"/>).
 /// </summary>
 public partial class CargoHold : Node, IShipDevice
 {
     public const int Slot = 17;
-    public const byte Type = 19, Version = 2;
+    public const byte Type = 19, Version = 3;
     public const int MaxKinds = 16, EntrySize = 16, NameLength = 12;
     public const float KilogramsPerTonne = 1000f;
 
@@ -64,7 +66,7 @@ public partial class CargoHold : Node, IShipDevice
         bus.SetWord(Slot, 10, ShipMemory.Cargo);
         bus.SetWord(Slot, 12, (short)Math.Min(32767, (ship.Device<CruiseDevice>()?.Fuel(ship) ?? 0) * 16));
         bus.SetWord(Slot, 14, (short)Math.Min(32767, ship.Spec.FuelTank * 16));
-        int kinds = List(ship.Computer.Memory + ShipMemory.Base + ShipMemory.Cargo, contents.Cargo, MaxKinds);
+        int kinds = List(ship.Computer.Memory + ShipMemory.Base + ShipMemory.Cargo, contents.Cargo, MaxKinds, contents.Stolen);
         bus[Slot, 6] = (byte)kinds;
     }
 
@@ -72,8 +74,8 @@ public partial class CargoHold : Node, IShipDevice
     {
     }
 
-    /// <summary>Writes a list of goods as programs read it: how many kinds it wrote.</summary>
-    public static unsafe int List(byte* list, System.Collections.Generic.IReadOnlyDictionary<string, int> cargo, int most)
+    /// <summary>Writes a list of goods as programs read it, with the stolen tonnes of each: how many kinds it wrote.</summary>
+    public static unsafe int List(byte* list, IReadOnlyDictionary<string, int> cargo, int most, IReadOnlyDictionary<string, int> stolen = null)
     {
         int kinds = 0;
         foreach ((string id, int tonnes) in cargo.OrderBy(c => c.Key, System.StringComparer.Ordinal))
@@ -86,7 +88,9 @@ public partial class CargoHold : Node, IShipDevice
                 entry[i] = name[i] is >= ' ' and <= '~' ? (byte)name[i] : (byte)'?';
             entry[12] = (byte)tonnes;
             entry[13] = (byte)(tonnes >> 8);
-            entry[14] = entry[15] = 0;
+            int hot = Math.Min(tonnes, stolen?.GetValueOrDefault(id) ?? 0);
+            entry[14] = (byte)hot;
+            entry[15] = (byte)(hot >> 8);
         }
         return kinds;
     }

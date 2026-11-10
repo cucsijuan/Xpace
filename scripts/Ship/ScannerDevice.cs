@@ -18,6 +18,10 @@ public sealed class ScanReading
     public int Tonnes { get; set; }
     /// <summary>Tonnes of each good aboard, by the good's id.</summary>
     public Dictionary<string, int> Cargo { get; set; } = new();
+    /// <summary>Of them, the stolen ones (<see cref="ShipRecord.Stolen"/>; a crew's loot), by the good's id.</summary>
+    public Dictionary<string, int> Stolen { get; set; } = new();
+    /// <summary>Stolen tonnes aboard, of all goods.</summary>
+    public int StolenTonnes { get; set; }
     /// <summary>The question it answers (on a guest, the answer comes later).</summary>
     public int Asked { get; set; }
 }
@@ -28,17 +32,17 @@ public sealed class ScanReading
 /// off by a deceiving jammer, starts it over. A pilot works it through a program, a ship's AI straight with
 /// <see cref="Start"/>. Scanning is no crime. In a session the hold is read by the owner of the universe.
 ///
-/// Registers: +0 type 22  +1 version 1  +2 status: bit 0 reading, bit 1 a reading is in the window, bit 2 it has a ship
+/// Registers: +0 type 22  +1 version 2  +2 status: bit 0 reading, bit 1 a reading is in the window, bit 2 it has a ship
 /// locked it could read, bit 3 the last reading was broken off, bit 4 out of range  +3 progress, 0 to 255
 /// +4 write: 1 start, 0 stop  +6 seconds left (word)  +8 segment of the window (D000h)  +10 its offset
 /// (<see cref="ShipMemory.Scan"/>)
 /// The window: +0 the ship's callsign (8 characters)  +8 capacity (t, word)  +10 carried (t, word)  +12 kinds of good
-/// +16 up to <see cref="MaxKinds"/> entries as the hold's list (<see cref="CargoHold"/>).
+/// +14 stolen (t, word)  +16 up to <see cref="MaxKinds"/> entries as the hold's list, stolen tonnes too (<see cref="CargoHold"/>).
 /// </summary>
 public partial class ScannerDevice : Node, IShipDevice, IRearmable
 {
     public const int Slot = 20;
-    public const byte Type = 22, Version = 1;
+    public const byte Type = 22, Version = 2;
     public const int MaxKinds = 8, ListAt = 16;
     public const byte Reading = 1, HasReading = 2, HasTarget = 4, Broken = 8, OutOfRange = 16;
 
@@ -189,6 +193,9 @@ public partial class ScannerDevice : Node, IShipDevice, IRearmable
         window[9] = (byte)(Result.Capacity >> 8);
         window[10] = (byte)Result.Tonnes;
         window[11] = (byte)(Result.Tonnes >> 8);
-        window[12] = (byte)CargoHold.List(window + ListAt, Result.Cargo, MaxKinds);
+        window[12] = (byte)CargoHold.List(window + ListAt, Result.Cargo, MaxKinds, Result.Stolen);
+        window[13] = 0;
+        window[14] = (byte)Result.StolenTonnes;
+        window[15] = (byte)(Result.StolenTonnes >> 8);
     }
 }

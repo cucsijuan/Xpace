@@ -130,9 +130,9 @@ public partial class MarketWindow : CanvasLayer, IKioskWindow
             _rows.AddChild(Number(line.Stock.ToString("N0")));
             _rows.AddChild(Number(line.Buy < 0 ? "-" : line.Buy.ToString("N0")));
             _rows.AddChild(Number(line.Sell < 0 ? "-" : line.Sell.ToString("N0")));
-            _rows.AddChild(Number(line.Held > 0 ? $"{line.Held} t" : ""));
+            _rows.AddChild(Number(line.Held == 0 ? "" : line.Stolen == 0 ? $"{line.Held} t" : $"{line.Held} t ({line.Stolen} stolen)"));
             _rows.AddChild(Trade("Buy", MarketRequest.Buy, line.Good, view.Docked && line.Buy >= 0));
-            _rows.AddChild(Trade("Sell", MarketRequest.Sell, line.Good, view.Docked && line.Sell >= 0 && line.Held > 0));
+            _rows.AddChild(Trade("Sell", MarketRequest.Sell, line.Good, view.Docked && line.Sell >= 0 && (line.Held > line.Stolen || line.Stolen > 0 && line.Fenced >= 0)));
         }
         ShowFactor(view);
         ShowNews(view);

@@ -347,12 +347,26 @@ public sealed class ShipRecord
     /// </summary>
     public Dictionary<string, string> Fittings { get; set; } = new();
 
+    /// <summary>
+    /// Of the tonnes in <see cref="Cargo"/>, by good, those taken out of space that were not the pilot's own: stolen,
+    /// and only a station whose owner asks no questions buys them (<see cref="Xpace.World.People.Fences"/>).
+    /// </summary>
+    public Dictionary<string, int> Stolen { get; set; } = new();
+
     public int Holds(string good) => Cargo.TryGetValue(good, out int t) ? t : 0;
+
+    public int StolenOf(string good) => Stolen.TryGetValue(good, out int t) ? Math.Min(t, Holds(good)) : 0;
+
+    /// <summary>Tonnes of a good aboard that are the pilot's by right.</summary>
+    public int Clean(string good) => Holds(good) - StolenOf(good);
 
     /// <summary>How many of a model are aboard, where a full rack is <paramref name="factory"/>.</summary>
     public int Rack(string model, int factory) => Magazine.TryGetValue(model, out int n) ? n : factory;
 
-    /// <summary>Adds (or with a negative count takes away) tonnes of a good; none left of it, it goes from the list.</summary>
+    /// <summary>
+    /// Adds (or with a negative count takes away) tonnes of a good; none left of it, it goes from the list. Taking
+    /// away takes the pilot's own tonnes first: what is left is stolen until nothing of it is.
+    /// </summary>
     public void Load(string good, int tonnes)
     {
         int now = Holds(good) + tonnes;
@@ -360,6 +374,29 @@ public sealed class ShipRecord
             Cargo[good] = now;
         else
             Cargo.Remove(good);
+        int stolen = Stolen.GetValueOrDefault(good);
+        if (stolen > now)
+            stolen = now;
+        if (stolen > 0)
+            Stolen[good] = stolen;
+        else
+            Stolen.Remove(good);
+    }
+
+    /// <summary>Adds tonnes of a good taken from someone else.</summary>
+    public void Steal(string good, int tonnes)
+    {
+        if (tonnes <= 0)
+            return;
+        Cargo[good] = Holds(good) + tonnes;
+        Stolen[good] = StolenOf(good) + tonnes;
+    }
+
+    /// <summary>The whole hold goes: nothing aboard, stolen or not.</summary>
+    public void Empty()
+    {
+        Cargo.Clear();
+        Stolen.Clear();
     }
 }
 

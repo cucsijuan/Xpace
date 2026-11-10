@@ -416,7 +416,7 @@ public partial class CargoView : Node
         if (ship.Find<FighterAi>() is not FighterAi pilot)
             return;
         Vector3 here = ship.GlobalPosition;
-        int room = (int)model.Hull.CargoCapacity - record.Loot.Values.Sum();
+        int room = (int)model.Hull.CargoCapacity - record.Tonnes - record.Loot.Values.Sum();
         var near = new List<Node>();
         Spatial.Grid(ship, Spatial.Pods).Within(here, PodMeters, near);
         CargoPod pod = near.OfType<CargoPod>().Where(p => IsInstanceValid(p) && p.Tonnes > 0).OrderBy(p => p.GlobalPosition.DistanceSquaredTo(here)).FirstOrDefault();
@@ -432,7 +432,10 @@ public partial class CargoView : Node
             if (pod.Clear && pod.GlobalPosition.DistanceTo(here) <= pod.ScoopMeters)
             {
                 string good = pod.Good;
-                record.Loot[good] = record.Loot.GetValueOrDefault(good) + pod.Take(room);
+                if (!pod.StolenBy(record.Owner) && good == record.Good)
+                    record.Tonnes += pod.Take(room);
+                else
+                    record.Loot[good] = record.Loot.GetValueOrDefault(good) + pod.Take(room);
             }
             return;
         }
@@ -586,7 +589,7 @@ public partial class CargoView : Node
             goods[record.Good] = goods.GetValueOrDefault(record.Good) + record.Tonnes;
         if (goods.Count > 0)
         {
-            CargoPod.Spill(ship, ship.LinearVelocity, goods);
+            CargoPod.Spill(ship, ship.LinearVelocity, goods, record.Owner, record.Loot);
             record.Tonnes = 0;
             record.Loot.Clear();
         }

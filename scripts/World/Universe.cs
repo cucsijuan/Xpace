@@ -414,8 +414,8 @@ public partial class Universe : Node
 
     private void Spill(Node3D ship, PilotRecord pilot)
     {
-        Xpace.Space.CargoPod.Spill(ship, (ship as Xpace.Ship.ShipBody)?.LinearVelocity ?? (ship as Xpace.Space.IRadarTarget)?.Velocity ?? Vector3.Zero, pilot.Ship.Cargo.ToList());
-        pilot.Ship.Cargo.Clear();
+        Xpace.Space.CargoPod.Spill(ship, (ship as Xpace.Ship.ShipBody)?.LinearVelocity ?? (ship as Xpace.Space.IRadarTarget)?.Velocity ?? Vector3.Zero, pilot.Ship.Cargo.ToList(), pilot.Id, pilot.Ship.Stolen);
+        pilot.Ship.Empty();
     }
 
     /// <summary>The tonnes a pilot's hold has free.</summary>
@@ -530,6 +530,9 @@ public partial class Universe : Node
         if (PilotOf(ship) is PilotRecord pilot)
         {
             reading.Cargo = new Dictionary<string, int>(pilot.Ship.Cargo);
+            foreach (string good in pilot.Ship.Cargo.Keys)
+                if (pilot.Ship.StolenOf(good) > 0)
+                    reading.Stolen[good] = pilot.Ship.StolenOf(good);
             reading.Capacity = (ResourceLoader.Exists(pilot.Ship.Hull) ? Xpace.World.ResourceCache.Load<Xpace.Ship.ShipSpec>(pilot.Ship.Hull)?.CargoCapacity : 0) ?? 0;
         }
         else if (body != null && State.CargoShips.TryGetValue(body.RecordId, out CargoShipRecord record))
@@ -537,15 +540,22 @@ public partial class Universe : Node
             if (record.Tonnes > 0 && record.Good != "")
                 reading.Cargo[record.Good] = record.Tonnes;
             foreach ((string good, int tonnes) in record.Loot)
+            {
                 reading.Cargo[good] = reading.Cargo.GetValueOrDefault(good) + tonnes;
+                reading.Stolen[good] = reading.Stolen.GetValueOrDefault(good) + tonnes;
+            }
             reading.Capacity = body.Spec?.CargoCapacity ?? 0;
         }
         else if (body?.Device<Xpace.Ship.CargoHold>() is Xpace.Ship.CargoHold hold)
         {
             reading.Cargo = new Dictionary<string, int>(hold.Carried.Cargo);
+            foreach (string good in hold.Carried.Cargo.Keys)
+                if (hold.Carried.StolenOf(good) > 0)
+                    reading.Stolen[good] = hold.Carried.StolenOf(good);
             reading.Capacity = hold.Capacity;
         }
         reading.Tonnes = reading.Cargo.Values.Sum();
+        reading.StolenTonnes = reading.Stolen.Values.Sum();
         return reading;
     }
 

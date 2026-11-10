@@ -162,7 +162,7 @@ public static class People
                 long had = person.Credits;
                 Market.Hand(record, line, tonnes, person, cash);
                 long got = person.Credits - had;
-                long kept = (long)(got * (1 - (spec?.FenceShare ?? 1)));
+                long kept = got - Market.Fenced(got, spec?.FenceShare ?? 1);
                 person.Credits -= kept;
                 if (cash != null)
                     cash.Credits += kept;

@@ -716,7 +716,7 @@ COOL resident.
 </table>
 
 <h2 class="cmd">Cargo Hold<span>210h &middot; type 19</span></h2>
-<p>The racks fitted in the hull's internal compartments, and what they carry. A compartment takes a rack of its size or smaller; a rack of size n holds 2<sup>n</sup> tonnes. Cargo is bought and sold at a station's market, never through the hold: the hold only tells what is aboard. A tonne of cargo weighs a tonne: a laden ship is slower to push and to turn. Version 1.</p>
+<p>The racks fitted in the hull's internal compartments, and what they carry. A compartment takes a rack of its size or smaller; a rack of size n holds 2<sup>n</sup> tonnes. Cargo is bought and sold at a station's market, never through the hold: the hold only tells what is aboard. A tonne of cargo weighs a tonne: a laden ship is slower to push and to turn. Version 3.</p>
 <table class="ref">
 <tr><th>Register</th><th>Contents</th></tr>
 <tr><td>+2 word</td><td>Capacity, in tonnes</td></tr>
@@ -730,6 +730,7 @@ COOL resident.
 <tr><th>Offset</th><th>Contents</th></tr>
 <tr><td>+0</td><td>The good's name: twelve characters, upper case, filled with spaces</td></tr>
 <tr><td>+12 word</td><td>Tonnes aboard</td></tr>
+<tr><td>+14 word</td><td>Of them, the stolen ones: taken out of space and not the crew's own. Most stations buy none of them.</td></tr>
 </table>
 
 <h2 class="cmd">Cruise Generator<span>220h &middot; type 20</span></h2>
@@ -773,7 +774,7 @@ COOL resident.
 <tr><td>+6</td><td>Seconds left (word)</td></tr>
 <tr><td>+8, +10</td><td>Segment and offset of the window</td></tr>
 </table>
-<p>The window: +0 the ship's callsign (8 characters), +8 its capacity in tonnes, +10 what it carries, +12 the kinds of good, +16 up to eight entries laid out as the hold's list.</p>
+<p>The window: +0 the ship's callsign (8 characters), +8 its capacity in tonnes, +10 what it carries, +12 the kinds of good, +14 the stolen tonnes of all goods, +16 up to eight entries laid out as the hold's list, stolen tonnes included. Stolen goods are those taken out of space that were not the crew's own; a scanner tells them by their pods' seals, so stolen tonnes stay stolen whoever holds them. Version 2.</p>
 
 <h2 class="cmd">Display Card<span>150h &middot; type 6</span></h2>
 <p>The cockpit's screens, other than the computer's console, with their memory in segment D000h. Each screen has a name (RADAR, WEAPON, RWR, FLIGHT), a size and a mode; a program finds the screen it draws on by its name, in the screen table. A cockpit may have more screens or fewer: a program that finds no screen of its name works the same, unseen. Version 4.</p>
@@ -832,7 +833,7 @@ COOL resident.
 <p>An application is any resident program that keeps to TSR.H. It calls <code>join_desk</code> with a mark of its own, its name and a 32 by 32 icon of 2 bits a pixel, and draws only while the screen's lending byte (+9 in the card's table) holds its mark. The desktop writes the mark to open it; the application writes 0 to go back. Up to six can join. SCANNER.C is a short example, and the speaker on ports 42h, 43h and 61h is free for any program.</p>
 
 <h2 class="cmd">SCANNER<span>Cargo scanner</span></h2>
-<p>An application of the desktop, also in Small-C. With a ship locked on the radar, SELECT starts a reading and stops it. It shows the lock, how far the reading has gone, then the ship, what its hold carries and what it can carry. BACK returns to the desktop.</p>
+<p>An application of the desktop, also in Small-C. With a ship locked on the radar, SELECT starts a reading and stops it. It shows the lock, how far the reading has gone, then the ship, what its hold carries and what it can carry, and how much of it is stolen. BACK returns to the desktop.</p>
 
 <h2 class="cmd">COMMS<span>Radio contacts</span></h2>
 <p>An application of the desktop: BACK on the list returns to it. Works the radio from the COMMS screen and its keys. It lists the contacts: callsign, station or ship, range in kilometres, and LAWS beside the station whose laws the radio holds (DOCK if it cleared the ship to a dock). UP and DOWN move the cursor, SELECT gives the contact's options (a station: request docking, request laws, request launch; a gate: request transit, request laws; a beacon: request data; any of them: set course) and SELECT again sends the one under the cursor; BACK returns to the list. Below, the last message heard and the hangar the ship is cleared to. The bottom line gives the speed limit where the ship is and whose it is, PROTECTED ZONE inside a zone but outside its speed limit, OPEN SPACE outside the zone of the laws held, NO LAWS RECEIVED with none.</p>
@@ -850,7 +851,7 @@ COOL resident.
 <tr><td>POWER</td><td>XPPW11</td></tr>
 <tr><td>COMMS</td><td>XPCM17</td></tr>
 <tr><td>DESK</td><td>XPDK10</td></tr>
-<tr><td>SCANNER</td><td>XPSC10</td></tr>
+<tr><td>SCANNER</td><td>XPSC11</td></tr>
 <tr><td>TUNE</td><td>XPTU10</td></tr>
 </table>
 <p>The last two characters are the version. Change them when you change a program, so that a new version is not taken for the old one; a program that finds another version of itself on the chain does not take it out.</p>

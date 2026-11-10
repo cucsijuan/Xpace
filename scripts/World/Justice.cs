@@ -72,7 +72,10 @@ public static class Justice
         if (record.Owed > 0 || !station.Impounded.Remove(pilot.Id, out ShipRecord ship))
             return false;
         foreach ((string good, int tonnes) in pilot.Ship.Cargo)
-            ship.Load(good, tonnes);            // what the courtesy ship carried comes along
+        {
+            ship.Load(good, pilot.Ship.Clean(good));            // what the courtesy ship carried comes along
+            ship.Steal(good, pilot.Ship.StolenOf(good));
+        }
         pilot.Ship = ship;
         return true;
     }
