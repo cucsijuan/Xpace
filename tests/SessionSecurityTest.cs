@@ -96,6 +96,7 @@ public partial class SessionSecurityTest : Node
         _origin.AddChild(station);
         var security = station.GetNode<StationSecurity>("Security");
         security.PoliceCount = 1;
+        security.Scans = false;                          // cargo scans are police_scan_test's: here the police only answer what ships do
         var traffic = station.GetNode<StationRadio>("Radio");
         traffic.ClearanceSeconds = 8;
         ShipBody victor = Ship("Victor", new Vector3(560, 0, 1000), 15);

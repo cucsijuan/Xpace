@@ -62,6 +62,18 @@ public enum Standing
 /// after as long out of the zone; a ship destroyed starts clean. Its own
 /// police may fire.
 ///
+/// Its police also read the holds of ships in the zone (<see cref="Scans"/>):
+/// a ship there for <see cref="ScanAfterSeconds"/> and not read in the last
+/// <see cref="RescanSeconds"/> is looked over, as a pirate looks a prey over:
+/// a police ship comes near, locks it and keeps the lock for as long as its
+/// scanner takes, and the ship is told (<see cref="ScanText"/>). Nothing makes
+/// the reading certain: a lock broken (a jammer, chaff, the station between
+/// them, or simply distance) starts it over, and a ship out of the zone is no
+/// longer looked for, nor one cleared to dock here, on its way in. Stolen goods found aboard a ship it can tell: a fine for
+/// each tonne not fined before (<see cref="StolenFinePerTonne"/>); aboard one
+/// it cannot tell (its radio off): hostile (<see cref="SmugglerText"/>). A
+/// station whose owner fences stolen goods reads nobody's hold.
+///
 /// In a session only the host's security acts, on every machine's ships
 /// alike (<see cref="SessionNode"/> tells it what they do).
 /// </summary>
@@ -94,6 +106,16 @@ public partial class StationSecurity : Node, IEngagement
     [Export] public double StandDownSeconds = 30;
     [Export] public double LaunchEverySeconds = 4;
 
+    [ExportGroup("Scans")]
+    /// <summary>Its police read the holds of ships in the zone.</summary>
+    [Export] public bool Scans = true;
+    /// <summary>How long a ship is in the zone before the police come to look at it.</summary>
+    [Export] public double ScanAfterSeconds = 10;
+    /// <summary>A ship read is left alone this long.</summary>
+    [Export] public double RescanSeconds = 600;
+    /// <summary>What each tonne of stolen goods found costs (credits).</summary>
+    [Export] public long StolenFinePerTonne = 200;
+
     [ExportGroup("Texts")]
     [Export] public string WarningText = "Weapons fire in the protected zone. Cease fire or you will be engaged.";
     /// <summary>{0} the fine.</summary>
@@ -109,6 +131,10 @@ public partial class StationSecurity : Node, IEngagement
     [Export] public string NotoriousText = "You are not welcome here. Police are engaging you.";
     /// <summary>{0} the speed (m/s), {1} the limit, {2} the fine.</summary>
     [Export] public string FineText = "Speeding at {0} m/s, limit {1} m/s. You have been fined {2} credits.";
+    [Export] public string ScanText = "Cargo scan in progress. Hold your course.";
+    /// <summary>{0} the stolen tonnes, {1} the fine.</summary>
+    [Export] public string StolenText = "Stolen goods aboard, {0} t. You have been fined {1} credits.";
+    [Export] public string SmugglerText = "Unidentified ship carrying stolen goods. Police are engaging you.";
 
     /// <summary>The station operator's lines for each text (see <see cref="StationRadio.Say"/>).</summary>
     [ExportGroup("Speech")]
@@ -120,6 +146,9 @@ public partial class StationSecurity : Node, IEngagement
     [Export] public string UnpaidAgainSpeech = "unpaid_again";
     [Export] public string AssaultSpeech = "assault";
     [Export] public string NotoriousSpeech = "notorious";
+    [Export] public string ScanSpeech = "";
+    [Export] public string StolenSpeech = "";
+    [Export] public string SmugglerSpeech = "";
 
     private sealed class Record
     {
@@ -139,6 +168,11 @@ public partial class StationSecurity : Node, IEngagement
     private readonly Dictionary<(Node3D By, Node3D Victim), double> _assaults = new();
     private readonly List<(Node3D Ship, FighterAi Pilot, HangarDock From)> _police = new();
     private readonly HashSet<Node3D> _returning = new();
+    private readonly Dictionary<Node3D, double> _inZone = new(), _scanned = new();
+    private readonly Dictionary<Node3D, int> _finedTonnes = new();
+    private readonly List<Node3D> _suspects = new();
+    private readonly HashSet<Node3D> _toldScan = new();
+    private readonly Dictionary<Node3D, (Node3D Of, ScanReading Before)> _reading = new();
     private double _now, _quiet, _sinceLaunch = double.MaxValue, _sinceLook;
     private int _launched;
 
@@ -168,7 +202,7 @@ public partial class StationSecurity : Node, IEngagement
     public bool Refuses(Node3D ship) => StandingOf(ship) == Standing.Hostile || Notorious(ship);
 
     /// <summary>Its pilot is wanted here: held on the pad until the bounty is paid (or the ship impounded for it).</summary>
-    public bool Holds(Node3D ship) =>
+    public bool Detains(Node3D ship) =>
         Jurisdiction(ship) is (PilotRecord pilot, CrimeRecord record) && Justice.Wanted(record) &&
         !Universe.Current.State.Station(Radio.Id).Impounded.ContainsKey(pilot.Id);
 
@@ -189,6 +223,17 @@ public partial class StationSecurity : Node, IEngagement
 
     /// <summary>The ships its police go after.</summary>
     public IEnumerable<Node3D> Hostiles => _records.Where(kv => kv.Value.Standing == Standing.Hostile && Valid(kv.Key)).Select(kv => kv.Key);
+
+    /// <summary>The ships its police are to look over now: their holds to be read.</summary>
+    public IReadOnlyList<Node3D> Suspects => _suspects;
+
+    /// <summary>When its police last read that ship's hold, if they have.</summary>
+    public double? ScannedAt(Node3D ship) => ship != null && _scanned.TryGetValue(ship, out double at) ? at : null;
+
+    // Its police's orders: the hostile ships, and the ships to look over
+    IEnumerable<Node3D> IEngagement.Hostiles => Hostiles.Concat(_suspects.Where(Valid)).Distinct();
+
+    bool IEngagement.Holds(Node3D ship) => ship != null && _suspects.Contains(ship) && StandingOf(ship) != Standing.Hostile;
 
     public bool IsPolice(Node3D ship) => _police.Any(p => p.Ship == ship);
 
@@ -280,6 +325,7 @@ public partial class StationSecurity : Node, IEngagement
         {
             Speeding(_sinceLook);
             OnSight();
+            LookFor();
             _sinceLook = 0;
         }
         Police(delta);
@@ -304,6 +350,10 @@ public partial class StationSecurity : Node, IEngagement
             _lastHit.Remove(ship);
         foreach (var pair in _assaults.Keys.Where(p => !Valid(p.By) || !Valid(p.Victim)).ToList())
             _assaults.Remove(pair);
+        foreach (Node3D ship in _scanned.Keys.Where(s => !Valid(s) || _now - _scanned[s] > RescanSeconds).ToList())
+            _scanned.Remove(ship);
+        foreach (Node3D ship in _finedTonnes.Keys.Where(s => !Valid(s)).ToList())
+            _finedTonnes.Remove(ship);
     }
 
     private void Speeding(double dt)
@@ -371,6 +421,84 @@ public partial class StationSecurity : Node, IEngagement
                 Engage(ship, NotoriousText, NotoriousSpeech);
     }
 
+    // ---------- cargo scans ----------
+
+    /// <summary>The station's owner deals in stolen goods: whose they were is no business of its police.</summary>
+    private bool Fences => Universe.Current is Universe universe && universe.Book?.Find(Radio.Id) is StationBook.Station here &&
+                           People.Fences(here, universe.Population, universe.State, universe.Account);
+
+    // Ships in the zone a while, not read lately, flying (not in a hangar, not cleared in: the station knows where those
+    // are going and won't send police through their door). Whoever flies them, a pilot or a crew on its way, alike
+    private void LookFor()
+    {
+        _suspects.Clear();
+        bool scans = Scans && PoliceScene != null && !Fences;
+        var seen = new HashSet<Node3D>();
+        foreach (Node node in Sectors.InGroup(this, Space.Radio.Group))
+        {
+            if (Combat.ShipOf(node) is not Node3D ship || !Combat.IsAlive(ship) || IsPolice(ship) || !seen.Add(ship))
+                continue;
+            if (!Radio.Protects(ship.GlobalPosition) || Radio.Inside(ship) || Radio.Expects(ship))
+            {
+                _inZone.Remove(ship);
+                continue;
+            }
+            _inZone.TryAdd(ship, _now);
+            if (scans && _now - _inZone[ship] >= ScanAfterSeconds && !_scanned.ContainsKey(ship) && StandingOf(ship) != Standing.Hostile)
+                _suspects.Add(ship);
+        }
+        foreach (Node3D ship in _inZone.Keys.Where(s => !seen.Contains(s)).ToList())
+            _inZone.Remove(ship);
+        _toldScan.RemoveWhere(s => !_suspects.Contains(s));
+    }
+
+    // A police ship's lock on a ship to look over: its scanner on it, and the reading, once it is done
+    private void Scan(ShipBody police)
+    {
+        if (police.Device<ScannerDevice>() is not ScannerDevice scanner)
+            return;
+        if (_reading.TryGetValue(police, out var reading) && scanner.ResultOf == reading.Of && scanner.Result != null &&
+            !ReferenceEquals(scanner.Result, reading.Before))
+        {
+            _reading.Remove(police);
+            if (Valid(reading.Of))
+                Scanned(reading.Of, scanner.Result);
+            return;
+        }
+        if (scanner.Scanning || police.Device<RadarDevice>()?.Tracked is not Node tracked || Combat.ShipOf(tracked) is not Node3D ship ||
+            !_suspects.Contains(ship))
+            return;
+        scanner.Start();
+        _reading[police] = (ship, scanner.Result);
+        if (_toldScan.Add(ship))
+            Say(ship, ScanText, ScanSpeech);
+    }
+
+    /// <summary>What its police read of a ship's hold.</summary>
+    private void Scanned(Node3D ship, ScanReading reading)
+    {
+        _scanned[ship] = _now;
+        _suspects.Remove(ship);
+        int fined = _finedTonnes.GetValueOrDefault(ship);
+        _finedTonnes[ship] = reading.StolenTonnes;
+        if (reading.StolenTonnes <= 0)
+            return;
+        if (!Identified(ship))
+        {
+            Engage(ship, SmugglerText, SmugglerSpeech, force: true);
+            return;
+        }
+        int tonnes = reading.StolenTonnes - fined;
+        if (tonnes <= 0)
+            return;
+        long fine = tonnes * StolenFinePerTonne;
+        if (Jurisdiction(ship) != null)
+            Owe(ship, fine, 0, 0);
+        else if (ship is ShipBody { Actor: { Length: > 0 } actor })
+            Reactions.Unpaid(Radio.Cash, actor, fine);  // a free person: a price on their head with the owner
+        Say(ship, string.Format(StolenText, reading.StolenTonnes, fine), StolenSpeech);
+    }
+
     private static Vector3? Velocity(Node3D ship) => ship switch
     {
         ShipBody b => b.LinearVelocity,
@@ -391,8 +519,11 @@ public partial class StationSecurity : Node, IEngagement
                 GetTree().CreateTimer(10).Timeout += () => { if (Valid(wreck)) wreck.QueueFree(); };
             }
         float reach = Radio.Laws.ZoneRadius + PursuitMargin;
-        Node3D[] wanted = Hostiles.Where(h => Combat.IsAlive(h) && h.GlobalPosition.DistanceTo(Radio.GlobalPosition) < reach).ToArray();
+        Node3D[] wanted = ((IEngagement)this).Hostiles.Where(h => Combat.IsAlive(h) && h.GlobalPosition.DistanceTo(Radio.GlobalPosition) < reach).ToArray();
         _quiet = wanted.Length > 0 ? 0 : _quiet + delta;
+        foreach (var (ship, _, _) in _police)
+            if (ship is ShipBody police && !_returning.Contains(ship))
+                Scan(police);
         if (wanted.Length > 0 && _police.Count < PoliceCount && _sinceLaunch > LaunchEverySeconds && PoliceScene != null)
             Launch(wanted[0]);
         foreach (var (ship, pilot, from) in _police)

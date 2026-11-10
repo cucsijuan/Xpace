@@ -209,7 +209,7 @@ public partial class MarketTest : Node
         Check($"the insurer's courtesy ship instead: its hull ({_ship.Spec.ResourcePath}), its hold ({hold.Capacity} t)",
               _ship.Spec.ResourcePath == ShipRecord.CourtesyHull && hold.Capacity == _ship.Spec.CargoCapacity && hold.Capacity < 10);
         Check($"its screens old monochrome tubes ({Tube()})", Tube().A == 1 && Tube().G > Tube().R);
-        Check("no longer held: it may launch", !market.Radio.Security.Holds(_ship));
+        Check("no longer held: it may launch", !market.Radio.Security.Detains(_ship));
 
         me.Credits = 100_000;
         universe.Touch(me);

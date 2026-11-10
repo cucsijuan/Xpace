@@ -423,7 +423,7 @@ public partial class StationRadio : Node3D, IRadio
             Say(ship, NotDockedText, NotDockedSpeech);
             return;
         }
-        if (Security?.Holds(ShipOf(ship)) == true && Security.Jurisdiction(ShipOf(ship)) is (_, World.CrimeRecord record))
+        if (Security?.Detains(ShipOf(ship)) == true && Security.Jurisdiction(ShipOf(ship)) is (_, World.CrimeRecord record))
         {
             Say(ship, string.Format(HeldText, record.Bounty), HeldSpeech);
             return;
@@ -435,6 +435,10 @@ public partial class StationRadio : Node3D, IRadio
 
     /// <summary>The ship is in one of the station's hangars (docked or not: a ship that slipped in counts).</summary>
     public bool Inside(Node3D ship) => ship != null && _docks.Any(d => d.Holds(ship));
+
+    /// <summary>The ship is cleared to dock here and on its way in (or docked), not leaving.</summary>
+    public bool Expects(Node3D ship) =>
+        ship != null && _cleared.Any(c => !c.Departing && c.Ship is GodotObject o && IsInstanceValid(o) && ShipOf(c.Ship) == ship);
 
     /// <summary>The ship is docked here, on the pad it was cleared to (and not leaving).</summary>
     public bool DockedHere(Node3D ship) =>

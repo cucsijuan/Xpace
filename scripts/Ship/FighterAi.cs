@@ -109,6 +109,8 @@ public partial class FighterAi : Node
     [Export] public Space.StationSecurity Police;
     /// <summary>Whoever else says whom it may fight (an escort's duty): only those.</summary>
     public Space.IEngagement Engagement;
+    // Whoever says whom it may fight: its station's security, else its duty
+    private Space.IEngagement Orders => (Space.IEngagement)Police ?? Engagement;
     [Export] public float RouteSpeed = 120f;            // m/s, along a route
     [Export] public float RouteEndSpeed = 25f;          // m/s, nearing the route's last point
     /// <summary>It goes after nobody: it only defends itself and does its job.</summary>
@@ -481,7 +483,7 @@ public partial class FighterAi : Node
         // Far off, or going faster than its engine alone takes it: it closes as fast as it can still match its speed
         float chase = Pursue(at, velocity, CloseRange);
         c.Throttle = range > 2000 || velocity.Length() > EngineTop() ? chase : Speed(range < CloseRange ? CloseSpeed : AttackSpeed);
-        if (Engagement?.Holds(Space.Combat.ShipOf(_radar.Tracked)) == true)
+        if (Orders?.Holds(Space.Combat.ShipOf(_radar.Tracked)) == true)
         {
             Doing = "looking it over";                  // its radar on it, its guns quiet
             c.Throttle = Pursue(at, velocity, InspectRange * 0.8f);
@@ -784,7 +786,7 @@ public partial class FighterAi : Node
             _trackSpeed = _interdictVelocity.Length();
         }
         bool settled = _trackSamples > 30;
-        bool looking = Engagement?.Holds(Space.Combat.ShipOf(_radar.Tracked)) == true;
+        bool looking = Orders?.Holds(Space.Combat.ShipOf(_radar.Tracked)) == true;
         bool want = tracking && settled && !looking && (_trackSpeed > EngineTop() * InterdictAboveShare || _interdictor.On);
         _interdictPulse = !_interdictPulse && want != _interdictor.On;
         return _interdictPulse;

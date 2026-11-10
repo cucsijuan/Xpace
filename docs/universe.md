@@ -226,11 +226,19 @@ with `Justice`'s rules; `StationSecurity` writes it from what it sees ships do i
 | Firing on after the warning | a fine (500) | the police engage, until the ship is out of the zone a while |
 | Damaging a ship that did nothing | a bounty (1,000) | engaged; docked, held on the pad until the bounty is paid |
 | Destroying one | a bounty (5,000) and infamy (2) | engaged; while infamy is 1 or more: docking refused and attacked on sight |
+| Stolen goods found aboard | a fine (200 a tonne, each tonne once) | none; with its radio off: engaged |
 
 - Money owed never goes away by itself. Infamy wears off at 0.5 an hour of the pilot's **played** time, and paying
   doesn't take it away.
 - Only a ship the station can tell is put on a pilot's record: one with its radio on. With the radio off it can't be
-  told (scanning comes later); it is still engaged for what it does.
+  told; it is still engaged for what it does, and for stolen goods found aboard.
+- **Cargo scans.** A ship in the zone for `ScanAfterSeconds` (10) and not read in the last `RescanSeconds` (600) is looked
+  over by the police, as a pirate looks a prey over: a police ship launches, comes within about a kilometre, locks it
+  and keeps the lock for as long as its scanner takes (CS-1: 15 s); the ship is told it is being scanned. Nothing
+  makes a reading certain: whatever breaks the lock (a jammer, chaff, the station between them, distance) starts it
+  over, a ship out of the zone is no longer looked for, and a ship cleared to dock here (on its way in) or docked is not looked at. A free person
+  caught with loot gets a price on their head with the station's owner. Stations whose owner fences stolen goods
+  read nobody's hold.
 - Two ways out for a pilot who can't dock: **slip in** (radio off, through a door opened for someone else, onto any
   floor of a hangar) and pay at the market at face value; or a disreputable **factor** at another station
   (`StationMarket.Factor`: only at Redhold, Red Maw's base) settles the debt for half as much again; the station owed gets its due and
