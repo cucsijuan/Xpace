@@ -410,6 +410,9 @@ public sealed class ShipRecord
         Stolen[good] = StolenOf(good) + tonnes;
     }
 
+    /// <summary>Where the ship was left (null: never flown; a new pilot starts docked at the map's start station).</summary>
+    public ShipPlace Place { get; set; }
+
     /// <summary>The whole hold goes: nothing aboard, stolen or not.</summary>
     public void Empty()
     {
@@ -545,3 +548,24 @@ public sealed class ForgedRecord
     /// <summary>The id the stations keep their records of it by, as if a pilot flew it.</summary>
     public string Pilot => "forged:" + Callsign;
 }
+
+/// <summary>
+/// Where a pilot's ship was left: its sector, its place and turn in the sector's frame (double, as the floating origin
+/// keeps it) and how it was moving; docked, the station, hangar and pad it sat on, which it is given back if free.
+/// </summary>
+public sealed class ShipPlace
+{
+    public string Sector { get; set; }
+    public double X { get; set; }
+    public double Y { get; set; }
+    public double Z { get; set; }
+    public float[] Turn { get; set; } = { 0, 0, 0, 1 };
+    public float[] Velocity { get; set; } = { 0, 0, 0 };
+    public float[] Spin { get; set; } = { 0, 0, 0 };
+
+    /// <summary>The station it was docked at (its <see cref="Xpace.Space.StationRadio.Id"/>), or null: in space.</summary>
+    public string Station { get; set; }
+    public int Dock { get; set; }
+    public int Pad { get; set; }
+}
+

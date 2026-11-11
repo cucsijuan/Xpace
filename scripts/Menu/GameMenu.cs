@@ -48,7 +48,11 @@ public partial class GameMenu : CanvasLayer
         };
         GetNode<Button>("%Backup").Pressed += SendBackup;
         GetNode<Button>("%MainMenu").Pressed += ToMainMenu;
-        GetNode<Button>("%Quit").Pressed += () => GetTree().Quit();
+        GetNode<Button>("%Quit").Pressed += () =>
+        {
+            Xpace.World.Universe.Current?.Save();      // while the ship is still here to say where it is
+            GetTree().Quit();
+        };
         Hide();
     }
 

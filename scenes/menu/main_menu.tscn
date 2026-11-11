@@ -132,6 +132,12 @@ layout_mode = 2
 text = "Settings"
 alignment = 0
 
+[node name="DeleteSave" type="Button" parent="Ui/Root/Menu"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Delete Save"
+alignment = 0
+
 [node name="Quit" type="Button" parent="Ui/Root/Menu" unique_id=128781192]
 unique_name_in_owner = true
 layout_mode = 2

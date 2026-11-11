@@ -12,3 +12,4 @@ script = ExtResource("1_map")
 Sectors = Array[ExtResource("2_sector")]([ExtResource("3_s01"), ExtResource("4_s02"), ExtResource("6_s03")])
 Population = ExtResource("5_people")
 Start = "sector_01"
+StartStation = "ALPHA"

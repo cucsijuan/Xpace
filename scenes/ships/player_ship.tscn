@@ -55,6 +55,7 @@
 [ext_resource type="Resource" path="res://assets/ship/interdictors/interdictor_i1.tres" id="interdictor_i1"]
 [ext_resource type="Script" uid="uid://bscdv08thiryu" path="res://scripts/Cockpit/NavMarker.cs" id="nav_marker"]
 [ext_resource type="Script" uid="uid://bjo8xxasvow5x" path="res://scripts/Ship/PilotShip.cs" id="pilot_ship"]
+[ext_resource type="Script" path="res://scripts/Ship/PilotPlace.cs" id="pilot_place"]
 [ext_resource type="Script" uid="uid://cmy33yl0n6lmu" path="res://scripts/OnFoot/ShipSeat.cs" id="seat_script"]
 [ext_resource type="PackedScene" path="res://scenes/characters/walker.tscn" id="walker_scene"]
 [ext_resource type="Script" uid="uid://dgrvmekmojxsh" path="res://scripts/OnFoot/WalkSurface.cs" id="walk_surface"]
@@ -184,6 +185,9 @@ script = ExtResource("cargo_hold")
 
 [node name="Fit" type="Node" parent="." unique_id=665607951]
 script = ExtResource("pilot_ship")
+
+[node name="Place" type="Node" parent="."]
+script = ExtResource("pilot_place")
 
 [node name="Power" type="Node" parent="Systems" unique_id=1962482993]
 script = ExtResource("60_power")

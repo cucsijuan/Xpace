@@ -343,6 +343,16 @@ public partial class LandingPad : Node3D, IShipHold
                body.AngularVelocity.Length() <= Mathf.DegToRad(CaptureSpin);
     }
 
+    /// <summary>Puts a ship down on it, docked at once (a game starting with the ship here).</summary>
+    public void Berth(ShipBody ship)
+    {
+        Transform3D rest = GlobalTransform * Rest(ship);
+        ship.State = new ShipState { Position = rest.Origin, Orientation = rest.Basis.Orthonormalized().GetRotationQuaternion() };
+        Take(ship);
+        State = PadState.Docked;
+        ShowGlow();
+    }
+
     private void Take(ShipBody ship)
     {
         HeldShip = ship;

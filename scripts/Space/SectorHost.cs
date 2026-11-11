@@ -119,7 +119,7 @@ public partial class SectorHost : Node
 
     public override void _Ready()
     {
-        Sector start = (StartSector != "" ? Map?.Find(StartSector) : null) ?? Map?.First;
+        Sector start = PilotPlace.SavedSector(Map) ?? (StartSector != "" ? Map?.Find(StartSector) : null) ?? Map?.First;
         if (start == null || ShipScene == null)
         {
             GD.PushError("SectorHost: no sector to start in, or no ship");

@@ -248,9 +248,45 @@ public partial class Universe : Node
         _dirty = _touched = false;
     }
 
+    /// <summary>The universe is about to be written: what keeps its state in nodes puts it in the records now.</summary>
+    public event Action Saving;
+
+    /// <summary>
+    /// Ends the universe kept in <paramref name="folder"/> for good: nothing of it is saved, its folder and the pilot's
+    /// diskettes (in <paramref name="disks"/>; null: none) are deleted, and play goes on in a new one kept only in
+    /// memory (the next <see cref="Open"/> starts it afresh).
+    /// </summary>
+    public void Delete(string folder = DefaultFolder, string disks = DisksFolder)
+    {
+        _saving = null;
+        _writing?.Wait();
+        State = new UniverseState();
+        Folder = null;
+        _dirty = _touched = false;
+        foreach (string gone in new[] { folder, disks })
+        {
+            if (string.IsNullOrEmpty(gone))
+                continue;
+            string path = ProjectSettings.GlobalizePath(gone);
+            try
+            {
+                if (System.IO.Directory.Exists(path))
+                    System.IO.Directory.Delete(path, true);
+            }
+            catch (Exception e) when (e is System.IO.IOException or UnauthorizedAccessException)
+            {
+                GD.PushError($"universe: couldn't delete {path}: {e.Message}");
+            }
+        }
+    }
+
+    /// <summary>Where the pilot's ship diskette and the insurer's copy are kept.</summary>
+    public const string DisksFolder = "user://disks";
+
     /// <summary>Writes the universe to its folder now, if it changed.</summary>
     public void Save()
     {
+        Saving?.Invoke();
         if (_saving != null)
         {
             _saving = null;

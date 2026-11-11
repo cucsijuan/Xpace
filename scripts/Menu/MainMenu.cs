@@ -43,7 +43,9 @@ public partial class MainMenu : Node3D
         var multi = GetNode<Button>("%Multiplayer");
         var settings = GetNode<Button>("%SettingsButton");
         var quit = GetNode<Button>("%Quit");
-        _buttons = new[] { single, multi, settings, quit };
+        var delete = GetNode<Button>("%DeleteSave");
+        _buttons = new[] { single, multi, settings, delete, quit };
+        delete.Pressed += AskDelete;
         single.Pressed += Play;
         multi.Pressed += PlayOnline;
         settings.Pressed += () =>
@@ -182,6 +184,31 @@ public partial class MainMenu : Node3D
         string.Join("\n", markdown.Replace("\r", "").Split('\n')
                 .Select(line => line.StartsWith('#') ? line.TrimStart('#', ' ').ToUpperInvariant() : line))
             .Replace("**", "").Replace("*", "").Replace("`", "");
+
+    /// <summary>Asks before deleting the saved game: the universe, the pilot's money, ship and where it was, and the diskettes.</summary>
+    private void AskDelete()
+    {
+        var ask = new ConfirmationDialog
+        {
+            Title = "Delete Save",
+            DialogText = "Delete the saved game? Your credits, ship, cargo, where you left it and the ship's diskettes " +
+                         "are lost, and the universe starts again. This cannot be undone.",
+            OkButtonText = "Delete",
+            CancelButtonText = "Keep it",
+            DialogAutowrap = true,
+            MinSize = new Vector2I(520, 0),
+        };
+        ask.Confirmed += () =>
+        {
+            World.Universe.Current?.Delete();
+            _status.Text = "Save deleted: the next game starts anew.";
+        };
+        ask.Canceled += ask.QueueFree;
+        ask.Confirmed += ask.QueueFree;
+        AddChild(ask);
+        ask.PopupCentered();
+        ask.GetCancelButton().GrabFocus();
+    }
 
     private void Play()
     {

@@ -462,6 +462,36 @@ public partial class StationRadio : Node3D, IRadio
         Say(ship, string.Format(LaunchText, c.Dock.Number, c.Pad?.Number ?? 0), LaunchSpeech, c.Dock.Number);
     }
 
+    /// <summary>
+    /// Gives a ship that starts the game here a pad as if it had docked: cleared to it and sitting on it, the door shut.
+    /// The pad it asks for if that is free, else the nearest free one that fits; false if none. Only where the station
+    /// acts (alone or the host).
+    /// </summary>
+    public bool Berth(IRadioReceiver ship, int dock = 0, int pad = 0)
+    {
+        Node3D body = ShipOf(ship);
+        if (body is not Xpace.Ship.ShipBody held || Of(ship) != null)
+            return false;
+        Clearance c = null;
+        foreach (HangarDock d in _docks.OrderBy(d => d.Number == dock ? 0 : 1).ThenBy(d => d.Number))
+            if (Free(d, body, out LandingPad p) && p != null)
+            {
+                if (d.Number == dock && pad > 0 && d.PadNumbered(pad) is LandingPad asked && asked != p && asked.Fits(body) &&
+                    _cleared.All(x => x.Pad != asked) && !CargoOn(d, asked) && asked.Occupant == null)
+                    p = asked;
+                c = new Clearance { Dock = d, Pad = p, Ship = ship, Docked = true, Until = _now + ClearanceSeconds };
+                break;
+            }
+        if (c == null)
+            return false;
+        _cleared.Add(c);
+        c.Pad.AssignedTo = body;
+        c.Pad.Berth(held);
+        ship.Cleared(this, c.Dock.Number, c.Pad.Number);
+        Doors(c.Dock);
+        return true;
+    }
+
     /// <summary>The ship is in one of the station's hangars (docked or not: a ship that slipped in counts).</summary>
     public bool Inside(Node3D ship) => ship != null && _docks.Any(d => d.Holds(ship));
 

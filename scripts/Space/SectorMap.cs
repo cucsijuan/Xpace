@@ -13,6 +13,9 @@ public partial class SectorMap : Resource
 
     [Export] public string Start = "";
 
+    /// <summary>The station (its <see cref="StationRadio.Id"/>, in the start sector) a new pilot starts docked at; empty: in space at the sector's PlayerStart.</summary>
+    [Export] public string StartStation = "";
+
     public Sector Find(string id)
     {
         foreach (Sector s in Sectors)
