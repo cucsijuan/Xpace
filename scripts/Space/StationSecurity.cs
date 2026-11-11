@@ -263,7 +263,8 @@ public partial class StationSecurity : Node, IEngagement
         Engage(ship, string.Format(UnmaskedText, forged.Callsign, ForgeryBounty), UnmaskedSpeech, force: true);
     }
 
-    private static bool Identified(Node3D ship) =>
+    /// <summary>The ship says who it is: its radio is on.</summary>
+    public static bool Identified(Node3D ship) =>
         ship.FindChildren("*", "", true, false).OfType<IRadio>().Any(r => r.RadioOn);
 
     /// <summary>The ships its police go after.</summary>

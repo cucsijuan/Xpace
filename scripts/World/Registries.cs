@@ -24,6 +24,9 @@ public static class Registries
         return Math.Min(room, Random.Next(min, max + 1));
     }
 
+    /// <summary>Whether a crew working the station's terminal is traced by its intrusion watch: the dice, at the station's <see cref="StationBook.Station.RegistryTraceChance"/>.</summary>
+    public static bool CrewTraced(StationBook.Station station) => Random.NextDouble() < station.RegistryTraceChance;
+
     /// <summary>The registry has something new for <paramref name="actor"/>: they never copied it, or long enough ago.</summary>
     public static bool Fresh(StationRecord station, string actor, double freshHours, double clock) =>
         !station.RegistryCopied.TryGetValue(actor, out double at) || clock - at >= freshHours * 3600;

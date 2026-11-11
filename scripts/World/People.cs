@@ -109,6 +109,8 @@ public static class People
         // With stolen goods aboard and no buyer for them here, to the nearest station that takes them and can be paid the way to
         if (ship.Loot.Count > 0 && NearestFence(here, model, person, spec, state, book, account) is StationBook.Station fence)
             return CargoShips.Hop(ship, model, fence, state, book, account);
+        if (Slip(ship, model, here, person, state, book, account))
+            return true;
         if (person.Quarry != "" && state.Sightings.GetValueOrDefault(person.Quarry) is Sighting seen)
         {
             StationBook.Station nearest = book.Stations.Where(s => s.Sector == seen.Sector && s.Pads.Any(p => book.Fits(p, model)) && CargoShips.Admits(s, person.Id, state, account)).OrderBy(s => s.At.DistanceTo(seen.At)).FirstOrDefault();
@@ -189,18 +191,40 @@ public static class People
         person.Callsigns.Add(line.Item.MakeItem(state).Name);
     }
 
-    // Docked as someone else at a lawful station that keeps a registry: a copy of it, as loot for a fence. The terminal
-    // logs who was docked: the false callsign, which is no good any more
+    // In the hangar of a lawful station that keeps a registry, docked as someone else or slipped in unseen: its terminal,
+    // worked by the crew. They don't play its keys: whether its intrusion watch traces them is a throw of the dice
+    // (StationRegistry.CrewTraceChance), and traced they get what a pilot would (CargoShips.Traced); else a copy, as loot
+    // for a fence
     private static void Heist(CargoShipRecord ship, ShipModel model, StationBook.Station here, PersonRecord person, UniverseState state, Func<string, IAccount> account)
     {
-        if (string.IsNullOrEmpty(ship.Sending) || !state.Forged.ContainsKey(ship.Sending) || !CargoShips.Heist(here, person, state, account))
-            return;
+        bool posing = !string.IsNullOrEmpty(ship.Sending) && state.Forged.ContainsKey(ship.Sending);
         int room = (int)model.Hull.CargoCapacity - ship.Tonnes - ship.Loot.Values.Sum();
-        int tonnes = Registries.Copy(state.Station(here.Id), person.Id, here.RegistryMin, here.RegistryMax, here.RegistryFreshHours, room, state.Clock);
-        if (tonnes <= 0)
+        if (!(posing || ship.Stowed) || room <= 0 || !CargoShips.Heist(here, person, state, account))
             return;
-        ship.Loot["registry_data"] = ship.Loot.GetValueOrDefault("registry_data") + tonnes;
-        state.Forged[ship.Sending].Burned = true;
+        if (Registries.CrewTraced(here))
+        {
+            state.Station(here.Id).RegistryCopied[person.Id] = state.Clock;     // the service locked for them, as long as for a pilot
+            CargoShips.Traced(ship, here, state, account);
+            return;
+        }
+        int tonnes = Registries.Copy(state.Station(here.Id), person.Id, here.RegistryMin, here.RegistryMax, here.RegistryFreshHours, room, state.Clock);
+        if (tonnes > 0)
+            ship.Loot["registry_data"] = ship.Loot.GetValueOrDefault("registry_data") + tonnes;
+    }
+
+    // A shady person with room aboard and no false callsign that will pass slips into the nearest lawful station that keeps a
+    // registry they haven't copied lately, unseen, if there is a way in its watches don't see
+    private static bool Slip(CargoShipRecord ship, ShipModel model, StationBook.Station here, PersonRecord person, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        int room = (int)model.Hull.CargoCapacity - ship.Tonnes - ship.Loot.Values.Sum();
+        if (!CargoShips.Shady(person) || room <= 0 || Registries.Usable(state, person) != null)
+            return false;
+        foreach (StationBook.Station target in book.Stations.Where(s => s != here && s.Pads.Any(p => book.Fits(p, model)) && book.Way(here.Sector, s.Sector) != null &&
+                                                                        person.Credits >= CargoShips.TollsBetween(book, here, s) && CargoShips.Heist(s, person, state, account))
+                     .OrderBy(s => book.Seconds(here, s, model, 0)).ThenBy(s => s.Id, StringComparer.Ordinal))
+            if (CargoShips.Slip(ship, model, target, state, book, account))
+                return true;
+        return false;
     }
 
     // The nearest station that buys stolen goods (by the way's time), unless this one does; null: none it can reach

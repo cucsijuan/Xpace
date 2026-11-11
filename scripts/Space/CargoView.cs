@@ -227,6 +227,11 @@ public partial class CargoView : Node
         }
         if (ship == null && root != null && model.Scene != null)
             ship = Bring(record, model, fix.Value, root);
+        if (ship != null && fix is StationBook.Fix seenAt && Seen(record, ship))
+        {
+            CargoShips.Spotted(record, model, seenAt.Sector, seenAt.At, universe.State, universe.Book, universe.Account);
+            universe.Touch();
+        }
         if (ship != null)
         {
             Doors(record, ship, model, universe);
@@ -500,8 +505,12 @@ public partial class CargoView : Node
         return false;
     }
 
+    /// <summary>The one in the game now (the shell's), or null.</summary>
+    public static CargoView Current { get; private set; }
+
     public override void _EnterTree()
     {
+        Current = this;
         Combat.Damaged += Struck;
         Combat.Destroyed += Destroyed;
         JumpGate.Entered += PlayerThroughGate;
@@ -509,6 +518,8 @@ public partial class CargoView : Node
 
     public override void _ExitTree()
     {
+        if (Current == this)
+            Current = null;
         Combat.Damaged -= Struck;
         Combat.Destroyed -= Destroyed;
         JumpGate.Entered -= PlayerThroughGate;
@@ -650,6 +661,8 @@ public partial class CargoView : Node
             foreach (Datalink link in parts.OfType<Datalink>())
                 link.Channel = person.Id;
         }
+        foreach (RadioDevice set in parts.OfType<RadioDevice>())
+            set.Powered = !record.Unseen;                  // slipping in or out, from the first step
         foreach (FighterAi pilot in parts.OfType<FighterAi>())
             pilot.Engagement = _duties[record.Id];
         var run = new CargoRun(record, model, fix, root);
@@ -673,9 +686,18 @@ public partial class CargoView : Node
         return ship;
     }
 
-    // Its station opens the door for it when it is cleared to leave, or to land, until it is through
+    // Slipping into a hangar, the watch of one of its station's hangars noticed it
+    private bool Seen(CargoShipRecord record, ShipBody ship) =>
+        record.SlipDock > 0 && record.Phase is CargoShipRecord.Flying or CargoShipRecord.Holding &&
+        StationRadio.Called(record.Going) is StationRadio station &&
+        station.Docks.Any(d => d.Watch?.NoticedAgo(ship) is double ago && ago <= LookEverySeconds + 0.5);
+
+    // Its station opens the door for it when it is cleared to leave, or to land, until it is through (not for one that
+    // slips in or out unseen: it goes when the door is open for someone else)
     private void Doors(CargoShipRecord record, ShipBody ship, ShipModel model, Universe universe)
     {
+        if (record.Unseen)
+            return;
         double since = universe.State.Clock - record.Left;
         if (record.Phase == CargoShipRecord.Landing)
             StationRadio.Called(record.Going)?.OpenFor(record.Dock, ship, DoorSeconds);
@@ -721,7 +743,11 @@ public sealed class CargoRun : IShipHold
         StationBook.Fix? where = Universe.Current.Book.FixOf(_record, _model, state.Clock);
         if (where is not StationBook.Fix fix)
             return ship.State;
-        ship.Device<RadioDevice>()?.Transmit(_record.Sending);      // the callsign its crew has it send
+        if (ship.Device<RadioDevice>() is RadioDevice radio)
+        {
+            radio.Powered = !_record.Unseen;                         // slipping in or out, it says nothing
+            radio.Transmit(_record.Sending);                        // the callsign its crew has it send
+        }
         CruiseDevice cruise = ship.Device<CruiseDevice>();
         if (ship.Dormant)
             cruise?.Fade((float)delta);

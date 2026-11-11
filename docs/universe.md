@@ -289,11 +289,25 @@ with `Justice`'s rules; `StationSecurity` writes it from what it sees ships do i
   the door): burned everywhere, the ship hostile, its pilot with `ForgeryBounty`. So: slipping in is free but takes
   skill and an open door; a false callsign docks as anyone does but costs money and dockings, and a scan before the
   pad ends it; at a tight station only slipping in works.
-  Free people do the same by the same rules (`Registries`, `CargoShips.Disguise/Admits/Heist`, `People.BuyCallsign/Heist`): a
-  shady one (`Personality.Shadiness` at least the fences') buys a false callsign at a fence, docks as someone else at a
-  lawful station whose registry has something new for them (or where they are wanted), copies it into their loot, the
-  callsign is logged and burned, and they take the loot to the nearest fence. A shown ship sends its crew's callsign
-  (`CargoShipRecord.Sending`), so a police scan finds them out as it would a pilot.
+  Free people do the same by the same rules (`Registries`, `CargoShips.Disguise/Admits/Heist/Slip`, `People.BuyCallsign/Heist/Slip`): a
+  shady one (`Personality.Shadiness` at least the fences') buys a false callsign at a fence and docks as someone else at a
+  lawful station whose registry has something new for them (or where they are wanted). With no callsign that passes
+  they slip in unseen, as a pilot can: `StationBook.Slip` finds a way in that none of the station's hangar watches
+  sees (`StationBook.Watch`, read from each `HangarWatch`: its cone and reach), out beyond every watch's reach, along the
+  hull (`HullClearance` out) to beside a mouth (`HugMeters`), and across the front of the mouth under its own watch.
+  The ship flies it with its radio off (`CargoShipRecord.SlipDock`, `SlipOut`, `Stowed`: `Unseen`), waits beside the
+  mouth until the door opens for someone else (`CargoShips.DoorOpen`: the real door where the sector is loaded, else
+  a ship of the records cleared through it), and goes onto a free pad nobody cleared it to; the logbook never has it.
+  It leaves the same way when the door opens again. Waiting longer than `Personality.LurkHours` it goes elsewhere; seen
+  on the way (by the real watches where it is shown, `CargoView`; by `StationBook.Unseen` on its last legs out of
+  sight), it turns away and keeps away from there for `Personality.SpottedHours` (`PersonRecord.Spotted`). On the
+  pad, docked as someone else or slipped in, the crew works the terminal: they don't play its keys, so whether the
+  intrusion watch traces them is the one throw of the dice (`StationRegistry.CrewTraceChance`). Not traced, the
+  registry goes into their loot and the callsign still passes; traced, the station acts as on a pilot
+  (`StationRegistry.Caught`, or `CargoShips.Traced` out of sight): a false callsign found out (burned, `ForgeryBounty`
+  on the person), one that says who it is `TheftBounty`, one that doesn't noticed by the hangar's watch and hostile
+  where it is shown, nobody anyone can name out of sight. They take the loot to the nearest fence. A shown ship sends
+  its crew's callsign (`CargoShipRecord.Sending`), so a police scan finds them out as it would a pilot.
 - A wanted pilot with no money **surrenders**: the cargo is seized (the market buys it), and if that isn't enough the
   ship is impounded on the pad, kept free until paid; the insurer gives a free **courtesy ship**
   (`assets/ship/hulls/hull_courtesy.tres`: a small hold, old green monochrome screens) to earn it back. Paying it all at

@@ -164,6 +164,15 @@ public sealed class CargoShipRecord
     public Dictionary<string, int> Loot { get; set; } = new();
     /// <summary>The false callsign its radio sends at the station it is docked at or going into ("": its own).</summary>
     public string Sending { get; set; } = "";
+    /// <summary>
+    /// Unseen: it is going into that dock of the station it is going to, where it waits beside the mouth for the door
+    /// (0: it asks for a pad as anyone); it left a pad nobody cleared it to by a way the watches don't see; it stands
+    /// on one. Its radio is off all the while (<see cref="Unseen"/>).
+    /// </summary>
+    public int SlipDock { get; set; }
+    public bool SlipOut { get; set; }
+    public bool Stowed { get; set; }
+    [JsonIgnore] public bool Unseen => SlipDock > 0 || SlipOut || Stowed;
     /// <summary>Tonnes it has brought home in all.</summary>
     public long Delivered { get; set; }
 }
@@ -236,6 +245,8 @@ public sealed class PersonRecord : IAccount, IRemembers
     public string Quarry { get; set; } = "";
     /// <summary>False callsigns the person carries (<see cref="UniverseState.Forged"/>), to dock where they would be turned away.</summary>
     public List<string> Callsigns { get; set; } = new();
+    /// <summary>Stations whose hangar watch saw them slipping in, and when: they keep away a while.</summary>
+    public Dictionary<string, double> Spotted { get; set; } = new();
 }
 
 /// <summary>A company, corporation, guild or faction as it stands now, known by an id (for one set up by hand, its <see cref="Organisation"/>'s).</summary>

@@ -30,6 +30,26 @@ public sealed class StationBook
         public int RegistryMin, RegistryMax;
         public long RegistryBounty;
         public double RegistryFreshHours;
+        /// <summary>How likely a crew working its terminal is traced (<see cref="Xpace.Space.StationRegistry.CrewTraceChance"/>), and what a false callsign found out costs.</summary>
+        public double RegistryTraceChance;
+        public long ForgeryBounty;
+        /// <summary>The eyes at its hangars' mouths (<see cref="Xpace.Space.HangarWatch"/>).</summary>
+        public List<Watch> Watches = new();
+    }
+
+    /// <summary>A hangar's watch: where it looks from and along (its -Z), how wide and how far it sees.</summary>
+    public sealed class Watch
+    {
+        public Vector3 At, Look;
+        public float Cos, Range;
+
+        /// <summary>A ship there is in front of it, near enough to be seen.</summary>
+        public bool Sees(Vector3 point)
+        {
+            Vector3 to = point - At;
+            float range = to.Length();
+            return range >= 1 && range <= Range && to.Dot(Look) >= Cos * range;
+        }
     }
 
     /// <summary>A landing pad of a station, with the way to it from outside its hangar's door.</summary>
@@ -38,6 +58,8 @@ public sealed class StationBook
         public int Dock, Number;
         public Transform3D Pose;
         public Vector3 Door, Inside;
+        /// <summary>Its hangar's mouth (the dock's own place) and the dock's sideways and up.</summary>
+        public Vector3 Mouth, Side, Up;
         public Vector2 Footprint;
         public float Height, Clearance, Lift;
     }
@@ -116,6 +138,9 @@ public sealed class StationBook
                     RegistryMax = parent.GetNodeOrNull<Xpace.Space.StationRegistry>("Registry")?.MaxTonnes ?? 0,
                     RegistryBounty = parent.GetNodeOrNull<Xpace.Space.StationRegistry>("Registry")?.TheftBounty ?? 0,
                     RegistryFreshHours = parent.GetNodeOrNull<Xpace.Space.StationRegistry>("Registry")?.FreshHours ?? 0,
+                    RegistryTraceChance = parent.GetNodeOrNull<Xpace.Space.StationRegistry>("Registry")?.CrewTraceChance ?? 0,
+                    ForgeryBounty = parent.GetNodeOrNull<Xpace.Space.StationSecurity>("Security")?.ForgeryBounty ?? 0,
+                    Watches = WatchesOf(parent),
                 });
         }
     }
@@ -136,11 +161,20 @@ public sealed class StationBook
                 {
                     Dock = dock.Number != 0 ? dock.Number : d + 1, Number = numbers[p], Pose = Pose(here[p]),
                     Door = pose * dock.Approach, Inside = pose * dock.Inside, Footprint = here[p].MaxFootprint, Height = here[p].MaxHeight,
+                    Mouth = pose.Origin, Side = pose.Basis.X.Normalized(), Up = pose.Basis.Y.Normalized(),
                     Clearance = here[p].Clearance, Lift = here[p].LaunchHeight,
                 });
         }
         return pads;
     }
+
+    private static List<Watch> WatchesOf(Node station) =>
+        station.FindChildren("*", "", true, false).OfType<Xpace.Space.HangarWatch>().Select(w =>
+        {
+            Transform3D pose = Pose(w);
+            float reach = w.GetChildren().OfType<RadarEmitter>().FirstOrDefault()?.DetectRange ?? w.WatchRange;
+            return new Watch { At = pose.Origin, Look = -pose.Basis.Z.Normalized(), Cos = Mathf.Cos(Mathf.DegToRad(w.ConeDegrees)), Range = Mathf.Min(w.WatchRange, reach) };
+        }).ToList();
 
     private static float RadiusOf(Node station, Vector3 at)
     {
@@ -262,21 +296,34 @@ public sealed class StationBook
     /// From a pad to where it asks the next station for one: it waits for the door, lifts off, goes out of the hangar and
     /// across the gates on the way. With no pad (none was free where it started) it sets out from the station.
     /// </summary>
-    public List<Leg> Departure(Station from, Pad pad, Station to, ShipModel model, int tonnes, out Vector3 contact)
+    public List<Leg> Departure(Station from, Pad pad, Station to, ShipModel model, int tonnes, out Vector3 contact, bool slipOut = false, int slipIn = 0)
     {
         var legs = new List<Leg>();
         Vector3 at = from.At;
+        List<Gate> gates = Way(from.Sector, to.Sector) ?? new List<Gate>();
         if (pad != null)
         {
             Vector3 rest = Rest(pad, model), hover = rest + pad.Pose.Basis.Y.Normalized() * pad.Lift;
-            legs.Add(new Leg { Sector = from.Sector, From = rest, To = rest, Seconds = model.DoorSeconds, Facing = Nose(pad) });
+            // One that slipped in goes when the door is open already: it doesn't ask for it
+            legs.Add(new Leg { Sector = from.Sector, From = rest, To = rest, Seconds = slipOut ? 0 : model.DoorSeconds, Facing = Nose(pad) });
             legs.Add(Stretch(from.Sector, rest, hover, model, tonnes, model.PadSpeed, 0, Nose(pad)));
             legs.Add(Stretch(from.Sector, hover, pad.Inside, model, tonnes, model.HangarSpeed));
-            legs.Add(Stretch(from.Sector, pad.Inside, pad.Door, model, tonnes, model.HangarSpeed));
-            at = pad.Door;
+            if (slipOut && (Slip(from, pad, gates.Count > 0 ? gates[0].At : to.At) ?? Slip(from, pad, null)) is Slipway way)
+            {
+                legs.Add(Stretch(from.Sector, pad.Inside, pad.Mouth, model, tonnes, model.HangarSpeed));
+                legs.Add(Stretch(from.Sector, pad.Mouth, way.Front, model, tonnes, model.HangarSpeed));
+                legs.Add(Stretch(from.Sector, way.Front, way.Hug, model, tonnes, model.HangarSpeed));
+                legs.Add(Stretch(from.Sector, way.Hug, way.Lurk, model, tonnes, model.HangarSpeed * HugPace));
+                at = way.Lurk;
+            }
+            else
+            {
+                legs.Add(Stretch(from.Sector, pad.Inside, pad.Door, model, tonnes, model.HangarSpeed));
+                at = pad.Door;
+            }
         }
         string sector = from.Sector;
-        foreach (Gate gate in Way(from.Sector, to.Sector) ?? new List<Gate>())
+        foreach (Gate gate in gates)
         {
             legs.Add(Stretch(sector, at, gate.At, model, tonnes, 0, gate.TransitSeconds));
             legs[^1].Open = true;
@@ -284,11 +331,99 @@ public sealed class StationBook
             sector = gate.Leads;
             at = Gates.FirstOrDefault(g => g.Sector == sector && g.Name == gate.Exit)?.At ?? Vector3.Zero;
         }
+        // Unseen if it can be; if no way from here is, by the way that is unseen near the hangar (the watches may see it come)
+        if (slipIn > 0 && to.Pads.FirstOrDefault(p => p.Dock == slipIn) is Pad door && (Slip(to, door, at) ?? Slip(to, door, null)) is Slipway into)
+        {
+            // Unseen, from beyond its watches' reach to beside the mouth, where it waits for the door
+            legs.Add(Stretch(sector, at, into.Lurk, model, tonnes));
+            legs[^1].Open = true;
+            legs[^1].Own = to.Id;
+            legs.Add(Stretch(sector, into.Lurk, into.Hug, model, tonnes, model.HangarSpeed * HugPace));
+            contact = into.Hug;
+            return legs;
+        }
         contact = Contact(to, at, model);
         legs.Add(Stretch(sector, at, contact, model, tonnes));
         legs[^1].Open = true;
         legs[^1].Own = from.Id;
         return legs;
+    }
+
+    /// <summary>From beside a hangar's mouth, where it waited for the door, to its pad: across the mouth and down, unseen.</summary>
+    public List<Leg> SlipLanding(Station to, Pad pad, Vector3 hug, ShipModel model, int tonnes)
+    {
+        Vector3 rest = Rest(pad, model), hover = rest + pad.Pose.Basis.Y.Normalized() * pad.Lift;
+        Vector3 front = pad.Mouth + (pad.Door - pad.Inside).Normalized() * HullClearance;
+        return new List<Leg>
+        {
+            Stretch(to.Sector, hug, front, model, tonnes, model.HangarSpeed),
+            Stretch(to.Sector, front, pad.Mouth, model, tonnes, model.HangarSpeed),
+            Stretch(to.Sector, pad.Mouth, pad.Inside, model, tonnes, model.HangarSpeed),
+            Stretch(to.Sector, pad.Inside, hover, model, tonnes, model.HangarSpeed),
+            Stretch(to.Sector, hover, rest, model, tonnes, model.PadSpeed, 0, Nose(pad)),
+        };
+    }
+
+    // ---------- unseen ----------
+
+    /// <summary>
+    /// A way past a hangar's watches, in or out (<see cref="Slip"/>): out beyond every watch's reach (<see cref="Lurk"/>)
+    /// and beside the mouth along the hull (<see cref="Hug"/>).
+    /// </summary>
+    public readonly record struct Slipway(Vector3 Lurk, Vector3 Hug, Vector3 Front);
+
+    /// <summary>How far beside the mouth a ship waits for the door, metres, and how much faster than in the hangar it goes along the hull.</summary>
+    public const float HugMeters = 60, HugPace = 3;
+
+    /// <summary>How far out from the hull it keeps going along it, metres.</summary>
+    public const float HullClearance = 10;
+
+    /// <summary>Every so many metres the watches are asked about a line.</summary>
+    public const float LookStep = 10;
+
+    /// <summary>
+    /// The way into (or out of) the hangar of that pad that none of the station's watches sees, between it and
+    /// <paramref name="outside"/>: along the hull (<see cref="HullClearance"/> out from it) from beside the mouth to
+    /// just in front of it and in, where its own watch, above the mouth, doesn't look; the rest goes sideways or up and
+    /// down along the hull far enough to be beyond every watch, and from there in a straight line. Null: every such way passes in front of a watch. What a watch sees is what <see cref="Watch.Sees"/>
+    /// says, nothing in between (a ship may yet be hidden by the station itself, or too small or cold to be seen).
+    /// </summary>
+    public static Slipway? Slip(Station station, Pad pad, Vector3? outside)
+    {
+        float far = station.Watches.Count == 0 ? HugMeters * 2 : station.Watches.Max(w => w.Range + w.At.DistanceTo(pad.Mouth)) + 300;
+        foreach (float tilt in new[] { 0f, 30f, -30f, 60f, -60f })
+            foreach (float side in new[] { 1f, -1f })
+            {
+                float angle = Mathf.DegToRad(tilt);
+                Vector3 along = (pad.Side * side * Mathf.Cos(angle) + pad.Up * Mathf.Sin(angle)).Normalized();
+                Vector3 off = (pad.Door - pad.Inside).Normalized() * HullClearance;
+                Vector3 front = pad.Mouth + off, hug = front + along * HugMeters, lurk = front + along * far;
+                if (Unseen(station, (outside ?? lurk, lurk), (lurk, hug), (hug, front), (front, pad.Mouth), (pad.Mouth, pad.Inside)))
+                    return new Slipway(lurk, hug, front);
+            }
+        return null;
+    }
+
+    /// <summary>None of the station's watches sees any point of those lines.</summary>
+    public static bool Unseen(Station station, params (Vector3 A, Vector3 B)[] lines)
+    {
+        foreach (Watch watch in station.Watches)
+            foreach ((Vector3 a, Vector3 b) in lines)
+            {
+                // Only the part of the line within the watch's reach
+                Vector3 d = b - a;
+                float length2 = d.LengthSquared(), t0 = length2 > 0 ? Mathf.Clamp((watch.At - a).Dot(d) / length2, 0, 1) : 0;
+                float off2 = (a + d * t0).DistanceSquaredTo(watch.At);
+                if (off2 > watch.Range * watch.Range)
+                    continue;
+                float half = length2 > 0 ? Mathf.Sqrt(watch.Range * watch.Range - off2) / Mathf.Sqrt(length2) : 0;
+                float from = Mathf.Max(0, t0 - half), to = Mathf.Min(1, t0 + half);
+                int steps = Math.Max(1, (int)((to - from) * Mathf.Sqrt(length2) / LookStep));
+                for (int i = 0; i <= steps; i++)
+                    if (watch.Sees(a + d * Mathf.Lerp(from, to, i / (float)steps)))
+                        return false;
+            }
+        return true;
     }
 
     /// <summary>From where it asked to its pad: to the door, into the hangar, over the pad, and down.</summary>
@@ -361,7 +496,7 @@ public sealed class StationBook
     public List<Leg> Way(CargoShipRecord ship, ShipModel model, out Vector3 contact)
     {
         (ShipModel pace, int tonnes) = Pace(ship, model);
-        var key = new WayKey(ship.From, ship.FromSector, ship.FromX, ship.FromY, ship.FromZ, ship.Going, ship.LeftDock, ship.LeftPad, pace, tonnes);
+        var key = new WayKey(ship.From, ship.FromSector, ship.FromX, ship.FromY, ship.FromZ, ship.Going, ship.LeftDock, ship.LeftPad, pace, tonnes, ship.SlipOut, ship.SlipDock);
         if (_ways.TryGetValue(ship, out WayKnown known) && known.Key == key)
         {
             contact = known.Contact;
@@ -369,12 +504,12 @@ public sealed class StationBook
         }
         contact = default;
         List<Leg> legs = Origin(ship) is Station from && Find(ship.Going) is Station to
-            ? Departure(from, PadOf(from, ship.LeftDock, ship.LeftPad), to, pace, tonnes, out contact) : null;
+            ? Departure(from, PadOf(from, ship.LeftDock, ship.LeftPad), to, pace, tonnes, out contact, ship.SlipOut, ship.SlipDock) : null;
         _ways.AddOrUpdate(ship, new WayKnown { Key = key, Legs = legs, Contact = contact });
         return legs;
     }
 
-    private readonly record struct WayKey(string From, string FromSector, double FromX, double FromY, double FromZ, string Going, int LeftDock, int LeftPad, ShipModel Pace, int Tonnes);
+    private readonly record struct WayKey(string From, string FromSector, double FromX, double FromY, double FromZ, string Going, int LeftDock, int LeftPad, ShipModel Pace, int Tonnes, bool SlipOut, int SlipDock);
 
     private sealed class WayKnown
     {
@@ -415,7 +550,7 @@ public sealed class StationBook
                 return Way(ship, model, out _) is List<Leg> legs ? Where(legs, pace, load, clock - ship.Left) : null;
             case CargoShipRecord.Landing:
                 return Find(ship.Going) is Station there && PadOf(there, ship.Dock, ship.Pad) is Pad pad
-                    ? Where(Landing(there, pad, ship.ContactPoint, model, ship.Tonnes), model, ship.Tonnes, clock - ship.Left) : null;
+                    ? Where(ship.SlipDock > 0 ? SlipLanding(there, pad, ship.ContactPoint, model, ship.Tonnes) : Landing(there, pad, ship.ContactPoint, model, ship.Tonnes), model, ship.Tonnes, clock - ship.Left) : null;
             case CargoShipRecord.Holding:
                 return Find(ship.Going) is Station waits ? new Fix(waits.Sector, ship.ContactPoint, (waits.At - ship.ContactPoint).Normalized(), 0) : null;
             default:

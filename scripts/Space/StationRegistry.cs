@@ -89,6 +89,11 @@ public partial class StationRegistry : Node
     [Export] public int RecordsPerTonne = 2;
     [Export] public double FreshHours = 24;
     [Export] public long TheftBounty = 2500;
+    /// <summary>
+    /// How likely the intrusion watch traces a crew of the free people working a terminal: they don't play its keys,
+    /// so it is a throw of the dice (a pilot's own play is what decides for them).
+    /// </summary>
+    [Export(PropertyHint.Range, "0,1,0.05")] public double CrewTraceChance = 0.3;
 
     [ExportGroup("Intrusion watch")]
     /// <summary>Hex digits of the service key.</summary>
@@ -235,8 +240,11 @@ public partial class StationRegistry : Node
     private static List<string> Known(StationRecord station) =>
         station.Logbook.AsEnumerable().Reverse().Select(e => e.Callsign).Distinct().ToList();
 
-    // The intrusion watch caught a session: the station acts on whoever's ship it is
-    private string Caught(Node3D ship, PilotRecord pilot)
+    /// <summary>
+    /// The intrusion watch caught a session: the station acts on whoever's ship it is, a pilot's or a crew's (null pilot):
+    /// a false callsign is found out, one that says who it is gets a bounty, one that doesn't is noticed in its hangar.
+    /// </summary>
+    public string Caught(Node3D ship, PilotRecord pilot)
     {
         StationSecurity security = Radio.Security;
         if (ship == null || security == null)
@@ -247,10 +255,15 @@ public partial class StationRegistry : Node
             security.Unmask(ship, forged);
             return TracedText;
         }
-        if (security.Jurisdiction(ship) is (_, CrimeRecord record))
+        if (pilot != null && security.Jurisdiction(ship) is (_, CrimeRecord record))
         {
             record.Bounty += TheftBounty;
             Universe.Current.Touch(pilot);
+            return string.Format(LoggedText, TheftBounty);
+        }
+        if (pilot == null && ship is ShipBody { Actor.Length: > 0 } crew && StationSecurity.Identified(crew))
+        {
+            Reactions.Unpaid(Radio.Cash, crew.Actor, TheftBounty);   // a free person: a price on their head with the owner
             return string.Format(LoggedText, TheftBounty);
         }
         foreach (HangarDock dock in Radio.Docks)

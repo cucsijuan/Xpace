@@ -105,7 +105,8 @@ public static class CargoShips
     /// <summary>A shady person would copy this lawful station's registry: it keeps one, and it has something new for them.</summary>
     public static bool Heist(StationBook.Station station, PersonRecord person, UniverseState state, Func<string, IAccount> account) =>
         Shady(person) && station.RegistryMax > 0 && !People.Fences(station, Universe.Current?.Population, state, account) &&
-        Registries.Fresh(state.Station(station.Id), person.Id, station.RegistryFreshHours, state.Clock);
+        Registries.Fresh(state.Station(station.Id), person.Id, station.RegistryFreshHours, state.Clock) &&
+        !(person.Spotted.TryGetValue(station.Id, out double seen) && state.Clock - seen < (person.Personality?.SpottedHours ?? 24) * 3600);
 
     /// <summary>What the gates between two stations ask.</summary>
     public static long TollsBetween(StationBook book, StationBook.Station from, StationBook.Station to) => Tolls(book, from, to);
@@ -330,6 +331,12 @@ public static class CargoShips
             case CargoShipRecord.Parked:
                 if (state.Clock < ship.NextLook)
                     return;
+                // On a pad it slipped onto, it goes only while the door is open for someone else
+                if (ship.Stowed && book.Find(ship.At) is StationBook.Station hidden && !DoorOpen(state, hidden, ship.Dock))
+                {
+                    ship.NextLook = state.Clock + DoorLookSeconds;
+                    return;
+                }
                 if (model.Escort)
                 {
                     // Left with nobody to guard, it goes home
@@ -361,7 +368,11 @@ public static class CargoShips
                 }
                 return;
             case CargoShipRecord.Holding:
-                if (state.Clock >= ship.NextLook)
+                if (state.Clock < ship.NextLook)
+                    return;
+                if (ship.SlipDock > 0)
+                    SlipIn(ship, model, state, book, account);
+                else
                     Ask(ship, model, state, book, account);
                 return;
             case CargoShipRecord.Landing:
@@ -395,6 +406,7 @@ public static class CargoShips
         if (book.Find(ship.Going) is not StationBook.Station station)
             return;
         Vector3 at = ship.ContactPoint;
+        ship.SlipOut = false;                           // here it asks, its radio on
         ship.Sending = Disguise(ship, station, state, account);
         if (ship.Sending == "" && !Welcomes(station, ship.Owner, state, account))
         {
@@ -430,6 +442,138 @@ public static class CargoShips
         ship.Arrives = state.Clock + book.Landing(station, pad, at, model, ship.Tonnes).Sum(l => l.Seconds);
     }
 
+    /// <summary>How often a ship waiting for a door it doesn't ask for looks again, seconds.</summary>
+    public const double DoorLookSeconds = 2;
+
+    /// <summary>
+    /// The door of that dock is open now: as the station shows it where its sector is loaded (for whoever it opened,
+    /// a pilot or a ship of the records); elsewhere, while a ship of the records is cleared through it, going in or out.
+    /// </summary>
+    public static bool DoorOpen(UniverseState state, StationBook.Station station, int dock)
+    {
+        if (Xpace.Space.StationRadio.Called(station.Id) is Xpace.Space.StationRadio radio)
+            return radio.Docks.FirstOrDefault(d => d.Number == dock) is Xpace.Space.HangarDock door && door.IsOpen;
+        return state.CargoShips.Values.Any(s => !s.Unseen &&
+            (s.Phase == CargoShipRecord.Landing && s.Going == station.Id && s.Dock == dock ||
+             s.Phase == CargoShipRecord.Flying && s.From == station.Id && s.LeftDock == dock && state.Clock - s.Left < (ModelOf(s)?.DoorSeconds ?? 0) + DoorPassSeconds));
+    }
+
+    // How long the door stays open after a ship cleared out of it is through the wait for it
+    private const double DoorPassSeconds = 30;
+
+    /// <summary>
+    /// It sets off for a station to slip into one of its hangars unseen, its radio off, if there is a way in that its
+    /// watches don't see (<see cref="StationBook.Slip"/>) to a dock with a pad that would take it: false, none.
+    /// </summary>
+    public static bool Slip(CargoShipRecord ship, ShipModel model, StationBook.Station to, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        if (book.Find(ship.At) is not StationBook.Station from || book.Way(from.Sector, to.Sector) is not List<StationBook.Gate> gates)
+            return false;
+        Vector3 outside = gates.Count > 0 ? book.Gates.FirstOrDefault(g => g.Sector == to.Sector && g.Name == gates[^1].Exit)?.At ?? to.At : from.At;
+        // A hangar with a pad free now, if any is
+        int dock = to.Pads.Where(p => book.Fits(p, model)).OrderBy(p => Free(to, p, state) ? 0 : 1).Select(p => p.Dock).Distinct()
+            .FirstOrDefault(d => StationBook.Slip(to, to.Pads.First(p => p.Dock == d), outside) != null);
+        if (dock == 0)
+            return false;
+        ship.SlipDock = dock;
+        return Hop(ship, model, to, state, book, account);
+    }
+
+    // Beside the mouth of its dock, its radio off: in while the door is open for someone else, onto a pad nobody has
+    private static void SlipIn(CargoShipRecord ship, ShipModel model, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        if (book.Find(ship.Going) is not StationBook.Station station)
+            return;
+        // The way it came near, as the watches would have seen it: seen, it turns away (where the station is loaded, its
+        // watches looked for themselves on the way)
+        if (!ship.AskedHold)
+        {
+            ship.AskedHold = true;
+            if (book.Way(ship, model, out _) is List<StationBook.Leg> way &&
+                !StationBook.Unseen(station, way.Where(l => l.Sector == station.Sector).TakeLast(2).Select(l => (l.From, l.To)).ToArray()))
+            {
+                Spotted(ship, model, station.Sector, ship.ContactPoint, state, book, account);
+                return;
+            }
+        }
+        StationBook.Pad pad = station.Pads.Where(p => p.Dock == ship.SlipDock && book.Fits(p, model) && Free(station, p, state))
+            .OrderBy(p => p.Pose.Origin.DistanceTo(p.Mouth)).FirstOrDefault();
+        if (pad == null || !DoorOpen(state, station, ship.SlipDock))
+        {
+            Personality crew = (account(ship.Owner) as PersonRecord)?.Personality;
+            if (state.Clock - ship.Arrives > (crew?.LurkHours ?? 1) * 3600)
+                GoElsewhere(ship, model, station, ship.ContactPoint, state, book, account);
+            else
+                ship.NextLook = state.Clock + DoorLookSeconds;
+            return;
+        }
+        Take(ship, station, pad, state);
+        ship.AskedHold = false;
+        ship.Phase = CargoShipRecord.Landing;
+        ship.Left = state.Clock;
+        ship.Arrives = state.Clock + book.SlipLanding(station, pad, ship.ContactPoint, model, ship.Tonnes).Sum(l => l.Seconds);
+    }
+
+    /// <summary>A hangar's watch saw it slipping in: it turns away, and its crew keeps away from there a while.</summary>
+    public static void Spotted(CargoShipRecord ship, ShipModel model, string sector, Vector3 at, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        if (book.Find(ship.Going) is not StationBook.Station station || ship.SlipDock == 0)
+            return;
+        if (account(ship.Owner) is PersonRecord person)
+            person.Spotted[station.Id] = state.Clock;
+        GoElsewhere(ship, model, station, at, state, book, account, sector);
+    }
+
+    // It gives the slip up: to the nearest station that would let it in, as anyone, from where it is
+    private static void GoElsewhere(CargoShipRecord ship, ShipModel model, StationBook.Station station, Vector3 at, UniverseState state, StationBook book, Func<string, IAccount> account, string sector = null)
+    {
+        GiveUpPad(state, ship);
+        ship.SlipDock = 0;
+        ship.AskedHold = false;
+        StationBook.Station other = book.Stations.Where(s => s != station && s.Pads.Any(p => book.Fits(p, model)) && book.Way(station.Sector, s.Sector) != null && Admits(s, ship.Owner, state, account))
+            .OrderBy(s => book.Way(station.Sector, s.Sector).Count).ThenBy(s => s.At.DistanceTo(at)).ThenBy(s => s.Id, StringComparer.Ordinal).FirstOrDefault();
+        if (other == null)
+        {
+            ship.NextLook = state.Clock + model.AskEverySeconds;
+            return;
+        }
+        ship.Home = other.Id;
+        ship.State = CargoShipRecord.Returning;
+        SetOff(ship, model, sector ?? station.Sector, at, other, true, state, book, account);
+    }
+
+    // A pad it was taking as it went in, given up
+    private static void GiveUpPad(UniverseState state, CargoShipRecord ship)
+    {
+        if (ship.Phase == CargoShipRecord.Landing && ship.Dock != 0)
+            state.Station(ship.Going).CargoPads.Remove(Key(ship.Dock, ship.Pad));
+        ship.Dock = ship.Pad = 0;
+    }
+
+    /// <summary>
+    /// A crew worked the registry's terminal of the station it is on, and the intrusion watch traced them: the station
+    /// acts as on a pilot's ship (<see cref="Xpace.Space.StationRegistry.Caught"/>) where it is shown; out of sight, the
+    /// same on the records: a false callsign is found out (no good any more, the bounty for it on the person), one that
+    /// says who it is gets the bounty for theft, and one that doesn't is nobody anyone can name.
+    /// </summary>
+    public static void Traced(CargoShipRecord ship, StationBook.Station here, UniverseState state, Func<string, IAccount> account)
+    {
+        if (Xpace.Space.StationRadio.Called(here.Id)?.Registry is Xpace.Space.StationRegistry registry && Xpace.Space.CargoView.Current?.Shown.GetValueOrDefault(ship.Id) is Xpace.Ship.ShipBody shown && GodotObject.IsInstanceValid(shown))
+        {
+            registry.Caught(shown, null);
+            return;
+        }
+        IAccount owner = account(OwnerOf(state, here));
+        if (state.Forged.GetValueOrDefault(ship.Sending ?? "") is ForgedRecord forged)
+        {
+            if (!forged.Burned)
+                Reactions.Unpaid(owner, ship.Owner, here.ForgeryBounty);
+            forged.Burned = true;
+        }
+        else if (!ship.Unseen)
+            Reactions.Unpaid(owner, ship.Owner, here.RegistryBounty);
+    }
+
     private static void Take(CargoShipRecord ship, StationBook.Station station, StationBook.Pad pad, UniverseState state)
     {
         state.Station(station.Id).CargoPads[Key(pad.Dock, pad.Number)] = ship.Id;
@@ -444,7 +588,14 @@ public static class CargoShips
         ship.At = ship.Going;
         ship.PaceModel = "";
         ship.Phase = CargoShipRecord.Parked;
-        Registries.Log(state.Station(ship.At), string.IsNullOrEmpty(ship.Sending) ? CallsignOf(ship.Id) : ship.Sending, state.Clock, ship.Dock, ship.Pad);
+        ship.SlipOut = false;
+        if (ship.SlipDock > 0)
+        {
+            ship.SlipDock = 0;
+            ship.Stowed = true;                         // nobody cleared it: nobody logs it
+        }
+        else
+            Registries.Log(state.Station(ship.At), string.IsNullOrEmpty(ship.Sending) ? CallsignOf(ship.Id) : ship.Sending, state.Clock, ship.Dock, ship.Pad);
         if (book.Find(ship.At) is StationBook.Station stores)
         {
             Restock(ship, model, stores, state, account);
@@ -586,7 +737,9 @@ public static class CargoShips
         IAccount money = account(ship.Owner);
         Fuel(ship, model, from, to, state, book, account);
         PayTolls(from, to, ship.Owner, book, account);
-        if (Xpace.Space.StationRadio.Called(from.Id) is Xpace.Space.StationRadio radio)
+        ship.SlipOut = ship.Stowed;
+        ship.Stowed = false;
+        if (!ship.SlipOut && Xpace.Space.StationRadio.Called(from.Id) is Xpace.Space.StationRadio radio)
             radio.Traffic(Sign(ship), radio.TrafficLaunchAskText, radio.TrafficLaunchAskSpeech, radio.TrafficLaunchText, radio.TrafficLaunchSpeech);
         StationRecord leaving = state.Station(from.Id);
         if (leaving.CargoPads.Remove(Key(ship.Dock, ship.Pad)))
@@ -675,6 +828,7 @@ public static class CargoShips
         ship.FromSector = sector;
         (ship.FromX, ship.FromY, ship.FromZ) = (at.X, at.Y, at.Z);
         ship.LeftDock = ship.LeftPad = 0;
+        ship.SlipOut = ship.Stowed = false;
         ship.PaceModel = "";
         ship.Going = to.Id;
         ship.Phase = CargoShipRecord.Flying;

@@ -104,6 +104,9 @@ public partial class Personality : Resource
     [Export] public float ShelterHoldMeters = 8000f;
     /// <summary>In a ship that fights, with this much of the hull left they run instead.</summary>
     [Export(PropertyHint.Range, "0,1,0.05")] public float RunBelowHull = 0.35f;
+    /// <summary>Slipping into a hangar unseen, how long they wait beside its mouth for the door before going elsewhere, and how long they keep away from a station whose watch saw them.</summary>
+    [Export] public double LurkHours = 1;
+    [Export] public double SpottedHours = 24;
 
     /// <summary>The hull under which they may give up their cargo: lower the more it is worth, the nearer a protected zone (m away) and with help coming.</summary>
     public float JettisonAt(double worth, float zoneMeters, bool help)
