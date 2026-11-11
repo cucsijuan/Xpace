@@ -55,7 +55,7 @@ public partial class ArmsWindow : CanvasLayer, IKioskWindow
         _title = GetNode<Label>("%Title");
         _credits = GetNode<Label>("%Credits");
         _message = GetNode<Label>("%Message");
-        _cards = GetNode<VBoxContainer>("%Dealer");
+        _cards = GetNode<VBoxContainer>("%Cards");
         _places = GetNode<VBoxContainer>("%Places");
         _locker = GetNode<VBoxContainer>("%Locker");
         _tabs = GetNode<TabContainer>("%Tabs");
@@ -158,8 +158,8 @@ public partial class ArmsWindow : CanvasLayer, IKioskWindow
         var name = new Label { Text = offer.Name, ThemeTypeVariation = "HeaderMedium" };
         name.AddThemeColorOverride("font_color", Amber);
         about.AddChild(name);
-        about.AddChild(new Label { Text = offer.About });
-        about.AddChild(new Label { Text = offer.Details, Modulate = Dim });
+        about.AddChild(new Label { Text = offer.About, AutowrapMode = TextServer.AutowrapMode.WordSmart });
+        about.AddChild(new Label { Text = offer.Details, Modulate = Dim, AutowrapMode = TextServer.AutowrapMode.WordSmart });
         row.AddChild(about);
 
         var aboard = new VBoxContainer { CustomMinimumSize = new Vector2(260, 0) };   // room for a dispenser's ten
@@ -175,15 +175,19 @@ public partial class ArmsWindow : CanvasLayer, IKioskWindow
         }
         row.AddChild(aboard);
 
-        var stock = new VBoxContainer { CustomMinimumSize = new Vector2(170, 0) };
+        var stock = new VBoxContainer { CustomMinimumSize = new Vector2(200, 0) };
         stock.AddChild(new Label { Text = "In stock", Modulate = Dim });
         stock.AddChild(new Label { Text = offer.Stock.ToString() });
-        var factory = new Label { Text = offer.Starved ? $"Factory stopped: no {offer.MadeOf.ToLowerInvariant()}" : $"{offer.MadeOf} here: {offer.MadeOfStock} t" };
+        var factory = new Label
+        {
+            Text = offer.Starved ? $"Factory stopped: no {offer.MadeOf.ToLowerInvariant()}" : $"{offer.MadeOf} here: {offer.MadeOfStock} t",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+        };
         factory.Modulate = offer.Starved ? Warning : Dim;
         stock.AddChild(factory);
         row.AddChild(stock);
 
-        var buy = new VBoxContainer { CustomMinimumSize = new Vector2(110, 0) };
+        var buy = new VBoxContainer { CustomMinimumSize = new Vector2(140, 0) };
         buy.AddChild(new Label { Text = offer.Price < 0 ? "Sold out" : $"{offer.Price:N0} cr", HorizontalAlignment = HorizontalAlignment.Right });
         int room = offer.Piece ? 1 : offer.Rack - offer.Aboard;
         bool can = view.Docked && offer.Price >= 0 && room > 0 && view.Credits >= offer.Price;

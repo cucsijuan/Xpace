@@ -44,7 +44,7 @@ grow_horizontal = 2
 grow_vertical = 2
 
 [node name="Panel" type="PanelContainer" parent="Root/Center"]
-custom_minimum_size = Vector2(980, 0)
+custom_minimum_size = Vector2(1200, 0)
 layout_mode = 2
 
 [node name="Margin" type="MarginContainer" parent="Root/Center/Panel"]
@@ -78,11 +78,17 @@ unique_name_in_owner = true
 layout_mode = 2
 current_tab = 0
 
-[node name="Dealer" type="VBoxContainer" parent="Root/Center/Panel/Margin/Box/Tabs"]
+[node name="Dealer" type="ScrollContainer" parent="Root/Center/Panel/Margin/Box/Tabs"]
+custom_minimum_size = Vector2(0, 560)
+layout_mode = 2
+horizontal_scroll_mode = 0
+metadata/_tab_index = 0
+
+[node name="Cards" type="VBoxContainer" parent="Root/Center/Panel/Margin/Box/Tabs/Dealer"]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_horizontal = 3
 theme_override_constants/separation = 8
-metadata/_tab_index = 0
 
 [node name="Fitting" type="HBoxContainer" parent="Root/Center/Panel/Margin/Box/Tabs"]
 visible = false
