@@ -1,8 +1,9 @@
-[gd_scene load_steps=4 format=3]
+[gd_scene load_steps=5 format=3]
 
 [ext_resource type="Script" path="res://scripts/Menu/GameMenu.cs" id="1_menu"]
 [ext_resource type="Theme" path="res://assets/ui/menu_theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/menu/settings_menu.tscn" id="3_settings"]
+[ext_resource type="PackedScene" path="res://scenes/menu/debug_menu.tscn" id="4_debug"]
 
 [node name="GameMenu" type="CanvasLayer"]
 layer = 10
@@ -67,6 +68,12 @@ layout_mode = 2
 text = "Settings"
 alignment = 0
 
+[node name="DebugButton" type="Button" parent="Root/Center/Menu/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Debug"
+alignment = 0
+
 [node name="Backup" type="Button" parent="Root/Center/Menu/Box"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -86,5 +93,9 @@ text = "Quit"
 alignment = 0
 
 [node name="Settings" parent="Root" instance=ExtResource("3_settings")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="Debug" parent="Root" instance=ExtResource("4_debug")]
 unique_name_in_owner = true
 layout_mode = 1

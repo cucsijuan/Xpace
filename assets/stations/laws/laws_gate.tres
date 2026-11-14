@@ -4,7 +4,7 @@
 
 [resource]
 script = ExtResource("1_laws")
-ZoneRadius = 3000.0
+ZoneRadius = 2100.0
 SpeedRadius = 0.0
 SpeedLimit = 1000.0
 Toll = 100

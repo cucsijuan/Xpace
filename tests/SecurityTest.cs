@@ -46,6 +46,7 @@ public partial class SecurityTest : Node3D
         _security = station.GetNode<StationSecurity>("Security");
         _security.StandDownSeconds = 5;
         _security.PoliceCount = 1;
+        _security.Scans = false;                // scans are police_scan_test's: here the police fly only for the hostile
 
         ShipBody a = Ship("Alpha", new Vector3(0, 0, 2500));
         ShipBody b = Ship("Bravo", new Vector3(300, 0, 2500));
@@ -63,14 +64,35 @@ public partial class SecurityTest : Node3D
         Fire(far);
         await Seconds(0.2);
         Check("fired outside the zone: nothing", _security.StandingOf(far) == Standing.Clean);
+        int told = Radio(a).Heard.Count;
         await Seconds(1);
         Fire(a);
         await Seconds(0.2);
-        Check("again within the grace: still warned", _security.StandingOf(a) == Standing.Warned);
-        await Seconds(4);
+        Check("again a moment later: nothing more said (a burst is one warning)", _security.StandingOf(a) == Standing.Warned && Radio(a).Heard.Count == told);
+        await Seconds(_security.WarnCooldownSeconds - 1);
         Fire(a);
         await Seconds(0.2);
-        Check($"later: hostile, and told ({Last(a)})", _security.StandingOf(a) == Standing.Hostile && Last(a).Contains("Police are engaging"));
+        Check($"after the cooldown: warned again, still no police ({Last(a)})",
+              _security.StandingOf(a) == Standing.Warned && Radio(a).Heard.Count == told + 1 && Last(a).Contains("Cease fire"));
+        await Seconds(_security.WarnCooldownSeconds);
+        Fire(a);
+        await Seconds(0.2);
+        Check($"the third time: a fine, still no police ({Last(a)}; {_security.StandingOf(a)}, police {Police()?.Name})",
+              _security.StandingOf(a) == Standing.Warned && Last(a).Contains($"fined {_security.FiringFine} credits") && Police() == null);
+
+        // Hitting a pirate is no crime
+        ShipBody pirate = Ship("Golf", new Vector3(0, -300, 2500));
+        Universe.Current.State.People["person-90"] = new PersonRecord { Id = "person-90", Livelihood = nameof(Livelihood.Pirate) };
+        pirate.Actor = "person-90";
+        Strike(pirate, d, 10);
+        await Seconds(0.2);
+        Check("hitting a pirate's ship in the zone: no crime", _security.StandingOf(d) == Standing.Clean);
+
+        // Hitting a ship that did nothing: the police at once
+        Strike(b, a, 10);
+        await Seconds(0.2);
+        Check($"rounds into a ship that did nothing: hostile, police engaging ({Last(a)})",
+              _security.StandingOf(a) == Standing.Hostile && Last(a).Contains("Police are engaging"));
 
         Check("a police ship launches", await Until(() => Police() != null, 10));
         Node3D police = Police();
@@ -101,17 +123,25 @@ public partial class SecurityTest : Node3D
         c.GetNode<ShipHull>("Hull").Destroy();  // (the police would see to it; here it ends)
         await Seconds(0.2);
 
-        ShipBody fast = Ship("Foxtrot", _station.GlobalPosition + new Vector3(0, 0, 1000));
+        ShipBody fast = Ship("Foxtrot", _station.GlobalPosition + new Vector3(0, 0, 600));
         Universe.Current.Fly(fast, "foxtrot");
         await Seconds(1);
         int heard = Radio(fast).Heard.Count;
-        for (int i = 0; i < 4 * 60; i++)
+        async Task Speed(double seconds)
         {
-            fast.LinearVelocity = new Vector3(80, 0, 0);
-            await Seconds(1.0 / 60);
+            for (int i = 0; i < seconds * 60; i++)
+            {
+                fast.LinearVelocity = new Vector3(80, 0, 0);
+                fast.GlobalPosition = _station.GlobalPosition + new Vector3(0, 0, 600);
+                await Seconds(1.0 / 60);
+            }
         }
-        Check($"too fast near the station: fined ({Last(fast)})",
-              _security.Fines.TryGetValue(fast, out int fines) && fines == 1 && Radio(fast).Heard.Count > heard && Last(fast).Contains("fined"));
+        await Speed(3);
+        Check($"too fast near the station: a warning first, no fine ({Last(fast)})",
+              !_security.Fines.ContainsKey(fast) && Radio(fast).Heard.Count == heard + 1 && Last(fast).Contains("Reduce speed"));
+        await Speed(_security.WarnCooldownSeconds - 1);
+        Check($"still too fast after the cooldown: fined ({Last(fast)})",
+              _security.Fines.TryGetValue(fast, out int fines) && fines == 1 && Last(fast).Contains("fined"));
         PilotRecord fined = Universe.Current.State.Pilot("foxtrot");
         long owed = Universe.Current.State.Station(_station.Sign).CrimesOf("foxtrot").Fines;
         Check($"its pilot owes the station the fine ({owed} credits), and still has their money ({fined.Credits})",

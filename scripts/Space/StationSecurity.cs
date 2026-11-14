@@ -23,29 +23,34 @@ public enum Standing
 /// the station's scene. It knows nothing of who is good or bad: only what it
 /// sees ships do (<see cref="Combat"/>) inside the radio's laws' zone:
 ///
-///   a weapon going off   the first time, a warning by radio
-///                        (<see cref="WarningText"/>); going on firing more
-///                        than <see cref="WarnGraceSeconds"/> after it, the
-///                        ship is hostile and fined
-///                        (<see cref="EngageText"/>, <see cref="FiringFine"/>).
-///                        A ship hit by another in the last
+///   a weapon going off   hitting nobody: a warning by radio
+///                        (<see cref="WarningText"/>), at most one every
+///                        <see cref="WarnCooldownSeconds"/>; the
+///                        <see cref="WarningsBeforeFine"/>th is a fine instead
+///                        (<see cref="FiringFineText"/>, <see cref="FiringFine"/>),
+///                        no police. A ship hit by another in the last
 ///                        <see cref="DefenceSeconds"/> fires back freely;
-///   a ship damaged       one the security had nothing against: its attacker
-///                        is hostile at once, with a bounty on it
-///                        (<see cref="AssaultText"/>, <see cref="DamageBounty"/>);
-///   a ship destroyed     one the security had nothing against: its
-///                        destroyer is hostile at once, with a big bounty and
-///                        infamy (<see cref="DestroyedText"/>,
-///                        <see cref="KillBounty"/>, <see cref="KillInfamy"/>);
-///                        destroying a warned or hostile ship is no crime;
+///   a ship damaged       one the security had nothing against and no
+///                        pirate (<see cref="Pirate"/>): its attacker is
+///                        hostile at once, with a bounty on it, and the
+///                        police go for it (<see cref="AssaultText"/>,
+///                        <see cref="DamageBounty"/>);
+///   a ship destroyed     the same, with a big bounty and infamy
+///                        (<see cref="DestroyedText"/>, <see cref="KillBounty"/>,
+///                        <see cref="KillInfamy"/>); destroying a warned or
+///                        hostile ship, or a pirate, is no crime;
 ///   going too fast       inside the speed limit's radius, faster than the
 ///                        limit (and <see cref="SpeedTolerance"/>) for
-///                        <see cref="SpeedingSeconds"/>: a fine, told by
-///                        radio (<see cref="FineText"/>) and counted in
-///                        <see cref="Fines"/>; a player owes it to the
-///                        station (<see cref="SpeedingFine"/>, in the
-///                        universe's record of what the station holds
-///                        against the pilot) until it is paid.
+///                        <see cref="SpeedingSeconds"/>: a warning
+///                        (<see cref="SpeedWarningText"/>); still too fast
+///                        <see cref="WarnCooldownSeconds"/> after it, a fine
+///                        (<see cref="FineText"/>), and another every as long
+///                        as it keeps on; counted in <see cref="Fines"/>; a
+///                        player owes it to the station
+///                        (<see cref="SpeedingFine"/>, in the universe's record
+///                        of what the station holds against the pilot) until
+///                        it is paid. A warning is forgotten after
+///                        <see cref="ForgetSeconds"/> keeping to the limit.
 ///
 /// What players owe goes on their record with the station, in the universe
 /// (<see cref="CrimeRecord"/>, with <see cref="Justice"/>'s rules), but only
@@ -83,15 +88,18 @@ public enum Standing
 /// </summary>
 public partial class StationSecurity : Node, IEngagement
 {
-    [Export] public double WarnGraceSeconds = 4;
+    /// <summary>Least time between two warnings to a ship, and between a speeding warning and the fine after it.</summary>
+    [Export] public double WarnCooldownSeconds = 10;
+    /// <summary>Firing in the zone: this warning is a fine instead (the count starts again after it).</summary>
+    [Export] public int WarningsBeforeFine = 3;
     [Export] public double DefenceSeconds = 20;
     [Export] public double ForgetSeconds = 120;
     [Export] public float SpeedTolerance = 1.1f;
-    [Export] public double SpeedingSeconds = 3;
-    [Export] public double FineEverySeconds = 60;
+    /// <summary>Too fast this long before the security does anything (a moment over the limit is let go).</summary>
+    [Export] public double SpeedingSeconds = 1;
     /// <summary>What speeding costs (credits).</summary>
     [Export] public long SpeedingFine = 200;
-    /// <summary>What going on firing after the warning costs.</summary>
+    /// <summary>What firing in the zone costs after the warnings.</summary>
     [Export] public long FiringFine = 500;
     /// <summary>The bounty for damaging a ship that had done nothing.</summary>
     [Export] public long DamageBounty = 1000;
@@ -136,7 +144,7 @@ public partial class StationSecurity : Node, IEngagement
     /// <summary>{0} the bounty.</summary>
     [Export] public string UnpaidAgainText = "Transit without clearance again. A bounty of {0} credits is on you.";
     /// <summary>{0} the fine.</summary>
-    [Export] public string EngageText = "You were warned. You have been fined {0} credits. Police are engaging you.";
+    [Export] public string FiringFineText = "Weapons fire in the protected zone again. You have been fined {0} credits.";
     /// <summary>{0} the ship attacked, {1} the bounty.</summary>
     [Export] public string AssaultText = "You attacked {0}. A bounty of {1} credits is on you. Police are engaging you.";
     /// <summary>{0} the ship destroyed, {1} the bounty.</summary>
@@ -144,6 +152,7 @@ public partial class StationSecurity : Node, IEngagement
     [Export] public string NotoriousText = "You are not welcome here. Police are engaging you.";
     /// <summary>{0} the speed (m/s), {1} the limit, {2} the fine.</summary>
     [Export] public string FineText = "Speeding at {0} m/s, limit {1} m/s. You have been fined {2} credits.";
+    [Export] public string SpeedWarningText = "Speeding at {0} m/s, limit {1} m/s. Reduce speed or you will be fined.";
     [Export] public string ScanText = "Cargo scan in progress. Hold your course.";
     /// <summary>{0} the stolen tonnes, {1} the fine.</summary>
     [Export] public string StolenText = "Stolen goods aboard, {0} t. You have been fined {1} credits.";
@@ -158,7 +167,8 @@ public partial class StationSecurity : Node, IEngagement
     /// <summary>The station operator's lines for each text (see <see cref="StationRadio.Say"/>).</summary>
     [ExportGroup("Speech")]
     [Export] public string WarningSpeech = "warning";
-    [Export] public string EngageSpeech = "engage";
+    [Export] public string FiringFineSpeech = "";
+    [Export] public string SpeedWarningSpeech = "";
     [Export] public string DestroyedSpeech = "destroyed";
     [Export] public string FineSpeech = "fined";
     [Export] public string UnpaidTransitSpeech = "unpaid_transit";
@@ -176,6 +186,7 @@ public partial class StationSecurity : Node, IEngagement
     {
         public Standing Standing;
         public double Since, LastSeen;
+        public int Warnings;                        // for firing, since the last fine
     }
 
     public StationRadio Radio { get; private set; }
@@ -186,7 +197,14 @@ public partial class StationSecurity : Node, IEngagement
     private readonly Dictionary<Node3D, Record> _records = new();
     private readonly Dictionary<Node3D, (Node3D By, double At)> _lastHit = new();
     private readonly Dictionary<Node3D, int> _fines = new();
-    private readonly Dictionary<Node3D, (double Fast, double Fined)> _speeding = new();
+    private readonly Dictionary<Node3D, Speeder> _speeding = new();
+
+    // A ship going too fast: how long it has been over the limit, when it was warned (NaN: not), when it was last
+    // warned or fined, and when it was last over the limit
+    private sealed class Speeder
+    {
+        public double Fast, Warned = double.NaN, Acted = double.NegativeInfinity, Over = double.NegativeInfinity;
+    }
     private readonly Dictionary<(Node3D By, Node3D Victim), double> _assaults = new();
     private readonly List<(Node3D Ship, FighterAi Pilot, HangarDock From)> _police = new();
     private readonly HashSet<Node3D> _returning = new();
@@ -294,23 +312,37 @@ public partial class StationSecurity : Node, IEngagement
             return;
         Record r = RecordOf(ship);
         r.LastSeen = _now;
-        if (r.Standing == Standing.Clean)
+        if (r.Standing == Standing.Hostile || r.Standing == Standing.Warned && _now - r.Since < WarnCooldownSeconds)
+            return;                                 // hostile already, or warned a moment ago: a burst is one warning
+        r.Standing = Standing.Warned;
+        r.Since = _now;
+        if (++r.Warnings < WarningsBeforeFine)
         {
-            r.Standing = Standing.Warned;
-            r.Since = _now;
             Say(ship, WarningText, WarningSpeech);
+            return;
         }
-        else if (r.Standing == Standing.Warned && _now - r.Since > WarnGraceSeconds)
-        {
-            Owe(ship, FiringFine, 0, 0);
-            Engage(ship, string.Format(EngageText, FiringFine), EngageSpeech);
-        }
+        r.Warnings = 0;
+        Owe(ship, FiringFine, 0, 0);
+        Say(ship, string.Format(FiringFineText, FiringFine), FiringFineSpeech);
+    }
+
+    /// <summary>
+    /// A pirate's ship, as far as the station can tell: flown by someone who lives by piracy, or by someone with a price
+    /// on their head (an owner's, or this station's). Hitting it, or destroying it, is no crime here.
+    /// </summary>
+    public bool Pirate(Node3D ship)
+    {
+        if (Universe.Current?.State is not UniverseState state || ship == null)
+            return false;
+        if (ship is ShipBody { Actor: { Length: > 0 } actor })
+            return state.People.GetValueOrDefault(actor)?.Livelihood == nameof(Livelihood.Pirate) || Reactions.Hunted(state, actor) > 0;
+        return Jurisdiction(ship) is (_, CrimeRecord record) && Justice.Wanted(record);
     }
 
     private void OnDamaged(Node3D victim, Node3D by)
     {
         bool crime = Acts && by != null && by != victim && Radio.Protects(victim.GlobalPosition) && !IsPolice(by) && !Defending(by) &&
-                     StandingOf(victim) == Standing.Clean &&
+                     StandingOf(victim) == Standing.Clean && !Pirate(victim) &&
                      !(_assaults.TryGetValue((by, victim), out double at) && _now - at < DefenceSeconds);
         _lastHit[victim] = (by, _now);
         if (!crime)
@@ -322,7 +354,7 @@ public partial class StationSecurity : Node, IEngagement
 
     private void OnDestroyed(Node3D victim, Node3D by, Vector3 at)
     {
-        bool crime = Acts && by != null && Radio.Protects(at) && !IsPolice(by) && StandingOf(victim) == Standing.Clean
+        bool crime = Acts && by != null && Radio.Protects(at) && !IsPolice(by) && StandingOf(victim) == Standing.Clean && !Pirate(victim)
                      && !(_lastHit.TryGetValue(by, out var hit) && hit.By == victim && _now - hit.At < DefenceSeconds);
         _records.Remove(victim);                    // a ship destroyed starts clean
         _lastHit.Remove(victim);
@@ -413,18 +445,27 @@ public partial class StationSecurity : Node, IEngagement
         {
             if (Combat.ShipOf(node) is not Node3D ship || !Combat.IsAlive(ship) || IsPolice(ship) || Velocity(ship) is not Vector3 velocity)
                 continue;
-            var (fast, fined) = _speeding.TryGetValue(ship, out var s) ? s : (0, double.MinValue);
+            if (!_speeding.TryGetValue(ship, out Speeder s))
+                _speeding[ship] = s = new Speeder();
             float speed = velocity.Length();
             bool over = ship.GlobalPosition.DistanceTo(Radio.GlobalPosition) <= laws.SpeedRadius && speed > laws.SpeedLimit * SpeedTolerance;
-            fast = over ? fast + dt : 0;
-            if (fast >= SpeedingSeconds && _now - fined > FineEverySeconds)
+            s.Fast = over ? s.Fast + dt : 0;
+            if (over)
+                s.Over = _now;
+            else if (_now - s.Over > ForgetSeconds)
+                s.Warned = double.NaN;              // kept to the limit long enough: the warning is forgotten
+            if (s.Fast < SpeedingSeconds || _now - s.Acted < WarnCooldownSeconds)
+                continue;
+            s.Acted = _now;
+            if (double.IsNaN(s.Warned))
             {
-                fined = _now;
-                _fines[ship] = (_fines.TryGetValue(ship, out int n) ? n : 0) + 1;
-                Owe(ship, SpeedingFine, 0, 0);
-                Say(ship, string.Format(FineText, Mathf.RoundToInt(speed), Mathf.RoundToInt(laws.SpeedLimit), SpeedingFine), FineSpeech);
+                s.Warned = _now;
+                Say(ship, string.Format(SpeedWarningText, Mathf.RoundToInt(speed), Mathf.RoundToInt(laws.SpeedLimit)), SpeedWarningSpeech);
+                continue;
             }
-            _speeding[ship] = (fast, fined);
+            _fines[ship] = (_fines.TryGetValue(ship, out int n) ? n : 0) + 1;
+            Owe(ship, SpeedingFine, 0, 0);
+            Say(ship, string.Format(FineText, Mathf.RoundToInt(speed), Mathf.RoundToInt(laws.SpeedLimit), SpeedingFine), FineSpeech);
         }
         foreach (Node3D ship in _speeding.Keys.Where(s => !Valid(s)).ToList())
             _speeding.Remove(ship);

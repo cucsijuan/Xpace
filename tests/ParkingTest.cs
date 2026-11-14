@@ -37,7 +37,7 @@ public partial class ParkingTest : Node3D
     public override async void _Ready()
     {
         var station = new Node3D { Name = "Haven", Position = new Vector3(0, 0, 1000) };
-        _station = new StationRadio { Name = "Radio", Laws = new StationLaws { SpeedLimit = Limit, ZoneRadius = 3000 } };
+        _station = new StationRadio { Name = "Radio", Laws = new StationLaws { SpeedLimit = Limit, ZoneRadius = 3000, SpeedRadius = 1500 } };
         station.AddChild(_station);
         AddChild(station);
 

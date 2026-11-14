@@ -18,7 +18,7 @@ namespace Xpace.Tests;
 ///
 ///   - the guest's radio is known on the host as the guest has it: its
 ///     callsign (the pilot's name), on or off;
-///   - too fast near the station: the guest is fined, and its radio hears
+///   - too fast near the station: the guest is warned, then (still too fast) fined, and its radio hears
 ///     it; the station's welcome is not sent twice (the guest's own station
 ///     sends it there);
 ///   - the guest asks the host's station for a dock: cleared (its radio has
@@ -150,9 +150,13 @@ public partial class SessionSecurityTest : Node
         _guest.SetRadio(GuestShipId, "ACE", true);
         Check("its own again", await Until(() => Universe.Current.IdentityOf(player).Kind == Identity.Own && radio.Callsign == "ACE", 1));
 
-        // Too fast near the station
+        // Too fast near the station (across it, staying inside the limit's radius)
+        _ship.Position = new SectorPoint(-450, 0, 700);
         _ship.Velocity = new Vector3(80, 0, 0);
-        await Frames(270);
+        await Frames(150);
+        Check($"too fast near the station: warned first ({LastHeard})",
+              !security.Fines.ContainsKey(player) && LastHeard.Contains("Reduce speed") && _heard[^1].From == "HAVEN");
+        await Frames((int)(security.WarnCooldownSeconds * 60));
         _ship.Velocity = Vector3.Zero;
         await Frames(30);
         Check($"too fast near the station: fined ({LastHeard})",

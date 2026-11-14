@@ -89,7 +89,7 @@ public partial class PoliceScanTest : Node3D
 
         // A crew on its way, held to it as cargo ships are: read as any ship, its loot a price on the person's head
         Check("the police go home", await Until(() => Police() == null, 120));
-        ShipBody whiskey = Ship("Whiskey", new Vector3(-2000, 0, 3000), null, 0, 0);
+        ShipBody whiskey = Ship("Whiskey", new Vector3(-1500, 0, 2500), null, 0, 0);
         whiskey.Actor = "person-7";
         whiskey.RecordId = "cargo-7";
         Universe.Current.State.CargoShips["cargo-7"] = new CargoShipRecord

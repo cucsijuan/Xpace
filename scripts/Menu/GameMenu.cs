@@ -7,7 +7,8 @@ namespace Xpace.Menu;
 
 /// <summary>
 /// The menu Esc opens while playing (scenes/menu/game_menu.tscn): resume, settings, a backup of the ship's diskette
-/// for the insurer (the new ship after a loss boots it), back to the main menu, quit.
+/// for the insurer (the new ship after a loss boots it), back to the main menu, quit; in debug builds, the debug page
+/// (<see cref="Xpace.Debug.DebugMenu"/>).
 /// Playing alone it pauses the game; in a session it can't (the others play on), and the ship flies on with nobody
 /// at the controls but the keys let go. Esc again closes it (or the settings, if open).
 /// </summary>
@@ -26,6 +27,7 @@ public partial class GameMenu : CanvasLayer
     private static GameMenu _current;
     private Control _menu;
     private SettingsMenu _settings;
+    private Xpace.Debug.DebugMenu _debug;
     private Label _note;
 
     public override void _Ready()
@@ -45,6 +47,17 @@ public partial class GameMenu : CanvasLayer
         {
             _menu.Show();
             GetNode<Button>("%SettingsButton").GrabFocus();
+        };
+        _debug = GetNode<Xpace.Debug.DebugMenu>("%Debug");
+        GetNode<Button>("%DebugButton").Pressed += () =>
+        {
+            _menu.Hide();
+            _debug.Open();
+        };
+        _debug.Closed += () =>
+        {
+            _menu.Show();
+            GetNode<Button>("%DebugButton").GrabFocus();
         };
         GetNode<Button>("%Backup").Pressed += SendBackup;
         GetNode<Button>("%MainMenu").Pressed += ToMainMenu;
@@ -77,6 +90,8 @@ public partial class GameMenu : CanvasLayer
             GetNode<Button>("%Backup").Visible = ShipComputer.Kept?.BackupDiskPath is { Length: > 0 };
             _menu.Show();
             _settings.Hide();
+            _debug.Hide();
+            GetNode<Button>("%DebugButton").Visible = Xpace.Debug.DebugOptions.Available;
             Visible = true;
             Input.MouseMode = Input.MouseModeEnum.Visible;
             GetNode<Button>("%Resume").GrabFocus();
@@ -99,6 +114,8 @@ public partial class GameMenu : CanvasLayer
         GetViewport().SetInputAsHandled();
         if (_settings.Visible)
             _settings.Back();
+        else if (_debug.Visible)
+            _debug.Back();
         else
             Close();
     }

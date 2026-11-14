@@ -17,10 +17,10 @@ namespace Xpace.Space;
 public partial class StationLaws : Resource
 {
     /// <summary>How far from the station it protects, metres.</summary>
-    [Export] public float ZoneRadius = 5000f;
+    [Export] public float ZoneRadius = 3500f;
 
     /// <summary>How far from the station the speed limit holds, metres.</summary>
-    [Export] public float SpeedRadius = 1500f;
+    [Export] public float SpeedRadius = 1050f;
 
     /// <summary>The fastest a ship may fly inside <see cref="SpeedRadius"/>, m/s.</summary>
     [Export] public float SpeedLimit = 50f;

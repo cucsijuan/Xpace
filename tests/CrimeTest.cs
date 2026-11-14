@@ -54,13 +54,14 @@ public partial class CrimeTest : Node3D
         ShipBody d = Ship("Delta", new Vector3(0, 300, 2500), "dan");
         await Seconds(1);
 
-        Fire(a);
-        await Seconds(1);
-        Fire(a);
-        await Seconds(4.5);
-        Fire(a);
-        await Seconds(0.2);
-        Check($"firing on after the warning: a fine on the pilot's record ({Of("ann").Fines})", Of("ann").Fines == _security.FiringFine && Of("ann").Bounty == 0);
+        _security.WarnCooldownSeconds = 2;      // the warnings' timing is security_test's
+        for (int i = 0; i < _security.WarningsBeforeFine; i++)
+        {
+            Fire(a);
+            await Seconds(2.5);
+        }
+        Check($"firing on after the warnings: a fine on the pilot's record, no bounty ({Of("ann").Fines})",
+              Of("ann").Fines == _security.FiringFine && Of("ann").Bounty == 0 && _security.StandingOf(a) != Standing.Hostile);
 
         Strike(c, b, 10);
         await Seconds(0.2);

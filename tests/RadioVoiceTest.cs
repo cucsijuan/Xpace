@@ -35,7 +35,7 @@ public partial class RadioVoiceTest : Node
         string[] spoken =
         {
             traffic.WelcomeSpeech, traffic.NoDockSpeech, traffic.DeniedSpeech, traffic.ExpiredSpeech,
-            security.WarningSpeech, security.EngageSpeech, security.DestroyedSpeech, security.FineSpeech,
+            security.WarningSpeech, security.DestroyedSpeech, security.FineSpeech,
         };
         string preview = System.Environment.GetEnvironmentVariable("XPACE_RADIO_PREVIEW");
         Check("the station has voices to pick from", traffic.Voices.Count >= 2);

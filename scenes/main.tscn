@@ -53,6 +53,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ships/escort_fighter.tscn" id="86_escort"]
 [ext_resource type="PackedScene" path="res://scenes/space/cargo_pod.tscn" id="87_pod"]
 [ext_resource type="PackedScene" path="res://scenes/ships/maw_guard.tscn" id="88_maw_guard"]
+[ext_resource type="Script" path="res://scripts/Debug/LawZones.cs" id="89_law_zones"]
 
 
 [node name="Main" type="Node"]
@@ -75,5 +76,9 @@ script = ExtResource("cargo_view")
 
 [node name="NetLauncher" type="Node" parent="."]
 script = ExtResource("34_launcher")
+
+[node name="LawZones" type="Node" parent="."]
+process_mode = 3
+script = ExtResource("89_law_zones")
 
 [node name="GameMenu" parent="." instance=ExtResource("4_game_menu")]
