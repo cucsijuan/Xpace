@@ -28,6 +28,8 @@ public partial class CargoView : Node
 
     /// <summary>What a ship under fire calls on the radio ({0}: its callsign).</summary>
     [Export] public string MaydayText = "Mayday, mayday, {0} under fire.";
+    /// <summary>The commander's lines for the call, in the ship's voice (<see cref="RadioVoiceSet.Pilots"/>).</summary>
+    [Export] public string MaydaySpeech = "mayday";
 
     /// <summary>A ship under fire calls and tells its owner no oftener than this, seconds.</summary>
     [Export] public double MaydayEverySeconds = 30;
@@ -633,9 +635,10 @@ public partial class CargoView : Node
     {
         if (ship.FindChild("Radio", true, false) is not RadioDevice radio)
             return;
+        string speech = RadioVoiceSet.Pilots.Pick(sign)?.Speech(MaydaySpeech) ?? "";
         foreach (IRadio r in Radio.All(ship))
             if (r is IRadioReceiver listener && !ReferenceEquals(r, radio) && Radio.Hears(listener, radio))
-                listener.Hear(radio, string.Format(MaydayText, sign), "");
+                listener.Hear(radio, string.Format(MaydayText, sign), speech);
     }
 
     private ShipBody Bring(CargoShipRecord record, ShipModel model, StationBook.Fix fix, FloatingOrigin root)

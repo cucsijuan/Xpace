@@ -167,20 +167,20 @@ public partial class StationSecurity : Node, IEngagement
     /// <summary>The station operator's lines for each text (see <see cref="StationRadio.Say"/>).</summary>
     [ExportGroup("Speech")]
     [Export] public string WarningSpeech = "warning";
-    [Export] public string FiringFineSpeech = "";
-    [Export] public string SpeedWarningSpeech = "";
+    [Export] public string FiringFineSpeech = "firing_fine";
+    [Export] public string SpeedWarningSpeech = "speed_warning";
     [Export] public string DestroyedSpeech = "destroyed";
     [Export] public string FineSpeech = "fined";
     [Export] public string UnpaidTransitSpeech = "unpaid_transit";
     [Export] public string UnpaidAgainSpeech = "unpaid_again";
     [Export] public string AssaultSpeech = "assault";
     [Export] public string NotoriousSpeech = "notorious";
-    [Export] public string ScanSpeech = "";
-    [Export] public string StolenSpeech = "";
-    [Export] public string SmugglerSpeech = "";
-    [Export] public string IllegalSpeech = "";
-    [Export] public string UnmaskedSpeech = "";
-    [Export] public string TrespassSpeech = "";
+    [Export] public string ScanSpeech = "scan";
+    [Export] public string StolenSpeech = "stolen";
+    [Export] public string SmugglerSpeech = "smuggler";
+    [Export] public string IllegalSpeech = "illegal";
+    [Export] public string UnmaskedSpeech = "unmasked";
+    [Export] public string TrespassSpeech = "trespass";
 
     private sealed class Record
     {

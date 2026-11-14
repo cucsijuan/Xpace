@@ -1,7 +1,7 @@
 [gd_scene load_steps=54 format=3]
 
-[ext_resource type="Resource" path="res://assets/voices/pilot_m1/voice.tres" id="pilot_m1"]
-[ext_resource type="Resource" path="res://assets/voices/pilot_f1/voice.tres" id="pilot_f1"]
+[ext_resource type="Resource" path="res://assets/voices/operator_f3/voice.tres" id="voice_f3"]
+[ext_resource type="Resource" path="res://assets/voices/operator_m3/voice.tres" id="voice_m3"]
 [ext_resource type="Script" path="res://scripts/Space/MediumMass.cs" id="medium_mass"]
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_01_ring_hangar.tscn" id="1_station_01_ring"]
 [ext_resource type="PackedScene" path="res://scenes/stations/modules/station_02_outer_ring.tscn" id="2_station_02_outer_ring"]
@@ -324,8 +324,7 @@ transform = Transform3D(0.707107, 0, 0.707107, 0, 1, 0, -0.707107, 0, 0.707107, 
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 60, 0)
 script = ExtResource("12_radio")
 Laws = ExtResource("13_laws")
-Voices = Array[ExtResource("20_voice_pack")]([ExtResource("16_voice_f1"), ExtResource("17_voice_f2"), ExtResource("18_voice_m1"), ExtResource("19_voice_m2")])
-TrafficVoices = Array[ExtResource("20_voice_pack")]([ExtResource("pilot_m1"), ExtResource("pilot_f1")])
+Voices = Array[ExtResource("20_voice_pack")]([ExtResource("16_voice_f1"), ExtResource("17_voice_f2"), ExtResource("18_voice_m1"), ExtResource("19_voice_m2"), ExtResource("voice_f3"), ExtResource("voice_m3")])
 
 [node name="Market" type="Node" parent="."]
 script = ExtResource("30_market")

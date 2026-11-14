@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="RadioVoiceSet" load_steps=12 format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/RadioVoiceSet.cs" id="1"]
+[ext_resource type="Script" path="res://scripts/Space/RadioVoicePack.cs" id="2"]
+[ext_resource type="Resource" path="res://assets/voices/pilot_m1/voice.tres" id="m1"]
+[ext_resource type="Resource" path="res://assets/voices/pilot_f1/voice.tres" id="f1"]
+[ext_resource type="Resource" path="res://assets/voices/pilot_m2/voice.tres" id="m2"]
+[ext_resource type="Resource" path="res://assets/voices/pilot_f2/voice.tres" id="f2"]
+[ext_resource type="Resource" path="res://assets/voices/pilot_m3/voice.tres" id="m3"]
+[ext_resource type="Resource" path="res://assets/voices/pilot_f3/voice.tres" id="f3"]
+[ext_resource type="Resource" path="res://assets/voices/pilot_m4/voice.tres" id="m4"]
+[ext_resource type="Resource" path="res://assets/voices/pilot_f4/voice.tres" id="f4"]
+
+[resource]
+script = ExtResource("1")
+Voices = Array[ExtResource("2")]([ExtResource("m1"), ExtResource("f1"), ExtResource("m2"), ExtResource("f2"), ExtResource("m3"), ExtResource("f3"), ExtResource("m4"), ExtResource("f4")])

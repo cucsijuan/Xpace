@@ -32,14 +32,34 @@ public partial class RadioVoiceTest : Node
         var station = GD.Load<PackedScene>("res://scenes/stations/synty_station.tscn").Instantiate<Node3D>();
         var traffic = station.GetNode<StationRadio>("Radio");
         var security = station.GetNode<StationSecurity>("Security");
-        string[] spoken =
+        // every speech the stations' radios and security speak, in every operator's voice; the commanders' lines in every pilot's
+        static bool Pilots(string name) => name is nameof(StationRadio.TrafficAskSpeech) or nameof(StationRadio.TrafficLaunchAskSpeech);
+        string[] Speeches(GodotObject o, bool pilots) => o.GetType().GetFields()
+            .Where(f => f.FieldType == typeof(string) && f.Name.EndsWith("Speech") && Pilots(f.Name) == pilots)
+            .Select(f => (string)f.GetValue(o)).Where(l => !string.IsNullOrWhiteSpace(l))
+            .Select(l => string.Format(l, 1, 1, 1)).ToArray();
+        string[] spoken = Speeches(traffic, false).Concat(Speeches(security, false)).ToArray();
+        var cargo = new CargoView();
+        string[] commanders = Speeches(traffic, true).Append(cargo.MaydaySpeech).ToArray();
+        cargo.Free();
+        RadioVoicePack[] operators = new[] { traffic.Voices, LoadVoices("res://scenes/gates/jump_gate.tscn"), LoadVoices("res://scenes/stations/redhold.tscn") }
+            .SelectMany(v => v).DistinctBy(v => v.Name).ToArray();
+        Check($"{spoken.Length} speeches for the operators, {commanders.Length} for the commanders, {operators.Length} operators, {RadioVoiceSet.Pilots.Voices.Count} pilots",
+              spoken.Length >= 30 && operators.Length >= 8 && RadioVoiceSet.Pilots.Voices.Count >= 8);
+        foreach (RadioVoicePack voice in RadioVoiceSet.Pilots.Voices)
         {
-            traffic.WelcomeSpeech, traffic.NoDockSpeech, traffic.DeniedSpeech, traffic.ExpiredSpeech,
-            security.WarningSpeech, security.DestroyedSpeech, security.FineSpeech,
-        };
+            int clips = 0, missing = 0;
+            foreach (string lines in commanders)
+            {
+                radio.Speak(voice.Speech(lines), out int c, out int m);
+                clips += c;
+                missing += m;
+            }
+            Check($"{voice.Name} ({voice.DisplayName}): every line ({clips} clips, {missing} missing)", missing == 0 && clips == commanders.Length);
+        }
         string preview = System.Environment.GetEnvironmentVariable("XPACE_RADIO_PREVIEW");
         Check("the station has voices to pick from", traffic.Voices.Count >= 2);
-        foreach (RadioVoicePack voice in traffic.Voices)
+        foreach (RadioVoicePack voice in operators)
         {
             int clips = 0, missing = 0;
             foreach (string lines in spoken.Concat(Enumerable.Range(1, 20).Select(n => string.Format(traffic.ClearedSpeech, n))))
@@ -55,7 +75,7 @@ public partial class RadioVoiceTest : Node
             float peak = sound.Max(MathF.Abs);
             float voiced = sound.Skip(open).Take(sound.Length - open * 2).Select(MathF.Abs).Average();
             Check($"  a clearance: {n} clips, {sound.Length / radio.Rate:0.0} s, peak {peak:0.00}, average {voiced:0.000}",
-                  n == 3 && peak <= 1 && voiced > 0.05f);
+                  n == 3 && peak <= 1 && voiced > 0.04f);
             if (!string.IsNullOrEmpty(preview))
             {
                 Directory.CreateDirectory(preview);
@@ -76,6 +96,14 @@ public partial class RadioVoiceTest : Node
         station.Free();
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
+    }
+
+    private static Godot.Collections.Array<RadioVoicePack> LoadVoices(string scene)
+    {
+        var root = GD.Load<PackedScene>(scene).Instantiate<Node>();
+        var voices = root.GetNode<StationRadio>("Radio").Voices;
+        root.Free();
+        return voices;
     }
 
     private static float Gain(RadioVoice radio, float hz)

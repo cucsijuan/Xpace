@@ -18,8 +18,8 @@
 [ext_resource type="Material" path="res://assets/materials/redhold.tres" id="paint"]
 [ext_resource type="Material" path="res://assets/materials/redhold_lights.tres" id="paint_lights"]
 [ext_resource type="Script" uid="uid://c70hoi0gx5bok" path="res://scripts/Space/ModelPaint.cs" id="paint_script"]
-[ext_resource type="Resource" path="res://assets/voices/pilot_f1/voice.tres" id="pilot_f1"]
-[ext_resource type="Resource" path="res://assets/voices/pilot_m1/voice.tres" id="pilot_m1"]
+[ext_resource type="Resource" path="res://assets/voices/operator_m3/voice.tres" id="voice_m3"]
+[ext_resource type="Resource" path="res://assets/voices/operator_m4/voice.tres" id="voice_m4"]
 [ext_resource type="Script" uid="uid://dwp1swe75tq44" path="res://scripts/Space/StationRadio.cs" id="radio"]
 [ext_resource type="Script" uid="uid://4tepgqawhiod" path="res://scripts/Space/StationSecurity.cs" id="security"]
 [ext_resource type="Script" uid="uid://cj8fhex8toh4y" path="res://scripts/Space/MeshSlide.cs" id="slide"]
@@ -208,8 +208,7 @@ transform = Transform3D(-6.1401, -2.7156, -2.2787, 0, -4.5574, 5.4313, -3.545, 4
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 205, 0)
 script = ExtResource("radio")
 Laws = ExtResource("laws")
-Voices = Array[ExtResource("voice_pack")]([ExtResource("voice_m1"), ExtResource("voice_m2")])
-TrafficVoices = Array[ExtResource("voice_pack")]([ExtResource("pilot_m1"), ExtResource("pilot_f1")])
+Voices = Array[ExtResource("voice_pack")]([ExtResource("voice_m1"), ExtResource("voice_m2"), ExtResource("voice_m3"), ExtResource("voice_m4")])
 
 [node name="Market" type="Node" parent="." unique_id=1811947969]
 script = ExtResource("market")

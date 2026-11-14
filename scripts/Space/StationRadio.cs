@@ -100,7 +100,7 @@ public partial class StationRadio : Node3D, IRadio
     [Export] public string ClearedPadSpeech = "cleared hangar_{0} pad_{1} follow_lights";
     [Export] public string NoDockSpeech = "no_dock";
     [Export] public string DeniedSpeech = "denied";
-    [Export] public string NotOnRecordSpeech = "denied";
+    [Export] public string NotOnRecordSpeech = "not_on_record";
     [Export] public string ExpiredSpeech = "expired";
     [Export] public string DockedSpeech = "docked";
     [Export] public string LaunchSpeech = "launch";
@@ -111,10 +111,11 @@ public partial class StationRadio : Node3D, IRadio
     [Export] public string TollSpeech = "toll_short";
     [Export] public string TransitDeniedSpeech = "transit_denied";
     [Export] public string NoGateSpeech = "no_gate";
+    [Export] public string NewsSpeech = "news";
+    [Export] public string LockdownSpeech = "lockdown";
+    [Export] public string LockdownOverSpeech = "lockdown_over";
 
     [ExportGroup("Traffic")]
-    /// <summary>The voices cargo ships' pilots use on the station's channel, one by callsign.</summary>
-    [Export] public Godot.Collections.Array<RadioVoicePack> TrafficVoices = new();
     /// <summary>{0} the ship.</summary>
     [Export] public string TrafficAskText = "{0}, inbound. Requesting a pad.";
     [Export] public string TrafficAskSpeech = "ship_request";
@@ -407,7 +408,7 @@ public partial class StationRadio : Node3D, IRadio
             return;
         int stations = Xpace.World.MarketNews.Hear(pilot, beacon, universe.State, universe.Book, universe.Account);
         universe.Touch(pilot);
-        Say(ship, string.Format(NewsText, stations));
+        Say(ship, string.Format(NewsText, stations), NewsSpeech);
     }
 
     // A gate clears a ship to go through, the toll taken from its pilot then (a ship flown by the game pays none)
@@ -510,7 +511,7 @@ public partial class StationRadio : Node3D, IRadio
     /// <summary>What a cargo ship and the station say to each other, heard by the ships in its zone.</summary>
     public void Traffic(string ship, string ask, string askSpeech, string answer, string answerSpeech, int dock = 0, int pad = 0)
     {
-        RadioVoicePack pilot = RadioVoicePack.Pick(TrafficVoices, ship);
+        RadioVoicePack pilot = RadioVoiceSet.Pilots.Pick(ship);       // the ship's commander, the same at every station
         foreach (IRadioReceiver to in _inside.Where(r => r is GodotObject o && IsInstanceValid(o)))
         {
             if (ask != null && Radio.Hears(to, this))
@@ -614,7 +615,7 @@ public partial class StationRadio : Node3D, IRadio
                 _lockedDown.Remove(dock);
             Doors(dock);
             foreach (IRadioReceiver to in _inside.Where(r => r is GodotObject o && IsInstanceValid(o)))
-                Say(to, string.Format(alarm ? LockdownText : LockdownOverText, dock.Number));
+                Say(to, string.Format(alarm ? LockdownText : LockdownOverText, dock.Number), alarm ? LockdownSpeech : LockdownOverSpeech);
         }
     }
 
