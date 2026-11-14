@@ -187,8 +187,14 @@ public partial class RemoteShip : Node3D, Space.ICruiseShown, INetEntity, IRadar
         if (!Alive)
             return 0;
         float behind = Mathf.Max(0, -direction.Dot(GlobalBasis.Z.Normalized()));
-        return heat * (HullHeatAtFull * HullLevel + _jammer.Glow + MotorHeat * Thrust * (FrontHeat + (1 - FrontHeat) * behind));
+        float hull = HullHeatAtFull * HullLevel, motor = MotorHeat * Thrust * (FrontHeat + (1 - FrontHeat) * behind);
+        _share = Heat.Mix(hull, _jammer.Glow, motor);
+        return heat * (hull + _jammer.Glow + motor);
     }
+
+    private float _share = Heat.PlumeShare;
+
+    float IHeatSource.Share => _share;
 
     /// <summary>A packet from the owner's <see cref="ShipStateSender"/>.</summary>
     public void Receive(byte[] packet)

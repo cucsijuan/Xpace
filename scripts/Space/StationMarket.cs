@@ -48,6 +48,8 @@ public sealed class MarketView
     public long Bounty { get; set; }
     /// <summary>What organisations offer for the pilot's head.</summary>
     public long Hunted { get; set; }
+    /// <summary>What this station's owner offers for it: paid here with the fines.</summary>
+    public long Offered { get; set; }
     [System.Text.Json.Serialization.JsonIgnore] public long Owed => Fines + Bounty;
     /// <summary>The pilot's own ship is impounded here.</summary>
     public bool Impounded { get; set; }
@@ -321,15 +323,16 @@ public partial class StationMarket : Node
                 message = NotPresentText;
             else if (request.Do == MarketRequest.Pay)
             {
-                long owed = crimes.Owed;
-                if (owed == 0 && !impounded)
+                long owed = crimes.Owed, offered = Reactions.Offered(Radio.Cash, pilotId);
+                if (owed == 0 && offered == 0 && !impounded)
                     message = NoFinesText;
-                else if (owed > 0 && !Justice.Pay(crimes, pilot))
+                else if (pilot.Credits < owed + offered || owed > 0 && !Justice.Pay(crimes, pilot))
                     message = NoMoneyText;
                 else
                 {
                     Receive(owed);
-                    message = owed > 0 ? string.Format(PaidText, owed) : "";
+                    Reactions.Settle(Radio.Cash, pilotId, pilot);       // and what the owner offers for their head
+                    message = owed + offered > 0 ? string.Format(PaidText, owed + offered) : "";
                     if (Justice.Release(station, crimes, pilot))
                         message = (message + " " + ReleasedText).Trim();
                     changed = true;
@@ -427,7 +430,7 @@ public partial class StationMarket : Node
         {
             Station = Radio.Id, Title = Radio.ShownName, Owner = Radio.Cash?.Name ?? "", Docked = docked, Idle = station.Idle, Repaired = repaired, CanOffer = station.Owner == PilotRecord.OwnerPrefix + pilotId && !state.Sales.ContainsKey($"{SaleRecord.Station}:{Radio.Id}"), Tank = Tank(pilot), Fuel = pilot.Ship.Fuel < 0 ? Tank(pilot) : pilot.Ship.Fuel, FuelPrice = Market.FuelPrice(station, Goods), Present = present, Credits = pilot.Credits, Capacity = Capacity(ship, pilot),
             Carried = pilot.Ship.Tonnes, Fines = crimes.Fines, Bounty = crimes.Bounty, Impounded = station.Impounded.ContainsKey(pilotId),
-            Message = message, Hunted = Reactions.Hunted(state, pilotId),
+            Message = message, Hunted = Reactions.Hunted(state, pilotId), Offered = Reactions.Offered(Radio.Cash, pilotId),
         };
         foreach (SaleRecord sale in state.Sales.Values.Where(s => s.Kind == SaleRecord.Station).OrderBy(s => s.Id, System.StringComparer.Ordinal))
             view.Sales.Add(new SaleLine { Id = sale.Id, Title = universe.NameOf(sale.Item), Seller = universe.Account(sale.Seller)?.Name ?? "", Price = sale.PriceAt(state.Clock) });
@@ -435,6 +438,10 @@ public partial class StationMarket : Node
             foreach ((string callsign, StationRecord other) in state.Stations.OrderBy(kv => kv.Key, System.StringComparer.Ordinal))
                 if (callsign != Radio.Id && other.Crimes.TryGetValue(pilotId, out CrimeRecord owed) && owed.Owed > 0)
                     view.Elsewhere.Add(new DebtLine { Station = callsign, Title = Universe.Current.NameOf(callsign), Owed = owed.Owed, Cost = FactorCost(owed.Owed) });
+        if (Factor)
+            foreach (OrganisationRecord org in state.Organisations.Values.OrderBy(o => o.Id, System.StringComparer.Ordinal))
+                if (!ReferenceEquals(org, Radio.Cash) && Reactions.Offered(org, pilotId) is long offered and > 0)
+                    view.Elsewhere.Add(new DebtLine { Station = Wanted + org.Id, Title = $"{org.Name} (price on your head)", Owed = offered, Cost = FactorCost(offered) });
         foreach ((string id, StationNews news) in pilot.Known.Where(kv => kv.Key != Radio.Id).OrderByDescending(kv => kv.Value.AsOf).ThenBy(kv => kv.Key, System.StringComparer.Ordinal))
             foreach (MarketGood line in universe.Book?.Find(id)?.Goods ?? System.Array.Empty<MarketGood>())
                 if (news.Goods.TryGetValue(line.Good.Id, out GoodNews good))
@@ -597,13 +604,30 @@ public partial class StationMarket : Node
 
     public long FactorCost(long owed) => (long)System.Math.Ceiling(owed * (1 + FactorSurcharge));
 
-    // The factor settles what the pilot owes another station
+    /// <summary>A factor's debt line for an organisation's price on the pilot's head: this, then the organisation's id.</summary>
+    public const string Wanted = "wanted:";
+
+    // The factor settles what the pilot owes another station, or buys off another owner's price on their head
     private string Settle(PilotRecord pilot, string station, bool present, ref bool changed)
     {
         if (!Factor)
             return NoFactorText;
         if (!present)
             return NotPresentText;
+        if (station?.StartsWith(Wanted) == true)
+        {
+            IAccount org = Universe.Current.Account(station[Wanted.Length..]);
+            long offered = Reactions.Offered(org, pilot.Id);
+            if (offered <= 0 || org == Radio.Cash)
+                return NoFinesText;
+            long fee = FactorCost(offered) - offered;
+            if (pilot.Credits < offered + fee || !Reactions.Settle(org, pilot.Id, pilot))
+                return NoMoneyText;
+            pilot.Spend(fee);
+            Receive(fee);
+            changed = true;
+            return string.Format(FactorText, org.Name, offered + fee);
+        }
         if (station == Radio.Id || !Universe.Current.State.Stations.TryGetValue(station ?? "", out StationRecord other) ||
             !other.Crimes.TryGetValue(pilot.Id, out CrimeRecord record) || record.Owed == 0)
             return NoFinesText;

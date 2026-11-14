@@ -1,4 +1,4 @@
-[gd_scene load_steps=46 format=3]
+[gd_scene load_steps=54 format=3]
 
 [ext_resource type="Resource" path="res://assets/voices/pilot_m1/voice.tres" id="pilot_m1"]
 [ext_resource type="Resource" path="res://assets/voices/pilot_f1/voice.tres" id="pilot_f1"]
@@ -33,6 +33,8 @@
 [ext_resource type="Script" path="res://scripts/World/OutfitLine.cs" id="33_outfit"]
 [ext_resource type="Resource" path="res://assets/weapons/missiles/msl_1.tres" id="33_msl"]
 [ext_resource type="Resource" path="res://assets/weapons/missiles/ir_1.tres" id="33_ir"]
+[ext_resource type="Resource" path="res://assets/weapons/missiles/ir_2.tres" id="33_ir2"]
+[ext_resource type="Resource" path="res://assets/weapons/missiles/ir_3.tres" id="33_ir3"]
 [ext_resource type="Resource" path="res://assets/weapons/decoys/chaff_1.tres" id="33_chaff"]
 [ext_resource type="Resource" path="res://assets/weapons/decoys/flare_1.tres" id="33_flare"]
 [ext_resource type="Resource" path="res://assets/weapons/ammo/rounds_1.tres" id="33_rounds"]
@@ -55,6 +57,8 @@
 [ext_resource type="Resource" path="res://assets/recipes/electronics.tres" id="recipe_electronics"]
 [ext_resource type="Resource" path="res://assets/recipes/msl_1.tres" id="recipe_msl_1"]
 [ext_resource type="Resource" path="res://assets/recipes/ir_1.tres" id="recipe_ir_1"]
+[ext_resource type="Resource" path="res://assets/recipes/ir_2.tres" id="recipe_ir_2"]
+[ext_resource type="Resource" path="res://assets/recipes/ir_3.tres" id="recipe_ir_3"]
 [ext_resource type="Resource" path="res://assets/recipes/chaff_1.tres" id="recipe_chaff_1"]
 [ext_resource type="Resource" path="res://assets/recipes/flare_1.tres" id="recipe_flare_1"]
 [ext_resource type="Resource" path="res://assets/recipes/lsr_1.tres" id="recipe_lsr_1"]
@@ -86,6 +90,16 @@ PerHour = 12.0
 script = ExtResource("factory_line")
 Recipe = ExtResource("recipe_ir_1")
 PerHour = 12.0
+
+[sub_resource type="Resource" id="Works_ir_2"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_ir_2")
+PerHour = 6.0
+
+[sub_resource type="Resource" id="Works_ir_3"]
+script = ExtResource("factory_line")
+Recipe = ExtResource("recipe_ir_3")
+PerHour = 4.0
 
 [sub_resource type="Resource" id="Works_chaff_1"]
 script = ExtResource("factory_line")
@@ -126,6 +140,16 @@ Stock = 24
 script = ExtResource("33_outfit")
 Item = ExtResource("33_ir")
 Stock = 24
+
+[sub_resource type="Resource" id="Arms_ir2"]
+script = ExtResource("33_outfit")
+Item = ExtResource("33_ir2")
+Stock = 12
+
+[sub_resource type="Resource" id="Arms_ir3"]
+script = ExtResource("33_outfit")
+Item = ExtResource("33_ir3")
+Stock = 8
 
 [sub_resource type="Resource" id="Arms_chaff"]
 script = ExtResource("33_outfit")
@@ -306,8 +330,8 @@ TrafficVoices = Array[ExtResource("20_voice_pack")]([ExtResource("pilot_m1"), Ex
 [node name="Market" type="Node" parent="."]
 script = ExtResource("30_market")
 Goods = Array[ExtResource("31_market_good")]([SubResource("Market_energy"), SubResource("Market_water"), SubResource("Market_food"), SubResource("Market_iron"), SubResource("Market_medicines"), SubResource("Market_metals"), SubResource("Market_machinery"), SubResource("Market_chips"), SubResource("Market_copper"), SubResource("Market_electronics"), SubResource("Market_hydrogen")])
-Outfits = Array[ExtResource("33_outfit")]([SubResource("Arms_msl"), SubResource("Arms_ir"), SubResource("Arms_chaff"), SubResource("Arms_flare"), SubResource("Arms_rounds"), SubResource("Arms_lsr"), SubResource("Arms_gun"), SubResource("Arms_pyl")])
-Factories = Array[ExtResource("factory_line")]([SubResource("Market_works_solar"), SubResource("Works_hydrogen"), SubResource("Works_machinery"), SubResource("Works_electronics"), SubResource("Works_msl_1"), SubResource("Works_ir_1"), SubResource("Works_chaff_1"), SubResource("Works_flare_1"), SubResource("Works_lsr_1"), SubResource("Works_gun_1"), SubResource("Works_pyl_1"), SubResource("Works_rounds_1")])
+Outfits = Array[ExtResource("33_outfit")]([SubResource("Arms_msl"), SubResource("Arms_ir"), SubResource("Arms_ir2"), SubResource("Arms_ir3"), SubResource("Arms_chaff"), SubResource("Arms_flare"), SubResource("Arms_rounds"), SubResource("Arms_lsr"), SubResource("Arms_gun"), SubResource("Arms_pyl")])
+Factories = Array[ExtResource("factory_line")]([SubResource("Market_works_solar"), SubResource("Works_hydrogen"), SubResource("Works_machinery"), SubResource("Works_electronics"), SubResource("Works_msl_1"), SubResource("Works_ir_1"), SubResource("Works_ir_2"), SubResource("Works_ir_3"), SubResource("Works_chaff_1"), SubResource("Works_flare_1"), SubResource("Works_lsr_1"), SubResource("Works_gun_1"), SubResource("Works_pyl_1"), SubResource("Works_rounds_1")])
 
 [node name="Lockers" type="Node" parent="."]
 script = ExtResource("40_lockers")

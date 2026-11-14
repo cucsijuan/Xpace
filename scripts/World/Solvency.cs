@@ -46,8 +46,15 @@ public static class Solvency
     public static void Work(UniverseState state, StationBook book, Func<string, IAccount> account)
     {
         foreach (string id in book.Stations.Select(s => CargoShips.OwnerOf(state, s)).Concat(state.Organisations.Keys).Distinct().OrderBy(s => s, StringComparer.Ordinal).ToList())
-            if (id != Abandoned && account(id) is OrganisationRecord owner)
-                Look(owner, state, book);
+            if (id != Abandoned && account(id) is OrganisationRecord or PersonRecord)
+                Look(account(id), id, state, book);
+        // A station nobody runs is on sale at its floor, for whoever wants it
+        foreach (StationBook.Station s in book.Stations)
+            if (state.Stations.TryGetValue(s.Id, out StationRecord r) && r.Abandoned && !state.Sales.ContainsKey($"{SaleRecord.Station}:{s.Id}"))
+            {
+                Put(SaleRecord.Station, s.Id, "", s.Worth, Ordinary, state);
+                state.Sales[$"{SaleRecord.Station}:{s.Id}"].Asking = state.Sales[$"{SaleRecord.Station}:{s.Id}"].Floor;
+            }
         foreach (SaleRecord sale in state.Sales.Values.OrderBy(s => s.Id, StringComparer.Ordinal).ToList())
             Market(sale, state, book, account);
     }
@@ -56,21 +63,33 @@ public static class Solvency
     public static double Upkeep(string owner, UniverseState state, StationBook book) =>
         book.Stations.Where(s => CargoShips.OwnerOf(state, s) == owner).Sum(s => s.Upkeep);
 
-    private static void Look(OrganisationRecord owner, UniverseState state, StationBook book)
+    // An organisation's or a person's: the same for both
+    private static double BrokeSince(IAccount owner) => owner switch { OrganisationRecord o => o.BrokeSince, PersonRecord p => p.BrokeSince, _ => -1 };
+
+    private static void SetBroke(IAccount owner, double since)
     {
-        Personality nature = OrganisationCatalog.Find(owner.Id)?.Personality ?? Ordinary;
-        double upkeep = Upkeep(owner.Id, state, book);
+        if (owner is OrganisationRecord o)
+            o.BrokeSince = since;
+        else if (owner is PersonRecord p)
+            p.BrokeSince = since;
+    }
+
+    private static void Look(IAccount owner, string id, UniverseState state, StationBook book)
+    {
+        Personality nature = owner.Nature ?? Ordinary;
+        double upkeep = Upkeep(id, state, book);
         if (upkeep <= 0 || owner.Credits >= upkeep * nature.ReserveHours)
         {
-            owner.BrokeSince = -1;
-            foreach (SaleRecord mine in state.Sales.Values.Where(s => s.Seller == owner.Id).ToList())
+            if (upkeep > 0 || owner is OrganisationRecord)
+                SetBroke(owner, -1);
+            foreach (SaleRecord mine in state.Sales.Values.Where(s => s.Seller == id).ToList())
                 state.Sales.Remove(mine.Id);
             return;
         }
-        if (owner.BrokeSince < 0)
-            owner.BrokeSince = state.Clock;
-        if (state.Clock - owner.BrokeSince >= nature.GraceHours * 3600 && !state.Sales.Values.Any(s => s.Seller == owner.Id))
-            List(owner, nature, state, book);
+        if (BrokeSince(owner) < 0)
+            SetBroke(owner, state.Clock);
+        if (state.Clock - BrokeSince(owner) >= nature.GraceHours * 3600 && !state.Sales.Values.Any(s => s.Seller == id))
+            List(id, nature, state, book);
     }
 
     private static readonly Personality Ordinary = new();
@@ -78,18 +97,20 @@ public static class Solvency
     private static ShipModel ModelOf(CargoShipRecord ship) => ResourceLoader.Exists(ship.Model) ? Xpace.World.ResourceCache.Load<ShipModel>(ship.Model) : null;
 
     // What it can best do without: what earns nothing, then what earns least, and last its stations
-    private static void List(OrganisationRecord owner, Personality nature, UniverseState state, StationBook book)
+    private static void List(string owner, Personality nature, UniverseState state, StationBook book)
     {
-        List<CargoShipRecord> ships = state.CargoShips.Values.Where(s => s.Owner == owner.Id).ToList();
+        // a person's own ship is how they live: never theirs to sell
+        string own = state.People.TryGetValue(owner, out PersonRecord person) ? People.OwnShip(person) : null;
+        List<CargoShipRecord> ships = state.CargoShips.Values.Where(s => s.Owner == owner && s.Id != own).ToList();
         List<CargoShipRecord> working = ships.Where(s => ModelOf(s)?.Escort == false).OrderBy(s => s.Delivered).ThenBy(s => s.Id, StringComparer.Ordinal).ToList();
         CargoShipRecord spare = ships.Where(s => ModelOf(s)?.Escort == true).OrderBy(s => s.Id, StringComparer.Ordinal).FirstOrDefault() ?? (working.Count > 1 ? working[0] : null);
         if (spare != null && ModelOf(spare) is ShipModel model)
         {
-            Put(SaleRecord.Ship, spare.Id, owner.Id, Value(model), nature, state);
+            Put(SaleRecord.Ship, spare.Id, owner, Value(model), nature, state);
             return;
         }
-        if (book.Stations.Where(s => CargoShips.OwnerOf(state, s) == owner.Id).OrderBy(s => s.Worth).FirstOrDefault() is StationBook.Station station)
-            Put(SaleRecord.Station, station.Id, owner.Id, station.Worth, nature, state);
+        if (book.Stations.Where(s => CargoShips.OwnerOf(state, s) == owner).OrderBy(s => s.Worth).FirstOrDefault() is StationBook.Station station)
+            Put(SaleRecord.Station, station.Id, owner, station.Worth, nature, state);
     }
 
     /// <summary>A pilot puts a station of theirs up for sale, for what it is worth; it falls as anyone's does. Whether it could.</summary>
@@ -111,8 +132,11 @@ public static class Solvency
     private static void Market(SaleRecord sale, UniverseState state, StationBook book, Func<string, IAccount> account)
     {
         long price = sale.PriceAt(state.Clock);
-        string buyer = state.Organisations.Values.Where(o => o.Id != sale.Seller && o.Id != Abandoned && Wants(o, sale, price, state, book))
-            .OrderByDescending(o => OrganisationCatalog.Find(o.Id)?.Personality?.Ambition ?? 0).ThenBy(o => o.Id, StringComparer.Ordinal).Select(o => o.Id).FirstOrDefault();
+        // Organisations and free people alike: a person who saved enough for a station founds a company of their own
+        string buyer = state.Organisations.Values.Select(o => (Id: o.Id, Account: (IAccount)o))
+            .Concat(state.People.Values.Select(p => (Id: p.Id, Account: (IAccount)p)))
+            .Where(b => b.Id != sale.Seller && b.Id != Abandoned && Wants(b.Id, b.Account, sale, price, state, book))
+            .OrderByDescending(b => b.Account.Nature?.Ambition ?? 0).ThenBy(b => b.Id, StringComparer.Ordinal).Select(b => b.Id).FirstOrDefault();
         if (buyer != null)
             Buy(sale, buyer, state, book, account);
         else if (sale.Kind == SaleRecord.Station && sale.Seller != "" && !sale.Seller.StartsWith(PilotRecord.OwnerPrefix) && state.Clock >= sale.Since + sale.Falls)
@@ -120,12 +144,12 @@ public static class Solvency
     }
 
     // It has to have the money with some left, as much of it as it dares; a ship needs a station to work for
-    private static bool Wants(OrganisationRecord who, SaleRecord sale, long price, UniverseState state, StationBook book)
+    private static bool Wants(string id, IAccount who, SaleRecord sale, long price, UniverseState state, StationBook book)
     {
-        Personality nature = OrganisationCatalog.Find(who.Id)?.Personality ?? Ordinary;
-        if (price > who.Credits * nature.Ambition || who.BrokeSince >= 0)
+        Personality nature = who.Nature ?? Ordinary;
+        if (price > who.Credits * nature.Ambition || BrokeSince(who) >= 0)
             return false;
-        return sale.Kind == SaleRecord.Station || book.Stations.Any(s => CargoShips.OwnerOf(state, s) == who.Id);
+        return sale.Kind == SaleRecord.Station || book.Stations.Any(s => CargoShips.OwnerOf(state, s) == id);
     }
 
     /// <summary>Someone buys what is on sale, if they have the money; whether they did.</summary>
@@ -137,8 +161,8 @@ public static class Solvency
         money.Credits -= price;
         if (account(sale.Seller) is IAccount seller)
             seller.Credits += price;
-        if (account(sale.Seller) is OrganisationRecord broke)
-            broke.BrokeSince = -1;
+        if (account(sale.Seller) is IAccount broke)
+            SetBroke(broke, -1);
         state.Sales.Remove(sale.Id);
         if (sale.Kind == SaleRecord.Ship)
         {
@@ -150,6 +174,10 @@ public static class Solvency
             return true;
         }
         Hand(sale.Item, buyer, state);
+        // A person's first station is their home from now on: their ships work for it
+        if (account(buyer) is PersonRecord && !book.Stations.Any(s => s.Id != sale.Item && CargoShips.OwnerOf(state, s) == buyer))
+            foreach (CargoShipRecord ship in state.CargoShips.Values.Where(s => s.Owner == buyer))
+                ship.Home = sale.Item;
         return true;
     }
 
@@ -163,10 +191,26 @@ public static class Solvency
         record.Abandoned = false;
     }
 
+    /// <summary>
+    /// Someone who owned stations is gone: nobody runs them now. They stand abandoned until someone buys them
+    /// (<see cref="Work"/> puts them up at their floor).
+    /// </summary>
+    public static void Orphan(UniverseState state, string owner)
+    {
+        foreach ((string id, StationRecord record) in state.Stations.Where(kv => kv.Value.Owner == owner).ToList())
+        {
+            state.Sales.Remove($"{SaleRecord.Station}:{id}");
+            Hand(id, Abandoned, state);
+            record.Abandoned = true;
+        }
+        foreach (SaleRecord sale in state.Sales.Values.Where(s => s.Seller == owner).ToList())
+            state.Sales.Remove(sale.Id);
+    }
+
     private static void Abandon(SaleRecord sale, UniverseState state, StationBook book, Func<string, IAccount> account)
     {
-        if (account(sale.Seller) is OrganisationRecord seller)
-            seller.BrokeSince = -1;
+        if (account(sale.Seller) is IAccount seller)
+            SetBroke(seller, -1);
         Hand(sale.Item, Abandoned, state);
         state.Station(sale.Item).Abandoned = true;
         sale.Seller = "";

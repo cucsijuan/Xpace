@@ -245,14 +245,27 @@ public partial class RadioDevice : Node3D, IShipDevice, IRadioReceiver
     /// <summary>Asks the nearest gate to let the ship through.</summary>
     public void AskTransit() => Ask(RadioRequest.Transit, Nearest(gate: true));
 
-    // The nearest station heard (contacts are nearest first), or the nearest gate
+    // The nearest station heard, or the nearest gate: from the stations themselves, not the contact list, where the
+    // ships round a busy station can crowd it out
     private StationRadio Nearest(bool gate = false)
     {
-        Scan();
-        foreach (IRadio r in _contacts)
-            if (r is StationRadio s && IsInstanceValid(s) && (s.Gate != null) == gate)
-                return s;
-        return null;
+        if (!On || !IsInsideTree())
+            return null;
+        World3D world = Sectors.WorldOf(this);
+        StationRadio best = null;
+        float nearest = float.MaxValue;
+        foreach (StationRadio s in StationRadio.All)
+        {
+            if (!IsInstanceValid(s) || s.World != world || (s.Gate != null) != gate || !s.IsVisibleInTree() || !Radio.Hears(this, s))
+                continue;
+            float range = s.GlobalPosition.DistanceTo(GlobalPosition);
+            if (range < nearest)
+            {
+                nearest = range;
+                best = s;
+            }
+        }
+        return best;
     }
 
     public unsafe void BeforeStep(ShipBody ship, double delta)

@@ -49,6 +49,10 @@ P_TGO       equ PORTS + 18
 P_ACCEL     equ PORTS + 20
 TICK_VECTOR equ 08h
 
+;
+; The calibration: the model's numbers, burned into the ROM at the factory
+; (the same program serves every model of its kind), at a fixed place
+; after the first jump: 'XCAL', then words.
 NAV_GAIN    equ 768                 ; N = 3, in 1/256
 ALPHA       equ 31                  ; 0.12, in 1/256
 BETA_DT     equ 118                 ; 0.0077 * 60, in 1/256
@@ -62,6 +66,13 @@ COMMAND_MAX equ 16000               ; 1000 m/s^2: far beyond any motor
 ST_GUIDING  equ 1
 ST_NO_WORD  equ 2
 ST_LOST     equ 4
+
+    jmp start
+calibration db 'XCAL'
+nav_gain    dw NAV_GAIN
+boost_push  dw BOOST
+close_wanted dw CLOSE_WANTED
+lost_steps  dw LOST_STEPS
 
 start:
     cli
@@ -141,7 +152,8 @@ step:
     cmp byte [started], 0
     je .quiet
     inc word [since]
-    cmp word [since], LOST_STEPS
+    mov ax, [lost_steps]
+    cmp [since], ax
     ja .lost
     call predict
 .guide:
@@ -348,7 +360,7 @@ guide:
     imul cx                         ;   = N ZEM / t^2 (1/16 m/s^2)
     mov cx, [tgo]
     call sdiv
-    mov cx, NAV_GAIN
+    mov cx, [nav_gain]
     imul cx
     mov cx, [tgo]
     call sdiv
@@ -361,14 +373,15 @@ guide:
 
 ; Too slow: push toward the target as well
 boost:
-    cmp word [closing], CLOSE_WANTED
+    mov ax, [close_wanted]
+    cmp [closing], ax
     jl .push
     ret
 .push:
     xor bx, bx
 .axis:
     mov ax, [rel + bx]              ; BOOST R / |R|
-    mov cx, BOOST
+    mov cx, [boost_push]
     imul cx
     mov cx, [dist]
     call sdiv

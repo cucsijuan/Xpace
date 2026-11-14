@@ -497,8 +497,8 @@ public partial class Universe : Node
         _ => RackSize(pilot, item),
     };
 
-    // The missile models the pilot's ship may have aboard: its hull's factory models and any in its record
-    private static IEnumerable<MissileSpec> MissileModels(PilotRecord pilot)
+    /// <summary>The missile models the pilot's ship may have aboard: its hull's factory models and any in its record.</summary>
+    public static IEnumerable<MissileSpec> MissileModels(PilotRecord pilot)
     {
         var models = new Dictionary<string, MissileSpec>();
         foreach (MissileSpec m in Hull(pilot)?.FactoryMissiles ?? Array.Empty<MissileSpec>())

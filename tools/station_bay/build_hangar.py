@@ -230,13 +230,14 @@ def main():
     inner = 18.7 + wider / 2   # the walls' foot, inside
     front, back = -14.9, 15.0 + (ALONG[1] - ALONG[0]) * ALONG[2]
     # A diamond-plate floor with a hazard border, laid in panels
-    b.quad(Vector((-inner + 1.5, front + 1.5, 0)), Vector((inner - 1.5, front + 1.5, 0)),
-           Vector((inner - 1.5, back - 1.5, 0)), Vector((-inner + 1.5, back - 1.5, 0)), up, "diamond",
-           (round((2 * inner) / 8), round((back - front) / 8)))
-    for a, c in (((-inner, front), (inner, front + 1.5)), ((-inner, back - 1.5), (inner, back)),
-                 ((-inner, front + 1.5), (-inner + 1.5, back - 1.5)), ((inner - 1.5, front + 1.5), (inner, back - 1.5))):
-        b.quad(Vector((a[0], a[1], 0)), Vector((c[0], a[1], 0)), Vector((c[0], c[1], 0)), Vector((a[0], c[1], 0)),
-               up, "hazard", (max(1, round(abs(c[0] - a[0]) / 6)), max(1, round(abs(c[1] - a[1]) / 6))))
+    b.laid(Vector((-inner + 1.5, front + 1.5, 0)), Vector((inner - 1.5, front + 1.5, 0)),
+           Vector((inner - 1.5, back - 1.5, 0)), Vector((-inner + 1.5, back - 1.5, 0)), up, "diamond", 8)
+    # the border: the hazard stripe's width across the strip, its length along it (turned on the front and back)
+    for a, c, turned in (((-inner, front), (inner, front + 1.5), True), ((-inner, back - 1.5), (inner, back), True),
+                         ((-inner, front + 1.5), (-inner + 1.5, back - 1.5), False),
+                         ((inner - 1.5, front + 1.5), (inner, back - 1.5), False)):
+        b.laid(Vector((a[0], a[1], 0)), Vector((c[0], a[1], 0)), Vector((c[0], c[1], 0)), Vector((a[0], c[1], 0)),
+               up, "hazard", 1.5, turned)
     # The ceiling: plates between beams across the room, a strip of light
     # under each beam
     down = Vector((0, 0, -1))

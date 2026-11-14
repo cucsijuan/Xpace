@@ -115,7 +115,8 @@ public static class CargoShips
     public static void Lose(UniverseState state, string id)
     {
         Release(state, id);
-        if (state.CargoShips.GetValueOrDefault(id)?.Owner is string owner && state.People.ContainsKey(owner))
+        if (state.CargoShips.GetValueOrDefault(id)?.Owner is string owner && state.People.ContainsKey(owner) &&
+            !state.CargoShips.Values.Any(s => s.Id != id && s.Owner == owner))
             People.Died(state, owner);
         if (!state.CargoShips.Remove(id, out CargoShipRecord ship) || ship.Dock == 0)
             return;
@@ -346,7 +347,7 @@ public static class CargoShips
                 }
                 if (ship.State == CargoShipRecord.Returning)
                     Depart(ship, model, book.Find(ship.Home), state, book, account);
-                else if (state.People.TryGetValue(ship.Owner, out PersonRecord person))
+                else if (state.People.TryGetValue(ship.Owner, out PersonRecord person) && People.Lives(person, ship, state))
                 {
                     if (!People.Plan(ship, model, person, Population, state, book, account))
                         ship.NextLook = state.Clock + model.WaitSeconds;

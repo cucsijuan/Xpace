@@ -11,5 +11,6 @@ Model = "IR-1"
 Price = 500
 DeltaV = 1200.0
 LifeSeconds = 20.0
+LostSeconds = 1.0
 FirmwarePath = "res://disks/irmissile.bin"
 HeatSeeker = true

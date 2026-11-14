@@ -124,13 +124,50 @@ public partial class Missile : Node3D, INetShip
             if (firmware.Length == 0)
                 GD.PushError($"Missile: cannot read {FirmwarePath} (build it: see native/CMakeLists.txt)");
         }
-        _mcu = new Microcontroller(firmware) { InstructionsPerSecond = InstructionsPerSecond };
+        _mcu = new Microcontroller(Calibrated(firmware, S)) { InstructionsPerSecond = InstructionsPerSecond };
         _mcu[0] = Type;
         SetUpHead(_head);
         BuildModel();
     }
 
     public override void _ExitTree() => _mcu?.Dispose();
+
+    private static readonly System.Collections.Generic.Dictionary<string, byte[]> _calibrated = new();
+
+    /// <summary>
+    /// The ROM as the factory burns it for this model: the program, with the spec's numbers in its calibration block
+    /// ('XCAL' near the start, then N, boost, close speed or fuel reserve, lost ticks, in the program's units).
+    /// A program with no such block is left as it is.
+    /// </summary>
+    public static byte[] Calibrated(byte[] firmware, MissileSpec spec)
+    {
+        int at = -1;
+        for (int i = 0; firmware != null && i + 12 <= firmware.Length && i < 8; i++)
+            if (firmware[i] == 'X' && firmware[i + 1] == 'C' && firmware[i + 2] == 'A' && firmware[i + 3] == 'L')
+            {
+                at = i + 4;
+                break;
+            }
+        if (at < 0)
+            return firmware;
+        float ticks = Engine.PhysicsTicksPerSecond;
+        int nav = spec.HeatSeeker
+            ? Math.Min((int)MathF.Round(spec.NavigationGain * spec.AssumedClosing * ticks / 16384f * 16f), 218)    // per 1/16384 rad a tick, 1/16 m/s²
+            : (int)MathF.Round(spec.NavigationGain * 256f);                                                           // 1/256
+        int third = spec.HeatSeeker ? (int)MathF.Round(spec.FuelReserve) : (int)MathF.Round(spec.CloseSpeed * 4f);  // m/s; 1/4 m/s
+        int[] words = { nav, (int)MathF.Round(spec.BoostAcceleration * 16f), third, (int)MathF.Round(spec.LostSeconds * ticks) };
+        string key = $"{firmware.Length}:{firmware.GetHashCode()}:{string.Join(",", words)}";
+        if (_calibrated.TryGetValue(key, out byte[] done))
+            return done;
+        byte[] rom = (byte[])firmware.Clone();
+        for (int w = 0; w < words.Length; w++)
+        {
+            int v = Math.Clamp(words[w], 0, 32767);
+            rom[at + w * 2] = (byte)v;
+            rom[at + w * 2 + 1] = (byte)(v >> 8);
+        }
+        return _calibrated[key] = rom;
+    }
 
     /// <summary>
     /// The scene's own body (a "Model" child) and motor (a <see cref="MissilePlume"/>
@@ -296,6 +333,9 @@ public partial class Missile : Node3D, INetShip
         head.Sensitivity = SeekerSensitivity;
         head.SlewDegrees = SeekerSlewDegrees;
         head.GimbalLimitDegrees = GimbalLimitDegrees;
+        head.Kind = S.SeekerKind;
+        head.ColourTolerance = S.ColourTolerance;
+        head.ResolutionDegrees = S.ResolutionDegrees;
     }
 
     /// <summary>The head follows the heat; the firmware reads where it points, and a new word when it sees something.</summary>

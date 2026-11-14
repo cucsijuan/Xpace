@@ -221,7 +221,10 @@ public partial class StationSecurity : Node, IEngagement
     public Standing StandingOf(Node3D ship) => ship != null && _records.TryGetValue(ship, out Record r) ? r.Standing : Standing.Clean;
 
     /// <summary>Traffic control does not deal with it: hostile now, or its pilot is notorious here.</summary>
-    public bool Refuses(Node3D ship) => StandingOf(ship) == Standing.Hostile || Notorious(ship);
+    public bool Refuses(Node3D ship) => StandingOf(ship) == Standing.Hostile || Notorious(ship) || Shut(ship);
+
+    /// <summary>The station's owner has a price on its pilot's head (<see cref="Reactions.Shuts"/>), and the ship says who flies it.</summary>
+    public bool Shut(Node3D ship) => Jurisdiction(ship) is (PilotRecord pilot, _) && Reactions.Shuts(Radio.Cash, pilot.Id);
 
     /// <summary>Its pilot is wanted here: held on the pad until the bounty is paid (or the ship impounded for it).</summary>
     public bool Detains(Node3D ship) =>

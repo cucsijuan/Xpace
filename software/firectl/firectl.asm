@@ -1,4 +1,4 @@
-; firectl.asm - CucsiCorp Fire Control 1.16 (FIRECTL.COM)
+; firectl.asm - CucsiCorp Fire Control 1.17 (FIRECTL.COM)
 ;
 ;   FIRECTL         stays resident and runs the radar and the turret
 ;   FIRECTL OFF     takes it out of memory and turns the radar off
@@ -166,7 +166,7 @@ INK_RED     equ 0FFh
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPFC16'             ; 103h
+signature   db 'XPFC17'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 weapon      db 0                    ; 10Dh  0 the cannon, 1 radar missiles, 2 heat seekers, 3 the laser
 cpu_load    db 0                    ; 10Eh  % of the processor it took, last time it drew
@@ -204,6 +204,12 @@ on_irq:
 step:
     call timer_read
     mov [t_start], ax
+
+    dec byte [survey_wait]          ; once a second, what the ship carries:
+    jnz .surveyed                   ; a refit may have changed its weapons
+    mov byte [survey_wait], 60
+    call survey
+.surveyed:
 
     mov dx, CTRL + 14               ; buttons, and which were just pressed
     in al, dx
@@ -457,6 +463,57 @@ lock_next:
     ret
 
 ; ---------- the weapons ----------
+
+; Which weapons the ship carries, from the devices on the bus; if the one
+; chosen is gone, the next it has (none at all: it stays as it was)
+survey:
+    mov dx, LAUNCHER
+    mov bl, TYPE_LAUNCHER
+    call present
+    mov [has_launcher], al
+    mov dx, LASER
+    mov bl, TYPE_LASER
+    call present
+    mov [has_laser], al
+    mov dx, TURRET
+    mov bl, TYPE_TURRET
+    call present
+    mov [has_turret], al
+    mov dx, INTERDICTOR
+    mov bl, TYPE_INTERDICTOR
+    call present
+    mov [has_interdictor], al
+    mov al, [has_turret]
+    or al, [has_launcher]
+    or al, [has_laser]
+    jz .done
+    mov al, [weapon]
+    test al, al
+    jnz .not_gun
+    cmp byte [has_turret], 0
+    jmp .check
+.not_gun:
+    cmp al, WEAPON_LASER
+    je .laser
+    cmp byte [has_launcher], 0
+    jmp .check
+.laser:
+    cmp byte [has_laser], 0
+.check:
+    jne .done
+    call next_weapon
+.done:
+    ret
+
+; AL 1 if the device at DX is of type BL, else 0
+present:
+    in al, dx
+    cmp al, bl
+    mov al, 0
+    jne .no
+    inc al
+.no:
+    ret
 
 next_weapon:
     inc byte [weapon]               ; the cannon, radar missiles, heat seekers,
@@ -2279,6 +2336,7 @@ has_laser       db 0
 has_interdictor db 0
 interdict_button db 0
 has_turret      db 0
+survey_wait     db 60
 head_on         db 0                ; the heat seeker's head powered
 last_result     db 0
 launch_wait     dw 0
@@ -2374,36 +2432,14 @@ install:
     mov dx, DISPLAYS
     mov bl, TYPE_DISPLAYS
     call check_device
-    mov dx, LAUNCHER                ; a launcher, if the ship has one
-    in al, dx
-    cmp al, TYPE_LAUNCHER
-    jne .no_launcher
-    mov byte [has_launcher], 1
-.no_launcher:
-    mov dx, LASER                   ; and a pulse laser
-    in al, dx
-    cmp al, TYPE_LASER
-    jne .no_laser
-    mov byte [has_laser], 1
-.no_laser:
-    mov dx, TURRET                  ; the turret, or else the laser
-    in al, dx
-    cmp al, TYPE_TURRET
-    jne .no_turret
-    mov byte [has_turret], 1
-    jmp .armed
-.no_turret:
+    call survey                     ; the launcher, laser, turret, interdictor it has
+    cmp byte [has_turret], 0        ; the turret, or else the laser
+    jne .armed
     mov dx, LASER
     mov bl, TYPE_LASER
     call check_device
     mov byte [weapon], WEAPON_LASER
 .armed:
-    mov dx, INTERDICTOR
-    in al, dx
-    cmp al, TYPE_INTERDICTOR
-    jne .no_interdictor
-    mov byte [has_interdictor], 1
-.no_interdictor:
 
     mov dx, RADAR + 10              ; the radar's picture
     in ax, dx

@@ -57,8 +57,14 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
     [Export] public NodePath RadarPath = "../Radar";
     [Export] public double HeadLockSeconds = 0.3;   // heat held this long: locked on
 
-    public int MissilesLeft => Left(_radarSpec, _missiles);
-    public int HeatSeekersLeft => Left(_heatSpec, _heatSeekers);
+    /// <summary>The heat seeker model it fires next.</summary>
+    public MissileSpec NextHeatSeeker => _heatSpec;
+    /// <summary>The radar missile model it fires next.</summary>
+    public MissileSpec NextMissile => _radarSpec;
+    /// <summary>The kind of head on the rail (the next heat seeker's).</summary>
+    public SeekerKind RailHeadKind => _head.Kind;
+    public int MissilesLeft => Left(false, _missiles);
+    public int HeatSeekersLeft => Left(true, _heatSeekers);
     /// <summary>The heat seeker's head on the rail is powered (the computer selected it).</summary>
     public bool HeadPowered { get; private set; }
     /// <summary>The head on the rail sees heat: it growls.</summary>
@@ -77,7 +83,10 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
     public int Launched { get; private set; }
 
     private ShipBody _ship;
-    private MissileSpec _radarSpec, _heatSpec;
+    private MissileSpec _radarSpec, _heatSpec;      // the models it fires next
+    private MissileSpec _radarStock, _heatStock;    // its scenes' own models
+    private readonly List<MissileSpec> _aboard = new(); // a pilot's ship: every model its record has
+    private double _lookedAboard;
     private int _missiles, _heatSeekers;
     private RadarDevice _radar;
     private readonly List<Missile> _inFlight = new();
@@ -99,10 +108,10 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
         _radar = GetNodeOrNull<RadarDevice>(RadarPath) ?? ShipBody.Part<RadarDevice>(this);
         _railHead = HeatSeekerScene?.Instantiate<Missile>();
         _railHead?.SetUpHead(_head);
-        _heatSpec = _railHead?.Spec;
+        _heatSpec = _heatStock = _railHead?.Spec;
         if (MissileScene?.Instantiate<Missile>() is Missile radar)
         {
-            _radarSpec = radar.Spec;
+            _radarSpec = _radarStock = radar.Spec;
             radar.Free();
         }
         _head.Look = -GlobalBasis.Z;
@@ -131,8 +140,50 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
 
     private PilotRecord Pilot => _ship != null ? Universe.Current?.RecordOf(_ship) : null;
 
-    private int Left(MissileSpec spec, int own) =>
-        spec?.Id is string && Pilot is PilotRecord pilot ? Universe.Aboard(pilot, spec) : own;
+    // A pilot's ship has what its record says, of every model of that kind; any other ship its own count
+    private int Left(bool heat, int own)
+    {
+        if ((heat ? _heatStock : _radarStock)?.Id is not string || Pilot is not PilotRecord pilot)
+            return own;
+        int left = 0;
+        foreach (MissileSpec m in _aboard)
+            if (m.HeatSeeker == heat)
+                left += Universe.Aboard(pilot, m);
+        return left;
+    }
+
+    /// <summary>
+    /// Which models are aboard (a pilot's ship buys others than its factory's), and which of each kind goes next: the
+    /// one it was firing while any are left, else the first with some left. The rail's head is that model's head.
+    /// </summary>
+    private void LookAboard()
+    {
+        _aboard.Clear();
+        if (Pilot is PilotRecord pilot)
+            _aboard.AddRange(Universe.MissileModels(pilot));
+        _radarSpec = Next(false, _radarSpec, _radarStock);
+        MissileSpec heat = Next(true, _heatSpec, _heatStock);
+        if (heat != _heatSpec && _railHead != null)
+        {
+            _railHead.Spec = heat;
+            _railHead.SetUpHead(_head);
+            _head.Forget();
+            _shown = (-1, -1);
+        }
+        _heatSpec = heat;
+    }
+
+    private MissileSpec Next(bool heat, MissileSpec current, MissileSpec stock)
+    {
+        if (stock?.Id is not string || Pilot is not PilotRecord pilot)
+            return stock;
+        if (current != null && _aboard.Contains(current) && Universe.Aboard(pilot, current) > 0)
+            return current;
+        foreach (MissileSpec m in _aboard)
+            if (m.HeatSeeker == heat && Universe.Aboard(pilot, m) > 0)
+                return m;
+        return current ?? stock;
+    }
 
     /// <summary>The ship's pylons changed: its rails, and the missiles on them.</summary>
     public void Refit(ShipBody ship)
@@ -180,6 +231,12 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
             bus[Slot, 1] = 1;
         }
         _inFlight.RemoveAll(m => !IsInstanceValid(m) || m.Result != Missile.Outcome.Flying);
+        _lookedAboard -= delta;
+        if (_lookedAboard <= 0)
+        {
+            _lookedAboard = 1;                          // a purchase shows on the rails within a second
+            LookAboard();
+        }
         ShowLoads();
         if (Newest != null && IsInstanceValid(Newest))
             _newestResult = Newest.Result;
@@ -255,6 +312,8 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
     private void Launch(ShipBody ship, bool heat)
     {
         Missile m = heat ? HeatSeekerScene.Instantiate<Missile>() : MissileScene?.Instantiate<Missile>() ?? new Missile();
+        if ((heat ? _heatSpec : _radarSpec) is MissileSpec model)
+            m.Spec = model;
         m.Target = _radar?.RealLocked ?? (HeatTone ? _head.Sees as IRadarTarget : null);
         m.TrackNumber = heat ? -1 : _radar.TrackNumber;   // a heat seeker hears no datalink
         m.Shooter = ship;
@@ -298,6 +357,7 @@ public partial class LauncherDevice : Node3D, IShipDevice, IRearmable
         }
         Launched++;
         _reload = ReloadSeconds;
+        LookAboard();
         ShowLoads();
     }
 }

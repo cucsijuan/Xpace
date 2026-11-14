@@ -51,6 +51,10 @@ P_FUEL      equ PORTS + 16
 P_TGO       equ PORTS + 18
 TICK_VECTOR equ 08h
 
+;
+; The calibration: the model's numbers, burned into the ROM at the factory
+; (the same program serves every model of its kind), at a fixed place
+; after the first jump: 'XCAL', then words.
 NAV_GAIN    equ 105                 ; 3 x 600 m/s, per 1/16384 a tick, in 1/16 m/s^2
 TURN_MAX    equ 150                 ; 1/16384 a tick: the most the head turns
 SMOOTH      equ 2                   ; the turn smoothed over 2^SMOOTH ticks
@@ -62,6 +66,13 @@ FUEL_RESERVE equ 400                ; m/s kept for the end
 ST_GUIDING  equ 1
 ST_NO_WORD  equ 2
 ST_LOST     equ 4
+
+    jmp start
+calibration db 'XCAL'
+nav_gain    dw NAV_GAIN
+boost_push  dw BOOST
+fuel_reserve dw FUEL_RESERVE
+lost_steps  dw LOST_STEPS
 
 start:
     cli
@@ -125,7 +136,8 @@ step:
     cmp byte [started], 0
     je .quiet
     inc word [since]
-    cmp word [since], LOST_STEPS
+    mov ax, [lost_steps]
+    cmp [since], ax
     ja .lost
 .guide:
     call guide
@@ -179,8 +191,8 @@ turn_rate:
     jge .not_low
     mov ax, -TURN_MAX
 .not_low:
-    mov cx, NAV_GAIN
-    imul cx                         ; fits: 150 x 105
+    mov cx, [nav_gain]
+    imul cx                         ; fits: 150 x 218 at most (the factory keeps to it)
     sub ax, [rate + bx]
     mov cl, SMOOTH
     sar ax, cl
@@ -234,12 +246,12 @@ guide:
 boost:
     mov dx, P_FUEL                  ; fuel to spare: push along the line of sight
     in ax, dx
-    cmp ax, FUEL_RESERVE
+    cmp ax, [fuel_reserve]
     jbe .done
     xor bx, bx
 .push:
     mov ax, [look + bx]             ; BOOST x the direction (1/16384)
-    mov cx, BOOST
+    mov cx, [boost_push]
     imul cx
     mov cx, 16384
     idiv cx

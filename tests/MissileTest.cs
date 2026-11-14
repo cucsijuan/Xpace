@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using Godot;
 using Xpace.Computer;
@@ -32,6 +33,7 @@ public partial class MissileTest : Node3D
 
     public override async void _Ready()
     {
+        Calibration();
         AddChild(new Projectiles());
         _ship = new ShipBody();
         _ship.AddChild(new ShipComputer { Name = "ShipComputer" });
@@ -280,6 +282,27 @@ public partial class MissileTest : Node3D
         }
         GD.Print(_ship.Computer.ScreenText());
         return false;
+    }
+
+    // The factory burns each model's numbers into the same program's ROM: the stock models' are the program's own
+    private void Calibration()
+    {
+        static int[] Words(byte[] rom)
+        {
+            int at = System.Text.Encoding.ASCII.GetString(rom, 0, 12).IndexOf("XCAL") + 4;
+            return Enumerable.Range(0, 4).Select(w => rom[at + w * 2] | rom[at + w * 2 + 1] << 8).ToArray();
+        }
+        byte[] radar = Godot.FileAccess.GetFileAsBytes("res://disks/missile.bin"), ir = Godot.FileAccess.GetFileAsBytes("res://disks/irmissile.bin");
+        var msl = GD.Load<MissileSpec>("res://assets/weapons/missiles/msl_1.tres");
+        var irs = GD.Load<MissileSpec>("res://assets/weapons/missiles/ir_1.tres");
+        Check($"the stock radar missile's calibration is the program's own ({string.Join(" ", Words(Missile.Calibrated(radar, msl)))})",
+              Words(Missile.Calibrated(radar, msl)).SequenceEqual(Words(radar)));
+        Check($"and the heat seeker's ({string.Join(" ", Words(Missile.Calibrated(ir, irs)))})", Words(Missile.Calibrated(ir, irs)).SequenceEqual(Words(ir)));
+        var better = (MissileSpec)msl.Duplicate();
+        better.NavigationGain = 4;
+        better.CloseSpeed = 900;
+        Check($"another model's numbers go into its ROM ({string.Join(" ", Words(Missile.Calibrated(radar, better)))})",
+              Words(Missile.Calibrated(radar, better)) is [1024, 2400, 3600, 120]);
     }
 
     private void Check(string what, bool ok)

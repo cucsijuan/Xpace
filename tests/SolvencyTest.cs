@@ -29,6 +29,8 @@ public partial class SolvencyTest : Node
             return null;
         if (owner.StartsWith(PilotRecord.OwnerPrefix))
             return _state.Pilot(owner[PilotRecord.OwnerPrefix.Length..]);
+        if (owner.StartsWith(PersonRecord.OwnerPrefix))
+            return _state.People.GetValueOrDefault(owner);
         return _state.Organisation(owner, () => new OrganisationRecord { Id = owner, Name = owner, Credits = 5_000_000 });
     }
 
@@ -56,6 +58,7 @@ public partial class SolvencyTest : Node
         Rescue();
         NobodyBuys();
         Landless();
+        Founding();
         Disk();
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GC.Collect();
@@ -226,6 +229,50 @@ public partial class SolvencyTest : Node
             ((OrganisationRecord)Account(o)).Credits = 0;
         Hours(0);
         Check("with money it can buy a station again", _state.Station("QUARTZ").Owner == owner);
+    }
+
+    // A free person who saved enough buys a station and founds a company: a pirate's is a fence, an overlord's base
+    private void Founding()
+    {
+        Fresh();
+        foreach (OrganisationRecord o in _state.Organisations.Values)
+            o.Credits = 0;
+        var person = new PersonRecord
+        {
+            Id = PersonRecord.OwnerPrefix + "1", First = "Vask", Last = "Morrow", Livelihood = nameof(Livelihood.Pirate),
+            Character = "res://assets/personalities/warlord.tres", Credits = 1_000_000,
+        };
+        _state.People[person.Id] = person;
+        CargoShips.Enlist(person.Id, People.OwnShip(person), GD.Load<ShipModel>("res://assets/ship/models/free_fighter.tres"), _book.Find("ALPHA"), _state, _book);
+        var sale = new SaleRecord { Id = "station:QUARTZ", Kind = SaleRecord.Station, Item = "QUARTZ", Seller = "someone_else", Asking = 400_000, Floor = 400_000, Since = _state.Clock, Falls = 3600 };
+        _state.Sales[sale.Id] = sale;
+        Hours(0);
+        CargoShipRecord own = _state.CargoShips[People.OwnShip(person)];
+        Check($"a person with money enough buys a station on sale: theirs now ({_state.Station("QUARTZ").Owner}), and home to their ship ({own.Home})",
+              _state.Station("QUARTZ").Owner == person.Id && person.Credits == 600_000 && own.Home == "QUARTZ");
+        Check("a warlord's station buys stolen goods: a pirate overlord's base", People.Fences(_book.Find("QUARTZ"), null, _state, Account));
+        CargoShips.Enlist(person.Id, "built-1", GD.Load<ShipModel>("res://assets/ship/models/freighter.tres"), _book.Find("QUARTZ"), _state, _book);
+        CargoShips.Enlist(person.Id, "built-2", GD.Load<ShipModel>("res://assets/ship/models/freighter.tres"), _book.Find("QUARTZ"), _state, _book);
+        Check("they fly their own ship as they live, the station's ships work for the station",
+              People.Lives(person, own, _state) && !People.Lives(person, _state.CargoShips["built-1"], _state));
+
+        person.Credits = 0;
+        Hours(0);
+        Hours(person.Personality.GraceHours + 1);
+        SaleRecord listed = _state.Sales.Values.FirstOrDefault(s => s.Seller == person.Id);
+        Check($"broke, they go under as any owner does: a station ship goes up for sale, never their own ({listed?.Item})",
+              listed != null && listed.Kind == SaleRecord.Ship && listed.Item != own.Id);
+
+        CargoShips.Lose(_state, own.Id);
+        Check("their own ship lost, they live on while they have others", _state.People.ContainsKey(person.Id));
+        CargoShips.Lose(_state, "built-1");
+        CargoShips.Lose(_state, "built-2");
+        foreach (OrganisationRecord o in _state.Organisations.Values)
+            o.Credits = 0;                              // nobody with money to buy it at once
+        Hours(0);
+        Check($"with the last gone so are they, and their station stands abandoned, on sale ({_state.Station("QUARTZ").Owner})",
+              !_state.People.ContainsKey(person.Id) && _state.Station("QUARTZ").Abandoned && _state.Sales.ContainsKey("station:QUARTZ")
+              && !_state.Sales.Values.Any(s => s.Seller == person.Id));
     }
 
     private void Disk()

@@ -116,16 +116,26 @@ class Builder:
             loop[self.mask].uv = uv(MASK_WHITE)
         return f
 
-    def quad(self, a, b, c, d, facing, look, tiles=(1, 1)):
-        """a b c d round the quad, a to b along u; tiled into areas of the atlas."""
+    def quad(self, a, b, c, d, facing, look, tiles=(1, 1), turned=False):
+        """a b c d round the quad, a to b along u; tiled into areas of the atlas.
+        Turned, the area's width runs along a to d instead of a to b."""
         nu, nv = tiles
+        corners = [(0, 0), (0, 1), (1, 1), (1, 0)] if turned else [(0, 1), (1, 1), (1, 0), (0, 0)]
         for i in range(nu):
             for j in range(nv):
                 def at(s, t):
                     return a.lerp(b, s).lerp(d.lerp(c, s), t)
                 s0, s1, t0, t1 = i / nu, (i + 1) / nu, j / nv, (j + 1) / nv
-                self.face([at(s0, t0), at(s1, t0), at(s1, t1), at(s0, t1)], facing, look,
-                          [(0, 1), (1, 1), (1, 0), (0, 0)])
+                self.face([at(s0, t0), at(s1, t0), at(s1, t1), at(s0, t1)], facing, look, corners)
+
+    def laid(self, a, b, c, d, facing, look, across, turned=False):
+        """A quad tiled so the area keeps its own proportions: each tile is
+        'across' metres along the area's width, its length in proportion."""
+        x0, y0, x1, y1 = AREAS[look]
+        along = across * (y1 - y0) / (x1 - x0)
+        u, v = (b - a).length, (d - a).length
+        size = (along, across) if turned else (across, along)
+        self.quad(a, b, c, d, facing, look, (max(1, round(u / size[0])), max(1, round(v / size[1]))), turned)
 
     def band(self, lower, upper, facing_of, look, tile=12.0):
         """Quads between two loops of points (both closed, the same count)."""

@@ -159,11 +159,7 @@ public partial class FighterAi : Node
 
     private JammerDevice _jammer;
     private InterdictorDevice _interdictor;
-    private Spot _interdictTrack;
-    private float _trackSpeed;
-    private Vector3 _interdictVelocity;
-    private int _trackSamples;
-    private IRadarTarget _interdictLocked;
+    private readonly TrackReading _reading = new();
     private bool _interdictPulse;
     private double _jamFor;
     private LauncherDevice _launcher;
@@ -179,9 +175,8 @@ public partial class FighterAi : Node
     private float _threatRange;
     private Vector2 _jink;
     private float _breakSide = 1;
-    private Vector3 _trackVelocity;
-    private Spot _lastTrack, _lastSeen, _anchor, _waypoint;
-    private bool _hadTrack, _hasWaypoint, _told;
+    private Spot _lastSeen, _anchor, _waypoint;
+    private bool _hasWaypoint, _told;
     private double _radarLeft, _radarLook;
     private Vector3 _toldVelocity;
     private readonly Dictionary<RwrDevice.Contact, Queue<(double At, Vector3 Way, float Range)>> _plumes = new();
@@ -227,6 +222,7 @@ public partial class FighterAi : Node
             _controls = Buttons(c);
             return;
         }
+        _reading.Take(this, _radar?.Locked, _radar?.Locked != null ? _radar.TrackPosition : Vector3.Zero, dt);
         _sinceMissile += delta;
         _sinceCountermeasure += delta;
         _sinceLockPress += delta;
@@ -280,7 +276,6 @@ public partial class FighterAi : Node
         else if (Interest() is RadarDevice.Echo interest)
         {
             Doing = "intercepting";
-            _hadTrack = false;
             Vector3 echo = interest.Seen, moving = EchoVelocity(interest);
             if (_told && _sinceSeen < SearchSeconds)
             {
@@ -303,7 +298,6 @@ public partial class FighterAi : Node
             Doing = "searching";
             if (_told)
                 _lastSeen = _lastSeen.Moved(_toldVelocity * dt);        // where it would be by now, going as it went
-            _hadTrack = false;
             Steer(ref c, _ship.GlobalBasis.Inverse() * (_lastSeen.World - _ship.GlobalPosition));
             c.Throttle = Pursue(_lastSeen.World, _told ? _toldVelocity : Vector3.Zero, CloseRange);
         }
@@ -397,7 +391,6 @@ public partial class FighterAi : Node
     private void FollowRoute(ref PilotControls c)
     {
         Doing = "on its route";
-        _hadTrack = false;
         Vector3 next = Route.Peek();
         float range = next.DistanceTo(_ship.GlobalPosition);
         if (range < (Route.Count > 1 ? 120 : 30))
@@ -457,7 +450,7 @@ public partial class FighterAi : Node
         Vector3 at = _radar.TrackPosition;
         _lastSeen = Spot.At(this, at);
         _sinceSeen = 0;
-        Vector3 velocity = TrackVelocity(at, dt);
+        Vector3 velocity = _reading.Velocity;
         if (Engagement != null)
         {
             _told = true;                               // a ship it was sent after: lost, it follows its way
@@ -535,7 +528,6 @@ public partial class FighterAi : Node
     private void Patrol(ref PilotControls c)
     {
         Doing = "patrolling";
-        _hadTrack = false;
         if (!_hasWaypoint || _waypoint.DistanceTo(_ship.GlobalPosition) < 400)
         {
             var way = new Vector3(_rng.RandfRange(-1, 1), _rng.RandfRange(-0.3f, 0.3f), _rng.RandfRange(-1, 1)).Normalized();
@@ -701,18 +693,6 @@ public partial class FighterAi : Node
         c.Yaw = Mathf.Clamp(c.Yaw + _jink.X, -1, 1);
     }
 
-    /// <summary>The target's velocity from the radar's track, smoothed.</summary>
-    private Vector3 TrackVelocity(Vector3 at, float dt)
-    {
-        if (_hadTrack && dt > 0)
-            _trackVelocity = _trackVelocity.Lerp((at - _lastTrack.World) / dt, 0.05f);
-        else
-            _trackVelocity = Vector3.Zero;
-        _lastTrack = Spot.At(this, at);
-        _hadTrack = true;
-        return _trackVelocity;
-    }
-
     // ---------- the buttons: a press is held a few steps, then let go a few ----------
 
     private void Press(string button)
@@ -773,21 +753,9 @@ public partial class FighterAi : Node
         if (_interdictor == null || _radar == null)
             return false;
         bool tracking = _radar.Locked != null;
-        if (!tracking || !ReferenceEquals(_radar.Locked, _interdictLocked))
-            _trackSamples = 0;                          // a new lock: its track starts again
-        _interdictLocked = _radar.Locked;
-        if (tracking)
-        {
-            Vector3 now = _radar.TrackPosition;
-            Vector3 step = (now - _interdictTrack.World) * Engine.PhysicsTicksPerSecond;
-            if (_trackSamples++ > 0 && step.Length() < 20000)
-                _interdictVelocity = _trackSamples == 2 ? step : _interdictVelocity.Lerp(step, 1f / 30);
-            _interdictTrack = Spot.At(this, now);
-            _trackSpeed = _interdictVelocity.Length();
-        }
-        bool settled = _trackSamples > 30;
+        bool settled = _reading.Settled;
         bool looking = Orders?.Holds(Space.Combat.ShipOf(_radar.Tracked)) == true;
-        bool want = tracking && settled && !looking && (_trackSpeed > EngineTop() * InterdictAboveShare || _interdictor.On);
+        bool want = tracking && settled && !looking && (_reading.Velocity.Length() > EngineTop() * InterdictAboveShare || _interdictor.On);
         _interdictPulse = !_interdictPulse && want != _interdictor.On;
         return _interdictPulse;
     }

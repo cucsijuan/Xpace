@@ -58,15 +58,27 @@ public static class People
         if (state.PeopleMustered)
             CargoShips.OrderFor(person.Id, line.Model, home, state, book);
         else
-            CargoShips.Enlist(person.Id, $"{person.Id}-ship", line.Model, home, state, book);
+            CargoShips.Enlist(person.Id, OwnShip(person), line.Model, home, state, book);
     }
 
     private static string Pick(string[] names, int serial, int stride) =>
         names.Length == 0 ? $"Pilot{serial}" : names[(int)((uint)(serial * stride + serial / Math.Max(names.Length, 1)) % names.Length)];
 
-    /// <summary>A person's ship is gone: for now, so are they. What was on their head goes to whoever gets it.</summary>
+    /// <summary>The person's own ship, the one they fly.</summary>
+    public static string OwnShip(PersonRecord person) => $"{person.Id}-ship";
+
+    /// <summary>
+    /// The ship goes as the person lives (trading, hunting, roaming): their own ship always, and every ship of theirs
+    /// while they own no station. A station's ships work for it as any owner's do.
+    /// </summary>
+    public static bool Lives(PersonRecord person, CargoShipRecord ship, UniverseState state) =>
+        ship.Id == OwnShip(person) || !state.Stations.Values.Any(s => s.Owner == person.Id);
+
+    /// <summary>A person's last ship is gone: for now, so are they. What was on their head goes to whoever gets it; their stations stand abandoned.</summary>
     public static void Died(UniverseState state, string actor)
     {
+        if (state.People.ContainsKey(actor))
+            Solvency.Orphan(state, actor);
         if (state.People.Remove(actor, out PersonRecord person) && CargoShips.Population is PopulationSpec spec && person.Line < spec.Lines.Length)
             state.NextArrival[person.Line] = Math.Max(state.NextArrival.GetValueOrDefault(person.Line), state.Clock + spec.Lines[person.Line].ReplaceHours * 3600);
         state.Sightings.Remove(actor);
@@ -136,6 +148,8 @@ public static class People
     // Nobody goes on for ever with nothing: broke for long enough they sell their ship and leave, and someone new comes in time
     private static bool GivesUp(CargoShipRecord ship, PersonRecord person, PopulationSpec spec, UniverseState state)
     {
+        if (state.Stations.Values.Any(s => s.Owner == person.Id))
+            return false;                               // an owner goes under as every owner does (Solvency), selling up
         if (spec == null || person.Credits >= spec.BrokeBelow)
         {
             person.BrokeSince = -1;

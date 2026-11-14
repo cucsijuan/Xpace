@@ -143,6 +143,47 @@ public partial class CrimeTest : Node3D
         Check("a station with no factor settles nothing of others'",
               plain.Serve("bob", new MarketRequest { Station = _station.Sign, Do = MarketRequest.Factor, Good = factor.Radio.Id }).Message == plain.NoFactorText);
 
+        // An owner's price on a pilot's head: its stations shut to them while they can be told, paid off at a kiosk of
+        // its own (slipped in) or through a factor
+        _station.OwnedBy = GD.Load<Organisation>("res://assets/organisations/miltec.tres");
+        var owner = (OrganisationRecord)_station.Cash;
+        owner.Credits = 100_000;
+        owner.Bounties["dan"] = 2_000;
+        state.Pilot("dan").Credits = 20_000;
+        Universe.Current.Fly(d, null);
+        ShipBody g = Ship("Golf", new Vector3(0, 300, 2500), "dan");
+        await Seconds(1);
+        Radio(g).AskDocking();
+        await Seconds(1);
+        Check($"a pilot its owner wants is refused docking ({Last(g)})", Radio(g).Dock == 0 && Last(g).Contains("denied"));
+        Radio(g).Powered = false;
+        g.Position = hangarHere.InsidePoint + new Vector3(10, 0, 0);
+        await Seconds(0.5);
+        view = plain.Serve("dan", new MarketRequest { Station = _station.Sign, Do = MarketRequest.Look });
+        Check($"slipped in, the kiosk shows the owner's price ({view.Offered})", view.Offered == 2_000);
+        long before = owner.Credits;
+        view = plain.Serve("dan", new MarketRequest { Station = _station.Sign, Do = MarketRequest.Pay });
+        Check($"paying buys it off: the owner takes the money and the price back ({view.Message})",
+              !owner.Bounties.ContainsKey("dan") && owner.Credits == before + 2_000 && state.Pilot("dan").Credits == 18_000);
+        g.Position = new Vector3(0, 300, 2500);
+        Radio(g).Powered = true;
+        await Seconds(1);
+        Radio(g).AskDocking();
+        await Seconds(1);
+        Check($"then it is cleared to dock ({Last(g)})", Radio(g).Dock != 0);
+
+        owner.Bounties["bob"] = 4_000;
+        state.Pilot("bob").Credits = 10_000;
+        house = factor.Radio.Cash.Credits;
+        view = factor.Serve("bob", new MarketRequest { Station = factor.Radio.Id, Do = MarketRequest.Look });
+        debt = view.Elsewhere.FirstOrDefault(l => l.Station == StationMarket.Wanted + owner.Id);
+        Check($"a factor buys off another owner's price too ({debt?.Owed}, asks {debt?.Cost})", debt != null && debt.Owed == 4_000 && debt.Cost == 6_000);
+        before = owner.Credits;
+        view = factor.Serve("bob", new MarketRequest { Station = factor.Radio.Id, Do = MarketRequest.Factor, Good = debt?.Station });
+        Check($"and settles it: the owner gets its price, the factor's house the rest ({view.Message})",
+              !owner.Bounties.ContainsKey("bob") && owner.Credits == before + 4_000 && factor.Radio.Cash.Credits == house + 2_000
+              && state.Pilot("bob").Credits == 4_000);
+
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GetTree().Quit(_failures == 0 ? 0 : 1);
     }

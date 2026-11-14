@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="MissileSpec" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/MissileSpec.cs" id="1_spec"]
+
+[ext_resource type="PackedScene" path="res://scenes/weapons/missiles/ir_1_look.tscn" id="2_look"]
+
+[resource]
+script = ExtResource("1_spec")
+Look = ExtResource("2_look")
+Model = "IR-2"
+Price = 900
+DeltaV = 1200.0
+LifeSeconds = 20.0
+LostSeconds = 1.0
+FirmwarePath = "res://disks/irmissile.bin"
+HeatSeeker = true
+SeekerKind = 1

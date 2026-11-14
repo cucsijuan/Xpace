@@ -49,6 +49,26 @@ public static class Reactions
     public static bool Shuts(IAccount owner, string actor) =>
         owner is OrganisationRecord company && !string.IsNullOrEmpty(actor) && company.Bounties.ContainsKey(actor);
 
+    /// <summary>What the owner offers for the actor's head (0: nothing).</summary>
+    public static long Offered(IAccount owner, string actor) =>
+        owner is OrganisationRecord company && !string.IsNullOrEmpty(actor) ? company.Bounties.GetValueOrDefault(actor) : 0;
+
+    /// <summary>
+    /// The actor buys the price off their head: <paramref name="payer"/> pays the owner what it offers, and the owner
+    /// takes the price back and opens its stations to them again. Whether it was paid (false: nothing offered, or not
+    /// money enough).
+    /// </summary>
+    public static bool Settle(IAccount owner, string actor, IAccount payer)
+    {
+        long offered = Offered(owner, actor);
+        if (offered <= 0 || payer == null || payer.Credits < offered)
+            return false;
+        payer.Credits -= offered;
+        owner.Credits += offered;
+        ((OrganisationRecord)owner).Bounties.Remove(actor);
+        return true;
+    }
+
     /// <summary>Someone went through a gate without clearance: what its owner adds to the price on their head, as far as its money goes.</summary>
     public static void Unpaid(IAccount owner, string actor, long bounty)
     {

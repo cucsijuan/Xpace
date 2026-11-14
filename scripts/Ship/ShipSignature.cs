@@ -98,6 +98,13 @@ public partial class ShipSignature : Node3D, IRadarTarget, IDamageable, IHeatSou
         float engine = _engine?.Glow ?? 0;          // its radiators, and a core run too hot
         _jammer ??= _ship?.Device<JammerDevice>();
         float jammer = _jammer?.Glow ?? 0;          // what it sends, as heat
-        return heat * (hull + engine + jammer + MotorHeat * thrust * (FrontHeat + (1 - FrontHeat) * behind));
+        float motor = MotorHeat * thrust * (FrontHeat + (1 - FrontHeat) * behind);
+        _share = Heat.Mix(hull, engine + jammer, motor);
+        return heat * (hull + engine + jammer + motor);
     }
+
+    private float _share = Heat.PlumeShare;
+
+    /// <summary>A mixture: its hull's warm glow, radiators and jammer, and the plume when the motor burns.</summary>
+    float IHeatSource.Share => _share;
 }

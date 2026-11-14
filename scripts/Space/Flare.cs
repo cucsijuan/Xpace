@@ -58,6 +58,24 @@ public partial class Flare : Node3D, IHeatSource, IDropped
 
     public float HeatAt(Vector3 from, out Vector3 direction) => Heat.Point(GlobalPosition, HeatNow, from, out direction);
 
+    /// <summary>How hot the pellet burns (K): far hotter than a motor's plume, so bluer to a two-colour seeker.</summary>
+    public float Kelvin => S.Kelvin;
+
+    float IHeatSource.Share
+    {
+        get
+        {
+            if (Kelvin != _shareOf)
+            {
+                _shareOf = Kelvin;
+                _share = Heat.Share(Kelvin);
+            }
+            return _share;
+        }
+    }
+
+    private float _share, _shareOf = -1;
+
     public override void _PhysicsProcess(double delta)
     {
         Age += (float)delta;

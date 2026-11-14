@@ -103,7 +103,7 @@ public partial class ArmsTest : Node
         kiosk.Use(walker);
         await Seconds(0.3);
         var window = kiosk.Window as ArmsWindow;
-        Check("the arms kiosk opens its own window", window?.View != null && window.View.Offers.Count == 8);
+        Check("the arms kiosk opens its own window", window?.View != null && window.View.Offers.Count == 10);
         if (window == null || window.View == null)
         {
             Finish();
@@ -124,6 +124,18 @@ public partial class ArmsTest : Node
         window.Ask(MarketRequest.Buy, Heat, 1);
         await Seconds(0.2);
         Check($"a full rack takes none ({window.View.Message})", window.View.Message == market.RackFullText);
+
+        // Another model of heat seeker: the rack shared with the first, the rail's head is the new model's
+        me.Ship.Magazine[Heat] = 0;
+        window.Ask(MarketRequest.Buy, "ir_2", 1);
+        await Seconds(1.2);
+        Check($"a two-colour heat seeker bought goes on the rail, with its head ({launcher.HeatSeekersLeft}, next {launcher.NextHeatSeeker?.Model}: {window.View.Message})",
+              launcher.HeatSeekersLeft == 1 && launcher.NextHeatSeeker?.Id == "ir_2" && launcher.RailHeadKind == SeekerKind.TwoColour);
+        me.Ship.Magazine.Remove("ir_2");
+        me.Ship.Magazine[Heat] = rack;
+        await Seconds(1.2);
+        Check($"and back to the factory's model ({launcher.NextHeatSeeker?.Model}, {launcher.RailHeadKind})",
+              launcher.NextHeatSeeker?.Id == Heat && launcher.RailHeadKind == SeekerKind.Sum && launcher.HeatSeekersLeft == rack);
 
         ArmsOffer chaff = window.View.Offers.First(o => o.Id == Chaff), flare = window.View.Offers.First(o => o.Id == Flare);
         Check($"chaff and flares are on sale, for the dispenser ({chaff.Aboard}/{chaff.Rack} at {chaff.Price}, {flare.Aboard}/{flare.Rack} at {flare.Price}; {chaff.About})",

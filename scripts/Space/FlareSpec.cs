@@ -18,6 +18,9 @@ public partial class FlareSpec : Outfit
     [ExportGroup("Burn")]
     /// <summary>A drone's motor is 50 from behind.</summary>
     [Export] public float PeakHeat = 45f;
+    /// <summary>How hot it burns (K). A plain magnesium pellet burns far hotter than a motor's plume: a two-colour seeker tells
+    /// them apart. A cooler, "spectral" flare looks more like a plume and costs more.</summary>
+    [Export] public float Kelvin = Heat.FlareKelvin;
     [Export] public float IgniteSeconds = 0.15f;
     [Export] public float BurnSeconds = 2f;
 

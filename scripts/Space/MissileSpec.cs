@@ -45,6 +45,21 @@ public partial class MissileSpec : Outfit
     /// <summary>The program in its ROM.</summary>
     [Export(PropertyHint.File, "*.bin")] public string FirmwarePath = "res://disks/missile.bin";
 
+    [ExportGroup("Calibration")]
+    // Burned into the firmware's ROM by the factory: the same program, each model's own numbers
+    /// <summary>The navigation constant N: how hard it turns for the line of sight's turn.</summary>
+    [Export] public float NavigationGain = 3f;
+    /// <summary>What it pushes along the way while it can spare it (m/s²), to get there sooner.</summary>
+    [Export] public float BoostAcceleration = 150f;
+    /// <summary>Radar guided: it boosts while closing slower than this (m/s).</summary>
+    [Export] public float CloseSpeed = 700f;
+    /// <summary>Heat seeker: the closing speed its turn gain is reckoned for (m/s): its head measures no range.</summary>
+    [Export] public float AssumedClosing = 600f;
+    /// <summary>Heat seeker: the fuel it keeps for the end and doesn't boost with (m/s).</summary>
+    [Export] public float FuelReserve = 400f;
+    /// <summary>Seconds without word of its target (the datalink, or heat in its head) before it gives up.</summary>
+    [Export] public float LostSeconds = 2f;
+
     [ExportGroup("Heat seeker")]
     /// <summary>It guides itself by a seeker head, not by the launcher's datalink.</summary>
     [Export] public bool HeatSeeker = false;
@@ -56,8 +71,19 @@ public partial class MissileSpec : Outfit
     [Export] public float SeekerSlewDegrees = 60f;
     /// <summary>How far off the nose it can look.</summary>
     [Export] public float GimbalLimitDegrees = 50f;
+    /// <summary>How its head tells the target from what else glows: one band, two colours, or a picture.</summary>
+    [Export] public SeekerKind SeekerKind = SeekerKind.Sum;
+    /// <summary>Two-colour: how far off the learned colour (ln of short band over long) still counts as the target.</summary>
+    [Export] public float ColourTolerance = 0.3f;
+    /// <summary>Imaging: the finest separation it sees as two things (degrees).</summary>
+    [Export] public float ResolutionDegrees = 0.5f;
 
-    public override string About => HeatSeeker ? "Heat seeker: guides itself, needs no lock" : "Radar guided: needs your radar's lock all the way";
+    public override string About => !HeatSeeker ? "Radar guided: needs your radar's lock all the way" : SeekerKind switch
+    {
+        SeekerKind.TwoColour => "Heat seeker, two-colour head: guides itself, tells a flare's colour from a motor's",
+        SeekerKind.Imaging => "Heat seeker, imaging head: guides itself, keeps to its target as a flare falls away",
+        _ => "Heat seeker: guides itself, needs no lock",
+    };
 
     public override string Details => $"Warhead {Damage:0}   Turns at {MaxAcceleration:0} m/s²   Fuel {DeltaV:0} m/s";
 }

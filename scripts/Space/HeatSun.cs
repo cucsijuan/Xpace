@@ -13,6 +13,8 @@ public partial class HeatSun : DirectionalLight3D, IHeatSource
 
     public override void _Ready() => AddToGroup("heat_sources");
 
+    float IHeatSource.Share => Heat.SunShare;
+
     public float HeatAt(Vector3 from, out Vector3 direction)
     {
         direction = GlobalBasis.Z.Normalized();    // the light shines along -Z
