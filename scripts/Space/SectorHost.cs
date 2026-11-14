@@ -170,6 +170,15 @@ public partial class SectorHost : Node
         return 0;
     }
 
+    /// <summary>The Id of the loaded sector a node is in (null if it is in none).</summary>
+    public string SectorIdOf(Node node)
+    {
+        foreach (Running l in _loaded.Values)
+            if (node != null && (node == l.Origin || l.Origin.IsAncestorOf(node)))
+                return l.Info.Id;
+        return null;
+    }
+
     /// <summary>The number in the map of the sector a node is in (0 if it is in none).</summary>
     public byte PlaceOf(Node node)
     {

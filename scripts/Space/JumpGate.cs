@@ -74,9 +74,11 @@ public partial class JumpGate : Node3D
         {
             if (Combat.ShipOf(node) is not Node3D ship || !seen.Add(ship) || node == Radio)
                 continue;
-            if (ship is ShipBody { Held: true })
+            // Placed by what holds it (a tunnel, a pad, its way): it flies through nothing. A wreck's dead systems don't
+            // take the jump: it drifts through the ring as any piece of metal would
+            if (ship is ShipBody { Held: true } or ShipBody { Wrecked: true })
             {
-                _was.Remove(ship);                  // placed by what holds it (a tunnel, a pad, its way): it flies through nothing
+                _was.Remove(ship);
                 continue;
             }
             Vector3 now = ToLocal(ship.GlobalPosition);

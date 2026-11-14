@@ -41,18 +41,23 @@ public partial class ShipHull : Node, IDamageable
     public float CrashDamage { get; private set; }
     public float Fraction => Left / Integrity;
 
-    /// <summary>Where a new ship appears: where this one was when the game put it there.</summary>
+    /// <summary>Where a new ship appears: where this one was when the game put it there (world, if its sector is running).</summary>
     public Transform3D Spawn
     {
         get => new(_spawnBasis, _spawn.World);
         set
         {
-            _spawn = Space.Spot.At(this, value.Origin);
+            _spawn = Spot.At(this, value.Origin);
             _spawnBasis = value.Basis;
+            _spawnSector = SectorHost.Current?.SectorIdOf(this);
         }
     }
 
-    private Space.Spot _spawn;
+    /// <summary>The sector <see cref="Spawn"/> is in (null: no sectors, the one it is in).</summary>
+    public string SpawnSector => _spawnSector;
+
+    private Spot _spawn;
+    private string _spawnSector;
     private Basis _spawnBasis = Basis.Identity;
 
     private ShipBody _ship;
@@ -134,10 +139,26 @@ public partial class ShipHull : Node, IDamageable
         Combat.Down(_ship, _ship.GlobalPosition);
     }
 
-    /// <summary>The insurer's new ship, where the first one started, full.</summary>
+    /// <summary>
+    /// The insurer's new ship, where the first one started, full: in the sector it started in, wherever the wreck went.
+    /// The player's ship goes there as through a jump (the sector is loaded if it has to be); another ship is moved
+    /// there if that sector is running, else it comes back where it is.
+    /// </summary>
     public void Restore()
     {
-        _ship.State = new ShipState { Position = Spawn.Origin, Orientation = Spawn.Basis.GetRotationQuaternion() };
+        Transform3D spawn = Spawn;
+        if (SectorHost.Current is SectorHost host && _spawnSector != null && host.SectorIdOf(_ship) is string here && here != _spawnSector)
+        {
+            FloatingOrigin root = host.Root(_spawnSector);
+            spawn = new Transform3D(_spawnBasis, (root?.Origin ?? default).To(_spawn.Place));
+            if (_ship == host.Ship)
+                host.Jump(_spawnSector, spawn);
+            else if (root != null)
+                Sectors.Move(_ship, root, spawn);
+            else
+                spawn = _ship.GlobalTransform;
+        }
+        _ship.State = new ShipState { Position = spawn.Origin, Orientation = spawn.Basis.GetRotationQuaternion() };
         Left = Integrity;
         Wrecked = false;
         _ship.Wrecked = false;

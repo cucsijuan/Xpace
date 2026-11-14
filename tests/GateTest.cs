@@ -100,6 +100,31 @@ public partial class GateTest : Node
         await Seconds(2);
         Check($"too poor, the toll is refused ({Heard(radio)})", !gate2.Cleared(_ship) && me.Credits == 10 && Heard(radio).StartsWith("Transit denied"));
 
+        // Destroyed in the second sector, the wreck drifts through a ring and goes nowhere; the insurer's new ship comes
+        // back where the first started, in the first sector
+        var hull = _ship.Find<ShipHull>();
+        Check($"the insurer knows the sector the ship started in ({hull.SpawnSector})", hull.SpawnSector == "sector_01");
+        me.Credits = 10_000;
+        radio.AskTransit();
+        await Until(() => gate2.Cleared(_ship), 3);
+        Place(gate2, 30, 100);
+        await Until(() => _main.Here.Id == "sector_02", 2);
+        await Until(() => _ship.Holder == null, 6);
+        gate1 = Gate("Gate1");
+        long finesBefore = universe.State.Station("GATE1").CrimesOf(me.Id).Fines;
+        hull.Destroy();
+        Place(gate1, -30, 100);
+        await Seconds(1);
+        Check($"a wreck goes through the ring to nowhere ({_main.Here.Id}, {gate1.ToLocal(_ship.GlobalPosition).Z:0} m past it)",
+              _main.Here.Id == "sector_02" && _ship.Holder == null && gate1.ToLocal(_ship.GlobalPosition).Z > 30
+              && universe.State.Station("GATE1").CrimesOf(me.Id).Fines == finesBefore);
+        bool back = await Until(() => !hull.Wrecked, (float)hull.RespawnSeconds + 1);
+        Vector3 spawn = hull.Spawn.Origin;
+        Check($"the insurer's new ship is back where the first started, in the first sector ({_main.Here.Id}, {_ship.GlobalPosition.DistanceTo(spawn):0.0} m off)",
+              back && _main.Here.Id == "sector_01" && _ship.GlobalPosition.DistanceTo(spawn) < 5 && _ship.Holder == null);
+        await Seconds(1);
+        Check($"and stays there ({_ship.GlobalPosition.DistanceTo(hull.Spawn.Origin):0.0} m off)", _ship.GlobalPosition.DistanceTo(hull.Spawn.Origin) < 5);
+
         GD.Print(_failures == 0 ? "ALL PASSED" : $"{_failures} FAILED");
         GC.Collect();
         GC.WaitForPendingFinalizers();

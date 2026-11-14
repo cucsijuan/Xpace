@@ -20,6 +20,7 @@ namespace Xpace.Tests;
 public partial class GateChaseTest : Node
 {
     private int _failures;
+    private const double Behind = 5;            // seconds of the freighter's way between it and the pirate
 
     public override async void _Ready()
     {
@@ -47,11 +48,12 @@ public partial class GateChaseTest : Node
         ShipModel freighter = GD.Load<ShipModel>("res://assets/ship/models/freighter.tres");
         CargoShipRecord prey = state.CargoShips.Values.First(s => s.Model == freighter.ResourcePath && s.Owner != pirate.Id);
 
-        // The freighter on the way from Kestrel to Alpha, a little short of the gate; the pirate beside it, bound for
-        // Drydock on this side of the gate: going through is its own choice
+        // The freighter on the way from Kestrel to Alpha, a little short of the gate; the pirate behind it, where the
+        // freighter was some seconds ago (beside it, it would hit it before the gate), bound for Drydock on this side of
+        // the gate: going through is its own choice
         StationBook.Station kestrel = book.Find("KESTREL"), alpha = book.Find("ALPHA");
         Set(prey, kestrel, alpha, 25, state, book);
-        Vector3 near = book.FixOf(prey, freighter, state.Clock).Value.At + new Vector3(0, 300, 0);
+        Vector3 near = book.FixOf(prey, freighter, state.Clock - Behind).Value.At + new Vector3(0, 300, 0);
         attacker.Phase = CargoShipRecord.Flying;
         attacker.From = "";
         attacker.FromSector = kestrel.Sector;
@@ -69,8 +71,9 @@ public partial class GateChaseTest : Node
         var follows = new List<(string, string)>();
         view.Followed += (a, b) => follows.Add((a, b));
 
+        GD.Print($"     the pirate starts {near.DistanceTo(book.FixOf(prey, freighter, state.Clock).Value.At):0} m behind");
         Check("the pirate goes after the freighter", await Until(() => attacker.Phase == CargoShipRecord.Loose, 30));
-        bool went = await Until(() => Sector(prey, book, state) != "sector_02", 90);
+        bool went = await Until(() => Sector(prey, book, state) is "tunnel" or "sector_01", 90);
         Check($"the freighter goes into the gate ({Sector(prey, book, state)})", went);
         bool followed = await Until(() => follows.Any(f => f.Item1 == attacker.Id && f.Item2 == prey.Id), 5);
         Check($"the pirate saw it go and follows it through ({follows.Count})", followed);
@@ -105,6 +108,12 @@ public partial class GateChaseTest : Node
         Check($"the player's ship is a pilot's ({pilot})", pilot != null);
         if (pilot == null)
             return;
+        // The chase is what this is about, not the fight: a hull the pirate's guns don't get through (a wreck takes no jump)
+        if (player.Find<ShipHull>() is ShipHull hull)
+        {
+            hull.Integrity = 1e9f;
+            hull.Mend();
+        }
         var gate = main.Sector.GetNode<JumpGate>("Gate2");
         Vector3 axis = gate.GlobalBasis.Z.Normalized();
         player.State = new ShipState { Position = gate.GlobalPosition + axis * 4000, Orientation = Basis.LookingAt(-axis, Vector3.Up).GetRotationQuaternion() };
@@ -213,9 +222,9 @@ public partial class GateChaseTest : Node
         s.Legs = null;
     }
 
-    // Where its record has it now (in a gate's tunnel: none)
+    // Where its record has it now (in a gate's tunnel: none; off its way, fighting or fleeing: loose)
     private static string Sector(CargoShipRecord s, StationBook book, UniverseState state) =>
-        book.FixOf(s, GD.Load<ShipModel>(s.Model), state.Clock)?.Sector ?? "tunnel";
+        s.Phase == CargoShipRecord.Loose ? "loose" : book.FixOf(s, GD.Load<ShipModel>(s.Model), state.Clock)?.Sector ?? "tunnel";
 
     private async Task Seconds(double s)
     {

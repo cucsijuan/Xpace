@@ -31,6 +31,9 @@ public readonly struct Spot
         return new Spot(root, (root?.Origin ?? default) + world);
     }
 
+    /// <summary>Where it is in its sector (that sector's scene frame).</summary>
+    public SectorPoint Place => _at;
+
     /// <summary>Where it is in the world now.</summary>
     public Vector3 World => (GodotObject.IsInstanceValid(_root) ? _root.Origin : default).To(_at);
 
