@@ -1,6 +1,7 @@
 name: Release
 
-# Pushing a tag like v0.1.0 exports the game for Linux and Windows and publishes a release with both zips.
+# Pushing a tag like v0.1.0 exports the game for Linux and Windows and publishes a release with both zips and the
+# ship systems manual (docs/manual, printed to PDF by the runner's Chrome).
 # Running it by hand (Actions > Release > Run workflow) only exports, keeping the zips as workflow artifacts.
 #
 # Secrets (Settings > Secrets and variables > Actions):
@@ -167,11 +168,16 @@ jobs:
           (cd build/linux && zip -qr "../../$NAME-linux.zip" .)
           (cd build/windows && zip -qr "../../$NAME-windows.zip" .)
 
+      - name: Ship systems manual
+        run: python3 docs/manual/build.py --browser "$(command -v google-chrome || command -v chromium)"
+
       - uses: actions/upload-artifact@v7
         if: github.ref_type != 'tag'
         with:
           name: ${{ env.NAME }}
-          path: ${{ env.NAME }}-*.zip
+          path: |
+            ${{ env.NAME }}-*.zip
+            docs/manual/Ship-Systems-Manual.pdf
 
       - name: Publish the release
         if: github.ref_type == 'tag'
@@ -180,4 +186,4 @@ jobs:
         run: |
           notes="docs/releases/$GITHUB_REF_NAME.md"
           if [ -f "$notes" ]; then set -- --notes-file "$notes"; else set -- --generate-notes; fi
-          gh release create "$GITHUB_REF_NAME" "$NAME-linux.zip" "$NAME-windows.zip" --title "Xpace $GITHUB_REF_NAME" "$@"
+          gh release create "$GITHUB_REF_NAME" "$NAME-linux.zip" "$NAME-windows.zip" docs/manual/Ship-Systems-Manual.pdf --title "Xpace $GITHUB_REF_NAME" "$@"

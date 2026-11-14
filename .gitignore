@@ -37,3 +37,4 @@ scripts/Net/EosProduct.g.cs.uid
 __pycache__/
 disks/spoof.img
 disks/terminal.img
+docs/manual/*.pdf
