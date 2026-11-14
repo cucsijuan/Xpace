@@ -71,4 +71,4 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.392, -10)
 gizmo_extents = 2.0
 
 [node name="Stairs" parent="." unique_id=1497490293 instance=ExtResource("4_stairs")]
-transform = Transform3D(-0.5754, 0, 0, 0, 0.5754, 0, 0, 0, -0.5754, -3.9769263, -2.5006306, -12.151442)
+transform = Transform3D(-0.5754, 0, 0, 0, 0.5754, 0, 0, 0, -0.5754, -3.9769263, -2.581, -12.95)
