@@ -1,5 +1,6 @@
 using System;
 using Godot;
+using GodotCharacters;
 using Xpace.Menu;
 
 namespace Xpace.OnFoot;
@@ -56,7 +57,7 @@ public partial class Walker : CharacterBody3D
     [Export] public float AimRange = 300f;
 
     /// <summary>The body's animations (speed, ground, seat).</summary>
-    [Export] public BodyAnimator Body;
+    [Export] public Body Body;
     [Export] public Node3D Yaw;
     [Export] public Node3D Pitch;
     [Export] public Camera3D Camera;

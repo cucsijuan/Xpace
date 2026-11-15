@@ -28,7 +28,7 @@ That builds, from the submodules:
 
 None of these go into the repository.
 
-The art comes from Synty's POLYGON Sci-Fi Space pack, whose licence does not allow redistributing its files, so they are not in the repository either. With the pack's source files in `.raw-assets/SourceFiles` (or anywhere, passing `-DPACK=<path>`), copy the ones the game uses into `assets/synty/`, have Godot import them and cut the cockpit's sliders and switches out into meshes of their own (`assets/synty/parts/`, see [docs/tools/mesh-parts.md](docs/tools/mesh-parts.md)):
+The art comes from Synty's POLYGON Sci-Fi Space pack, whose licence does not allow redistributing its files, so they are not in the repository either. With the pack's source files in `.raw-assets/SourceFiles` (or anywhere, passing `-DPACK=<path>`), copy the ones the game uses into `assets/synty/`, have Godot import them and cut the cockpit's sliders and switches out into meshes of their own (`assets/synty/parts/`, see [docs/tools/mesh-parts.md](docs/tools/mesh-parts.md)), and make the crew's bodies (`assets/synty/characters/`, with the character library in `external/godot-characters`; it needs Synty's Animation Base Locomotion, whose `Animations/Polygon` folder goes in `.raw-assets/anim_base_locomotion/Animations/Polygon`; sitting comes from the Universal Animation Library in `assets/animations/ual`):
 
 ```sh
 dotnet build

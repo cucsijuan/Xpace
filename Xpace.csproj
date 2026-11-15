@@ -9,6 +9,8 @@
   <ItemGroup>
     <!-- The submodules build on their own -->
     <Compile Remove="external/**" />
+    <!-- The character library's scripts are the game's own (Godot finds node scripts in the game's assembly) -->
+    <Compile Include="external/godot-characters/src/**/*.cs" />
   </ItemGroup>
   <ItemGroup>
     <!-- The native libraries (native/CMakeLists.txt) go with the assemblies of an exported game: the ones for the

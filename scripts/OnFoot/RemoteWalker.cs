@@ -1,4 +1,5 @@
 using Godot;
+using GodotCharacters;
 using Xpace.Net;
 
 namespace Xpace.OnFoot;
@@ -18,7 +19,7 @@ public partial class RemoteWalker : Node3D
     /// <summary>Further than this from where it should be (m), it is put there at once.</summary>
     [Export] public float SnapDistance = 3f;
 
-    public BodyAnimator Body { get; private set; }
+    public Body Body { get; private set; }
 
     public string Pilot
     {
@@ -37,11 +38,11 @@ public partial class RemoteWalker : Node3D
     private double _age;
     private bool _placed;
 
-    /// <summary>A remote walker showing <paramref name="body"/> (a scene with a <see cref="BodyAnimator"/> at its root).</summary>
+    /// <summary>A remote walker showing <paramref name="body"/> (a scene with a <see cref="GodotCharacters.Body"/> at its root).</summary>
     public static RemoteWalker Make(PackedScene body, string pilot)
     {
         var w = new RemoteWalker { Name = "RemoteWalker" };
-        w.Body = body?.Instantiate<BodyAnimator>();
+        w.Body = body?.Instantiate<Body>();
         if (w.Body != null)
             w.AddChild(w.Body);
         w._name = new Label3D

@@ -7,3 +7,6 @@
 [submodule "external/godot-eos"]
 	path = external/godot-eos
 	url = https://github.com/cucsijuan/godot-eos.git
+[submodule "external/godot-characters"]
+	path = external/godot-characters
+	url = https://github.com/cucsijuan/godot-characters.git

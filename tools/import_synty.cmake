@@ -12,8 +12,10 @@
 # asset in a folder named by its GUID, its path in the folder's pathname). With GODOT, it
 # then has Godot import them and runs the mesh part tool on every list in
 # tools/mesh_parts/lists (the cockpit's sliders and switches, as meshes of
-# their own, into assets/synty/parts; see docs/tools/mesh-parts.md). The
-# C# project must be built first (dotnet build). With BLENDER, it then builds
+# their own, into assets/synty/parts; see docs/tools/mesh-parts.md), and makes
+# the crew's bodies (tools/import_characters.gd, with Synty's Animation Base
+# Locomotion in .raw-assets/anim_base_locomotion). The C# project must be built
+# first (dotnet build). With BLENDER, it then builds
 # the big hangar out of Synty's and cuts its room out of the station's ring
 # (tools/station_bay/build_hangar.py and cut_station.py, into
 # assets/synty/cut), and makes hull panels in the station's style
@@ -81,7 +83,6 @@ set(MODELS
   SM_Prop_Wires_01
   SM_Prop_Wires_03
   SM_Prop_Wires_05
-  SM_Chr_Attach_Crew_Male_Hair_01
   SM_Prop_Stairs_01
   SM_Prop_Crate_Wide_01
   SM_Veh_WarpGate_Outer_01
@@ -125,9 +126,14 @@ set(COLLISIONS
   SM_Veh_Beacon_01_Collision
 )
 # Out of the Unity package's Models, renamed: every character (bodies, heads,
-# helmets) on one skeleton, which the source files only have one by one
+# helmets) on one skeleton, which the source files only have one by one. It and
+# the characters' attachments are sources of the character import
+# (tools/import_characters.gd), so they go to CHARACTERS, which Godot does not
+# import, not to assets/synty.
 set(PACKAGE_MODELS Characters)
 set(NAME_Characters SM_Chr_Characters)
+set(CHARACTERS "${ROOT}/.raw-assets/characters")
+set(CHARACTER_MODELS SM_Chr_Attach_Crew_Male_Hair_01)
 
 file(MAKE_DIRECTORY "${DEST}")
 foreach(m IN LISTS MODELS)
@@ -135,6 +141,10 @@ foreach(m IN LISTS MODELS)
 endforeach()
 foreach(t IN LISTS TEXTURES)
   file(COPY "${PACK}/Textures/${t}.png" DESTINATION "${DEST}")
+endforeach()
+file(MAKE_DIRECTORY "${CHARACTERS}")
+foreach(m IN LISTS CHARACTER_MODELS)
+  file(COPY "${PACK}/FBX/${m}.fbx" DESTINATION "${CHARACTERS}")
 endforeach()
 
 # A few props out of POLYGON Sci-Fi Horror (HORROR_PACK: its source files' SciFiHorror folder; skipped without it)
@@ -193,6 +203,7 @@ foreach(n IN LISTS NAMES)
       get_filename_component(guid "${dir}" NAME)
       list(APPEND WANTED "${guid}/asset")
       set(FROM_${guid} "${NAME_${m}}")
+      set(TO_${guid} "${CHARACTERS}")
     endif()
   endforeach()
 endforeach()
@@ -206,7 +217,11 @@ endif()
 file(ARCHIVE_EXTRACT INPUT "${PACKAGE}" DESTINATION "${UNPACK}" PATTERNS ${WANTED})
 foreach(w IN LISTS WANTED)
   get_filename_component(dir "${w}" DIRECTORY)
-  file(COPY_FILE "${UNPACK}/${w}" "${DEST}/${FROM_${dir}}.fbx")
+  if(TO_${dir})
+    file(COPY_FILE "${UNPACK}/${w}" "${TO_${dir}}/${FROM_${dir}}.fbx")
+  else()
+    file(COPY_FILE "${UNPACK}/${w}" "${DEST}/${FROM_${dir}}.fbx")
+  endif()
 endforeach()
 file(REMOVE_RECURSE "${UNPACK}")
 
@@ -256,6 +271,13 @@ if(GODOT)
     endif()
   endforeach()
   message(STATUS "Mesh parts extracted into ${DEST}/parts")
+  # The crew's bodies: Synty's Animation Base Locomotion is expected in .raw-assets/anim_base_locomotion
+  execute_process(COMMAND "${GODOT}" --headless --path "${ROOT}" --script res://tools/import_characters.gd
+                  RESULT_VARIABLE characters)
+  if(NOT characters EQUAL 0)
+    message(FATAL_ERROR "The character import failed (${characters})")
+  endif()
+  message(STATUS "Crew bodies made in ${DEST}/characters")
 else()
   message(STATUS "Next: Godot import, then the mesh part tool (or run this again with -DGODOT=<godot>)")
 endif()
