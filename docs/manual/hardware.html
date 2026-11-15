@@ -144,7 +144,7 @@ pre.listing.full { font-size: 7.3pt; line-height: 1.16; }
 <div class="notice">
 <p style="margin-top:3.6in"><b>First Edition</b></p>
 <p>Changes are made periodically to the information herein; any such changes will be reported in subsequent revisions.</p>
-<p>This manual describes the devices on the ship systems bus of the pc86 ship computer: the pilot's controls, the flight sensors, the thrusters and the main engine, the radar and the weapons, the defensive systems, the power plant, the heat and the cockpit displays, as fitted to the ship it came with. Fittings vary between ships: a program must look on the bus for what it needs before it uses it (Chapter 1).</p>
+<p>This manual describes the devices on the ship systems bus of the pc86 ship computer: the pilot's controls, the flight sensors, the thrusters and the main engine, the radar and the weapons, the defensive systems, the power plant and the heat, the radio, the cargo hold and the cruise generator, and the cockpit displays, as fitted to the ship it came with. Fittings vary between ships: a program must look on the bus for what it needs before it uses it (Chapter 1).</p>
 <p>The ship computer runs the COS disk operating system. How to use COS, its editor (EDIT) and its assembler (ASM) is described in the COS User's Guide.</p>
 </div>
 </section>
@@ -167,7 +167,8 @@ pre.listing.full { font-size: 7.3pt; line-height: 1.16; }
 <tr><td>Chapter 4</td><td>Sensors and Weapons: the radar, the turret, the missile launcher and the pulse laser.</td></tr>
 <tr><td>Chapter 5</td><td>Defence: the warning receiver, the countermeasures dispenser, the shield and the jammer.</td></tr>
 <tr><td>Chapter 6</td><td>Power and Heat: the power distributor and the heat sink launcher.</td></tr>
-<tr><td>Chapter 7</td><td>The Display Card: the radio (stations, their laws, docking) and the cockpit's screens and their keys.</td></tr>
+<tr><td>Chapter 7</td><td>Navigation and Trade: the radio (stations, their laws, docking), the cargo hold, the cruise generator, the interdictor and the cargo scanner.</td></tr>
+<tr><td>Chapter 8</td><td>The Display Card: the cockpit's screens and their keys.</td></tr>
 <tr><td>Appendix A</td><td>The Ship's Programs: FLIGHT, FIRECTL, RWR and POWER.</td></tr>
 <tr><td>Appendix B</td><td>The Sample Program <code>COOL.ASM</code>.</td></tr>
 </table>
@@ -195,7 +196,7 @@ pre.listing.full { font-size: 7.3pt; line-height: 1.16; }
 
 <h2>The Ship Computer</h2>
 <p>The ship computer is a pc86 personal computer with three cards in its slots: the video card (the console screen in the cockpit), the diskette controller (one 3&frac12;-inch drive, drive A:), and the ship systems bus card, which connects the computer to the rest of the ship. It runs COS from the ship's diskette, and at start-up COS runs <code>AUTOEXEC.BAT</code>, which loads the ship's programs.</p>
-<p>The processor runs about 400,000 instructions a second. That is shared by everything the computer does: the resident programs that fly the ship and work its systems, and whatever you run at the COS prompt. Appendix A says how much of it each of the ship's programs takes.</p>
+<p>The processor runs about 400,000 instructions a second. That is shared by everything the computer does: the resident programs that fly the ship and work its systems, and whatever you run at the COS prompt. Appendix A says what each of the ship's programs does, and how much of it the two heaviest take.</p>
 
 <h2>Slots and Ports</h2>
 <p>The bus card gives the ship's devices thirty-two slots of sixteen ports each, from port 100h to 2FFh. Slot <var>n</var> begins at port 100h + 16 &times; <var>n</var>: slot 3 is 130h to 13Fh. A program reads a device's registers with <code>IN</code> and writes them with <code>OUT</code>, a byte at a time, with the port in DX:</p>
@@ -261,11 +262,15 @@ pre.listing.full { font-size: 7.3pt; line-height: 1.16; }
 <tr><th>Address</th><th>Contents</th></tr>
 <tr><td>D000:1000</td><td>The radar's contact table (Chapter 4)</td></tr>
 <tr><td>D000:1100</td><td>The radar's track</td></tr>
-<tr><td>D000:1200</td><td>The display card's screen table (Chapter 7)</td></tr>
+<tr><td>D000:1200</td><td>The display card's screen table (Chapter 8)</td></tr>
 <tr><td>D000:1300</td><td>The warning receiver's emitter table (Chapter 5)</td></tr>
 <tr><td>D000:1400</td><td>The whole rating plate (Chapter 3)</td></tr>
 <tr><td>D000:1500</td><td>The radio's contacts, laws (1600) and messages (1700) (Chapter 7)</td></tr>
 <tr><td>D000:1900</td><td>The landing pad's guidance, as the radio hears it (Chapter 7)</td></tr>
+<tr><td>D000:1A00</td><td>The cargo hold's list (Chapter 7)</td></tr>
+<tr><td>D000:1B00</td><td>The turret's magazine (Chapter 4)</td></tr>
+<tr><td>D000:1C00</td><td>The cargo scanner's reading (Chapter 7)</td></tr>
+<tr><td>D000:1D00</td><td>The callsign the radio's transponder sends (Chapter 7)</td></tr>
 <tr><td>D000:2000</td><td>The screens' memory, from here up</td></tr>
 </table>
 <p>These are written by the devices at each step. A program reads them, and writes only the screens' memory (and, in the screen table, a screen's mode and its lending mark).</p>
@@ -281,6 +286,9 @@ pre.listing.full { font-size: 7.3pt; line-height: 1.16; }
 <tr><td>1/8 m/s&sup2;</td><td>Accelerations.</td></tr>
 <tr><td>1/4 m</td><td>Positions measured by the radar.</td></tr>
 <tr><td>m</td><td>Ranges.</td></tr>
+<tr><td>10 m</td><td>The radio's ranges and the laws' radii.</td></tr>
+<tr><td>1/16 m</td><td>The landing pad's guidance.</td></tr>
+<tr><td>1/16 t</td><td>Hydrogen in the tank.</td></tr>
 <tr><td>0 to 255</td><td>Fractions: 255 is full.</td></tr>
 <tr><td>-32767 to 32767</td><td>The controls and the thruster commands: 32767 is all the way.</td></tr>
 </table>
@@ -300,6 +308,10 @@ FLIGHT
 FIRECTL
 RWR
 POWER
+TUNE
+DESK
+COMMS
+SCANNER
 </pre>
 <p>Each one can be taken out of memory with <code>OFF</code> (<code>FIRECTL OFF</code>), and started again by its name.</p>
 
@@ -329,7 +341,7 @@ POWER
 </ul>
 
 <h2>Changing a Program in Flight</h2>
-<p>The sources of the ship's programs are on the ship's diskette (<code>FLIGHT.ASM</code>, <code>FIRECTL.ASM</code>, <code>RWR.ASM</code>, <code>POWER.ASM</code>). To change one, edit its source with EDIT, assemble it with ASM, and start the new program in place of the old one. Assemble it to a new name, so that the program that works stays on the diskette:</p>
+<p>The sources of the ship's programs are on the ship's diskette (<code>FLIGHT.ASM</code>, <code>FIRECTL.ASM</code>, <code>RWR.ASM</code>, <code>POWER.ASM</code>, <code>COMMS.ASM</code>, <code>TUNE.ASM</code>; the desktop's, in Small-C, are <code>DESK.C</code> and <code>SCANNER.C</code> with their headers: see Appendix A). To change one, edit its source with EDIT, assemble it with ASM, and start the new program in place of the old one. Assemble it to a new name, so that the program that works stays on the diskette:</p>
 <pre class="screen">A:\&gt;<b>edit firectl.asm</b>
 
 A:\&gt;<b>asm firectl.asm new.com</b>
@@ -364,7 +376,7 @@ COOL resident.
 <section class="chapter" data-num="3" data-title="Flight" data-part="Part Two: The Devices">
 
 <h2 class="cmd">Pilot's Controls<span>100h &middot; type 1</span></h2>
-<p>Where the pilot holds the stick, the throttle and the other controls, and which buttons are down. The device only reports them: what they do is the programs'.</p>
+<p>Where the pilot holds the stick, the throttle and the other controls, and which buttons are down. The device only reports them: what they do is the programs'. Version 2.</p>
 <table class="ref">
 <tr><th>Register</th><th>Contents</th></tr>
 <tr><td>+2 word</td><td>Pitch (positive: nose up)</td></tr>
@@ -402,7 +414,7 @@ COOL resident.
 <tr><td>+10 word</td><td>Force upward (write)</td></tr>
 <tr><td>+12 word</td><td>Force forward: the main engine; negative, the reverse thrusters (write)</td></tr>
 <tr><td>+14</td><td>Write: take the commands. Read: 1 while in direct mode.</td></tr>
-<tr><td>+15</td><td>The mode the flight program shows on the head-up display (write): bit 0 flight assist on, bit 1 safe turns</td></tr>
+<tr><td>+15</td><td>The mode the flight program shows on the head-up display (write): bit 0 flight assist on, bit 1 safe turns, bit 2 parking, bit 3 keeping to a station's speed limit</td></tr>
 </table>
 <p>If nothing writes +14 for a tenth of a second, the controller goes to <i>direct mode</i>: the thrusters follow the pilot's controls as they are, the stick to the turns and the throttle to the main engine, and the ship keeps whatever motion it has. It leaves direct mode at the first command taken.</p>
 <p>The main engine gives what its own controller decides of what is asked.</p>
@@ -459,7 +471,7 @@ COOL resident.
 <section class="chapter" data-num="4" data-title="Sensors and Weapons" data-part="Part Two: The Devices">
 
 <h2 class="cmd">Radar<span>130h &middot; type 4</span></h2>
-<p>A pulse-Doppler radar looking in a cone ahead of the ship. Searching, it sweeps the cone twice a second and writes what it sees into a table of contacts. Told to lock one of them, it tracks it sixty times a second and writes where it is.</p>
+<p>A pulse-Doppler radar looking in a cone ahead of the ship. Searching, it sweeps the cone twice a second and writes what it sees into a table of contacts. Told to lock one of them, it tracks it sixty times a second and writes where it is. Version 2.</p>
 <p>What it measures is only as good as the echo against the noise. An echo falls with the fourth power of the range and grows with the size of the target, so its errors grow with the range; jamming adds noise, and rocks near a target echo with it. The track gives only the target's position: its velocity is for the program to work out, by following the positions.</p>
 <table class="ref">
 <tr><th>Register</th><th>Contents</th></tr>
@@ -563,7 +575,7 @@ COOL resident.
 <section class="chapter" data-num="5" data-title="Defence" data-part="Part Two: The Devices">
 
 <h2 class="cmd">Radar Warning Receiver<span>170h &middot; type 8</span></h2>
-<p>Antennas round the hull hear the radars whose beams light the ship, from every side; the receiver only listens. For each radar it hears it works out a bearing, from the antennas; a range, guessed from the strength of the signal and the power its library lists for that kind of radar; a type, from the signature; and whether the radar has the ship locked. A searching radar is heard only as its beam passes, and stays in the table for a while after.</p>
+<p>Antennas round the hull hear the radars whose beams light the ship, from every side; the receiver only listens. For each radar it hears it works out a bearing, from the antennas; a range, guessed from the strength of the signal and the power its library lists for that kind of radar; a type, from the signature; and whether the radar has the ship locked. A searching radar is heard only as its beam passes, and stays in the table for a while after. Version 3.</p>
 <p>The same box has a missile approach warner: it sees the plume of a burning missile motor coming at the ship. A missile that has burnt out coasts unseen.</p>
 <table class="ref">
 <tr><th>Register</th><th>Contents</th></tr>
@@ -580,7 +592,7 @@ COOL resident.
 <tr><td>+0 word</td><td>The emitter's id</td></tr>
 <tr><td>+2 word</td><td>Bearing (binary angle from the nose, to the right, in the ship's horizontal plane)</td></tr>
 <tr><td>+4 word</td><td>Range, as guessed (m)</td></tr>
-<tr><td>+6</td><td>Type: a letter (D drone, F fighter, J jammer, M missile, U unknown)</td></tr>
+<tr><td>+6</td><td>Type: a letter (A a station's hangar watch, D drone, F fighter, J jammer, M missile, U unknown)</td></tr>
 <tr><td>+7</td><td>Flags: bit 0 locked on the ship, bit 1 heard in this step, bit 2 new, bit 3 a missile, bit 4 guiding a missile at the ship</td></tr>
 </table>
 <p>A radar that guides a missile at the ship sends the datalink's words with its pulses: the receiver calls that a launch (bit 4). A heat seeker gives no such warning; only its plume, and the receiver cannot tell whose it is.</p>
@@ -653,10 +665,10 @@ COOL resident.
 <!-- CHAPTER 7                                                            -->
 <!-- ================================================================== -->
 
-<section class="chapter" data-num="7" data-title="The Display Card" data-part="Part Two: The Devices">
+<section class="chapter" data-num="7" data-title="Navigation and Trade" data-part="Part Two: The Devices">
 
 <h2 class="cmd">Radio<span>200h &middot; type 18</span></h2>
-<p>Lists the radios it hears, stations and ships, nearest first; keeps the laws the last station sent it, the dock a station cleared the ship to, and the last four messages it heard. A station sends its laws to every ship that comes into its protected zone, once, as it comes in: a radio that was off then has none, and must ask. The radio ranges the station whose laws it holds, so it knows whether the ship is inside the zone, and inside the nearer radius of the speed limit. It also hears the beacon of the landing pad the ship is cleared to (see below). Version 4.</p>
+<p>Lists the radios it hears, stations and ships, nearest first; keeps the laws the last station sent it, the dock a station cleared the ship to, and the last four messages it heard. A station sends its laws to every ship that comes into its protected zone, once, as it comes in: a radio that was off then has none, and must ask. The radio ranges the station whose laws it holds, so it knows whether the ship is inside the zone, and inside the nearer radius of the speed limit. It also hears the beacon of the landing pad the ship is cleared to (see below). It keeps the contacts' table up to date only while a program reads it: one that has not read +2, +3 or +7 for a second finds the table as it was left. Version 4.</p>
 <table class="ref">
 <tr><th>Register</th><th>Contents</th></tr>
 <tr><td>+2</td><td>Contacts in the table (up to 16)</td></tr>
@@ -677,7 +689,7 @@ COOL resident.
 <table class="ref">
 <tr><th>Offset</th><th>Contents</th></tr>
 <tr><td>+0</td><td>Callsign: eight characters, filled with spaces</td></tr>
-<tr><td>+8</td><td>Kind: 'S' a station, 'V' a vessel</td></tr>
+<tr><td>+8</td><td>Kind: 'S' a station, 'G' a gate, 'B' a commercial beacon, 'V' a vessel</td></tr>
 <tr><td>+9</td><td>Flags: bit 0 the laws held are its, bit 1 the ship is inside its speed limit, bit 2 inside its zone, bit 3 it cleared the ship to a dock</td></tr>
 <tr><td>+10 word</td><td>Range, in tens of metres</td></tr>
 <tr><td>+12 word</td><td>Bearing (binary angle, from the nose, right positive)</td></tr>
@@ -727,8 +739,10 @@ COOL resident.
 <tr><td>+6</td><td>Kinds of goods aboard (up to 16)</td></tr>
 <tr><td>+8 word</td><td>The segment of the list</td></tr>
 <tr><td>+10 word</td><td>The offset of the list</td></tr>
+<tr><td>+12 word</td><td>Hydrogen in the tank, in 1/16 t: the cruise generator's fuel</td></tr>
+<tr><td>+14 word</td><td>The tank's capacity, in 1/16 t</td></tr>
 </table>
-<p>Sixteen bytes a kind of good, in the order of their names:</p>
+<p>Sixteen bytes a kind of good, in the order of the goods' names in the market's catalogue:</p>
 <table class="ref">
 <tr><th>Offset</th><th>Contents</th></tr>
 <tr><td>+0</td><td>The good's name: twelve characters, upper case, filled with spaces</td></tr>
@@ -740,7 +754,7 @@ COOL resident.
 <p>Thins the veil, so the drag falls and the top speed rises, and pushes the ship in place of the main engine, which rests. The rating plate reads what the ship can do as it is now, so a flight program goes on flying it as ever. The medium is denser near large masses: the veil's drag is the normal one times the density over the generator's thinning, so the ship slows as one nears. Where the density reaches the thinning the generator can do nothing: it drops out, and will not start there. It charges for a few seconds before it starts. Stopped, it lets the veil come back only as fast as the ship can be braked.</p>
 <table class="ref">
 <tr><th>Register</th><th>Contents</th></tr>
-<tr><td>+2</td><td>Status: bit 0 on, bit 1 charging, bit 2 too near a mass, bit 3 it dropped out since last started</td></tr>
+<tr><td>+2</td><td>Status: bit 0 on, bit 1 charging, bit 2 too near a mass, bit 3 it dropped out since last started, bit 4 a beam is on it, bit 5 the hydrogen tank is dry</td></tr>
 <tr><td>+3</td><td>How thin the veil is: 255 as normal, 0 at its thinnest</td></tr>
 <tr><td>+4 word</td><td>The medium's density, in 1/16</td></tr>
 <tr><td>+5</td><td>Write 1 to start, 0 to stop</td></tr>
@@ -755,7 +769,7 @@ COOL resident.
 <tr><td>+14</td><td>The beam's wave as received, a signed byte, 60 samples a second</td></tr>
 <tr><td>+15</td><td>Its own wave, a signed byte</td></tr>
 </table>
-<p>Status bit 4: a beam is on it. A generator tuned to an interdictor's beam cancels most of it; off by too much, none. Past what it can bear from a beam it holds on for a few seconds, the strain building, and eases when the medium thins again. A mass gives no such grace, and no tuning helps against one. The beam's frequency is not on the bus: only its wave.</p>
+<p>The generator burns hydrogen from the tank (the hold's +12) while it is on; with the tank dry it will not start. A generator tuned to an interdictor's beam cancels most of it; off by too much, none. Past what it can bear from a beam it holds on for a few seconds, the strain building, and eases when the medium thins again. A mass gives no such grace, and no tuning helps against one. The beam's frequency is not on the bus: only its wave.</p>
 
 <h2 class="cmd">Interdictor<span>230h &middot; type 21</span></h2>
 <p>A beam that thickens the medium round the ship the radar tracks, the more the nearer it is. A cruising ship caught in it slows and drops out when the density reaches what its generator bears. It does nothing to a ship that is not in cruise, needs the radar's lock, and draws on the systems capacitor.</p>
@@ -779,8 +793,16 @@ COOL resident.
 </table>
 <p>The window: +0 the ship's callsign (8 characters), +8 its capacity in tonnes, +10 what it carries, +12 the kinds of good, +14 the stolen tonnes of all goods, +16 up to eight entries laid out as the hold's list, stolen tonnes included. Stolen goods are those taken out of space that were not the crew's own; a scanner tells them by their pods' seals, so stolen tonnes stay stolen whoever holds them. Version 2.</p>
 
+</section>
+
+<!-- ================================================================== -->
+<!-- CHAPTER 8                                                            -->
+<!-- ================================================================== -->
+
+<section class="chapter" data-num="8" data-title="The Display Card" data-part="Part Two: The Devices">
+
 <h2 class="cmd">Display Card<span>150h &middot; type 6</span></h2>
-<p>The cockpit's screens, other than the computer's console, with their memory in segment D000h. Each screen has a name (RADAR, WEAPON, RWR, FLIGHT), a size and a mode; a program finds the screen it draws on by its name, in the screen table. A cockpit may have more screens or fewer: a program that finds no screen of its name works the same, unseen. Version 4.</p>
+<p>The cockpit's screens, other than the computer's console, with their memory in segment D000h. Each screen has a name (RADAR, WEAPON, RWR, FLIGHT, COMMS), a size and a mode; a program finds the screen it draws on by its name, in the screen table. A cockpit may have more screens or fewer: a program that finds no screen of its name works the same, unseen. Version 4.</p>
 <table class="ref">
 <tr><th>Register</th><th>Contents</th></tr>
 <tr><td>+2 word</td><td>The segment of the table and the screens' memory</td></tr>
@@ -817,11 +839,11 @@ COOL resident.
 
 <h2 class="cmd">FLIGHT<span>Flight control</span></h2>
 <p>Flies the ship from the pilot's controls. With flight assist on, the stick asks for turn rates and the throttle for a forward speed, the strafe controls for speeds across, up to what the rating plate says the ship can do; let go, and the ship stops turning and drifting. With flight assist off, the controls drive the thrusters directly and the ship keeps its motion. Safe turns ask only for the turn rates at which the ship's path can follow its nose. Parking, inside a station's zone, gives the whole throttle and strafe to the station's speed limit; with no laws for where the ship is, it asks the nearest station for them once a second. Its page is on the FLIGHT screen, if the cockpit has one. While the radio hears the beacon of the landing pad the ship is cleared to, it takes the RADAR screen (mark F) and shows the pad from above: the pad's square, as wide as its leeway (bright when the ship is over it and turned as it is), the ship in the middle, its nose up, and ticks along the frame every metre within 14 m, every 10 m within 56 m, every 100 m beyond; along the bottom how far to yaw, along the top how far to roll, up the left how far to pitch (the long tick in the middle: none; the short ones: the pad's leeway); up the right the height above the ship's place on the pad (the upper tick: where the clamps take it). Held by the clamps, a box round the ship; docked, a second one. It acknowledges the inertial unit's samples. About 5% of the processor.</p>
-<p>Buttons: flight assist, safe turns, parking, boost (the main engine's cooling boost).</p>
+<p>Buttons: flight assist, safe turns, parking, boost (the main engine's cooling boost), cruise (starts and stops the cruise generator).</p>
 
 <h2 class="cmd">FIRECTL<span>Fire control</span></h2>
-<p>Works the radar, the turret, the laser and the missile launcher. Target ahead locks the contact nearest the middle of the view, or lets the target go; next target locks the next one. With a target locked it smooths the radar's positions with an alpha-beta filter, which gives the target's velocity, and works out where a round fired now meets the target if it flies on straight; it points the turret there, or writes the laser's lead point. Next weapon steps through the cannon, the radar missiles, the heat seekers and the laser, as the ship has them. Its radar scope is on RADAR (left alone while another program has the screen). Its page on WEAPON, in graphics, is made to be read at a glance: the weapon's name in large letters; the rounds left, NO AMMO in red with none; for the cannon its rounds with a short bar of its heat beside them, for the laser a bar of its heat, red when too hot; the distance to the target; and a word on what is going on. About a third of the processor.</p>
-<p>Buttons: target ahead, next target, fire, next weapon.</p>
+<p>Works the radar, the turret, the laser and the missile launcher. Target ahead locks the contact nearest the middle of the view, or lets the target go; next target locks the next one. With a target locked it smooths the radar's positions with an alpha-beta filter, which gives the target's velocity, and works out where a round fired now meets the target if it flies on straight; it points the turret there, or writes the laser's lead point. Next weapon steps through the cannon, the radar missiles, the heat seekers and the laser, as the ship has them. The interdictor button turns the interdictor on and off; its word on the page says when its beam is on the target. Its radar scope is on RADAR (left alone while another program has the screen). Its page on WEAPON, in graphics, is made to be read at a glance: the weapon's name in large letters; the rounds left, NO AMMO in red with none; for the cannon its rounds with a short bar of its heat beside them, for the laser a bar of its heat, red when too hot; the distance to the target; and a word on what is going on. About a third of the processor.</p>
+<p>Buttons: target ahead, next target, fire, next weapon, interdictor.</p>
 
 <h2 class="cmd">RWR<span>Threat warning</span></h2>
 <p>Draws the warning receiver's picture on the RWR screen, works the countermeasures dispenser and the jammer, and aims the jammer at the radar that has the ship locked.</p>
@@ -848,8 +870,8 @@ COOL resident.
 <h2>Signatures</h2>
 <table class="ref">
 <tr><th>Program</th><th>Signature at 103h</th></tr>
-<tr><td>FLIGHT</td><td>XPFL17</td></tr>
-<tr><td>FIRECTL</td><td>XPFC13</td></tr>
+<tr><td>FLIGHT</td><td>XPFL18</td></tr>
+<tr><td>FIRECTL</td><td>XPFC17</td></tr>
 <tr><td>RWR</td><td>XPRW15</td></tr>
 <tr><td>POWER</td><td>XPPW11</td></tr>
 <tr><td>COMMS</td><td>XPCM17</td></tr>
@@ -1039,8 +1061,6 @@ msg_no_device   db 'COOL: no heat sink launcher on the bus.', 13, 10, '$'</pre>
 <tr><td>130h</td><td>Radar: +2 mode +3 contacts +4 sweeps +5 locked +6 lock id (write) +8 locked id +10 segment +12 table +14 track</td></tr>
 <tr><td>140h</td><td>Turret: +2 +4 wanted (write) +6 +8 now +10 muzzle speed +12 fire (write) +13 status +14 heat +15 rounds fired; magazine at D000:1B00</td></tr>
 <tr><td>150h</td><td>Display card: +2 segment +4 table +6 screens +7 of interest +8 keys +9 key +10 its screen</td></tr>
-<tr><td>200h</td><td>Radio: +2 contacts +3 updates +4 status +5 request (write) +6 its contact +7 messages +8 segment +10 table +12 laws +14 messages; the pad's guidance at D000:1900; the transponder's callsign at D000:1D00</td></tr>
-<tr><td>210h</td><td>Cargo hold: +2 capacity +4 carried +6 kinds +8 segment +10 list</td></tr>
 <tr><td>160h</td><td>Launcher: +2 radar missiles +3 in flight +4 status +6 fire (write) +7 head (write) +8 time to go +10 status +11 result +12 fuel +14 heat seekers +15 kind</td></tr>
 <tr><td>170h</td><td>Warning receiver: +2 entries +3 updates +4 flags +5 audio (write) +6 segment +8 table</td></tr>
 <tr><td>180h</td><td>Dispenser: +2 chaff +3 flares +4 throw (write) +5 thrown</td></tr>
@@ -1051,6 +1071,11 @@ msg_no_device   db 'COOL: no heat sink launcher on the bus.', 13, 10, '$'</pre>
 <tr><td>1D0h</td><td>Heat: +2 percent +3 sinks left +4 throw (write) +5 status</td></tr>
 <tr><td>1E0h</td><td>Jammer: +2 mode +3 can do +4 +6 aim (write) +8 aimed (write) +9 status +10 power</td></tr>
 <tr><td>1F0h</td><td>Engine: +2 core +4 coolant +6 status / cooling (write) +7 thrust +8 cut-out +10 resume +12 diagnostic address (write) +14 its byte +15 service (write)</td></tr>
+<tr><td>200h</td><td>Radio: +2 contacts +3 updates +4 status +5 request (write) +6 its contact +7 messages +8 segment +10 table +12 laws +14 messages; the pad's guidance at D000:1900; the transponder's callsign at D000:1D00</td></tr>
+<tr><td>210h</td><td>Cargo hold: +2 capacity +4 carried +6 kinds +8 segment +10 list +12 hydrogen +14 tank</td></tr>
+<tr><td>220h</td><td>Cruise generator: +2 status +3 thinning +4 density +5 start/stop (write) +6 speed +7 button +8 course (write) +9 course +10 frequency +11 tuning buttons +12 strain +13 cancelled +14 beam's wave +15 own wave</td></tr>
+<tr><td>230h</td><td>Interdictor: +2 status +3 power +5 on/off (write) +7 button</td></tr>
+<tr><td>240h</td><td>Cargo scanner: +2 status +3 progress +4 start/stop (write) +6 seconds left +8 segment +10 window</td></tr>
 </table>
 <h2>Units</h2>
 <p>Angles 65536 to the turn; rates 1/1024 rad/s; speeds 1/8 m/s; radar positions 1/4 m; ranges m; controls and commands &plusmn;32767. Words low byte first. IRQ 5 (interrupt 0Dh) sixty times a second.</p>
