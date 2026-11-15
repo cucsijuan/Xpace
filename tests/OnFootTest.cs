@@ -166,10 +166,12 @@ public partial class OnFootTest : Node
         Vector3 inward = walker.GlobalBasis.Inverse() * pad.GlobalBasis.Z;
         walker.LookYaw = Mathf.Atan2(-inward.X, -inward.Z);
         walker.LookPitch = -0.3f;
+        // Long enough at a jog for about 11 m: from the floor, up the flight and onto the pad
+        double climb = 11f / walker.JogSpeed;
         Input.ActionPress(OnFootInput.Forward);
-        await Seconds(1.5);
+        await Seconds(climb / 2);
         Shot("5_stairs");
-        await Seconds(1.5);
+        await Seconds(climb / 2);
         Input.ActionRelease(OnFootInput.Forward);
         await Seconds(0.5);
         Vector3 up = pad.ToLocal(walker.GlobalPosition);

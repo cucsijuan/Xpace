@@ -32,8 +32,10 @@ public interface IWalkerUse
 /// </summary>
 public partial class Walker : CharacterBody3D
 {
-    [Export] public float JogSpeed = 3.6f;
-    [Export] public float SprintSpeed = 6.0f;
+    // The crew body's clips go at these speeds (Synty's Base Locomotion on the crew model): run 2.72 m/s, sprint
+    // 8.4 m/s, walk 1.55 m/s (aiming walks); at them the feet keep to the floor.
+    [Export] public float JogSpeed = 2.72f;
+    [Export] public float SprintSpeed = 8.4f;
     [Export] public float AimSpeed = 1.5f;
     [Export] public float Acceleration = 20f;
     [Export] public float AirAcceleration = 3f;
