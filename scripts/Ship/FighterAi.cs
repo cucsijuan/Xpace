@@ -97,6 +97,8 @@ public partial class FighterAi : Node
     [Export] public float PlumeThreatRange = 4000f;
     [Export] public float BearingRateThreat = 3f;       // degrees a second: a plume turning slower than this is coming at the ship
     [Export] public float SightRange = 2000f;           // near enough to see where a missile points
+    /// <summary>A contact slower than this (m/s) that it has not seen for itself is no missile's mark: it may be a dead hull.</summary>
+    [Export] public float StillSpeed = 5f;
     [Export] public float FlareRange = 2500f;           // flares go only once a heat seeker is this near (they burn 2 s)
     [Export] public float SightCone = 15f;              // pointing within this of the ship: at it
     [Export] public float AvoidSeconds = 5f;            // the way ahead must be clear for this much flight
@@ -241,11 +243,23 @@ public partial class FighterAi : Node
             return;
         }
 
-        // The radar's lock: on no friend, a target; on a friend, the next contact; on what it may not fight, let go
+        // The radar's lock: on no friend, a target; on a friend, the next contact; on what it may not fight, let go;
+        // on a dead hull, seen for what it is, let go and leave it be
         Target = null;
         if (_radar?.Locked != null)
         {
-            if (Friendly(_radar.TrackPosition))
+            if (Dead())
+            {
+                if (_junk.Count > 64)
+                    _junk.Clear();
+                _junk.Add(_radar.Locked.RadarId);
+                if (_sinceLockPress > 0.6)
+                {
+                    _sinceLockPress = 0;
+                    Press("target");
+                }
+            }
+            else if (Friendly(_radar.TrackPosition))
             {
                 if (_sinceLockPress > 0.6)
                 {
@@ -403,6 +417,17 @@ public partial class FighterAi : Node
         c.Throttle = Speed(speed);
     }
 
+    // Echoes it has seen are dead hulls, by their radar ids
+    private readonly HashSet<ushort> _junk = new();
+
+    /// <summary>
+    /// What it has locked is a dead hull, as a pilot sees it near enough: lying still and cold, no motor, no glow
+    /// (a hull at rest still shows its idle heat).
+    /// </summary>
+    private bool Dead() =>
+        _radar.Locked is not FalseEcho && _radar.TrackPosition.DistanceTo(_ship.GlobalPosition) < SightRange && _reading.Settled &&
+        _reading.Velocity.Length() < StillSpeed && !(_radar.Tracked is Space.IHeatSource hot && hot.HeatAt(_ship.GlobalPosition, out _) > 0);
+
     /// <summary>The nearest echo of the last sweep that is none of its friends.</summary>
     private RadarDevice.Echo? Interest()
     {
@@ -413,7 +438,7 @@ public partial class FighterAi : Node
         foreach (RadarDevice.Echo e in _radar.Echoes)
         {
             float range = e.Seen.DistanceTo(_ship.GlobalPosition);
-            if (range < nearest && !Friendly(e.Seen) && MayEngage(e.Seen))
+            if (range < nearest && !_junk.Contains(e.Id) && !Friendly(e.Seen) && MayEngage(e.Seen))
             {
                 nearest = range;
                 best = e;
@@ -485,6 +510,8 @@ public partial class FighterAi : Node
         c.Trigger = range < GunRange && off < cone && _plan.Count == 0;
         if (!UsesMissiles || _plan.Count > 0 || _sinceMissile < MissileInterval || off > 10 || _launcher == null)
             return;
+        if (!_reading.Settled || velocity.Length() < StillSpeed && range > SightRange)
+            return;                                     // not read yet, or still and not seen yet: maybe a dead hull, not worth a missile
         // Round the weapons from the gun (the cannon or the laser): radar missile, heat seeker, gun
         if (range > MissileMinRange && range < MissileMaxRange && _launcher.MissilesLeft > 0)
         {
