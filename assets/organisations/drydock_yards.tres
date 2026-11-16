@@ -3,6 +3,8 @@
 [ext_resource type="Script" path="res://scripts/World/Organisation.cs" id="1_o"]
 [ext_resource type="Resource" path="res://assets/personalities/steady.tres" id="2_p"]
 
+[ext_resource type="Material" path="res://assets/materials/paint_drydock.tres" id="livery"]
+
 [resource]
 script = ExtResource("1_o")
 Name = "Drydock Yards"
@@ -11,3 +13,4 @@ About = "Builds ships."
 Personality = ExtResource("2_p")
 StartingCredits = 10000000
 Permanent = true
+Livery = ExtResource("livery")

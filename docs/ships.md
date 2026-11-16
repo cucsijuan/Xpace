@@ -23,6 +23,26 @@ To build a ship: make a scene with parts and `Hardpoint` nodes, point a hull's `
 
 `scenes/ships/ai_freighter.tscn` is the freighter with the AI's systems, painted by its `Theme` node (`PaintTheme`). It only patrols for now.
 
+## Scouts
+
+`scenes/ships/scout_s3.tscn` and `scout_s4.tscn` are the AI fighter's systems on Synty's Stealth_03 and Stealth_04
+(`stealth_03_exterior.tscn` and `stealth_04_exterior.tscn`; hitboxes made by the hitbox tool from the Unity package's
+collision meshes). Unlike Fighter_03 these models face -Z already: their exteriors are not turned. Two lasers on the nose
+hardpoints, decoys, radar, warning receiver, radio and a cruise generator; no missiles, scanner or jammer. Their hulls
+(`hull_scout_s3.tres`, `hull_scout_s4.tres`) are lighter than the fighter's on the same D-50 engine, so they are faster
+on it (about 520 and 560 m/s against 400). Their generators (`generator_g1s.tres`, `generator_g2s.tres`) push less than
+the G-1, sized to their mass: in cruise about 3,650 and 3,940 m/s, under the 4096 m/s the inertial unit and the network
+carry. The S4 also spools in 2.5 s instead of 4, echoes 1 m² instead of 2, runs cooler, leaves a fainter wake and carries
+6 t of hydrogen instead of 4.
+
+## Liveries
+
+A ship flying for an owner wears the owner's paint: `LiveryCatalog.Wear` gives it a `Theme` (`PaintTheme`) whose
+`Livery` takes the place of Synty's atlas and of any other paint under it (glass and other materials stay). An
+organisation's `Livery` is an ordinary paint material (`synty_paint.gdshader`, `assets/materials/paint_*.tres`); owners
+with none wear one of `assets/materials/liveries.tres`' `Free` paints, picked by their id. A livery is listed in that
+catalog's `Paints`, and travels with a ship's spawn as its place there (`NetBody.Look`).
+
 ## The physics in one paragraph
 
 Ships fly on their generator: the engines push against the **veil**, a field that holds on to the sector's thin medium, and the veil pulls back with the square of the speed, like air. So every direction has a **top speed**, where the push meets the drag, and every axis of turning has a **top turn rate**. The veil grips much harder across the hull than along its nose, so a slide bleeds off and the path follows the nose, more the faster the ship goes; that is what lets a ship turn without sliding. Missiles are rockets and feel none of it.

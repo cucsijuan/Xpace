@@ -3,6 +3,8 @@
 [ext_resource type="Script" path="res://scripts/World/Organisation.cs" id="1_o"]
 [ext_resource type="Resource" path="res://assets/personalities/steady.tres" id="2_p"]
 
+[ext_resource type="Material" path="res://assets/materials/paint_miner.tres" id="livery"]
+
 [resource]
 script = ExtResource("1_o")
 Name = "Kestrel Mining"
@@ -10,3 +12,4 @@ Kind = "Mining company"
 About = ""
 Personality = ExtResource("2_p")
 StartingCredits = 2000000
+Livery = ExtResource("livery")

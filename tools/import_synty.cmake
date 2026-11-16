@@ -36,6 +36,8 @@ set(MODELS
   SM_Veh_POV_Cockpit_Frame_02
   SM_Veh_POV_Cockpit_Frame_03
   SM_Ship_Fighter_03
+  SM_Ship_Stealth_03
+  SM_Ship_Stealth_04
   SM_Ship_Cruiser_03
   FX_Meshes/SM_Flame_Mesh_New
   FX_Meshes/SM_Pebble_Debris_03
@@ -124,6 +126,8 @@ set(COLLISIONS
   SM_Veh_WarpGate_Outer_01_Collision
   SM_Veh_WarpGate_Inner_01_Collision
   SM_Veh_Beacon_01_Collision
+  SM_Ship_Stealth_03_Collision
+  SM_Ship_Stealth_04_Collision
 )
 # Out of the Unity package's Models, renamed: every character (bodies, heads,
 # helmets) on one skeleton, which the source files only have one by one. It and

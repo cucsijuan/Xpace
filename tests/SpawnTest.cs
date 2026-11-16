@@ -72,7 +72,7 @@ public partial class SpawnTest : Node
     private static Session Guest(SimulatedNetwork net, byte peer, Dictionary<ushort, Fake> seen)
     {
         var guest = new Session(peer, net.Join(peer)) { TickSeconds = Dt };
-        guest.SpawnDynamic = (id, scene) =>
+        guest.SpawnDynamic = (id, scene, _) =>
         {
             if (scene != 0)
                 return null;

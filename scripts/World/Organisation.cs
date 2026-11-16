@@ -16,6 +16,8 @@ public partial class Organisation : Resource
     [Export(PropertyHint.MultilineText)] public string About = "";
     [Export] public Texture2D Logo;
     [Export] public Personality Personality;
+    /// <summary>The paint its ships wear (a paint material, listed in <see cref="Xpace.Space.LiveryCatalog"/>); none: a free one.</summary>
+    [Export] public Material Livery;
     /// <summary>The faction or corporation it belongs to (none: its own).</summary>
     [Export] public Organisation Parent;
     /// <summary>The money it has when a universe starts.</summary>

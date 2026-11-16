@@ -149,7 +149,7 @@ public sealed class Session
     public Func<ushort, INetEntity> SpawnRemote;
 
     /// <summary>Another machine made something (id, its scene): make what shows it (or null to ignore it).</summary>
-    public Func<ushort, byte, INetEntity> SpawnDynamic;
+    public Func<ushort, byte, byte, INetEntity> SpawnDynamic;
 
     /// <summary>A round someone else fired: fly it for show (it does no damage here).</summary>
     public event Action<FireEvent> RoundFired;
@@ -218,7 +218,7 @@ public sealed class Session
     private readonly Dictionary<ushort, INetEntity> _entities = new();
     private readonly Dictionary<ushort, RemoteTrack> _histories = new();   // the host's past of its own entities
     private readonly Dictionary<ushort, uint> _heard = new();              // made for others' things: the tick last heard
-    private readonly Dictionary<ushort, byte> _spawned = new();            // what flies that was spawned, and its scene (a guest: others' too, shown or not)
+    private readonly Dictionary<ushort, (byte Scene, byte Look)> _spawned = new();   // what flies that was spawned: its scene and livery (a guest: others' too, shown or not)
     private readonly Dictionary<ushort, byte> _places = new();             // where everything heard of is
     private readonly HashSet<byte> _known = new();                         // the host: peers already told of it
     private readonly List<(uint Trip, int Offset)> _pings = new();
@@ -293,9 +293,9 @@ public sealed class Session
             foreach (INetEntity e in new List<INetEntity>(_entities.Values))
                 if (!e.IsLocal && PlaceOf(e.NetId) != place)
                     Hide(e);
-            foreach ((ushort id, byte scene) in new List<KeyValuePair<ushort, byte>>(_spawned).ConvertAll(k => (k.Key, k.Value)))
+            foreach ((ushort id, (byte scene, byte look)) in new List<KeyValuePair<ushort, (byte, byte)>>(_spawned).ConvertAll(k => (k.Key, k.Value)))
                 if (PlaceOf(id) == place)
-                    Show(id, scene, _now);
+                    Show(id, scene, look, _now);
         }
         Moved?.Invoke(me, place);
     }
@@ -328,9 +328,9 @@ public sealed class Session
     }
 
     // A guest: something spawned elsewhere is shown, now that it is here
-    private void Show(ushort id, byte scene, uint now)
+    private void Show(ushort id, byte scene, byte look, uint now)
     {
-        if (_entities.ContainsKey(id) || SpawnDynamic?.Invoke(id, scene) is not INetEntity made)
+        if (_entities.ContainsKey(id) || SpawnDynamic?.Invoke(id, scene, look) is not INetEntity made)
             return;
         Add(made);
         _heard[id] = now;
@@ -391,14 +391,14 @@ public sealed class Session
     /// <summary>Something made here joins the session (its id from <see cref="NewDynamicId"/>); the others make <paramref name="scene"/> to show it.</summary>
     public void Spawn(INetEntity e, byte scene) => Spawn(e, scene, Place);
 
-    /// <summary>The same, in a sector (the host makes ships in every sector it runs).</summary>
-    public void Spawn(INetEntity e, byte scene, byte place)
+    /// <summary>The same, in a sector (the host makes ships in every sector it runs), wearing livery <paramref name="look"/> (0 none).</summary>
+    public void Spawn(INetEntity e, byte scene, byte place, byte look = 0)
     {
         Add(e, place);
-        byte[] body = SpawnBody(e.NetId, scene, place);
+        byte[] body = SpawnBody(e.NetId, scene, place, look);
         if (IsHost)
         {
-            _spawned[e.NetId] = scene;
+            _spawned[e.NetId] = (scene, look);
             Broadcast(KindSpawn, body, reliable: true, except: null);
         }
         else
@@ -795,9 +795,9 @@ public sealed class Session
                 foreach ((ushort id, byte place) in _places)
                     if (NetIds.IsPlayerShip(id) && NetIds.Owner(id) != peer)
                         Send(peer, KindPlace, PlaceBody(id, place), reliable: true);
-                foreach ((ushort id, byte scene) in _spawned)
+                foreach ((ushort id, (byte scene, byte look)) in _spawned)
                     if (NetIds.Owner(id) != peer)
-                        Send(peer, KindSpawn, SpawnBody(id, scene, PlaceOf(id)), reliable: true);
+                        Send(peer, KindSpawn, SpawnBody(id, scene, PlaceOf(id), look), reliable: true);
                 foreach ((ushort id, byte[] radio) in _radios)
                     if (NetIds.Owner(id) != peer)
                         Send(peer, KindRadioState, radio, reliable: true);
@@ -971,18 +971,18 @@ public sealed class Session
 
             case KindSpawn:
             {
-                if (body.Length != 4)
+                if (body.Length != 5)
                     return;
                 ushort id = BitConverter.ToUInt16(body, 0);
-                byte scene = body[2], place = body[3];
+                byte scene = body[2], place = body[3], look = body[4];
                 if (!theirs(id) || !NetIds.IsDynamic(id) || NetIds.Owner(id) == LocalPeer || _entities.ContainsKey(id))
                     return;
-                _spawned[id] = scene;
+                _spawned[id] = (scene, look);
                 _places[id] = place;
                 if (IsHost)
                     Broadcast(KindSpawn, body, reliable: true, except: peer);
                 if (IsHost || place == Place)
-                    Show(id, scene, now);
+                    Show(id, scene, look, now);
                 break;
             }
 
@@ -1197,8 +1197,8 @@ public sealed class Session
                 // its next snapshot), a guest only if that is its player's
                 if (_entities.GetValueOrDefault(id) is INetEntity shown && !shown.IsLocal)
                     Hide(shown);
-                if ((IsHost || place == Place) && _spawned.TryGetValue(id, out byte scene))
-                    Show(id, scene, now);
+                if ((IsHost || place == Place) && _spawned.TryGetValue(id, out var spawned))
+                    Show(id, spawned.Scene, spawned.Look, now);
                 Moved?.Invoke(id, place);
                 break;
             }
@@ -1292,12 +1292,13 @@ public sealed class Session
         }
     }
 
-    private static byte[] SpawnBody(ushort id, byte scene, byte place)
+    private static byte[] SpawnBody(ushort id, byte scene, byte place, byte look)
     {
-        var body = new byte[4];
+        var body = new byte[5];
         BitConverter.GetBytes(id).CopyTo(body, 0);
         body[2] = scene;
         body[3] = place;
+        body[4] = look;
         return body;
     }
 

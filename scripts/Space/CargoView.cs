@@ -677,6 +677,7 @@ public partial class CargoView : Node
         if (ship.FindChild("ShipComputer", true, false) is Xpace.Computer.ShipComputer computer)
             computer.PowerOnAtStart = false;
         ship.RecordId = record.Id;
+        LiveryCatalog.Wear(ship, LiveryCatalog.Of(record.Owner));
         root.AddChild(ship);
         foreach (LauncherDevice launcher in parts.OfType<LauncherDevice>())
             launcher.Used(record.Spent);

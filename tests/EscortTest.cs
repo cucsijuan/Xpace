@@ -83,8 +83,16 @@ public partial class EscortTest : Node
         CargoShips.Tick(state, book, Account);
         Check($"with an escort it goes ({ship.Going})", ship.Phase == CargoShipRecord.Flying);
         Check("and the escort goes with it", escort.Phase == CargoShipRecord.Flying && escort.Ward == ship.Id && escort.Going == ship.Going);
-        StationBook.Fix a = book.FixOf(ship, freighter, state.Clock + 300).Value, b = book.FixOf(escort, guard, state.Clock + 300).Value;
-        Check($"at its pace ({a.At.DistanceTo(b.At):0} m off after 5 minutes)", a.At.DistanceTo(b.At) < 3000);
+        // About five minutes out, where both are in space in the same sector (not one of them in a gate's tunnel)
+        double after = 300;
+        StationBook.Fix? a = null, b = null;
+        for (; after > 60; after -= 10)
+        {
+            (a, b) = (book.FixOf(ship, freighter, state.Clock + after), book.FixOf(escort, guard, state.Clock + after));
+            if (a != null && b != null && a.Value.Sector == b.Value.Sector)
+                break;
+        }
+        Check($"at its pace ({(a != null && b != null ? a.Value.At.DistanceTo(b.Value.At) : -1):0} m off after {after:0} s)", a != null && b != null && a.Value.Sector == b.Value.Sector && a.Value.At.DistanceTo(b.Value.At) < 3000);
 
         for (int i = 0; i < 20000 && !(ship.Phase == CargoShipRecord.Parked && ship.At == "ALPHA" && ship.State == CargoShipRecord.Waiting && escort.Phase == CargoShipRecord.Parked); i++)
         {

@@ -82,7 +82,7 @@ public sealed class UniverseState
 /// <summary>A working cargo ship: it exists here, wherever it is and whether anyone sees it or not (<see cref="CargoShips"/>).</summary>
 public sealed class CargoShipRecord
 {
-    public const string Waiting = "waiting", Fetching = "fetching", Returning = "returning", Escorting = "escorting";
+    public const string Waiting = "waiting", Fetching = "fetching", Returning = "returning", Escorting = "escorting", Scouting = "scouting";
     public const string Parked = "parked", Flying = "flying", Holding = "holding", Landing = "landing";
     /// <summary>Off its way, a real ship flown by its pilot: an escort fighting.</summary>
     public const string Loose = "loose";
@@ -160,6 +160,11 @@ public sealed class CargoShipRecord
     public float Hull { get; set; } = 1;
     /// <summary>What it has used of what it carries, by the model's id: missiles, chaff, flares, to be bought again.</summary>
     public Dictionary<string, int> Spent { get; set; } = new();
+    /// <summary>
+    /// What its crew saw of markets (by station id) and has not told its owner yet: they tell it when the ship lands at one
+    /// of the owner's stations. A person flying their own ship knows it at once and carries nothing here.
+    /// </summary>
+    public Dictionary<string, StationNews> News { get; set; } = new();
     /// <summary>What it took out of space, by good: stolen, to sell off.</summary>
     public Dictionary<string, int> Loot { get; set; } = new();
     /// <summary>The false callsign its radio sends at the station it is docked at or going into ("": its own).</summary>

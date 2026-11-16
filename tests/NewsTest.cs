@@ -12,7 +12,7 @@ namespace Xpace.Tests;
 /// <summary>
 /// What actors know of markets: nobody reads a far station's stock.
 ///   - a beacon reports its sector, or as many gates away as it says;
-///   - a cargo ship with no news goes to look at the nearest maker, and its owner learns what it saw;
+///   - a cargo ship with no news goes to look at the nearest maker; its crew tells the owner what it saw once home;
 ///   - it trusts what its owner heard, even when that is wrong, until the news is too old;
 ///   - what it finds on arrival may not be worth buying;
 ///   - a cargo ship flying past a beacon tells its owner;
@@ -69,9 +69,11 @@ public partial class NewsTest : Node
         Tick(state, book, Account, 10);
         Check($"with no news it goes to look at the nearest maker of {wanted.Good.Id} ({ship.Going})", ship.Phase == CargoShipRecord.Flying && ship.Going == nearest.Id);
         Until(state, book, Account, () => ship.State == CargoShipRecord.Returning, 7200);
-        Check("and its owner learns that market when it gets there", miltec.Known.ContainsKey(nearest.Id) && miltec.Known[nearest.Id].AsOf > 0);
+        Check("its crew saw that market and carries the news", ship.News.ContainsKey(nearest.Id) && ship.News[nearest.Id].AsOf > 0);
+        Check("its owner doesn't know it yet: nobody has told it", !miltec.Known.ContainsKey(nearest.Id));
         Check($"and it found some to bring ({ship.Tonnes} t)", ship.Tonnes > 0);
         Until(state, book, Account, () => ship.Phase == CargoShipRecord.Parked && ship.State == CargoShipRecord.Waiting, 7200);
+        Check("back home, the crew tells the owner", miltec.Known.ContainsKey(nearest.Id) && ship.News.Count == 0);
 
         // News that says the only maker has none: believed, though it is false
         state.Station(alpha.Id).Stock[wanted.Good.Id] = 0;

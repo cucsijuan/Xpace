@@ -25,7 +25,8 @@ public static class CargoShips
                 continue;
             record.Mustered = true;
             for (int line = 0; line < (station.Fleet?.Length ?? 0); line++)
-                for (int n = 0; station.Fleet[line]?.Model != null && !station.Fleet[line].WhenThreatened && n < station.Fleet[line].Count; n++)
+                for (int n = 0, count = station.Fleet[line]?.Model?.Scout == true ? Scouts(station, OwnerOf(state, station), station.Fleet[line], state, book, account) : station.Fleet[line]?.Count ?? 0;
+                     station.Fleet[line]?.Model != null && !station.Fleet[line].WhenThreatened && n < count; n++)
                 {
                     string id = $"{station.Id}-{line + 1}-{n + 1}";
                     if (state.CargoShips.ContainsKey(id))
@@ -146,7 +147,8 @@ public static class CargoShips
                 if (line.WhenThreatened && !Reactions.Threatened(account(owner) as OrganisationRecord, OrganisationCatalog.Find(owner)?.Personality, state.Clock))
                     continue;
                 string model = line.Model.ResourcePath;
-                int fleet = line.Count + (line.WhenThreatened ? 0 : Grown(station, owner, line, state, account));
+                int fleet = line.Model.Scout ? Scouts(station, owner, line, state, book, account)
+                    : line.Count + (line.WhenThreatened ? 0 : Grown(station, owner, line, state, account));
                 int have = state.CargoShips.Values.Count(s => s.Home == station.Id && s.Owner == owner && s.Model == model) + state.ShipOrders.Values.Count(o => o.Home == station.Id && o.Owner == owner && o.Model == model);
                 StationBook.Station yard = book.Stations.Where(s => s.Shipyard?.Contains(line.Model) == true && book.Way(station.Sector, s.Sector) != null)
                     .OrderBy(s => book.Way(station.Sector, s.Sector).Count).ThenBy(s => s.At.DistanceTo(station.At)).FirstOrDefault();
@@ -186,6 +188,88 @@ public static class CargoShips
             record.ShortSince = -1;
         }
         return record.ExtraShips;
+    }
+
+    // How many scouts keep the news of a home's trading partners good: one round of them all, nearest next, against half the
+    // time news stays good (a station is looked at again once what is known of it is that old). No more than the line's count,
+    // and none more than it has while its owner hasn't the money to spare
+    private static int Scouts(StationBook.Station home, string owner, FleetLine line, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        int have = state.CargoShips.Values.Count(s => s.Home == home.Id && s.Owner == owner && s.Model == line.Model.ResourcePath)
+                   + state.ShipOrders.Values.Count(o => o.Home == home.Id && o.Owner == owner && o.Model == line.Model.ResourcePath);
+        double round = Round(home, owner, line.Model, state, book, account);
+        int wanted = round <= 0 ? 0 : Math.Min(line.Count, (int)Math.Ceiling(round / (line.Model.NewsHours * 3600 / 2)));
+        bool spare = account(owner) is IAccount money && money.Credits * (OrganisationCatalog.Find(owner)?.Personality?.Ambition ?? 0.5f) >= line.Model.BuildFee * 2;
+        return wanted > have && !spare ? have : wanted;
+    }
+
+    private static readonly Dictionary<(string Home, string Owner, string Model), (double Clock, double Seconds)> Rounds = new();
+
+    /// <summary>How long a scout takes to look at every station its home trades with and come back (s; 0: there are none). Worked out again every hour.</summary>
+    public static double Round(StationBook.Station home, string owner, ShipModel model, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        var key = (home.Id, owner, model.ResourcePath);
+        if (Rounds.TryGetValue(key, out var known) && Math.Abs(state.Clock - known.Clock) < 3600)
+            return known.Seconds;
+        List<StationBook.Station> left = Partners(home, owner, model, state, book, account).ToList();
+        double seconds = 0;
+        StationBook.Station at = home;
+        while (left.Count > 0)
+        {
+            StationBook.Station next = left.OrderBy(s => book.Seconds(at, s, model, 0)).First();
+            seconds += book.Seconds(at, next, model, 0);
+            left.Remove(next);
+            at = next;
+        }
+        if (at != home)
+            seconds += book.Seconds(at, home, model, 0);
+        Rounds[key] = (state.Clock, seconds);
+        return seconds;
+    }
+
+    /// <summary>
+    /// The stations a home trades with that another owner runs and lets the owner in: those that make a good the home uses,
+    /// or use a good it makes; a pad there takes the ship.
+    /// </summary>
+    public static IEnumerable<StationBook.Station> Partners(StationBook.Station home, string owner, ShipModel model, UniverseState state, StationBook book, Func<string, IAccount> account) =>
+        book.Stations.Where(s => s != home && OwnerOf(state, s) != owner && book.Way(home.Sector, s.Sector) != null
+                                 && s.Pads.Any(p => book.Fits(p, model)) && Welcomes(s, owner, state, account)
+                                 && home.Goods.Any(g => g.Good.Traded && Opposite(g.Good.Id, home, s)));
+
+    private static bool Opposite(string good, StationBook.Station home, StationBook.Station other)
+    {
+        double ours = Market.Net(good, home.Goods, home.Factories);
+        double theirs = other.Goods.Any(g => g.Good.Id == good) ? Market.Net(good, other.Goods, other.Factories) : 0;
+        return ours != 0 && theirs != 0 && Math.Sign(ours) != Math.Sign(theirs);
+    }
+
+    // A scout goes to the partner its owner knows least freshly, once that news is half as old as news stays good, and on
+    // from there while what it carries will still be good when it gets home; then home, to tell
+    private static bool Scout(CargoShipRecord ship, ShipModel model, UniverseState state, StationBook book, Func<string, IAccount> account)
+    {
+        if (book.Find(ship.At) is not StationBook.Station here || book.Find(ship.Home) is not StationBook.Station home || account(ship.Owner) is not IAccount money)
+            return false;
+        double good = model.NewsHours * 3600;
+        double Known(StationBook.Station s) => Math.Max(money.Known.GetValueOrDefault(s.Id)?.AsOf ?? double.MinValue, ship.News.GetValueOrDefault(s.Id)?.AsOf ?? double.MinValue);
+        double oldest = ship.News.Count == 0 ? state.Clock : ship.News.Values.Min(n => n.AsOf);
+        foreach (StationBook.Station next in Partners(home, ship.Owner, model, state, book, account)
+                     .Where(s => s != here && state.Clock - Known(s) >= good / 2)
+                     .OrderBy(Known).ThenBy(s => book.Seconds(here, s, model, 0)))
+        {
+            double back = book.Seconds(here, next, model, 0) + book.Seconds(next, home, model, 0);
+            if (state.Clock + back - Math.Min(oldest, state.Clock + book.Seconds(here, next, model, 0)) > good)
+                continue;                               // what it would bring home would be no use by then
+            if (money.Credits < Tolls(book, here, next) + Tolls(book, next, home) || Feared(book, model, here, next, state.Clock, money, 0))
+                continue;
+            ship.State = CargoShipRecord.Scouting;
+            Depart(ship, model, next, state, book, account);
+            return true;
+        }
+        if (here == home)
+            return false;
+        ship.State = CargoShipRecord.Returning;
+        Depart(ship, model, home, state, book, account);
+        return true;
     }
 
     // A yard starts on an order when it has the materials and the buyer the money, and hands the ship over on a free pad
@@ -336,6 +420,12 @@ public static class CargoShips
                 if (ship.Stowed && book.Find(ship.At) is StationBook.Station hidden && !DoorOpen(state, hidden, ship.Dock))
                 {
                     ship.NextLook = state.Clock + DoorLookSeconds;
+                    return;
+                }
+                if (model.Scout)
+                {
+                    if (!Scout(ship, model, state, book, account))
+                        ship.NextLook = state.Clock + model.WaitSeconds;
                     return;
                 }
                 if (model.Escort)
@@ -618,7 +708,8 @@ public static class CargoShips
         }
         if (book.Find(ship.At) is StationBook.Station here)
         {
-            MarketNews.See(account(ship.Owner), here, state, account);
+            Tell(ship, here.Id, MarketNews.Report(here, Bring(state, here, account), state.Clock), state, account);
+            Deliver(ship, here, state, account);
             if (state.People.ContainsKey(ship.Owner))
                 People.Seen(state, ship.Owner, here.Sector, here.At);
         }
@@ -651,7 +742,27 @@ public static class CargoShips
         if (book.Way(ship, model, out _) is not List<StationBook.Leg> way)
             return;
         foreach (StationBook.Beacon beacon in book.BeaconsOn(way))
-            MarketNews.Hear(account(ship.Owner), beacon, state, book, account);
+            foreach ((string station, StationNews news) in MarketNews.Heard(beacon, state, book, account))
+                Tell(ship, station, news, state, account);
+    }
+
+    // The crew keeps what it saw for its owner; a person flying their own ship knows it at once
+    private static void Tell(CargoShipRecord ship, string station, StationNews news, UniverseState state, Func<string, IAccount> account)
+    {
+        if (state.People.ContainsKey(ship.Owner))
+            MarketNews.Learn(account(ship.Owner), station, news);
+        else if (!ship.News.TryGetValue(station, out StationNews old) || old.AsOf <= news.AsOf)
+            ship.News[station] = news;
+    }
+
+    // Landed at one of its owner's stations, the crew tells the owner all it saw on the way
+    private static void Deliver(CargoShipRecord ship, StationBook.Station here, UniverseState state, Func<string, IAccount> account)
+    {
+        if (ship.News.Count == 0 || OwnerOf(state, here) != ship.Owner || account(ship.Owner) is not IAccount owner)
+            return;
+        foreach ((string station, StationNews news) in ship.News)
+            MarketNews.Learn(owner, station, news);
+        ship.News.Clear();
     }
 
     // How much of a good the home wants to keep: what it uses up, and what the ships ordered from it are waiting for
@@ -759,7 +870,7 @@ public static class CargoShips
         ship.Generator = new Xpace.Ship.GeneratorState { On = !ship.Dry };
         ship.Arrives = state.Clock + book.Way(ship, model, out Vector3 contact).Sum(l => l.Seconds + l.Transit);
         ship.ContactPoint = contact;
-        if (!model.Escort && EscortFor(ship, state, from.Id) is CargoShipRecord escort && ModelOf(escort) is ShipModel guard)
+        if (!model.Escort && !model.Scout && EscortFor(ship, state, from.Id) is CargoShipRecord escort && ModelOf(escort) is ShipModel guard)
         {
             escort.Ward = ship.Id;
             escort.PaceModel = ship.Model;

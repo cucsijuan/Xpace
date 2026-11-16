@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="GeneratorSpec" format=3]
+
+[ext_resource type="Script" path="res://scripts/Ship/GeneratorSpec.cs" id="1_spec"]
+
+[resource]
+script = ExtResource("1_spec")
+Model = "G-2S"
+Thinning = 33.0
+Push = 1500000.0
+Megawatts = 3.5
+FuelPerHour = 5.0
+SpoolSeconds = 2.5
+WakeEcho = 200.0

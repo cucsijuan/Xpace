@@ -54,9 +54,16 @@ public static class MarketNews
     /// <summary>A beacon tells the actor what it has; how many stations that was.</summary>
     public static int Hear(IAccount actor, StationBook.Beacon beacon, UniverseState state, StationBook book, System.Func<string, IAccount> account)
     {
-        List<StationBook.Station> told = book.ReportedBy(beacon).ToList();
-        foreach (StationBook.Station station in told)
-            See(actor, station, state, account);
-        return told.Count;
+        int told = 0;
+        foreach ((string station, StationNews news) in Heard(beacon, state, book, account))
+        {
+            Learn(actor, station, news);
+            told++;
+        }
+        return told;
     }
+
+    /// <summary>What a beacon says: each station it reports on, as it is now.</summary>
+    public static IEnumerable<(string Station, StationNews News)> Heard(StationBook.Beacon beacon, UniverseState state, StationBook book, System.Func<string, IAccount> account) =>
+        book.ReportedBy(beacon).ToList().Select(s => (s.Id, Report(s, CargoShips.Bring(state, s, account), state.Clock)));
 }

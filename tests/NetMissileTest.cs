@@ -127,7 +127,7 @@ public partial class NetMissileTest : Node
         host.Add(hostShip);
         host.Add(new Thing { NetId = GuestShipId, Track = new RemoteTrack { TickSeconds = Dt } });
         var made = new Dictionary<ushort, (byte Scene, Thing Copy)>();
-        host.SpawnDynamic = (id, scene) =>
+        host.SpawnDynamic = (id, scene, _) =>
         {
             var copy = new Thing { NetId = id, Track = new RemoteTrack { TickSeconds = Dt }, Hitboxes = Array.Empty<Hitbox>() };
             made[id] = (scene, copy);

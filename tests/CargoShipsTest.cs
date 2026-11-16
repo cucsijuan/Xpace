@@ -66,8 +66,9 @@ public partial class CargoShipsTest : Node
             Check($"{good}: made as fast as it is used ({net:+0.0;-0.0} t/h)", net >= 0);
         }
         Check("all the owners gain, or at least hold, with their ships at work", owners.Values.All(o => o.Credits >= OrganisationCatalog.Find(o.Id).StartingCredits));
-        Check($"the fleets are mustered ({state.CargoShips.Count} ships, owned as their stations)", state.CargoShips.Count == 9 && state.CargoShips.Values.All(s => s.Owner == book.Find(s.Home).Owner));
-        Check("all of them have worked", state.CargoShips.Values.All(s => s.Delivered > 0));
+        List<CargoShipRecord> haulers = state.CargoShips.Values.Where(s => !Xpace.World.ResourceCache.Load<ShipModel>(s.Model).Scout).ToList();
+        Check($"the fleets are mustered ({haulers.Count} ships and {state.CargoShips.Count - haulers.Count} scouts, owned as their stations)", haulers.Count == 9 && state.CargoShips.Count == 13 && state.CargoShips.Values.All(s => s.Owner == book.Find(s.Home).Owner));
+        Check("all the cargo ships have worked", haulers.All(s => s.Delivered > 0));
         Check("the gates took their tolls", owners["gate_authority"].Credits > OrganisationCatalog.Find("gate_authority").StartingCredits);
         Check("nobody is ruined", owners.Values.All(o => o.Credits > 0));
         foreach (StationBook.Station station in book.Stations)

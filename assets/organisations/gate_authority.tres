@@ -3,6 +3,8 @@
 [ext_resource type="Script" path="res://scripts/World/Organisation.cs" id="1_o"]
 [ext_resource type="Resource" path="res://assets/personalities/mediator.tres" id="2_p"]
 
+[ext_resource type="Material" path="res://assets/materials/paint_gates.tres" id="livery"]
+
 [resource]
 script = ExtResource("1_o")
 Name = "Gate Authority"
@@ -11,3 +13,4 @@ About = "Keeps the gates and takes their tolls."
 Personality = ExtResource("2_p")
 StartingCredits = 1000000
 Permanent = true
+Livery = ExtResource("livery")

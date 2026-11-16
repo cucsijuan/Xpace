@@ -94,7 +94,7 @@ public partial class RaiderHuntTest : Node
         var ship = new Ship { NetId = GuestShipId, Position = new SectorPoint(-500, 100, -3000) };
         guest.Add(ship);
         var spawned = new List<byte>();
-        guest.SpawnDynamic = (id, scene) =>
+        guest.SpawnDynamic = (id, scene, _) =>
         {
             spawned.Add(scene);
             return null;

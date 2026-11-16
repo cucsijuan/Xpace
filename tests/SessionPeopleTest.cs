@@ -56,7 +56,7 @@ public partial class SessionPeopleTest : Node
         int podScene = node.Spawnables.ToList().FindIndex(s => s.ResourcePath.EndsWith("cargo_pod.tscn"));
         Check("pods are among what can appear on other machines", podScene >= 0);
         int pods = 0;
-        _code.SpawnDynamic = (id, scene) =>
+        _code.SpawnDynamic = (id, scene, _) =>
         {
             if (scene == podScene)
                 pods++;

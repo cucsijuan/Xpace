@@ -4,6 +4,8 @@
 [ext_resource type="Resource" path="res://assets/personalities/aggressive.tres" id="2_p"]
 [ext_resource type="Texture2D" path="res://assets/corporations/miltec/logo.svg" id="3_l"]
 
+[ext_resource type="Material" path="res://assets/materials/paint_miltec.tres" id="livery"]
+
 [resource]
 script = ExtResource("1_o")
 Name = "MilTec"
@@ -13,3 +15,4 @@ Logo = ExtResource("3_l")
 Personality = ExtResource("2_p")
 StartingCredits = 20000000
 Permanent = true
+Livery = ExtResource("livery")

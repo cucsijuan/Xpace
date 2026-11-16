@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ShipModel" format=3]
+
+[ext_resource type="Script" path="res://scripts/World/ShipModel.cs" id="1_model"]
+[ext_resource type="Resource" path="res://assets/ship/hulls/hull_scout_s3.tres" id="2_hull"]
+[ext_resource type="Resource" path="res://assets/ship/engines/engine_d50.tres" id="3_engine"]
+[ext_resource type="Resource" path="res://assets/ship/generators/generator_g1s.tres" id="4_generator"]
+[ext_resource type="PackedScene" path="res://scenes/ships/scout_s3.tscn" id="5_scene"]
+[ext_resource type="Resource" path="res://assets/recipes/scout_s3.tres" id="6_recipe"]
+
+[resource]
+script = ExtResource("1_model")
+Name = "Scout S3"
+Hull = ExtResource("2_hull")
+Engine = ExtResource("3_engine")
+Generator = ExtResource("4_generator")
+Scene = ExtResource("5_scene")
+Recipe = ExtResource("6_recipe")
+BuildFee = 80000
+BuildHours = 3.0
+Scout = true
+HandlingSeconds = 60.0

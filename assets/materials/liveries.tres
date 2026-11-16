@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="LiveryCatalog" format=3]
+
+[ext_resource type="Script" path="res://scripts/Space/LiveryCatalog.cs" id="1_catalog"]
+[ext_resource type="Material" path="res://assets/materials/paint_miltec.tres" id="paint_miltec"]
+[ext_resource type="Material" path="res://assets/materials/paint_quartz.tres" id="paint_quartz"]
+[ext_resource type="Material" path="res://assets/materials/paint_drydock.tres" id="paint_drydock"]
+[ext_resource type="Material" path="res://assets/materials/paint_gates.tres" id="paint_gates"]
+[ext_resource type="Material" path="res://assets/materials/paint_hkp.tres" id="paint_hkp"]
+[ext_resource type="Material" path="res://assets/materials/paint_miner.tres" id="paint_miner"]
+[ext_resource type="Material" path="res://assets/materials/paint_raider.tres" id="paint_raider"]
+[ext_resource type="Material" path="res://assets/materials/paint_free_1.tres" id="paint_free_1"]
+[ext_resource type="Material" path="res://assets/materials/paint_free_2.tres" id="paint_free_2"]
+[ext_resource type="Material" path="res://assets/materials/paint_free_3.tres" id="paint_free_3"]
+[ext_resource type="Material" path="res://assets/materials/paint_free_4.tres" id="paint_free_4"]
+[ext_resource type="Material" path="res://assets/materials/paint_free_5.tres" id="paint_free_5"]
+
+[resource]
+script = ExtResource("1_catalog")
+Paints = Array[Material]([ExtResource("paint_miltec"), ExtResource("paint_quartz"), ExtResource("paint_drydock"), ExtResource("paint_gates"), ExtResource("paint_hkp"), ExtResource("paint_miner"), ExtResource("paint_raider"), ExtResource("paint_free_1"), ExtResource("paint_free_2"), ExtResource("paint_free_3"), ExtResource("paint_free_4"), ExtResource("paint_free_5")])
+Free = Array[Material]([ExtResource("paint_free_1"), ExtResource("paint_free_2"), ExtResource("paint_free_3"), ExtResource("paint_free_4"), ExtResource("paint_free_5")])

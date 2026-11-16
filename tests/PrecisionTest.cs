@@ -65,7 +65,7 @@ public partial class PrecisionTest : Node
         _net = new SimulatedNetwork { Latency = 0.06, Jitter = 0.02, Loss = 0.05 };
         _node.Start(Session.HostPeer, _net.Join(Session.HostPeer));
         _guest = new Session(GuestPeer, _net.Join(GuestPeer)) { TickSeconds = Dt };
-        _guest.SpawnDynamic = (id, _) => _seen[id] = new CodeShip { NetId = id, Track = new RemoteTrack { TickSeconds = Dt } };
+        _guest.SpawnDynamic = (id, _, _) => _seen[id] = new CodeShip { NetId = id, Track = new RemoteTrack { TickSeconds = Dt } };
         _guest.Left += e => _seen.Remove(e.NetId);
         _ship = new CodeShip { NetId = GuestShip, IsLocal = true, Position = new SectorPoint(0, 0, 0) };
         _guest.Move(1);

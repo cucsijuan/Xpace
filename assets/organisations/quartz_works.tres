@@ -3,6 +3,8 @@
 [ext_resource type="Script" path="res://scripts/World/Organisation.cs" id="1_o"]
 [ext_resource type="Resource" path="res://assets/personalities/mediator.tres" id="2_p"]
 
+[ext_resource type="Material" path="res://assets/materials/paint_quartz.tres" id="livery"]
+
 [resource]
 script = ExtResource("1_o")
 Name = "Quartz Works"
@@ -10,3 +12,4 @@ Kind = "Electronics company"
 About = ""
 Personality = ExtResource("2_p")
 StartingCredits = 500000
+Livery = ExtResource("livery")

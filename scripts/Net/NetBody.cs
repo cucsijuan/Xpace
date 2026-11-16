@@ -114,6 +114,9 @@ public partial class NetBody : Node, INetEntity
     /// </summary>
     public bool Spawned { get; set; }
 
+    /// <summary>The livery it wears, as its place in the catalog (<see cref="Xpace.Space.LiveryCatalog"/>; 0 none): sent with its spawn.</summary>
+    public byte Look { get; set; }
+
     /// <summary>Owned here, as it leaves: it blew up.</summary>
     public bool Exploded => _script?.Exploded ?? false;
 

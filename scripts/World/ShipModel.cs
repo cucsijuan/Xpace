@@ -47,6 +47,12 @@ public partial class ShipModel : Resource
     [Export] public double CrewTuneSeconds = 2;
     /// <summary>It trades nothing: it goes with its owner's ships and fights who attacks them.</summary>
     [Export] public bool Escort;
+    /// <summary>
+    /// A scout: carries no cargo, goes to the stations its home trades with whose news its owner has least fresh, and brings
+    /// what it saw home. Its fleet line's count is the most its owner runs; how many it does run depends on how long a round
+    /// of those stations takes against how long news stays good (<see cref="NewsHours"/>).
+    /// </summary>
+    [Export] public bool Scout;
     /// <summary>Its pilot fights back under attack; else it runs (see <see cref="Xpace.Space.CargoView"/>).</summary>
     [Export] public bool Fights;
     /// <summary>How far from a station it asks for a pad, and how soon it asks again when there is none, metres and seconds.</summary>

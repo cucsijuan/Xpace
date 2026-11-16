@@ -35,7 +35,7 @@ public partial class CargoViewTest : Node
         CargoView view = main.GetNode<CargoView>("CargoView");
         StationBook book = universe.Book;
         UniverseState state = universe.State;
-        Check($"the universe has its ships ({state.CargoShips.Count})", state.CargoShips.Count == 9);     // Alpha 2, Quartz 1, Kestrel and Drydock 5, Redhold 1
+        Check($"the universe has its ships ({state.CargoShips.Count})", state.CargoShips.Count == 13);     // Alpha 2, Quartz 1, Kestrel and Drydock 5, Redhold 1, and scouts: Alpha, Quartz, Drydock, Kestrel 1 each
         foreach (CargoShipRecord other in state.CargoShips.Values)
             other.NextLook = 1e12;                              // only the one we set off
 

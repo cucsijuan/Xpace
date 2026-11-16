@@ -446,7 +446,7 @@ public partial class SessionNode : Node
             return;
         }
         body.Join(Session.NewDynamicId(), true, Session.TickSeconds);
-        Session.Spawn(body, (byte)index, PlaceOf(body.Ship));
+        Session.Spawn(body, (byte)index, PlaceOf(body.Ship), body.Look);
         body.Ship.TreeExiting += () =>
         {
             if (!Sectors.Moving)
@@ -517,11 +517,12 @@ public partial class SessionNode : Node
     }
 
     /// <summary>Another machine made something: its scene here, as a puppet.</summary>
-    private INetEntity SpawnPuppet(ushort id, byte scene)
+    private INetEntity SpawnPuppet(ushort id, byte scene, byte look)
     {
         Node world = WorldAt(Session.PlaceOf(id));
         if (world == null || scene >= Spawnables.Count || Spawnables[scene]?.Instantiate() is not Node3D ship)
             return null;
+        LiveryCatalog.Wear(ship, LiveryCatalog.At(look));
         if (ship.GetChildren().OfType<NetBody>().FirstOrDefault() is not NetBody body)
         {
             ship.Free();

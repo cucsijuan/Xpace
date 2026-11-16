@@ -124,7 +124,7 @@ public partial class SessionSecurityTest : Node
         _guest.DockCleared += (e, station, dock, _) => { if (e == _ship && station == "HAVEN") _cleared.Add(dock); };
         _guest.DockChanged += (station, dock, open) => _doors.Add((station, dock, open));
         _guest.SetRadio(GuestShipId, "ACE", true);
-        _guest.SpawnDynamic = (id, scene) =>
+        _guest.SpawnDynamic = (id, scene, _) =>
         {
             _spawned.Add(scene);
             return new Thing { NetId = id, Track = new RemoteTrack { TickSeconds = Dt }, Hitboxes = Array.Empty<Hitbox>() };
