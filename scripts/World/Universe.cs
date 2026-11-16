@@ -136,6 +136,9 @@ public partial class Universe : Node
     public void Run(Xpace.Space.SectorMap map)
     {
         Book ??= StationBook.Read(map);
+        Contracts.Rules = map?.Contracts ?? new ContractRules();
+        Contracts.Story = map?.Story ?? Array.Empty<StoryChain>();
+        Answer(Contracts.Topic, Xpace.Space.ContractBoard.Desk);
         CargoShips.Muster(State, Book, Account);
         Populate(map);
         Answer(FuelTopic, (pilot, text) =>
@@ -466,7 +469,8 @@ public partial class Universe : Node
 
     private void Spill(Node3D ship, PilotRecord pilot)
     {
-        Xpace.Space.CargoPod.Spill(ship, (ship as Xpace.Ship.ShipBody)?.LinearVelocity ?? (ship as Xpace.Space.IRadarTarget)?.Velocity ?? Vector3.Zero, pilot.Ship.Cargo.ToList(), pilot.Id, pilot.Ship.Stolen);
+        Xpace.Space.CargoPod.Spill(ship, (ship as Xpace.Ship.ShipBody)?.LinearVelocity ?? (ship as Xpace.Space.IRadarTarget)?.Velocity ?? Vector3.Zero, pilot.Ship.Cargo.ToList(), pilot.Id,
+            pilot.Ship.Cargo.Keys.ToDictionary(g => g, g => pilot.Ship.StolenOf(g) + pilot.Ship.ConsignedOf(g)));    // what was carried for others isn't the pilot's
         pilot.Ship.Empty();
     }
 
@@ -743,11 +747,19 @@ public partial class Universe : Node
                 _sinceWork = 0;
                 CargoShips.Muster(State, Book, Account);
                 People.Muster(State, Population, Book, Account);
+                Contracts.Work(State, Book, Account, id => State.Pilots.GetValueOrDefault(id)?.Ship);
                 _working = CargoShips.Work(State, Book, Account).GetEnumerator();
             }
             if (_working != null && !Slice(_working))
                 _working = null;
+            _sinceVisits += delta;
+            if (_sinceVisits >= 1)
+            {
+                _sinceVisits = 0;
+                Visits(playing);
+            }
         }
+        Journals();
         _sinceFiredSent += delta;
         if (_firedBy.Count > 0 && _sinceFiredSent >= FiredSendSeconds)
         {
@@ -792,6 +804,35 @@ public partial class Universe : Node
     }
 
     private IEnumerator<bool> _working;
+    private double _sinceVisits;
+
+    // Pilots with a place to be: whether their ship is there
+    private void Visits(HashSet<string> playing)
+    {
+        foreach (string id in playing)
+        {
+            if (!Contracts.Taken(State, id).Any(c => c.Kind == ContractRecord.Visit) || ShipOf(id) is not Node3D ship || !IsInstanceValid(ship) || !ship.IsInsideTree())
+                continue;
+            if (Xpace.Space.SectorHost.Current?.SectorIdOf(ship) is not string sector || Xpace.Space.FloatingOrigin.Of(ship) is not Xpace.Space.FloatingOrigin origin)
+                continue;
+            Xpace.Space.SectorPoint at = origin.Origin + origin.ToLocal(ship.GlobalPosition);
+            Contracts.Reached(State, id, sector, new Vector3((float)at.X, (float)at.Y, (float)at.Z), State.Pilot(id), Account);
+        }
+    }
+
+    // Pilots whose contracts changed: their journals again, and their records sent
+    private void Journals()
+    {
+        if (Contracts.Touched.Count == 0 || IsGuest)
+            return;
+        foreach (string id in Contracts.Touched.ToList())
+            if (State.Pilots.TryGetValue(id, out PilotRecord pilot))
+            {
+                pilot.Journal = Contracts.Journal(State, Book, pilot, Account);
+                Touch(pilot);
+            }
+        Contracts.Touched.Clear();
+    }
     private IEnumerator<(string File, string Text)> _saving;
     private List<(string File, string Text)> _saved;
     private System.Threading.Tasks.Task _writing;

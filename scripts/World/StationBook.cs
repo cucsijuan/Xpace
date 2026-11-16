@@ -90,9 +90,17 @@ public sealed class StationBook
 
     public Station Find(string id) => Stations.FirstOrDefault(s => s.Id == id);
 
+    private readonly Dictionary<string, string> _sectorTitles = new();
+
+    /// <summary>A sector's name as the map gives it.</summary>
+    public string SectorTitle(string sector) => _sectorTitles.GetValueOrDefault(sector ?? "") is { Length: > 0 } title ? title : sector;
+
     public static StationBook Read(SectorMap map)
     {
         var book = new StationBook();
+        foreach (Sector sector in map?.Sectors ?? new Godot.Collections.Array<Sector>())
+            if (sector != null)
+                book._sectorTitles[sector.Id] = sector.Title;
         foreach (Sector sector in map?.Sectors ?? new Godot.Collections.Array<Sector>())
             if (!string.IsNullOrEmpty(sector?.Scene) && Xpace.World.ResourceCache.Load<PackedScene>(sector.Scene)?.Instantiate() is Node root)
             {

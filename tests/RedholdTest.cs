@@ -128,6 +128,9 @@ public partial class RedholdTest : Node
         var kestrelMining = (OrganisationRecord)Account(kestrel.Owner);
         kestrelMining.Bounties[pirate.Id] = 5000;
         Check("Kestrel shuts its doors to a pirate its owner wants", !CargoShips.Welcomes(kestrel, pirate.Id, state, Account) && CargoShips.Welcomes(redhold, pirate.Id, state, Account));
+        // With a forged callsign bought at Redhold it would land posing as someone else: without one, it is turned away
+        var forged = new List<string>(pirate.Callsigns);
+        pirate.Callsigns.Clear();
         ship.At = "DRYDOCK";
         ship.Going = "KESTREL";
         ship.Phase = CargoShipRecord.Holding;
@@ -135,6 +138,13 @@ public partial class RedholdTest : Node
         ship.NextLook = 0;
         CargoShips.Tick(state, book, Account);
         Check($"turned away at Kestrel, it goes on to a station that lets it in ({ship.Going})", ship.Phase == CargoShipRecord.Flying && ship.Going != "KESTREL" && CargoShips.Welcomes(book.Find(ship.Going), pirate.Id, state, Account));
+        pirate.Callsigns.AddRange(forged);
+        ship.Going = "KESTREL";
+        ship.Phase = CargoShipRecord.Holding;
+        ship.ContactPoint = kestrel.At + new Vector3(0, 0, 2000);
+        ship.NextLook = 0;
+        CargoShips.Tick(state, book, Account);
+        Check($"with a forged callsign it lands there all the same, sending it ({ship.Sending})", forged.Count == 0 || ship.Phase == CargoShipRecord.Landing && ship.Going == "KESTREL" && forged.Contains(ship.Sending));
 
         // A gate whose owner wants it gives no clearance: it goes through unpaid, and the price on its head goes up
         StationBook.Gate gate = book.Way("sector_02", "sector_03").First();

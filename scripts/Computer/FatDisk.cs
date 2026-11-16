@@ -1,11 +1,12 @@
 using System;
 using System.Text;
 
-namespace Xpace.Tests;
+namespace Xpace.Computer;
 
 /// <summary>
-/// Files in the root directory of a FAT12 diskette image, for tests that put
-/// a program's source on the ship's diskette or look at what COS wrote.
+/// Files in the root directory of a FAT12 diskette image: a blank data diskette
+/// with files written on it (a flight recorder's), or tests that put a program's
+/// source on the ship's diskette and look at what COS wrote.
 /// Names are as COS writes them: "COOL.ASM".
 /// </summary>
 public static class FatDisk
@@ -125,5 +126,36 @@ public static class FatDisk
         disk[e + 27] = (byte)(first >> 8);
         BitConverter.GetBytes(bytes.Length).CopyTo(disk, e + 28);
         return true;
+    }
+
+    /// <summary>
+    /// A blank 1.44 MB data diskette as COS formats one: 512-byte sectors, a cluster a sector, two FATs of 9 sectors,
+    /// 224 root entries; its boot sector only says it is no system diskette.
+    /// </summary>
+    public static byte[] Blank(string label = "NO NAME")
+    {
+        var disk = new byte[1474560];
+        byte[] boot =
+        {
+            0xEB, 0x3C, 0x90, (byte)'C', (byte)'O', (byte)'S', (byte)'3', (byte)'.', (byte)'3', (byte)'0', (byte)' ',
+            0x00, 0x02, 0x01, 0x01, 0x00, 0x02, 0xE0, 0x00, 0x40, 0x0B, 0xF0, 0x09, 0x00, 0x12, 0x00, 0x02, 0x00,
+        };
+        boot.CopyTo(disk, 0);
+        disk[0x26] = 0x29;                      // extended boot record: serial, label, file system
+        BitConverter.GetBytes(0x19860000u | (uint)label.Length).CopyTo(disk, 0x27);
+        Encoding.ASCII.GetBytes(label.ToUpperInvariant().PadRight(11)[..11]).CopyTo(disk, 0x2B);
+        Encoding.ASCII.GetBytes("FAT12   ").CopyTo(disk, 0x36);
+        disk[0x3E] = 0xEB;                      // booted, it waits for ever
+        disk[0x3F] = 0xFE;
+        disk[510] = 0x55;
+        disk[511] = 0xAA;
+        for (int copy = 0; copy < 2; copy++)
+        {
+            int fat = 512 + copy * 9 * 512;
+            disk[fat] = 0xF0;
+            disk[fat + 1] = 0xFF;
+            disk[fat + 2] = 0xFF;
+        }
+        return disk;
     }
 }

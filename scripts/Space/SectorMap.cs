@@ -11,6 +11,12 @@ public partial class SectorMap : Resource
     /// <summary>The free people of a universe of these sectors.</summary>
     [Export] public Xpace.World.PopulationSpec Population;
 
+    /// <summary>How owners post work on their stations' contract boards (none: the defaults).</summary>
+    [Export] public Xpace.World.ContractRules Contracts;
+
+    /// <summary>The story chains told by contracts, each to every pilot.</summary>
+    [Export] public Xpace.World.StoryChain[] Story = System.Array.Empty<Xpace.World.StoryChain>();
+
     [Export] public string Start = "";
 
     /// <summary>The station (its <see cref="StationRadio.Id"/>, in the start sector) a new pilot starts docked at; empty: in space at the sector's PlayerStart.</summary>

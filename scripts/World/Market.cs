@@ -267,7 +267,7 @@ public static class Market
         stock + 1 <= Full * line.Stock ? (long)Math.Floor(Price(line, stock + 1) * SellShare) : -1;
 
     /// <summary>Why a trade didn't happen (or <see cref="Done"/>).</summary>
-    public enum Result { Done, NoStock, MarketFull, NoMoney, HoldFull, NotHeld, NotTraded, RackFull, NoCash, Stolen }
+    public enum Result { Done, NoStock, MarketFull, NoMoney, HoldFull, NotHeld, NotTraded, RackFull, NoCash, Stolen, Consigned }
 
     /// <summary>What stolen goods fetch where they are bought: <paramref name="share"/> of the market's price.</summary>
     public static long Fenced(long price, double share) => price < 0 ? price : (long)(price * share);
@@ -424,6 +424,8 @@ public static class Market
             if (pilot.Ship.Holds(id) < 1)
                 return Result.NotHeld;
             bool stolen = pilot.Ship.Clean(id) < 1;
+            if (stolen && pilot.Ship.StolenOf(id) < 1)
+                return Result.Consigned;                // what is left is someone else's, carried under a contract
             if (stolen && fence < 0)
                 return Result.Stolen;
             double stock = station.Stock.TryGetValue(id, out double s) ? s : 0;

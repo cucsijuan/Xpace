@@ -222,7 +222,7 @@ public partial class RadarDevice : Node3D, IShipDevice, INetRadar
         }
         if (_rocks.TryGetValue(t, out Rocks rocks))
             return rocks;
-        rocks.Hidden = Obstacles.Blocked(_rocksWorld, here, position);
+        rocks.Hidden = Obstacles.Blocked(_rocksWorld, here, position, (t as Node)?.GetParent());     // its own hull hides nothing
         if (!rocks.Hidden)
             rocks.Clutter = RockField.ClutterAll(_rocksWorld, here, _ship?.LinearVelocity ?? Vector3.Zero, position, velocity,
                                                  Mathf.DegToRad(BeamwidthDegrees), RangeResolution, VelocityResolution);

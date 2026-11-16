@@ -338,6 +338,66 @@ station they have heard of (`scripts/World/MarketNews.cs`); newer news replaces 
 Shipyards still buy a ship's fitting from whoever has it without news: that is a purchase order, not yet a decision
 made on what the buyer knows.
 
+## Contracts
+
+Work offered on a station's contract board (`ContractRecord`, `UniverseState.Contracts`; `Contracts` runs it on the
+universe's owner, guests ask through the topic `contracts`). The same rules for every giver and every taker:
+
+- **The giver pays.** A contract's reward is set aside from the giver's money when it is posted (`Escrow`): paid to
+  the taker when it is done, back to the giver when the offer runs out or the work fails. A giver without the money
+  posts nothing.
+- **Taken where it is offered.** A pilot present at the station (docked, in its hangar or walking in it) takes an offer
+  at its contracts terminal (`scenes/stations/props/contract_kiosk.tscn`, in every hangar, `ContractWindow`). An offer
+  is for anyone, or for one actor only (`For`): story steps are.
+- **Done is what happened.** Kinds: `deliver` (bring tonnes of a good of one's own and hand them over at the station),
+  `haul` (collect the giver's cargo at one station, the giver buying it at that market, and hand it over at another;
+  aboard it is consigned, `ShipRecord.Consigned`: not the taker's to sell, and it spills as stolen pods), `visit` (be
+  at a place in a sector; the universe looks once a second), `recover` (scoop the giver's lost cargo out of space and
+  hand it over: pods whose owner is the giver, scooped by the taker, are consigned instead of stolen,
+  `Contracts.Scooped`; anyone else scooping them steals them), `report` (tell the giver at its terminal what was found
+  out: the pilot types it, case, spaces and dashes don't matter). Handed-over cargo goes into the station's stock, its
+  owner paying the giver for it if it is someone else.
+- **Failing.** Running past `Allowed` once taken, losing a haul's cargo, or giving it up: the giver has its money back and
+  remembers (`Memories`, `Contracts.LetMeDown`); consigned cargo left aboard is the taker's now, stolen. A giver who feels
+  badly enough about someone (`ContractRules.RefuseBelow`) offers them nothing. Done work is remembered the other way.
+- **Stations ask.** A station short of a good it uses (stock below `ContractRules.AskBelow` of what it wants) posts a
+  delivery for what it lacks, up to `MostTonnes`, paying its own market's price and `Premium` over, while its owner's
+  boards hold no more than `MoneyShare` of its money (`assets/contracts/rules.tres`, on the sector map).
+- **Bounties** are the owners' prices on heads (`OrganisationRecord.Bounties`, "What owners do about damage"): paid to
+  whoever destroys the ship, contract or not.
+
+### Story chains
+
+`StoryChain` resources (`assets/story`, listed on the sector map's `Story`) are told by contracts: each `StoryStep` is a
+contract offered to one pilot at its station, paid by its giver like any other, posted once the step before is done
+(`PilotRecord.Story`). A story step that goes wrong (late, cargo lost, given up) goes back on the pilot's board: the story
+waits for them. Each step has a `Lead`, shown when it is offered (where to get it), and a `Guide`, shown once it is taken
+(how to do it).
+
+A chain's `Facts` are settled for each pilot the first time a step names them (`{name}` in its texts) and kept in
+`PilotRecord.Facts`, so a step offered again says the same: `callsign:<owner>` one of that owner's freighters (chosen by
+the pilot's id, never by dice), `new:<seed>` a callsign nobody flies.
+
+**Sites.** A step with a `Wreck` puts a wreck at its place while it is taken and its sector is loaded (`StorySites`
+in main, on the universe's owner; `scenes/space/freighter_wreck.tscn`, a spawnable): its `DistressBeacon` sends the
+wreck's callsign far (150 km), so COMMS lists it as a ship and a course can be set for it; the wreck itself is solid
+(the freighter's boxes) and a cold radar echo as big as the freighter's (`WreckEcho`, no heat, no wake), so radars find
+it only near, as they would the ship; the giver's cargo still out
+there drifts round it in pods (`CargoPod.Site`, they last until taken), and the thing to find (`Item`, a diskette with
+files, `ItemRecord.Files`, written on a blank diskette when it goes into drive B:) in a pod of its own while the taker
+hasn't it. Nothing of a site is saved but the contract: made again it is as the contract says; when nobody is on the
+step any more it goes.
+
+### The journal and the guide
+
+The universe's owner keeps each pilot's journal (`PilotRecord.Journal`, rebuilt when their contracts change and sent
+with their record). The game menu's Journal page lists it; the guide window (`GuideWindow`, in main) shows the help of a
+step not read yet at the side of the screen while the game goes on, and the guide key (F1) says it was read
+(`PilotRecord.GuidesRead`) or shows the newest again.
+
+The first chain is "Borrowed Signature" (GDD 9.1). Not yet: free people taking contracts, hunt and escort contracts,
+contracts given by people in person.
+
 ## What owners do about damage
 
 `CargoView` tells a ship's owner when it is hit (at most every `MaydayEverySeconds`) or lost: `Reactions.Happened` keeps an

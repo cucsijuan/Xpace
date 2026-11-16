@@ -1,0 +1,37 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/ships/freighter_01_exterior.tscn" id="1_hull"]
+[ext_resource type="Script" path="res://scripts/Space/Solid.cs" id="2_solid"]
+[ext_resource type="Script" path="res://scripts/Space/DistressBeacon.cs" id="3_beacon"]
+[ext_resource type="Script" path="res://scripts/Space/BlinkLight.cs" id="4_blink"]
+[ext_resource type="Texture2D" path="res://assets/synty/SphereGlow.png" id="5_glow"]
+[ext_resource type="Script" path="res://scripts/Net/NetBody.cs" id="6_net"]
+[ext_resource type="Script" path="res://scripts/Space/WreckEcho.cs" id="7_echo"]
+
+[node name="FreighterWreck" type="Node3D"]
+
+[node name="Wreckage" type="Node3D" parent="."]
+script = ExtResource("2_solid")
+
+[node name="Hull" parent="Wreckage" instance=ExtResource("1_hull")]
+transform = Transform3D(0.866025, -0.5, 0, 0.5, 0.866025, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="Distress" type="Node3D" parent="Wreckage"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 6, -6)
+script = ExtResource("4_blink")
+Glow = ExtResource("5_glow")
+Colour = Color(1, 0.15, 0.1, 1)
+Size = 5.0
+PeriodSeconds = 1.5
+OnShare = 0.15
+LightEnergy = 4.0
+LightRange = 40.0
+
+[node name="Echo" type="Node3D" parent="."]
+script = ExtResource("7_echo")
+
+[node name="Beacon" type="Node3D" parent="."]
+script = ExtResource("3_beacon")
+
+[node name="NetBody" type="Node" parent="."]
+script = ExtResource("6_net")

@@ -12,7 +12,9 @@ namespace Xpace.Space;
 /// Cargo out in space: what a ship threw out or left when it blew up, one pod for each good, drifting. Anyone can take
 /// it: a pilot flying slowly past scoops what fits their hold; a pirate goes for it (<see cref="CargoView"/>). The pod
 /// knows whose it was: taken by anyone else, or stolen already, it is stolen goods (<see cref="StolenBy"/>). It belongs
-/// to the universe's owner: other machines see it as any ship the game brings in.
+/// to the universe's owner: other machines see it as any ship the game brings in. Lost cargo someone is paid to recover
+/// is consigned to its taker instead (<see cref="Contracts.Scooped"/>). A pod may hold a thing instead of cargo
+/// (<see cref="Item"/>: a flight recorder's diskette), taken by the first pilot with room on them for it.
 /// </summary>
 public partial class CargoPod : Node3D
 {
@@ -25,7 +27,7 @@ public partial class CargoPod : Node3D
     [Export] public string Owner = "";
     /// <summary>It was stolen goods already in the hold it came out of.</summary>
     [Export] public bool Stolen;
-    /// <summary>How long it lasts before it is lost among everything else out there, seconds.</summary>
+    /// <summary>How long it lasts before it is lost among everything else out there, seconds (0: until it is taken).</summary>
     [Export] public double LifeSeconds = 900;
     /// <summary>How near a ship must come to take it (m), and how slowly (m/s) against it.</summary>
     [Export] public float ScoopMeters = 40f;
@@ -35,6 +37,11 @@ public partial class CargoPod : Node3D
     [Export] public double LookEverySeconds = 0.25;
 
     public Vector3 Velocity;
+    /// <summary>A thing in it instead of cargo (null: none).</summary>
+    public ItemRecord Item;
+    /// <summary>The contract whose wreck it lies at (<see cref="StorySites"/>; empty: none).</summary>
+    public string Site = "";
+
 
     private double _age, _wait;
 
@@ -86,7 +93,7 @@ public partial class CargoPod : Node3D
             return;
         Position += Velocity * (float)delta;
         _age += delta;
-        if (_age >= LifeSeconds || Tonnes <= 0)
+        if (LifeSeconds > 0 && _age >= LifeSeconds || Tonnes <= 0 && Item == null)
         {
             QueueFree();
             return;
@@ -98,13 +105,26 @@ public partial class CargoPod : Node3D
         foreach (Blip blip in RadarPicture.Of(this).Near(GlobalPosition, ScoopMeters))
             if (blip.Velocity.DistanceTo(Velocity) <= ScoopSpeed && Combat.ShipOf(blip.Target as Node) is Node3D ship && universe.PilotOf(ship) is PilotRecord pilot)
             {
+                if (Item != null)
+                {
+                    if (pilot.Items.Count >= PilotRecord.InventorySlots)
+                        continue;
+                    pilot.Items.Add(System.Text.Json.JsonSerializer.Deserialize<ItemRecord>(System.Text.Json.JsonSerializer.Serialize(Item)));
+                    Item = null;
+                    universe.Touch(pilot);
+                    QueueFree();
+                    return;
+                }
                 int taken = Take(universe.Room(pilot));
                 if (taken <= 0)
                     continue;
-                if (StolenBy(pilot.Id))
-                    pilot.Ship.Steal(Good, taken);
-                else
-                    pilot.Ship.Load(Good, taken);
+                int consigned = Stolen ? 0 : Contracts.Scooped(universe.State, pilot.Id, Owner, Good, taken);
+                if (consigned > 0)
+                    pilot.Ship.Consign(Good, consigned);
+                if (taken > consigned && StolenBy(pilot.Id))
+                    pilot.Ship.Steal(Good, taken - consigned);
+                else if (taken > consigned)
+                    pilot.Ship.Load(Good, taken - consigned);
                 universe.Touch(pilot);
             }
     }

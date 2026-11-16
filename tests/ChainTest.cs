@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Godot;
+using Xpace.Computer;
 using Xpace.Net;
 using Xpace.Ship;
 using Xpace.Space;

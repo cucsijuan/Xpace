@@ -186,7 +186,7 @@ public partial class RadarEmitter : Node3D, IRadarEmitter, INetRadar
     private bool Seen(Node3D target, float range, float referenceRange, float margin)
     {
         float signal = MathF.Pow(Reach(target, referenceRange) / range, 4);     // 1 at the threshold
-        if (signal < margin || Obstacles.Blocked(GetWorld3D(), GlobalPosition, target.GlobalPosition))
+        if (signal < margin || Obstacles.Blocked(GetWorld3D(), GlobalPosition, target.GlobalPosition, target.GetParent()))
             return false;
         float jamming = Jamming.Noise(this, GlobalPosition, target.GlobalPosition - GlobalPosition,
                                       Mathf.DegToRad(BeamwidthDegrees), SidelobeLevel, _owner);

@@ -59,7 +59,7 @@ public partial class DeskTest : Node
         await Seconds(0.6);
         await Key(DisplayKey.Select);
         await Seconds(0.5);
-        Check($"SELECT opens COMMS\n{Text()}", _display.Lent("COMMS") == 'C' && Text().Contains("RADIO 1.7"));
+        Check($"SELECT opens COMMS\n{Text()}", _display.Lent("COMMS") == 'C' && Text().Contains("RADIO 1.8"));
         await Key(DisplayKey.Back);
         await Seconds(1);
         Check("BACK on the list goes back to the desktop", _display.Lent("COMMS") == 0 && _display.Pixel("COMMS", 2, 2) == 1);

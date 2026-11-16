@@ -43,6 +43,12 @@ public sealed class UniverseState
     /// <summary>What is on sale now (<see cref="Solvency"/>).</summary>
     public Dictionary<string, SaleRecord> Sales { get; set; } = new();
 
+    /// <summary>Work offered and taken (<see cref="Contracts"/>), by id.</summary>
+    public Dictionary<string, ContractRecord> Contracts { get; set; } = new();
+
+    /// <summary>How many contracts were ever posted: the next one's number.</summary>
+    public int ContractsEver { get; set; }
+
     /// <summary>A pilot's record, made the first time the pilot comes (with what a new pilot has).</summary>
     public PilotRecord Pilot(string id, string name = null)
     {
@@ -302,6 +308,18 @@ public sealed class PilotRecord : IAccount
 
     public const int InventorySlots = 8;
 
+    /// <summary>How far the pilot is in each story chain (<see cref="StoryChain"/>, by id): the step to offer next.</summary>
+    public Dictionary<string, int> Story { get; set; } = new();
+
+    /// <summary>What a story settled for this pilot (a callsign it names, ...), by "chain.name" (<see cref="StoryChain.Facts"/>).</summary>
+    public Dictionary<string, string> Facts { get; set; } = new();
+
+    /// <summary>The pilot's contracts as their journal shows them, newest first; kept by the universe's owner (<see cref="Contracts.Journal"/>).</summary>
+    public List<JournalEntry> Journal { get; set; } = new();
+
+    /// <summary>Contracts whose guide the pilot has read.</summary>
+    public HashSet<string> GuidesRead { get; set; } = new();
+
     /// <summary>Takes <paramref name="amount"/> if the pilot has it.</summary>
     public bool Spend(long amount)
     {
@@ -321,6 +339,8 @@ public sealed class ItemRecord
     public string Name { get; set; } = "";
     /// <summary>What the kind needs to know of it (a diskette: the image it holds).</summary>
     public string Data { get; set; } = "";
+    /// <summary>A diskette written out there (a flight recorder's): its files, by name, on a blank diskette (Data unused).</summary>
+    public Dictionary<string, string> Files { get; set; } = new();
 
     /// <summary>The diskette the insurer gives every pilot: the ship's software as it came from the factory.</summary>
     public static ItemRecord InsurersBackup() => new() { Kind = Diskette, Name = "Insurer's backup", Data = "factory" };
@@ -376,12 +396,20 @@ public sealed class ShipRecord
     /// </summary>
     public Dictionary<string, int> Stolen { get; set; } = new();
 
+    /// <summary>
+    /// Of the tonnes in <see cref="Cargo"/>, by good, those carried for someone else under a contract (<see cref="Contracts"/>):
+    /// not the pilot's to sell; abandoned or overdue, they are stolen.
+    /// </summary>
+    public Dictionary<string, int> Consigned { get; set; } = new();
+
     public int Holds(string good) => Cargo.TryGetValue(good, out int t) ? t : 0;
 
-    public int StolenOf(string good) => Stolen.TryGetValue(good, out int t) ? Math.Min(t, Holds(good)) : 0;
+    public int ConsignedOf(string good) => Consigned.TryGetValue(good, out int t) ? Math.Min(t, Holds(good)) : 0;
 
-    /// <summary>Tonnes of a good aboard that are the pilot's by right.</summary>
-    public int Clean(string good) => Holds(good) - StolenOf(good);
+    public int StolenOf(string good) => Stolen.TryGetValue(good, out int t) ? Math.Min(t, Holds(good) - ConsignedOf(good)) : 0;
+
+    /// <summary>Tonnes of a good aboard that are the pilot's by right (not stolen, not carried for someone else).</summary>
+    public int Clean(string good) => Holds(good) - ConsignedOf(good) - StolenOf(good);
 
     /// <summary>How many of a model are aboard, where a full rack is <paramref name="factory"/>.</summary>
     public int Rack(string model, int factory) => Magazine.TryGetValue(model, out int n) ? n : factory;
@@ -397,13 +425,45 @@ public sealed class ShipRecord
             Cargo[good] = now;
         else
             Cargo.Remove(good);
-        int stolen = Stolen.GetValueOrDefault(good);
-        if (stolen > now)
-            stolen = now;
+        int consigned = Math.Min(Consigned.GetValueOrDefault(good), Math.Max(0, now));
+        if (consigned > 0)
+            Consigned[good] = consigned;
+        else
+            Consigned.Remove(good);
+        int stolen = Math.Min(Stolen.GetValueOrDefault(good), Math.Max(0, now - consigned));
         if (stolen > 0)
             Stolen[good] = stolen;
         else
             Stolen.Remove(good);
+    }
+
+    /// <summary>Adds (or with a negative count takes away) tonnes carried for someone else.</summary>
+    public void Consign(string good, int tonnes)
+    {
+        int now = Math.Max(0, ConsignedOf(good) + tonnes);
+        int stolen = StolenOf(good);
+        Cargo[good] = Math.Max(0, Holds(good) + tonnes);
+        if (Cargo[good] == 0)
+            Cargo.Remove(good);
+        if (now > 0)
+            Consigned[good] = now;
+        else
+            Consigned.Remove(good);
+        if (stolen > 0)
+            Stolen[good] = stolen;
+    }
+
+    /// <summary>Tonnes carried for someone else become stolen: the pilot kept what wasn't theirs.</summary>
+    public void Keep(string good, int tonnes)
+    {
+        int kept = Math.Min(tonnes, ConsignedOf(good));
+        if (kept <= 0)
+            return;
+        int stolen = StolenOf(good);
+        Consigned[good] = ConsignedOf(good) - kept;
+        if (Consigned[good] == 0)
+            Consigned.Remove(good);
+        Stolen[good] = stolen + kept;
     }
 
     /// <summary>Adds tonnes of a good taken from someone else.</summary>
@@ -423,6 +483,7 @@ public sealed class ShipRecord
     {
         Cargo.Clear();
         Stolen.Clear();
+        Consigned.Clear();
     }
 }
 

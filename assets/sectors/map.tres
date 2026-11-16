@@ -6,10 +6,15 @@
 [ext_resource type="Resource" path="res://assets/sectors/sector_02.tres" id="4_s02"]
 [ext_resource type="Resource" path="res://assets/sectors/sector_03.tres" id="6_s03"]
 [ext_resource type="Resource" path="res://assets/people/population.tres" id="5_people"]
+[ext_resource type="Resource" path="res://assets/contracts/rules.tres" id="7_contracts"]
+[ext_resource type="Script" path="res://scripts/World/StoryChain.cs" id="8_chain"]
+[ext_resource type="Resource" path="res://assets/story/borrowed_signature.tres" id="9_story"]
 
 [resource]
 script = ExtResource("1_map")
 Sectors = Array[ExtResource("2_sector")]([ExtResource("3_s01"), ExtResource("4_s02"), ExtResource("6_s03")])
 Population = ExtResource("5_people")
+Contracts = ExtResource("7_contracts")
+Story = Array[ExtResource("8_chain")]([ExtResource("9_story")])
 Start = "sector_01"
 StartStation = "ALPHA"

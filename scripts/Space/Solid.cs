@@ -256,10 +256,10 @@ public partial class Solid : Node3D
     }
 
     /// <summary>Whether any solid stands between two scene points (a radar's or a seeker's line of sight).</summary>
-    public static bool Blocked(World3D world, Vector3 from, Vector3 to)
+    public static bool Blocked(World3D world, Vector3 from, Vector3 to, Node except = null)
     {
         foreach (Solid s in All)
-            if (s.World == world && s.Crosses(from, to))
+            if (s.World == world && (except == null || !except.IsAncestorOf(s)) && s.Crosses(from, to))
                 return true;
         return false;
     }

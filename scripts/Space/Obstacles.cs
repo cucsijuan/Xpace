@@ -22,5 +22,7 @@ public static class Obstacles
     }
 
     /// <summary>Whether a rock or a solid stands between two scene points: radar, radio and heat do not go through them.</summary>
-    public static bool Blocked(World3D world, Vector3 from, Vector3 to) => RockField.Blocked(world, from, to) || Solid.Blocked(world, from, to);
+    /// <remarks>Solids under <paramref name="except"/> don't count: a body whose echo comes from its own hull.</remarks>
+    public static bool Blocked(World3D world, Vector3 from, Vector3 to, Node except = null) =>
+        RockField.Blocked(world, from, to) || Solid.Blocked(world, from, to, except);
 }

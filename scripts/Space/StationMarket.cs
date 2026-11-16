@@ -210,6 +210,7 @@ public partial class StationMarket : Node
     [Export] public string NotHeldText = "None of it in the hold.";
     [Export] public string NotTradedText = "Not traded here.";
     [Export] public string StolenText = "Nobody here buys stolen goods.";
+    [Export] public string ConsignedText = "That cargo is carried under contract: it isn't yours to sell.";
     [Export] public string NotPresentText = "You must be at this station: on foot here, or your ship in a hangar here.";
     /// <summary>{0} credits.</summary>
     [Export] public string PaidText = "Paid {0} credits. Nothing owed here.";
@@ -683,6 +684,7 @@ public partial class StationMarket : Node
         Market.Result.RackFull => RackFullText,
         Market.Result.NotHeld => NotHeldText,
         Market.Result.Stolen => StolenText,
+        Market.Result.Consigned => ConsignedText,
         _ => NotTradedText,
     };
 

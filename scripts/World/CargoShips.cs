@@ -131,7 +131,7 @@ public static class CargoShips
             escort.Ward = "";
     }
 
-    private static ShipModel ModelOf(CargoShipRecord ship) => ResourceLoader.Exists(ship.Model) ? Xpace.World.ResourceCache.Load<ShipModel>(ship.Model) : null;
+    public static ShipModel ModelOf(CargoShipRecord ship) => ResourceLoader.Exists(ship.Model) ? Xpace.World.ResourceCache.Load<ShipModel>(ship.Model) : null;
 
     // An owner short of the fleet a station needs orders what is missing from the nearest yard that builds it
     private static void Order(UniverseState state, StationBook book, Func<string, IAccount> account)

@@ -21,7 +21,7 @@ A part is a scene in `scenes/ships/parts`: a `ShipPart` root with `Mass` (kg), t
 
 To build a ship: make a scene with parts and `Hardpoint` nodes, point a hull's `Exterior` at it, and run `tools/ship_mass/ship_mass_tool.tscn` (F6 in the editor, or headless). It writes each such hull's `Mass` and `Inertia`, spreading each part's mass over its boxes, and prints the centre of mass: keep it near the scene's origin, where the ship turns. Run it again after changing parts. Push, veil and cargo stay in the hull, and `tests/ship_parts_test` fails if the freighter's numbers are stale. A ship to park on a small pad must fit 24 x 24 x 12 m (`LandingPad.MaxFootprint`, `MaxHeight`), measured by its boxes.
 
-`scenes/ships/ai_freighter.tscn` is the freighter with the AI's systems, painted by its `Theme` node (`PaintTheme`). It only patrols for now.
+`scenes/ships/ai_freighter.tscn` is the freighter with the AI's systems, painted by its `Theme` node (`PaintTheme`). Its radar echo is 20 m² (a fighter's 4): radars find it from ~9.5 km. It only patrols for now.
 
 ## Scouts
 

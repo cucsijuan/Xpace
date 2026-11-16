@@ -1,4 +1,4 @@
-; comms.asm - Radio Contacts 1.7 (COMMS.COM)
+; comms.asm - Radio Contacts 1.8 (COMMS.COM)
 ;
 ;   COMMS       stays resident and works the radio from the ship's COMMS
 ;               screen (32 x 12 text) and its keys, as an application of the
@@ -77,6 +77,7 @@ DRAW_EVERY  equ 15                  ; steps between redraws (4 a second)
 OPTIONS     equ 4                   ; a station's: docking, laws, launch, course
 GATE_OPTIONS equ 3                  ; a gate's: transit, laws, course
 BEACON_OPTIONS equ 2                  ; a beacon's: market data, course
+SHIP_OPTIONS equ 1                  ; a ship's (or a wreck's beacon): course
 ASK_COURSE  equ 0FFh                ; (not the radio's: the cruise generator's)
 KEY_UP      equ 4
 KEY_DOWN    equ 5
@@ -98,7 +99,7 @@ ATTR_CURSOR equ 70h
 ; The resident part
 ; ======================================================================
 
-signature   db 'XPCM17'             ; 103h
+signature   db 'XPCM18'             ; 103h
 old_irq     dw 0, 0                 ; 109h
 
 on_irq:
@@ -233,7 +234,7 @@ press:
     mov byte [options], BEACON_OPTIONS
     cmp byte [sel_kind], 'B'
     je .counted
-    mov byte [options], 0
+    mov byte [options], SHIP_OPTIONS
 .counted:
     ret
 .options:
@@ -257,8 +258,14 @@ press:
 .option_select:
     cmp al, KEY_SELECT
     jne .done
-    cmp byte [options], 0           ; a ship: nothing to send yet
-    je .to_list
+    mov al, ASK_COURSE              ; a ship's one option: steer for it
+    cmp byte [sel_kind], 'S'
+    je .asked
+    cmp byte [sel_kind], 'G'
+    je .asked
+    cmp byte [sel_kind], 'B'
+    jne .send
+.asked:
     mov bl, [option]                ; what the option asks
     xor bh, bh
     mov al, [asks + bx]
@@ -485,10 +492,10 @@ draw_options:
     je .gate
     cmp byte [sel_kind], 'B'
     je .beacon
-    mov di, ((FIRST_ROW + 2) * COLS + 1) * 2
-    mov si, s_no_options
-    mov ah, ATTR_LABEL
-    call put_text
+    mov di, ((FIRST_ROW + 1) * COLS + 1) * 2
+    mov si, s_course
+    xor dl, dl
+    call put_option
     jmp .hint
 .beacon:
     mov di, ((FIRST_ROW + 1) * COLS + 1) * 2
@@ -813,9 +820,8 @@ s_transit   db ' REQUEST TRANSIT              ', 0
 gate_asks   db 4, 1, ASK_COURSE     ; a gate's: transit, laws, course
 s_data      db ' REQUEST DATA                 ', 0
 beacon_asks   db 5, ASK_COURSE        ; a beacon's: market data, course
-s_no_options db 'NO OPTIONS FOR SHIPS', 0
 s_hint      db 'SELECT: SEND   BACK: LIST', 0
-s_title     db 'RADIO 1.7', 0
+s_title     db 'RADIO 1.8', 0
 s_header    db 'CALLSIGN  KIND       KM', 0
 
 card_seg    dw 0

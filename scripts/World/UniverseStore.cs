@@ -70,6 +70,7 @@ public static class UniverseStore
             ["Sightings"] = JsonSerializer.SerializeToNode(state.Sightings),
             ["NextArrival"] = JsonSerializer.SerializeToNode(state.NextArrival),
             ["Sales"] = JsonSerializer.SerializeToNode(state.Sales),
+            ["Contracts"] = JsonSerializer.SerializeToNode(state.Contracts), ["ContractsEver"] = state.ContractsEver,
         }.ToJsonString(Json));
         foreach (PersonRecord person in people)
             yield return (Path.Combine(folder, "people", FileName(person.Id)), Stamped(person, state.Version).ToJsonString(Json));
@@ -102,6 +103,8 @@ public static class UniverseStore
         state.Sightings = universe["Sightings"]?.Deserialize<Dictionary<string, Sighting>>() ?? new();
         state.NextArrival = universe["NextArrival"]?.Deserialize<Dictionary<int, double>>() ?? new();
         state.Sales = universe["Sales"]?.Deserialize<Dictionary<string, SaleRecord>>() ?? new();
+        state.Contracts = universe["Contracts"]?.Deserialize<Dictionary<string, ContractRecord>>() ?? new();
+        state.ContractsEver = universe["ContractsEver"]?.GetValue<int>() ?? 0;
         foreach (PersonRecord person in Documents<PersonRecord>(Path.Combine(folder, "people"), "person"))
             if (!string.IsNullOrEmpty(person.Id))
                 state.People[person.Id] = person;

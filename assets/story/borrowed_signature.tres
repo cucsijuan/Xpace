@@ -1,0 +1,124 @@
+[gd_resource type="Resource" script_class="StoryChain" format=3]
+
+[ext_resource type="Script" path="res://scripts/World/StoryChain.cs" id="1_chain"]
+[ext_resource type="Script" path="res://scripts/World/StoryStep.cs" id="2_step"]
+[ext_resource type="Resource" path="res://assets/goods/chips.tres" id="3_chips"]
+
+[sub_resource type="Resource" id="first_haul"]
+script = ExtResource("2_step")
+Id = "first_haul"
+Title = "A first haul"
+Briefing = "Miltec logistics. Our electronics line here runs on chips from Quartz, and our usual hauler is late. Collect 4 t of chips at Quartz, bought on our account, and bring them to us. Easy money for a new pilot."
+Lead = "Welcome, pilot. You start docked in a hangar of Miltec - Alpha. Work is offered at the contracts terminal on the hangar floor, the kiosk with the amber light.
+
+Press Y to leave the seat and walk with W A S D. At the terminal, press E. Miltec has a job meant for you: take it there."
+Guide = "Collect the chips at Quartz, a station in this sector.
+
+Back in the seat (E beside it), use the COMMS screen to your right: UP and DOWN choose a contact, SELECT opens its options and sends one, BACK goes back (click the keys, Alt frees the cursor). Choose ALPHA and REQUEST LAUNCH: the pad lets you go and the door opens.
+
+Outside, choose QUARTZ and SET COURSE: the marker on your view shows the way. Press Y for cruise once clear of the station; it drops out by itself near stations and planets. Near Quartz, REQUEST DOCKING, follow the lights into the hangar it gives you and settle on the lit pad, slow and level.
+
+At Quartz's contracts terminal, Collect the chips. Then fly back to Alpha the same way and Hand them over at its terminal."
+Giver = "miltec"
+Station = "ALPHA"
+Kind = "haul"
+Good = ExtResource("3_chips")
+Tonnes = 4
+From = "QUARTZ"
+To = "ALPHA"
+Reward = 1500
+
+[sub_resource type="Resource" id="lost_freighter"]
+script = ExtResource("2_step")
+Id = "lost_freighter"
+Title = "The freighter that didn't arrive"
+Briefing = "Miltec logistics. Our chips were never late before: Quartz's freighter {wreck} left with 8 t of them for us and never came. Its distress beacon is sending from near the interdictor buoy. Find the wreck, scoop our chips and bring them here. Pods with our seals are ours: scooped on this contract they are carried for us, not stolen. And bring anything else you find."
+Lead = "Miltec has more work for you at Alpha's contracts terminal."
+Guide = "Find the wreck of {wreck}.
+
+On the COMMS screen the wreck's distress beacon is listed as a ship, {wreck}: choose it and SET COURSE, then cruise (Y). The interdictor buoy's beam pulls cruising ships down near it: if your cruise drops out, fly the last kilometres at normal speed.
+
+At the wreck, pods drift round it. Fly through one slowly (under 60 m/s, within 40 m) and it comes aboard, as far as your hold has room. One of them holds the freighter's flight recorder, a diskette: it goes with you.
+
+Bring the chips to Alpha and Hand them over at its contracts terminal."
+Giver = "miltec"
+Station = "ALPHA"
+Kind = "recover"
+Good = ExtResource("3_chips")
+Tonnes = 8
+To = "ALPHA"
+Sector = "sector_01"
+Point = Vector3(52000, 2400, 38000)
+Radius = 2000.0
+Wreck = "{wreck}"
+ItemName = "Black box {wreck}"
+ItemFile = "FLIGHT.LOG"
+ItemText = "FLIGHT RECORDER  {wreck}  QUARTZ WORKS        FREIGHTER, 32 T
+CARGO  CHIPS 8 T  CONSIGNED MILTEC  QUARTZ TO MT-ALPHA
+
++00:00  LEFT QUARTZ  PAD 1  CRUISE ON
++06:12  CONTACT  {borrowed}  FREIGHTER  RANGE 18 KM  CLOSING
++06:40  {borrowed} ON RADIO: DRYDOCK YARDS FREIGHTER, RUNNING
+        LATE, ASKS TO FLY IN COMPANY PAST THE BUOY
++07:05  CRUISE BEAM  DROPPED OUT  4 KM FROM THE BUOY
++07:06  {borrowed}  RANGE 900 M  RADAR LOCK ON US
++07:09  HIT  SHIELD 0
++07:11  HIT  HULL 61
++07:14  MAYDAY SENT  NO ANSWER
++07:20  HIT  HULL 12  ENGINE OUT
++07:31  {borrowed} ON RADIO: OPEN YOUR PODS AND LIVE
++07:45  CARGO DOOR OPENED FROM OUTSIDE
++08:02  HULL 0
++08:02  RECORDER ON BATTERY  DISTRESS BEACON ON"
+Reward = 2500
+
+[sub_resource type="Resource" id="black_box"]
+script = ExtResource("2_step")
+Id = "black_box"
+Title = "The black box"
+Briefing = "Miltec logistics. Somebody opened {wreck}'s pods before you got there: that was no accident. Read its flight recorder and tell us who stopped it."
+Lead = "Miltec wants to hear what the black box says: ask at Alpha's contracts terminal."
+Guide = "Read the flight recorder's diskette.
+
+In the seat, the diskette drive under the COS screen is drive B:. Click it (or press Insert) and put the black box in. Click the COS screen to type on it, then:
+
+  DIR B:
+  TYPE B:FLIGHT.LOG
+
+Right click leaves the screen. Find who stopped the freighter, and give Miltec the callsign at Alpha's contracts terminal: type it in the box under the contract and Report.
+
+If you didn't pick the black box up, it still drifts by the wreck."
+Giver = "miltec"
+Station = "ALPHA"
+Kind = "report"
+Sector = "sector_01"
+Point = Vector3(52000, 2400, 38000)
+Wreck = "{wreck}"
+ItemName = "Black box {wreck}"
+ItemFile = "FLIGHT.LOG"
+ItemText = "FLIGHT RECORDER  {wreck}  QUARTZ WORKS        FREIGHTER, 32 T
+CARGO  CHIPS 8 T  CONSIGNED MILTEC  QUARTZ TO MT-ALPHA
+
++00:00  LEFT QUARTZ  PAD 1  CRUISE ON
++06:12  CONTACT  {borrowed}  FREIGHTER  RANGE 18 KM  CLOSING
++06:40  {borrowed} ON RADIO: DRYDOCK YARDS FREIGHTER, RUNNING
+        LATE, ASKS TO FLY IN COMPANY PAST THE BUOY
++07:05  CRUISE BEAM  DROPPED OUT  4 KM FROM THE BUOY
++07:06  {borrowed}  RANGE 900 M  RADAR LOCK ON US
++07:09  HIT  SHIELD 0
++07:11  HIT  HULL 61
++07:14  MAYDAY SENT  NO ANSWER
++07:20  HIT  HULL 12  ENGINE OUT
++07:31  {borrowed} ON RADIO: OPEN YOUR PODS AND LIVE
++07:45  CARGO DOOR OPENED FROM OUTSIDE
++08:02  HULL 0
++08:02  RECORDER ON BATTERY  DISTRESS BEACON ON"
+Answer = "{borrowed}"
+Reward = 1000
+
+[resource]
+script = ExtResource("1_chain")
+Id = "borrowed_signature"
+Title = "Borrowed Signature"
+Steps = Array[ExtResource("2_step")]([SubResource("first_haul"), SubResource("lost_freighter"), SubResource("black_box")])
+Facts = PackedStringArray("wreck=new:wreck", "borrowed=callsign:drydock_yards")

@@ -25,6 +25,8 @@ public static class FlightInput
     public const string Parking = "parking";
     public const string Cruise = "cruise";
     public const string Jettison = "jettison";
+    /// <summary>The guide window: read the help shown, or show it again (<see cref="Xpace.Menu.GuideWindow"/>).</summary>
+    public const string Guide = "guide";
     public const string Diskette = "diskette";
     public const string Interdict = "interdict";
     public const string TuneUp = "tune_up", TuneDown = "tune_down";
@@ -44,7 +46,7 @@ public static class FlightInput
         (FirePrimary, "Fire"), (TargetAhead, "Target ahead"), (NextTarget, "Next target"), (NextWeapon, "Next weapon"),
         (Chaff, "Chaff"), (Flare, "Flare"), (HeatSink, "Heat sink"), (Jammer, "Jammer (off, noise, deception)"),
         (PipSystems, "Power to systems"), (PipEngines, "Power to engines"), (PipWeapons, "Power to weapons"), (PipReset, "Even the power out"),
-        (Zoom, "Zoom"),
+        (Zoom, "Zoom"), (Guide, "Guide (understood, show again)"),
         (DisplayZoomIn, "Screen range in"), (DisplayZoomOut, "Screen range out"), (DisplaySound, "Screen sound"),
     };
 
@@ -92,6 +94,7 @@ public static class FlightInput
         Add(Look, new InputEventMouseButton { ButtonIndex = MouseButton.Middle });
         Add(LookAhead, Button(JoyButton.LeftStick));                // on the keyboard: twice Look, or bind one
         Add(Pointer, Key(Godot.Key.Alt));
+        Add(Guide, Key(Godot.Key.F1));
     }
 
     private static void Add(string action, params InputEvent[] events)

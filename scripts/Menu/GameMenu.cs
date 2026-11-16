@@ -28,6 +28,7 @@ public partial class GameMenu : CanvasLayer
     private Control _menu;
     private SettingsMenu _settings;
     private Xpace.Debug.DebugMenu _debug;
+    private JournalPage _journal;
     private Label _note;
 
     public override void _Ready()
@@ -58,6 +59,17 @@ public partial class GameMenu : CanvasLayer
         {
             _menu.Show();
             GetNode<Button>("%DebugButton").GrabFocus();
+        };
+        _journal = GetNode<JournalPage>("%Journal");
+        GetNode<Button>("%JournalButton").Pressed += () =>
+        {
+            _menu.Hide();
+            _journal.Open();
+        };
+        _journal.Closed += () =>
+        {
+            _menu.Show();
+            GetNode<Button>("%JournalButton").GrabFocus();
         };
         GetNode<Button>("%Backup").Pressed += SendBackup;
         GetNode<Button>("%MainMenu").Pressed += ToMainMenu;
@@ -91,6 +103,7 @@ public partial class GameMenu : CanvasLayer
             _menu.Show();
             _settings.Hide();
             _debug.Hide();
+            _journal.Hide();
             GetNode<Button>("%DebugButton").Visible = Xpace.Debug.DebugOptions.Available;
             Visible = true;
             Input.MouseMode = Input.MouseModeEnum.Visible;
@@ -116,6 +129,8 @@ public partial class GameMenu : CanvasLayer
             _settings.Back();
         else if (_debug.Visible)
             _debug.Back();
+        else if (_journal.Visible)
+            _journal.Back();
         else
             Close();
     }

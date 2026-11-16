@@ -299,6 +299,26 @@ Engines are products: a manufacturer can close a flaw in a newer firmware, so an
 | Pirate | Interdict, rob and hack. Ends up as a pirate empire. |
 | Politician | Influence, territory and a faction of your own. |
 
+
+### 9.1 The first story: "Borrowed Signature" (decided 2026-11-16)
+
+A story told by contracts (docs/universe.md "Contracts"), offered to each pilot only, with a guide at every step. It
+puts the player to work and teaches the game as it goes, and pays enough for a first upgrade or to start saving for a
+freighter.
+
+1. **A first haul.** Miltec at Alpha hires the new pilot to collect chips at Quartz on its account (launch, COMMS, cruise,
+   docking, the terminal). *Built.*
+2. **The freighter that didn't arrive.** Quartz's freighter is missing near the interdictor buoy: find its last
+   position (its distress beacon), and scoop Miltec's chips drifting round it in pods. *Built* (the opened pods with
+   Red Maw seals, read with the scanner, not yet).
+3. **The black box.** A diskette in the wreck: read in drive B: under COS, it shows the ship that stopped the freighter
+   was sending the callsign of a Drydock freighter; the pilot reports that callsign at Alpha's terminal. *Built.*
+4. **"That freighter never left."** Drydock swears its ship sat on its pad. Someone copies registry signatures. Through
+   the gate (toll) with Alpha's docking log, got at its registry terminal, legally or not.
+5. **The bounty.** Miltec puts a price on the pirate with the borrowed callsign; the board shows it to anyone, and a free
+   bounty hunter may get there first.
+6. **The choice.** Hand what was learnt to security (pay, standing) or sell it to Vask Morrow at Redhold (money, the
+   pirate's road).
 ## 10. Technology
 
 - **Engine:** Godot 4.7 (.NET, C#).

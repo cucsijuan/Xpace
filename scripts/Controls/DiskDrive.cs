@@ -74,13 +74,29 @@ public partial class DiskDrive : InteractiveControl
             ShowDisk();
             return Computer.InsertDiskB(Array.Empty<byte>());
         }
-        string path = $"res://disks/{(item.Data == "factory" ? "cos" : item.Data)}.img";
-        byte[] image = FileAccess.FileExists(path) ? FileAccess.GetFileAsBytes(path) : Array.Empty<byte>();
+        byte[] image = Image(item);
         if (image.Length == 0 || !Computer.InsertDiskB(image))
             return false;
         Inside = item.Name;
         ShowDisk();
         return true;
+    }
+
+    /// <summary>
+    /// What a diskette holds: a made one's image (disks/&lt;Data&gt;.img, the insurer's backup the factory's diskette), or a
+    /// diskette written out there, its files on a blank one.
+    /// </summary>
+    public static byte[] Image(ItemRecord item)
+    {
+        if (item.Files is { Count: > 0 })
+        {
+            byte[] disk = FatDisk.Blank(item.Name);
+            foreach ((string name, string text) in item.Files)
+                FatDisk.Write(disk, name, System.Text.Encoding.ASCII.GetBytes(text.Replace("\r\n", "\n").Replace("\n", "\r\n")));
+            return disk;
+        }
+        string path = $"res://disks/{(item.Data == "factory" ? "cos" : item.Data)}.img";
+        return FileAccess.FileExists(path) ? FileAccess.GetFileAsBytes(path) : Array.Empty<byte>();
     }
 
     private void ShowDisk()

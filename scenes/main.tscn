@@ -9,6 +9,7 @@
 [ext_resource type="PackedScene" path="res://scenes/ships/player_ship.tscn" id="3_ship"]
 
 [ext_resource type="PackedScene" path="res://scenes/menu/game_menu.tscn" id="4_game_menu"]
+[ext_resource type="PackedScene" path="res://scenes/menu/guide_window.tscn" id="4_guide"]
 
 
 [ext_resource type="PackedScene" path="res://scenes/weapons/missile.tscn" id="23_missile"]
@@ -56,6 +57,8 @@
 [ext_resource type="Script" path="res://scripts/Debug/LawZones.cs" id="89_law_zones"]
 [ext_resource type="PackedScene" path="res://scenes/ships/scout_s3.tscn" id="90_scout_s3"]
 [ext_resource type="PackedScene" path="res://scenes/ships/scout_s4.tscn" id="91_scout_s4"]
+[ext_resource type="PackedScene" path="res://scenes/space/freighter_wreck.tscn" id="92_wreck"]
+[ext_resource type="Script" path="res://scripts/Space/StorySites.cs" id="93_sites"]
 
 
 [node name="Main" type="Node"]
@@ -68,7 +71,7 @@ ShipScene = ExtResource("3_ship")
 script = ExtResource("33_session")
 RemoteShipScene = ExtResource("38_remote_fighter")
 KeepSceneShips = false
-Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_missile"), ExtResource("35_chaff"), ExtResource("36_flare"), ExtResource("41_ai_fighter"), ExtResource("83_police"), ExtResource("84_miner"), ExtResource("85_freighter"), ExtResource("86_escort"), ExtResource("87_pod"), ExtResource("88_maw_guard"), ExtResource("90_scout_s3"), ExtResource("91_scout_s4")])
+Spawnables = Array[PackedScene]([ExtResource("23_missile"), ExtResource("24_ir_missile"), ExtResource("35_chaff"), ExtResource("36_flare"), ExtResource("41_ai_fighter"), ExtResource("83_police"), ExtResource("84_miner"), ExtResource("85_freighter"), ExtResource("86_escort"), ExtResource("87_pod"), ExtResource("88_maw_guard"), ExtResource("90_scout_s3"), ExtResource("91_scout_s4"), ExtResource("92_wreck")])
 Jammers = Array[ExtResource("69_jammer_spec")]([ExtResource("66_nj1"), ExtResource("67_nj2"), ExtResource("68_dj3")])
 
 
@@ -76,11 +79,18 @@ Jammers = Array[ExtResource("69_jammer_spec")]([ExtResource("66_nj1"), ExtResour
 [node name="CargoView" type="Node" parent="."]
 script = ExtResource("cargo_view")
 
+[node name="StorySites" type="Node" parent="."]
+script = ExtResource("93_sites")
+WreckScene = ExtResource("92_wreck")
+PodScene = ExtResource("87_pod")
+
 [node name="NetLauncher" type="Node" parent="."]
 script = ExtResource("34_launcher")
 
 [node name="LawZones" type="Node" parent="."]
 process_mode = 3
 script = ExtResource("89_law_zones")
+
+[node name="GuideWindow" parent="." instance=ExtResource("4_guide")]
 
 [node name="GameMenu" parent="." instance=ExtResource("4_game_menu")]

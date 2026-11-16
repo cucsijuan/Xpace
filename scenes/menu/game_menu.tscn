@@ -1,9 +1,10 @@
-[gd_scene load_steps=5 format=3]
+[gd_scene load_steps=6 format=3]
 
 [ext_resource type="Script" path="res://scripts/Menu/GameMenu.cs" id="1_menu"]
 [ext_resource type="Theme" path="res://assets/ui/menu_theme.tres" id="2_theme"]
 [ext_resource type="PackedScene" path="res://scenes/menu/settings_menu.tscn" id="3_settings"]
 [ext_resource type="PackedScene" path="res://scenes/menu/debug_menu.tscn" id="4_debug"]
+[ext_resource type="PackedScene" path="res://scenes/menu/journal_page.tscn" id="5_journal"]
 
 [node name="GameMenu" type="CanvasLayer"]
 layer = 10
@@ -62,6 +63,12 @@ layout_mode = 2
 text = "Resume"
 alignment = 0
 
+[node name="JournalButton" type="Button" parent="Root/Center/Menu/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Journal"
+alignment = 0
+
 [node name="SettingsButton" type="Button" parent="Root/Center/Menu/Box"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -97,5 +104,9 @@ unique_name_in_owner = true
 layout_mode = 1
 
 [node name="Debug" parent="Root" instance=ExtResource("4_debug")]
+unique_name_in_owner = true
+layout_mode = 1
+
+[node name="Journal" parent="Root" instance=ExtResource("5_journal")]
 unique_name_in_owner = true
 layout_mode = 1

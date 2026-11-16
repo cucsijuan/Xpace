@@ -160,6 +160,7 @@ Integrity = 600.0
 
 [node name="Signature" type="Node3D" parent="." unique_id=1465765767]
 script = ExtResource("22_signature")
+RadarCrossSection = 20.0
 
 [node name="Datalink" type="Node" parent="." unique_id=477849309]
 script = ExtResource("27_datalink")

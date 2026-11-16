@@ -1,0 +1,69 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/Menu/GuideWindow.cs" id="1_guide"]
+[ext_resource type="Theme" path="res://assets/ui/menu_theme.tres" id="2_theme"]
+
+[node name="GuideWindow" type="CanvasLayer"]
+layer = 4
+script = ExtResource("1_guide")
+
+[node name="Root" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = ExtResource("2_theme")
+
+[node name="Panel" type="PanelContainer" parent="Root"]
+unique_name_in_owner = true
+self_modulate = Color(1, 1, 1, 0.9)
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -460.0
+offset_top = 90.0
+offset_right = -24.0
+offset_bottom = 90.0
+grow_horizontal = 0
+mouse_filter = 2
+
+[node name="Margin" type="MarginContainer" parent="Root/Panel"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 12
+
+[node name="Box" type="VBoxContainer" parent="Root/Panel/Margin"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 8
+
+[node name="Head" type="Label" parent="Root/Panel/Margin/Box"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.65, 0.2, 1)
+text = "GUIDE"
+
+[node name="Title" type="Label" parent="Root/Panel/Margin/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"HeaderSmall"
+autowrap_mode = 3
+
+[node name="Text" type="Label" parent="Root/Panel/Margin/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(420, 0)
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="Key" type="Label" parent="Root/Panel/Margin/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.8, 0.45, 1)
+horizontal_alignment = 2
+text = "F1  understood"
