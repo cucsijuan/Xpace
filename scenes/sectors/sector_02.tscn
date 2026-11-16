@@ -278,7 +278,7 @@ PerHour = 4.0
 [sub_resource type="Resource" id="Kestrel_works_copper"]
 script = ExtResource("factory_line")
 Recipe = ExtResource("recipe_copper")
-PerHour = 8.0
+PerHour = 9.0
 
 [sub_resource type="Resource" id="fleet_Kestrel_escort"]
 script = ExtResource("fleet_line")

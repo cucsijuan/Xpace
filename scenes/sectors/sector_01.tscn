@@ -177,7 +177,7 @@ PerHour = 15.0
 [sub_resource type="Resource" id="Quartz_works_chips"]
 script = ExtResource("quartz_factory_line")
 Recipe = ExtResource("recipe_chips")
-PerHour = 4.2
+PerHour = 6.0
 
 [sub_resource type="Resource" id="fleet_Station_escort"]
 script = ExtResource("fleet_line")

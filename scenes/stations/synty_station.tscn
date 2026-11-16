@@ -79,7 +79,7 @@ PerHour = 15.0
 [sub_resource type="Resource" id="Works_electronics"]
 script = ExtResource("factory_line")
 Recipe = ExtResource("recipe_electronics")
-PerHour = 8.0
+PerHour = 10.0
 
 [sub_resource type="Resource" id="Works_msl_1"]
 script = ExtResource("factory_line")
